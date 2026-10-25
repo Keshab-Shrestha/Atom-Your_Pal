@@ -63,12 +63,12 @@ struct ProjectsSection: View {
 
     private var header: some View {
         HStack {
-            Text("Projects").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+            Text("Projects").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
                 .accessibilityAddTraits(.isHeader)
             Spacer()
             Button(action: chooseFolder) {
                 Label("New project", systemImage: "plus").labelStyle(.iconOnly)
-                    .font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+                    .appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
                     .frame(width: 20, height: 20).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -84,7 +84,7 @@ struct ProjectsSection: View {
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("No projects yet. A project gives ATOM a folder to work in across many chats.")
-                .font(.system(size: 11.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
+                .appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
             QuietButton(title: "New project", symbol: "folder.badge.plus", action: chooseFolder)
         }
         .padding(.horizontal, 10).padding(.vertical, 4)
@@ -93,8 +93,8 @@ struct ProjectsSection: View {
     private func archivedRow(_ count: Int) -> some View {
         Button { settle(reduceMotion) { showArchived.toggle() } } label: {
             HStack(spacing: 6) {
-                Image(systemName: showArchived ? "chevron.down" : "chevron.right").font(.system(size: 8, weight: .bold))
-                Text(showArchived ? "Hide archived (\(count))" : "Show archived (\(count))").font(.system(size: 11))
+                Image(systemName: showArchived ? "chevron.down" : "chevron.right").appFont(.system(size: 8, weight: .bold))
+                Text(showArchived ? "Hide archived (\(count))" : "Show archived (\(count))").appFont(.system(size: 11))
                 Spacer(minLength: 0)
             }
             .foregroundStyle(theme.text3.color)
@@ -121,7 +121,7 @@ struct ProjectsSection: View {
             let more = allChats.contains(project.id)
             VStack(alignment: .leading, spacing: 0) {
                 if chats.isEmpty {
-                    Text("No active chats in this project.").font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                    Text("No active chats in this project.").appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
                         .padding(.horizontal, 10).padding(.vertical, 6)
                 }
                 ForEach(ProjectList.shown(chats, all: more)) { chat in
@@ -129,7 +129,7 @@ struct ProjectsSection: View {
                 }
                 if chats.count > ProjectList.firstChats && !more {
                     Button { settle(reduceMotion) { _ = allChats.insert(project.id) } } label: {
-                        Text("Show more (\(chats.count - ProjectList.firstChats))").font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                        Text("Show more (\(chats.count - ProjectList.firstChats))").appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
                             .padding(.horizontal, 10).padding(.vertical, 4)
                     }
                     .buttonStyle(.plain)
@@ -144,23 +144,23 @@ struct ProjectsSection: View {
     private func projectRow(_ project: ProjectInfo, open: Bool) -> some View {
         let editing = renaming == project.id
         return HStack(spacing: 8) {
-            Image(systemName: "chevron.right").font(.system(size: 8, weight: .bold)).foregroundStyle(theme.text3.color)
+            Image(systemName: "chevron.right").appFont(.system(size: 8, weight: .bold)).foregroundStyle(theme.text3.color)
                 .rotationEffect(.degrees(open ? 90 : 0)).frame(width: 10)
-            Image(systemName: "folder").font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+            Image(systemName: "folder").appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
             VStack(alignment: .leading, spacing: 1) {
                 if editing { renameField(project) } else {
-                    Text(project.name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(project.archived ? theme.text3.color : theme.text.color).lineLimit(1)
+                    Text(project.name).appFont(.system(size: 12.5, weight: .semibold)).foregroundStyle(project.archived ? theme.text3.color : theme.text.color).lineLimit(1)
                 }
                 if project.archived {
-                    Text("Archived").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                    Text("Archived").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                 }
                 if project.missing {
                     Label("Folder not found", systemImage: "exclamationmark.triangle.fill")
-                        .font(.system(size: 10.5)).foregroundStyle(theme.attention.color).lineLimit(1)
+                        .appFont(.system(size: 10.5)).foregroundStyle(theme.attention.color).lineLimit(1)
                 }
             }
             Spacer(minLength: 4)
-            Text("\(project.chatCount)").font(.system(size: 10.5)).foregroundStyle(theme.text3.color).monospacedDigit()
+            Text("\(project.chatCount)").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color).monospacedDigit()
             // A new chat in this project: a plus on the folder's own row, not a whole line under it.
             if !project.archived { newChatButton(project) }
         }
@@ -201,7 +201,7 @@ struct ProjectsSection: View {
                 model.windowPage = .chat
             }
         } label: {
-            Image(systemName: "plus").font(.system(size: 10.5, weight: .semibold)).foregroundStyle(theme.text2.color)
+            Image(systemName: "plus").appFont(.system(size: 10.5, weight: .semibold)).foregroundStyle(theme.text2.color)
                 .frame(width: 22, height: 22).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -235,7 +235,7 @@ struct ProjectsSection: View {
     @ViewBuilder private func renameField(_ project: ProjectInfo) -> some View {
         if snapshot {
             // `ImageRenderer` cannot draw a text field: draw it as it would look.
-            Text(draft + "|").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(theme.text.color).lineLimit(1)
+            Text(draft + "|").appFont(.system(size: 12.5, weight: .semibold)).foregroundStyle(theme.text.color).lineLimit(1)
                 .padding(.horizontal, 4).padding(.vertical, 1)
                 .background(RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(theme.accent.color, lineWidth: 1))
         } else {
@@ -279,7 +279,7 @@ struct RenameField: View {
     var body: some View {
         TextField(label, text: $text)
             .textFieldStyle(.plain)
-            .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(theme.text.color)
+            .appFont(.system(size: 12.5, weight: .semibold)).foregroundStyle(theme.text.color)
             .focused($focused)
             .onSubmit(onCommit)
             .onExitCommand(perform: onCancel)
@@ -306,7 +306,7 @@ private struct NewProjectSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("New project").font(.headline).accessibilityAddTraits(.isHeader)
+            Text("New project").appFont(.headline).accessibilityAddTraits(.isHeader)
             Text(ProjectList.grantQuestion(folderLabel: pending.label)).fixedSize(horizontal: false, vertical: true)
             TextField("Project name", text: $name).focused($focused).onSubmit(submit).accessibilityLabel("Project name")
             HStack {
@@ -344,7 +344,7 @@ struct SidebarChatRow: View {
             .overlay(alignment: .trailing) {
                 if hovering && !renaming && !snapshot {
                     Button { confirming = true } label: {
-                        Image(systemName: "trash").font(.system(size: 10.5, weight: .medium)).foregroundStyle(theme.text2.color)
+                        Image(systemName: "trash").appFont(.system(size: 10.5, weight: .medium)).foregroundStyle(theme.text2.color)
                             .frame(width: 22, height: 22).background(Circle().fill(theme.fill2.color)).contentShape(Circle())
                     }
                     .buttonStyle(.plain)
@@ -381,9 +381,9 @@ struct SidebarChatRow: View {
                     RenameField(text: $draft, label: "Chat title") { finish(commit: true) } onCancel: { finish(commit: false) }
                 } else {
                     HStack(spacing: 5) {
-                        if chat.pinned { Image(systemName: "pin.fill").font(.system(size: 10)).accessibilityLabel("Pinned") }
-                        if chat.archived { Image(systemName: "archivebox").font(.system(size: 10)).accessibilityLabel("Archived") }
-                        Text(chat.title).font(.system(size: 12.5, weight: current ? .semibold : .regular)).foregroundStyle(theme.text.color).lineLimit(1)
+                        if chat.pinned { Image(systemName: "pin.fill").appFont(.system(size: 10)).accessibilityLabel("Pinned") }
+                        if chat.archived { Image(systemName: "archivebox").appFont(.system(size: 10)).accessibilityLabel("Archived") }
+                        Text(chat.title).appFont(.system(size: 12.5, weight: current ? .semibold : .regular)).foregroundStyle(theme.text.color).lineLimit(1)
                     }
                 }
                 // 2026-10-15: the time is not a second line any more (one line is a shorter row); it is the tip and VoiceOver's.
@@ -391,7 +391,7 @@ struct SidebarChatRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.leading, 10).padding(.trailing, 30).padding(.vertical, 8)
             .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(current && model.windowPage == .chat ? theme.fill2.color : hovering ? theme.fill1.color : .clear))
+                .fill(current && model.windowPage == .chat ? theme.accent.color.opacity(0.14) : hovering ? theme.fill1.color : .clear))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -427,14 +427,14 @@ struct ProjectChip: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: project.missing ? "exclamationmark.triangle.fill" : "folder").font(.system(size: 10.5, weight: .medium))
+            Image(systemName: project.missing ? "exclamationmark.triangle.fill" : "folder").appFont(.system(size: 10.5, weight: .medium))
                 .foregroundStyle(project.missing ? theme.attention.color : theme.text3.color)
-            Text(project.chipTitle).font(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(1).truncationMode(.tail)
+            Text(project.chipTitle).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(1).truncationMode(.tail)
             Button {
                 let url = URL(fileURLWithPath: project.folderPath)
                 NSWorkspace.shared.activateFileViewerSelecting([url])
             } label: {
-                Image(systemName: "arrow.up.forward.square").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text2.color)
+                Image(systemName: "arrow.up.forward.square").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text2.color)
                     .frame(width: 20, height: 20).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -454,7 +454,7 @@ struct TrimmedNote: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        Text(text).font(.system(size: 11)).foregroundStyle(theme.text3.color).lineLimit(1)
+        Text(text).appFont(.system(size: 11)).foregroundStyle(theme.text3.color).lineLimit(1)
             .frame(maxWidth: .infinity).padding(.top, 8)
             .accessibilityLabel(text)
     }

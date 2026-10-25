@@ -17,7 +17,7 @@ struct IconButton: View {
         let large = diameter >= 26
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: large ? 11 : 10, weight: large ? .semibold : .bold))
+                .appFont(.system(size: large ? 11 : 10, weight: large ? .semibold : .bold))
                 .foregroundStyle(hovering.wrappedValue ? theme.text.color : theme.text2.color)
                 .frame(width: diameter, height: diameter)
                 .background(ControlFill(Circle(), fill: hovering.wrappedValue ? theme.fill3.color : restFill, hovering: hovering.wrappedValue))
@@ -52,7 +52,7 @@ struct Card<Content: View>: View {
         VStack(alignment: .leading, spacing: 8) {
             if let title {
                 Text(title)
-                    .font(.system(size: 11, weight: .semibold))
+                    .appFont(.system(size: 11, weight: .semibold))
                     .foregroundStyle(theme.text2.color)
                     .padding(.leading, 6)
             }
@@ -60,7 +60,7 @@ struct Card<Content: View>: View {
                 .cardWell(theme)
             if let footer {
                 Text(footer)
-                    .font(.system(size: 10.5))
+                    .appFont(.system(size: 10.5))
                     .foregroundStyle(theme.text3.color)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 6)
@@ -79,9 +79,9 @@ struct Row<Trailing: View>: View {
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: appDesign ? 13 : 12, weight: .medium)).foregroundStyle(theme.text.color)
+                Text(title).appFont(.system(size: appDesign ? 13 : 12, weight: .medium)).foregroundStyle(theme.text.color)
                 if let detail, !detail.isEmpty {
-                    Text(detail).font(.system(size: appDesign ? 12 : 10.5)).foregroundStyle(theme.text2.color)
+                    Text(detail).appFont(.system(size: appDesign ? 12 : 10.5)).foregroundStyle(theme.text2.color)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -149,7 +149,7 @@ struct Segmented<Choice: SettingsChoice>: View {
                 let selected = choice == selection
                 Button { set(choice) } label: {
                     Text(choice.title)
-                        .font(.system(size: 11, weight: selected ? .semibold : .regular))
+                        .appFont(.system(size: 11, weight: selected ? .semibold : .regular))
                         .foregroundStyle(selected ? theme.text.color : theme.text2.color)
                         .lineLimit(1)
                         .fixedSize()
@@ -206,11 +206,11 @@ struct MenuLabel: View {
     var body: some View {
         HStack(spacing: 5) {
             Text(text)
-                .font(identifier ? theme.idFont(.system(size: 11.5, weight: .medium), size: 11) : .system(size: 11.5, weight: .medium))
+                .appFont(identifier ? theme.appIdentifierFont(.system(size: 11.5, weight: .medium), size: 11) : .system(size: 11.5, weight: .medium))
                 .foregroundStyle(dimmed ? theme.text2.color : theme.text.color)
                 .lineLimit(1)
             Image(systemName: "chevron.up.chevron.down")
-                .font(.system(size: 8, weight: .bold))
+                .appFont(.system(size: 8, weight: .bold))
                 .foregroundStyle(theme.text2.color)
         }
         .padding(.horizontal, 9)
@@ -232,8 +232,8 @@ struct PillButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 5) {
-                if let symbol { Image(systemName: symbol).font(.system(size: 10, weight: .semibold)) }
-                Text(title).font(.system(size: 11.5, weight: .semibold))
+                if let symbol { Image(systemName: symbol).appFont(.system(size: 10, weight: .semibold)) }
+                Text(title).appFont(.system(size: 11.5, weight: .semibold))
             }
             .foregroundStyle(prominent && !theme.isGhost ? theme.onAccent.color : theme.text.color)
             .padding(.horizontal, theme.isGhost ? 12 : 11)

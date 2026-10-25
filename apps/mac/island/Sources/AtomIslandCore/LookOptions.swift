@@ -123,3 +123,17 @@ public enum BubbleOpacity: Int, SettingsChoice {
         }
     }
 }
+
+/// Presentation only: proportional native workspace typography, independent of the selected theme.
+public enum AppTextSize: Int, SettingsChoice {
+    case small = 90, standard = 100, large = 110, extraLarge = 120
+    public var scale: CGFloat { CGFloat(rawValue) / 100 }
+    public var title: String {
+        switch self {
+        case .small: "Small"
+        case .standard: "Default"
+        case .large: "Large"
+        case .extraLarge: "Larger"
+        }
+    }
+}

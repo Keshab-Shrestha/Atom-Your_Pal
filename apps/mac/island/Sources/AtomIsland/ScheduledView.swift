@@ -29,9 +29,9 @@ struct ScheduledPane: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top, spacing: 8) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Scheduled").font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
+                        Text("Scheduled").appFont(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
                         Text("What runs by itself: routines.")
-                            .font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
+                            .appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 8)
                     if form.wrappedValue == nil, let first = model.helpers.list?.helpers.first(where: \.takesTasks) {
@@ -57,7 +57,6 @@ struct ScheduledPane: View {
                     }
                 }
             }
-            .frame(maxWidth: 680, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Spacing.panel)
             .padding(.top, 28)
@@ -77,15 +76,15 @@ private struct ScheduledCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Image(systemName: "repeat").font(.system(size: 10.5, weight: .semibold)).foregroundStyle(theme.text3.color)
-                Text(entry.helperName).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2))
-                Text(entry.schedule).font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                Image(systemName: "repeat").appFont(.system(size: 10.5, weight: .semibold)).foregroundStyle(theme.text3.color)
+                Text(entry.helperName).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2))
+                Text(entry.schedule).appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
                 Spacer(minLength: 0)
-                Text(ScheduledPage.nextText(entry)).font(theme.idFont(.system(size: 11), size: 10.5))
+                Text(ScheduledPage.nextText(entry)).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5))
                     .foregroundStyle(entry.paused ? theme.attention.color : theme.text2.color)
             }
-            Text(entry.title).font(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
-            Text(ScheduledPage.lastText(entry)).font(.system(size: 11)).foregroundStyle(theme.text3.color)
+            Text(entry.title).appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
+            Text(ScheduledPage.lastText(entry)).appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
             HStack(spacing: 8) {
                 if case .routine(let id) = entry.kind, let routine = model.helpers.list?.helpers.first(where: { $0.id == entry.helperId })?.routines.first(where: { $0.id == id }) {
                     QuietButton(title: "Edit", symbol: "pencil") { edit(routine, entry.helperId) }
@@ -144,7 +143,7 @@ private struct ScheduleFormCard: View {
         let schedule = value.draft.schedule
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
-                Text(value.id == nil ? "New schedule" : "Edit schedule").font(.system(size: 14, weight: .semibold)).foregroundStyle(theme.text.color)
+                Text(value.id == nil ? "New schedule" : "Edit schedule").appFont(.system(size: 14, weight: .semibold)).foregroundStyle(theme.text.color)
                 Spacer(minLength: 8)
                 QuietButton(title: "Cancel") { form.wrappedValue = nil }
                 SaveButton(title: value.id == nil ? "Create" : "Save", enabled: value.edited && !value.sent, commandS: true,
@@ -189,22 +188,22 @@ private struct ScheduleFormCard: View {
                     timePicker(draft)
                 case .hours:
                     Stepper("Every \(schedule.every) hour\(schedule.every == 1 ? "" : "s")", value: draft.schedule.every, in: 1...RoutineSchedule.maxEveryHours)
-                        .font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize()
+                        .appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize()
                     DatePicker("First run", selection: draft.startAt, displayedComponents: [.date, .hourAndMinute])
-                        .font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize()
+                        .appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize()
                 }
             }
             // ADR-098: each result goes to Keshab's phone.
             HStack(spacing: 8) {
                 Text(model.telegramConnected ? "Send result to Telegram" : "Send result to Telegram (set up Telegram in Settings → General)")
-                    .font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 Spacer(minLength: 8)
                 ThemedSwitch(isOn: value.draft.notifyTelegram, set: { draft.wrappedValue.notifyTelegram = $0 }, label: "Send result to Telegram")
             }
             // ADR-098 item 5: another tool may start it through the local API (Settings → General → Local API).
             HStack(spacing: 8) {
                 Text(value.draft.webhook ? value.id.map { "Can be started by webhook: POST /v1/hooks/\($0)" } ?? "Can be started by webhook" : "Can be started by webhook")
-                    .font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                     .textSelection(.enabled)
                 Spacer(minLength: 8)
                 ThemedSwitch(isOn: value.draft.webhook, set: { draft.wrappedValue.webhook = $0 }, label: "Can be started by webhook")
@@ -233,7 +232,7 @@ private struct ScheduleFormCard: View {
                 draft.wrappedValue.schedule.minute = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
             })
         return DatePicker("At", selection: time, displayedComponents: .hourAndMinute)
-            .font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize()
+            .appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize()
     }
 
     private func save() {

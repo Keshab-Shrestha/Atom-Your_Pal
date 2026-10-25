@@ -21,7 +21,7 @@ struct ChatBriefEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Chat brief").font(.headline)
+                Text("Chat brief").appFont(.headline)
                 Spacer()
                 Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
             }
@@ -48,7 +48,7 @@ struct ChatBriefEditor: View {
                 Text("The save is not confirmed. Your draft stays here; checking cannot overwrite a newer brief.")
             }
         }
-        .font(.system(size: 12)).padding(20).frame(width: 560)
+        .appFont(.system(size: 12)).padding(20).frame(width: 560)
         .background(theme.surfaceSolid.color).foregroundStyle(theme.text.color)
         .onChange(of: model.chatControls.briefReceipt?.request) { _, request in
             guard request == pending, let response = model.chatControls.briefReceipt, response.id == chat else { return }

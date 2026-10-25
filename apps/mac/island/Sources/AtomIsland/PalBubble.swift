@@ -110,6 +110,7 @@ struct BubbleView: View {
                 BubbleGlass(state: state, tone: tone, snapshot: snapshot, fill: model.settings.bubbleOpacity.fill, tailAnchor: tailAnchor)
             }
             .themed(palette)
+            .environment(\.appTextSize, model.settings.textSize)
             .environment(\.islandSnapshot, snapshot)
             .animation(Motion.glow(reduceMotion), value: tone)
             .scaleEffect(state.visible || reduceMotion ? 1 : 0.6, anchor: tailAnchor)
@@ -191,7 +192,7 @@ private struct BubbleContent: View {
                     detail("ATOM is pointing")
                 } else if !status.preview.isEmpty {
                     Text(status.preview)
-                        .font(.system(size: 13.5))
+                        .appFont(.system(size: 13.5))
                         .foregroundStyle(theme.text.color)
                         .truncationMode(.head)
                 } else {
@@ -214,11 +215,11 @@ private struct BubbleContent: View {
     }
 
     private func title(_ text: String) -> some View {
-        Text(text).font(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color)
+        Text(text).appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color)
     }
 
     private func detail(_ text: String) -> some View {
-        Text(text).font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+        Text(text).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color)
     }
 
     @ViewBuilder private func mark(_ kind: IslandStatus.Kind) -> some View {
@@ -235,7 +236,7 @@ private struct BubbleContent: View {
         case .notice, .asking: GlowDot(color: theme.attention.color)
         case .problem: GlowDot(color: theme.problem.color)
         case .ready:
-            Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundStyle(theme.accent.color)
+            Image(systemName: "checkmark").appFont(.system(size: 11, weight: .bold)).foregroundStyle(theme.accent.color)
         default: EmptyView()
         }
     }

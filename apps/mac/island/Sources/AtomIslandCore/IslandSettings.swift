@@ -33,6 +33,7 @@ public final class IslandSettings {
     static let bubbleStayKey = "atom.bubble.stay"
     static let bubbleSizeKey = "atom.bubble.size"
     static let bubbleOpacityKey = "atom.bubble.opacity"
+    static let textSizeKey = "atom.look.textSize"
     static let themeKey = "atom.look.theme"
     static let sidebarKey = "atom.window.sidebar"
     static let projectFilterKey = "atom.window.projectFilter"
@@ -139,6 +140,7 @@ public final class IslandSettings {
     public var bubbleSize: BubbleSize { didSet { store(bubbleSize.rawValue, Self.bubbleSizeKey) } }
     public var bubbleOpacity: BubbleOpacity { didSet { store(bubbleOpacity.rawValue, Self.bubbleOpacityKey) } }
     /// How ATOM's surfaces look (ADR-057). Default Void (ADR-086).
+    public var textSize: AppTextSize { didSet { store(textSize.rawValue, Self.textSizeKey) } }
     public var theme: AppTheme { didSet { store(theme.rawValue, Self.themeKey) } }
 
     /// Start and stop sounds. Default on.
@@ -251,6 +253,7 @@ public final class IslandSettings {
         bubbleOpacity = Self.choice(defaults, Self.bubbleOpacityKey, .normal)
         Self.moveToLanternOnce(defaults)
         Self.moveToVoidOnce(defaults)
+        textSize = Self.choice(defaults, Self.textSizeKey, .standard)
         theme = Self.choice(defaults, Self.themeKey, .void)
         sidebar = SidebarLayout(storage: defaults.string(forKey: Self.sidebarKey))
         sidebarHidden = defaults.bool(forKey: Self.sidebarHiddenKey)
@@ -343,6 +346,7 @@ public final class IslandSettings {
     /// Appearance: the theme.
     public func resetAppearance() {
         theme = .void
+        textSize = .standard
     }
 
     /// ADR-084: Lantern replaced Quiet Native as the default. A stored Quiet Native cannot be told apart from the

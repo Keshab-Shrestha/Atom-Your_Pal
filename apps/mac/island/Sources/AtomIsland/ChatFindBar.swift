@@ -40,7 +40,7 @@ struct ChatFindBar: View {
                     .foregroundStyle(theme.text3.color)
             }
         }
-        .font(.system(size: 11.5)).buttonStyle(.borderless)
+        .appFont(.system(size: 11.5)).buttonStyle(.borderless)
         .padding(.horizontal, Spacing.conversation).padding(.vertical, 8)
         .background(theme.fill1.color)
         .onAppear { focused = true }

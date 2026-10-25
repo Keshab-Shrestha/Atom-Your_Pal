@@ -109,21 +109,21 @@ private struct PageRow: View {
         Button(action: action) {
             HStack(spacing: Self.spacing) {
                 Image(systemName: page.symbol)
-                    .font(.system(size: 13))
+                    .appFont(.system(size: 13))
                     .foregroundStyle(hovering.wrappedValue ? theme.text.color : theme.text2.color)
                     .frame(width: Self.glyphWidth)
                 Text(page.rawValue)
-                    .font(.system(size: 12.5, weight: .medium))
+                    .appFont(.system(size: 12.5, weight: .medium))
                     .foregroundStyle(theme.text.color)
                 Spacer(minLength: 6)
                 Text(summary)
                     // The model and the shortcut are identifiers: SF Mono in Void.
-                    .font(page == .model || page == .shortcuts ? theme.idFont(.system(size: 11.5), size: 11) : .system(size: 11.5))
+                    .appFont(page == .model || page == .shortcuts ? theme.appIdentifierFont(.system(size: 11.5), size: 11) : .system(size: 11.5))
                     .foregroundStyle(theme.text2.color)
                     .lineLimit(1)
                     .truncationMode(.tail)
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 9.5, weight: .bold))
+                    .appFont(.system(size: 9.5, weight: .bold))
                     .foregroundStyle(theme.text3.color)
             }
             .padding(.horizontal, Spacing.well)

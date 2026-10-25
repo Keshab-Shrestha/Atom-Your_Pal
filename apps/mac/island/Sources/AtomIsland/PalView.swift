@@ -69,7 +69,7 @@ struct PalView: View {
             }
             if frame.sleeping {
                 Text("z")
-                    .font(.system(size: max(9, size * 0.2), weight: .heavy, design: .rounded))
+                    .appFont(.system(size: max(9, size * 0.2), weight: .heavy, design: .rounded))
                     .foregroundStyle(theme.text2.color)
                     .offset(x: size * 1.5 / 2 + sprite * 0.25, y: feetY - sprite * 0.75 - CGFloat(Int(time * 2) % 3) * unit * 2)
             }

@@ -32,7 +32,7 @@ struct ChatActionsMenu<Actions: View>: View {
 
     private var label: some View {
         Image(systemName: "ellipsis")
-            .font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text3.color)
+            .appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text3.color)
             .frame(width: 24, height: 24).contentShape(Rectangle())
             .overlay(alignment: .topTrailing) {
                 if attention { Circle().fill(theme.attention.color).frame(width: 5, height: 5).accessibilityHidden(true) }

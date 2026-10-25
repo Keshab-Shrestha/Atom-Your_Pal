@@ -42,8 +42,8 @@ struct PlanCard: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(plan.goal).font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color).lineLimit(2)
-                    Text(plan.summary).font(.system(size: 11)).foregroundStyle(plan.stuck ? theme.problem.color : theme.text3.color)
+                    Text(plan.goal).appFont(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color).lineLimit(2)
+                    Text(plan.summary).appFont(.system(size: 11)).foregroundStyle(plan.stuck ? theme.problem.color : theme.text3.color)
                 }
                 Spacer(minLength: 8)
                 PlanDots(plan: plan)
@@ -68,11 +68,11 @@ private struct PlanPortionRow: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text("P\(portion.n)").font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color).frame(width: 24, alignment: .leading)
+            Text("P\(portion.n)").appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color).frame(width: 24, alignment: .leading)
             VStack(alignment: .leading, spacing: 2) {
-                Text(portion.task).font(.system(size: 12.5)).foregroundStyle(theme.text.color).lineLimit(2)
+                Text(portion.task).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color).lineLimit(2)
                 Text("\(portion.name) · \(portion.stateText(portions: plan.portions))")
-                    .font(.system(size: 11)).foregroundStyle(portion.state == .failed || portion.state == .blocked ? theme.problem.color : theme.text3.color)
+                    .appFont(.system(size: 11)).foregroundStyle(portion.state == .failed || portion.state == .blocked ? theme.problem.color : theme.text3.color)
             }
             Spacer(minLength: 8)
             if let job = portion.job {

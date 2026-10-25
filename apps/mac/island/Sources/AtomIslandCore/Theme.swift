@@ -21,6 +21,9 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
     /// Void's flat, hairline look on a light canvas, one indigo accent. From Keshab's UI playground (2026-10-15).
     case daylight = 6
 
+    // Workspace reference themes. Existing raw values stay stable for saved preferences.
+    case sapphire = 7, champagne, emerald, plum, cobalt, teal
+
     public var id: Int { rawValue }
     public var title: String {
         switch self {
@@ -31,6 +34,12 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
         case .luminous: "Luminous"
         case .warm: "Warm"
         case .daylight: "Daylight"
+        case .teal: "Obsidian & Electric Teal"
+        case .cobalt: "Cloud White & Cobalt"
+        case .plum: "Royal Plum & Lavender"
+        case .emerald: "Ivory & Emerald"
+        case .champagne: "Graphite & Champagne Gold"
+        case .sapphire: "Midnight Sapphire"
         }
     }
     public var detail: String {
@@ -42,6 +51,12 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
         case .luminous: "Near-black glass with a cyan-to-violet glow"
         case .warm: "Light paper glass with a coral accent"
         case .daylight: "Flat light with hairlines and one indigo accent"
+        case .teal: "Deep green-black surfaces with a teal accent."
+        case .cobalt: "Pale blue-white surfaces with a cobalt accent."
+        case .plum: "Deep plum surfaces with a lavender accent."
+        case .emerald: "Warm ivory surfaces with an emerald accent."
+        case .champagne: "Graphite surfaces with a muted gold accent."
+        case .sapphire: "Deep blue surfaces with a periwinkle accent."
         }
     }
     public var palette: ThemePalette { ThemePalette.for(self) }
@@ -164,6 +179,7 @@ public struct ThemePalette: Sendable, Equatable {
         case .luminous: luminous
         case .warm: warm
         case .daylight: daylight
+        case .sapphire, .champagne, .emerald, .plum, .cobalt, .teal: WorkspaceColors.for(theme).palette
         }
     }
 

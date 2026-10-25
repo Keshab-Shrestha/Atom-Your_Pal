@@ -24,7 +24,7 @@ struct HubSkillsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Find skills").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+            Text("Find skills").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             HStack(spacing: 8) {
                 Group {
                     if snapshot {
@@ -35,7 +35,7 @@ struct HubSkillsSection: View {
                             .accessibilityLabel("Search community skills").accessibilityHint("Type a word, then choose Search")
                     }
                 }
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .padding(.horizontal, 10).padding(.vertical, 6)
                 .background(RoundedRectangle(cornerRadius: theme.radiusControl + 2, style: .continuous)
                     .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: 1))
@@ -44,7 +44,7 @@ struct HubSkillsSection: View {
                     .accessibilityHint("Looks for skills shared by the community")
             }
             if let message = hub.message, !message.isEmpty {
-                Text(message).font(.system(size: 11.5)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
+                Text(message).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
             }
             ForEach(hub.pending) { pending in SkillHubCard(model: model, pending: pending) }
             ForEach(hub.results) { result in HubResultRow(model: model, result: result) }
@@ -63,14 +63,14 @@ private struct HubResultRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 8) {
-                Text(result.name).font(theme.idFont(.system(size: 12.5, weight: .medium), size: 12)).foregroundStyle(theme.text.color)
-                Text("\(result.repo) \(result.shortSha)").font(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1).truncationMode(.middle)
+                Text(result.name).appFont(theme.appIdentifierFont(.system(size: 12.5, weight: .medium), size: 12)).foregroundStyle(theme.text.color)
+                Text("\(result.repo) \(result.shortSha)").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1).truncationMode(.middle)
                 Spacer(minLength: 8)
                 QuietButton(title: "Review", symbol: "doc.text") { model.sendHelpers(model.helpers.hubPreview(result)) }
                     .accessibilityLabel("Review \(result.name)")
                     .accessibilityHint("Shows the whole skill so you can read it before you install it")
             }
-            if !result.description.isEmpty { Text(result.description).font(.system(size: 11.5)).foregroundStyle(theme.text3.color).lineLimit(2) }
+            if !result.description.isEmpty { Text(result.description).appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color).lineLimit(2) }
         }
         .padding(.vertical, 4)
     }
@@ -86,8 +86,8 @@ private struct SkillHubCard: View {
     var body: some View {
         SkillCard {
             HStack(spacing: 8) {
-                Text(pending.isUpdate ? "Update" : "New skill").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
-                Text(pending.name).font(theme.idFont(.system(size: 13, weight: .semibold), size: 12.5)).foregroundStyle(theme.text.color)
+                Text(pending.isUpdate ? "Update" : "New skill").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                Text(pending.name).appFont(theme.appIdentifierFont(.system(size: 13, weight: .semibold), size: 12.5)).foregroundStyle(theme.text.color)
                 Spacer(minLength: 8)
                 QuietButton(title: "Approve", symbol: "checkmark") { asking.wrappedValue = true }
                     .accessibilityHint("Asks you to confirm the install")
@@ -99,23 +99,23 @@ private struct SkillHubCard: View {
                     }
                 QuietButton(title: "Reject", symbol: "xmark") { model.sendHelpers(model.helpers.answerHub(pending.id, approve: false)) }
             }
-            Text("from \(pending.repo) at \(pending.shortSha)").font(.system(size: 11)).foregroundStyle(theme.text2.color)
-            if pending.isUpdate { Text("Replaces the installed text").font(.system(size: 11)).foregroundStyle(theme.text2.color) }
-            if !pending.description.isEmpty { Text(pending.description).font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true) }
+            Text("from \(pending.repo) at \(pending.shortSha)").appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
+            if pending.isUpdate { Text("Replaces the installed text").appFont(.system(size: 11)).foregroundStyle(theme.text2.color) }
+            if !pending.description.isEmpty { Text(pending.description).appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true) }
             ForEach(Array(pending.sortedFlags.enumerated()), id: \.offset) { _, flag in
-                Text("\(flag.kind): \(flag.excerpt)").font(.system(size: 11)).fixedSize(horizontal: false, vertical: true)
+                Text("\(flag.kind): \(flag.excerpt)").appFont(.system(size: 11)).fixedSize(horizontal: false, vertical: true)
                     .foregroundStyle(flag.severity == .warn ? theme.problem.color : theme.text3.color)
                     .accessibilityLabel("\(flag.severity == .warn ? "Warning" : "Note"), \(flag.kind): \(flag.excerpt)")
             }
             ScrollView {
-                Text(pending.text).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text2.color)
+                Text(pending.text).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text2.color)
                     .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding(8)
             }
             .frame(maxHeight: 280)
             .background(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous)
                 .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: 1))
             .accessibilityLabel("Full text of \(pending.name)")
-            Text("Nothing uses it until you approve it, and then only the agents you choose.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+            Text("Nothing uses it until you approve it, and then only the agents you choose.").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
         }
     }
 }
@@ -128,9 +128,9 @@ private struct HubInstalledRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Text(skill.name).font(theme.idFont(.system(size: 12.5, weight: .medium), size: 12)).foregroundStyle(theme.text.color)
-            Text("Hub").font(.system(size: 10.5)).foregroundStyle(theme.accent.color)
-            Text(skill.shortSha).font(theme.idFont(.system(size: 10.5), size: 10)).foregroundStyle(theme.text3.color)
+            Text(skill.name).appFont(theme.appIdentifierFont(.system(size: 12.5, weight: .medium), size: 12)).foregroundStyle(theme.text.color)
+            Text("Hub").appFont(.system(size: 10.5)).foregroundStyle(theme.accent.color)
+            Text(skill.shortSha).appFont(theme.appIdentifierFont(.system(size: 10.5), size: 10)).foregroundStyle(theme.text3.color)
             Spacer(minLength: 8)
             QuietButton(title: "Check for update", symbol: "arrow.triangle.2.circlepath") { model.sendHelpers(model.helpers.hubUpdate(skill.name)) }
                 .accessibilityLabel("Check \(skill.name) for an update")

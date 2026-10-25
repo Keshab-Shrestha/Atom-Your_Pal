@@ -17,15 +17,15 @@ struct FileEditReviewCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Review file change")
-                .font(.system(size: 16, weight: .semibold))
+                .appFont(.system(size: 16, weight: .semibold))
                 .foregroundStyle(theme.text.color)
             Text(verbatim: review.path)
-                .font(.system(size: 12, design: .monospaced))
+                .appFont(.system(size: 12, design: .monospaced))
                 .foregroundStyle(theme.text2.color)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
             Text("Only this file will be replaced. ATOM must keep an undo copy before applying.")
-                .font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
             Picker("File review", selection: $mode) {
                 Text("Changes").tag("changes")
                 Text("Before").tag("before")
@@ -34,7 +34,7 @@ struct FileEditReviewCard: View {
             .pickerStyle(.segmented)
             if mode == "changes" {
                 Text("Removed text is crossed out. Added text is green.")
-                    .font(.system(size: 11)).foregroundStyle(theme.text2.color)
+                    .appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
             }
             ScrollView([.horizontal, .vertical]) {
                 Group {
@@ -43,7 +43,7 @@ struct FileEditReviewCard: View {
                         else { ProgressView("Preparing changes…") }
                     } else {
                         Text(verbatim: mode == "before" ? review.before : review.after)
-                            .font(.system(size: 12, design: .monospaced))
+                            .appFont(.system(size: 12, design: .monospaced))
                             .foregroundStyle(theme.text.color)
                             .textSelection(.enabled)
                             .fixedSize(horizontal: true, vertical: true)

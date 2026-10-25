@@ -29,10 +29,10 @@ struct SoulPane: View {
                     SaveButton(enabled: changed, saved: model.savedField == "soul" && model.helpers.problem == nil, commandS: true, label: "Save soul") { save() }
                 }
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("\(helper.name)'s soul").font(theme.isFlat ? .system(size: 24, weight: .regular, design: .serif) : .system(size: 20, weight: .semibold, design: .rounded))
+                    Text("\(helper.name)'s soul").appFont(theme.isFlat ? .system(size: 24, weight: .regular, design: .serif) : .system(size: 20, weight: .semibold, design: .rounded))
                         .foregroundStyle(theme.text.color)
                     Text("Given to \(helper.name) as instructions for every job. Its tools and limits are set by its role\(helper.roleTitle.isEmpty ? "" : " (\(helper.roleTitle))"), not here.")
-                        .font(.system(size: 11.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
+                        .appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
                 }
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
                 SoulField(label: "Name", text: binding(\.name), lines: 1, submit: save)
@@ -74,7 +74,7 @@ struct SoulField: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(label).font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text2.color)
+            Text(label).appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text2.color)
             Group {
                 if snapshot {
                     Text(text.wrappedValue.isEmpty ? " " : text.wrappedValue)
@@ -87,7 +87,7 @@ struct SoulField: View {
                         .fixedSize(horizontal: false, vertical: true).focused($focused)
                 }
             }
-            .font(.system(size: 13, design: monospaced ? .monospaced : .default))
+            .appFont(.system(size: 13, design: monospaced ? .monospaced : .default))
             .foregroundStyle(theme.text.color)
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -145,7 +145,7 @@ struct SaveButton: View {
         } else {
             Button(action: action) {
                 Text(title)
-                    .font(.system(size: 11.5, weight: .semibold))
+                    .appFont(.system(size: 11.5, weight: .semibold))
                     .foregroundStyle(enabled ? (theme.isGhost ? theme.text.color : theme.onAccent.color) : theme.text3.color)
                     .padding(.horizontal, 14)
                     .frame(height: 26)
@@ -167,7 +167,7 @@ struct SavedMark: View {
 
     var body: some View {
         Label("Saved", systemImage: "checkmark")
-            .font(.system(size: 11.5, weight: .medium))
+            .appFont(.system(size: 11.5, weight: .medium))
             .foregroundStyle(theme.statusDots ? theme.success.color : theme.text2.color)
             .frame(height: 26)
             .transition(.opacity)
@@ -206,16 +206,16 @@ struct NewAgentPane: View {
                     SaveButton(title: "Create", enabled: typed, commandS: true, label: "Create agent", action: create)
                 }
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("New agent").font(theme.isFlat ? .system(size: 24, weight: .regular, design: .serif) : .system(size: 20, weight: .semibold, design: .rounded))
+                    Text("New agent").appFont(theme.isFlat ? .system(size: 24, weight: .regular, design: .serif) : .system(size: 20, weight: .semibold, design: .rounded))
                         .foregroundStyle(theme.text.color)
                     Text("Saved as data/agents/<name>/soul.md, which you can also edit in any editor. What it may use is its kit, set here and checked in code; its soul cannot add tools.")
-                        .font(.system(size: 11.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
+                        .appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
                 }
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
                 SoulField(label: "Name", text: draft.projectedValue.name, lines: 1, submit: create)
                 SoulField(label: "Role (in your words, such as travel planner)", text: role.projectedValue, lines: 1, submit: create)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("What it may use").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+                    Text("What it may use").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
                     Menu {
                         ForEach(["research", "folders", "think"], id: \.self) { option in
                             Button { kit.wrappedValue = option } label: {

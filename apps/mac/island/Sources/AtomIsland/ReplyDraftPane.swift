@@ -107,13 +107,13 @@ struct ReplyDraftPane: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Draft a reply").font(.system(size: 16, weight: .semibold)).foregroundStyle(theme.text.color)
+                Text("Draft a reply").appFont(.system(size: 16, weight: .semibold)).foregroundStyle(theme.text.color)
                 Spacer()
                 QuietButton(title: "Close", symbol: "xmark", action: close)
             }
             HStack(spacing: 8) {
                 Text(session.profile.map { "\($0.model) · \($0.effort) effort" } ?? "Drafting model unavailable")
-                    .font(.system(size: 11.5)).foregroundStyle(theme.text2.color).textSelection(.enabled)
+                    .appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).textSelection(.enabled)
                 Spacer(minLength: 0)
                 QuietButton(title: "Reload model", symbol: "arrow.clockwise") { session.find() }
                     .disabled(session.contextID != nil || session.draftID != nil || session.inserting)
@@ -126,12 +126,12 @@ struct ReplyDraftPane: View {
                             .disabled(session.draftID != nil || session.inserting)
                         if session.input != session.generatedInput {
                             Text("Inputs changed. Generate again to use the updated context.")
-                                .font(.system(size: 11)).foregroundStyle(theme.text2.color)
+                                .appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
                         }
                         RowDivider(inset: 0)
                     }
                     Text(source.source.label + (source.truncated ? " was shortened. Add missing text before drafting." : " — review the conversation below."))
-                        .font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                        .appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
                     SoulField(label: "Conversation", text: binding(\.conversation), lines: 3)
                     SoulField(label: "What should the reply say? (optional)", text: binding(\.intent), lines: 2)
                     DisclosureGroup(isExpanded: detailsBinding) {
@@ -140,22 +140,22 @@ struct ReplyDraftPane: View {
                             savedContext
                             writingExamples
                             Text("Uses the shown model in a separate tool-free request. Only this conversation, your instructions, checked context and opted-in examples go to it. No screenshot, whole chat history or automatic search. Chat settings and permissions stay unchanged. Closing discards this panel's draft.")
-                                .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                                .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                         }.padding(.top, 8)
                     } label: {
-                        Text("Context & writing style").font(.system(size: 12, weight: .medium))
+                        Text("Context & writing style").appFont(.system(size: 12, weight: .medium))
                     }
                     if !session.included.isEmpty || session.useExamples || !session.background.isEmpty {
-                        Text(includedSummary).font(.system(size: 11)).foregroundStyle(theme.text2.color)
+                        Text(includedSummary).appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
                     }
                 }.padding(.trailing, 5)
             }
             Text("Draft stays unsent. Review it, then Copy or Insert when ready.")
-                .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
             HStack(spacing: 8) {
                 if session.draftID != nil {
                     ProgressView().controlSize(.small)
-                    Text("Drafting…").font(.system(size: 12))
+                    Text("Drafting…").appFont(.system(size: 12))
                     QuietButton(title: "Cancel", symbol: "xmark") { session.cancel() }
                 } else {
                     PillButton(title: session.hasDraft ? "Generate again" : "Generate draft", symbol: "sparkles", prominent: true) { session.generate() }
@@ -192,7 +192,7 @@ struct ReplyDraftPane: View {
         VStack(alignment: .leading, spacing: 8) {
             SoulField(label: "Examples of your own writing", text: binding(\.examples), lines: 3)
             Toggle("Include these examples in this draft", isOn: Binding(get: { session.useExamples }, set: { session.useExamples = $0 }))
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
             HStack(spacing: 8) {
                 PillButton(title: "Save examples on this Mac") {
                     session.model.settings.replyWritingExamples = session.examples
@@ -204,7 +204,7 @@ struct ReplyDraftPane: View {
                 }
             }
             Text("Only explicitly included examples go to the model. They guide style, not personal facts or commitments.")
-                .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
         }
     }
 
@@ -214,7 +214,7 @@ struct ReplyDraftPane: View {
                 if snapshot {
                     // ImageRenderer cannot draw native text fields; keep their visible label and layout in fixtures.
                     Text(session.query.isEmpty ? "Find saved facts or notes…" : session.query)
-                        .font(.system(size: 12)).foregroundStyle(theme.text3.color)
+                        .appFont(.system(size: 12)).foregroundStyle(theme.text3.color)
                         .padding(.horizontal, 7).frame(maxWidth: .infinity, minHeight: 22, alignment: .leading)
                         .background(RoundedRectangle(cornerRadius: 4).fill(theme.fill1.color))
                         .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(theme.separator.color, lineWidth: 1))
@@ -226,12 +226,12 @@ struct ReplyDraftPane: View {
                     .disabled(session.contextID != nil || session.draftID != nil)
             }
             Text("Lookup stays local. Check an item to include its displayed excerpt; nothing is selected automatically.")
-                .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
             ForEach(session.candidates) { item in
                 Toggle(isOn: Binding(get: { session.selected[item.id] != nil }, set: { on in session.selected[item.id] = on ? item : nil })) {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(item.title).font(.system(size: 12, weight: .medium))
-                        Text(item.text).font(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(3)
+                        Text(item.title).appFont(.system(size: 12, weight: .medium))
+                        Text(item.text).appFont(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(3)
                     }
                 }.disabled(session.selected.count >= 12 && session.selected[item.id] == nil)
             }
@@ -241,15 +241,15 @@ struct ReplyDraftPane: View {
                         ForEach(session.included) { item in
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack {
-                                    Text(item.title + (item.truncated ? " (excerpt)" : "")).font(.system(size: 12, weight: .medium))
+                                    Text(item.title + (item.truncated ? " (excerpt)" : "")).appFont(.system(size: 12, weight: .medium))
                                     Spacer()
                                     QuietButton(title: "Remove", symbol: "xmark") { session.selected[item.id] = nil }
                                 }
                                 if let source = item.source {
                                     Text("\(source.state) · \(source.path)/\(source.relativePath) · checked \(source.checkedAt)")
-                                        .font(.system(size: 10.5)).foregroundStyle(theme.text3.color).textSelection(.enabled)
+                                        .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color).textSelection(.enabled)
                                 }
-                                Text(item.text).font(.system(size: 11.5)).foregroundStyle(theme.text2.color).textSelection(.enabled)
+                                Text(item.text).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).textSelection(.enabled)
                             }
                         }
                     }.padding(.top, 5)

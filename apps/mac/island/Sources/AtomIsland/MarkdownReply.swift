@@ -14,7 +14,7 @@ struct MarkdownReply: View {
         VStack(alignment: .leading, spacing: 12) {
             ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in MarkdownBlockView(block: block, latest: latest, copyEnabled: copyEnabled) }
         }
-        .font(.system(size: 14))
+        .appFont(.system(size: 14))
         .foregroundStyle(theme.text.color)
         .textSelection(.enabled)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -33,7 +33,7 @@ private struct MarkdownBlockView: View {
         case .paragraph(let s):
             inline(s).lineSpacing(5).fixedSize(horizontal: false, vertical: true)
         case .heading(let level, let s):
-            inline(s).font(.system(size: level <= 1 ? 16 : level == 2 ? 15 : 14, weight: .semibold))
+            inline(s).appFont(.system(size: level <= 1 ? 16 : level == 2 ? 15 : 14, weight: .semibold))
         case .list(let items, let number):
             VStack(alignment: .leading, spacing: 5) {
                 ForEach(Array(items.enumerated()), id: \.offset) { index, item in
@@ -71,7 +71,7 @@ private struct MarkdownBlockView: View {
         case .code(let s, let language):
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
-                    Text(language ?? "Code").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                    Text(language ?? "Code").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
                     Spacer()
                     ChatCopyControl(title: "Copy code") { MarkdownCopy.code(s) }
                         .disabled(!copyEnabled)
@@ -79,7 +79,7 @@ private struct MarkdownBlockView: View {
                 }
                 .padding(.horizontal, 10).padding(.top, 4)
                 SideScroll {
-                    Text(s).font(.system(size: 12, design: .monospaced)).padding(10)
+                    Text(s).appFont(.system(size: 12, design: .monospaced)).padding(10)
                 }
             }
             .background(RoundedRectangle(cornerRadius: 8).fill(theme.text.color.opacity(0.06)))
@@ -91,7 +91,7 @@ private struct MarkdownBlockView: View {
         case .table(let header, let rows, let alignment):
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text("Table").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                    Text("Table").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
                     Spacer()
                     ChatCopyControl(title: "Copy table", choices: MarkdownCopy.Format.allCases.map { format in
                         ChatCopyControl.Choice(title: format.title) {
@@ -169,7 +169,7 @@ private struct MarkdownBlockView: View {
     private static let cellWidthLimit: CGFloat = 260
 
     private func cell(_ s: String) -> some View {
-        inline(s).font(.system(size: 13)).fixedSize(horizontal: false, vertical: true)
+        inline(s).appFont(.system(size: 13)).fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: Self.cellWidthLimit, alignment: .leading)
     }
 

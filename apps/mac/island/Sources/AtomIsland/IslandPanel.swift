@@ -56,6 +56,7 @@ struct IslandView: View {
             // little as it leaves. With Reduce Motion it only fades (the window's alpha).
             .scaleEffect(model.presented || reduceMotion ? 1 : 0.98, anchor: UnitPoint(x: model.openAnchorX, y: 0))
             .themed(palette)
+            .environment(\.appTextSize, model.settings.textSize)
             .environment(\.islandSnapshot, snapshot)
     }
 }
@@ -99,20 +100,20 @@ struct StatusRow: View {
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(model.pointing.target.map(PointingState.line(for:)) ?? model.status.title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .appFont(.system(size: 13, weight: .semibold))
                     .foregroundStyle(theme.text.color)
                 if model.pointing.target != nil {
                     Text("ATOM is pointing")
-                        .font(.system(size: 11))
+                        .appFont(.system(size: 11))
                         .foregroundStyle(theme.text2.color)
                 } else if !model.status.preview.isEmpty {
                     Text(model.status.preview)
-                        .font(.system(size: 11))
+                        .appFont(.system(size: 11))
                         .foregroundStyle(theme.text.color.opacity(0.88))
                         .truncationMode(.head)
                 } else if !model.status.detail.isEmpty {
                     Text(model.status.detail)
-                        .font(.system(size: 11))
+                        .appFont(.system(size: 11))
                         .foregroundStyle(theme.text2.color)
                 }
             }
@@ -158,7 +159,7 @@ struct StateGlyph: View {
         ZStack {
             Circle().fill(tint.opacity(theme.isDark ? 0.2 : 0.14))
             Image(systemName: StateGlyph.symbol(kind))
-                .font(.system(size: 13, weight: .semibold))
+                .appFont(.system(size: 13, weight: .semibold))
                 .foregroundStyle(tint)
                 .contentTransition(.symbolEffect(.replace))
                 .symbolEffect(.pulse, options: .repeating, isActive: kind == .thinking || kind == .transcribing || kind == .starting || kind == .acting)

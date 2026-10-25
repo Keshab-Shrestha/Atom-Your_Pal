@@ -22,7 +22,7 @@ struct ShortcutSection: View {
                     }
                     if let problem = model.recorder.problem, problem.action == action {
                         Label(problem.message, systemImage: "exclamationmark.circle.fill")
-                            .font(.system(size: 10.5))
+                            .appFont(.system(size: 10.5))
                             .foregroundStyle(theme.problem.color)
                             .padding(.horizontal, Spacing.well)
                             .padding(.bottom, 6)
@@ -33,10 +33,10 @@ struct ShortcutSection: View {
                 RowDivider()
                 VStack(alignment: .leading, spacing: 7) {
                     Label("Hold shortcuts need Input Monitoring", systemImage: "keyboard.badge.ellipsis")
-                        .font(.system(size: 11.5, weight: .semibold))
+                        .appFont(.system(size: 11.5, weight: .semibold))
                         .foregroundStyle(theme.attention.color)
                     Text("macOS asks before an app can see which keys are held. ATOM only watches for its own shortcuts, never what you type.")
-                        .font(.system(size: 10.5))
+                        .appFont(.system(size: 10.5))
                         .foregroundStyle(theme.text2.color)
                         .fixedSize(horizontal: false, vertical: true)
                     PillButton(title: "Allow in System Settings…", prominent: true) { engine.requestKeyAccess() }
@@ -73,7 +73,7 @@ struct RecorderButton: View {
             model.recorder.toggle(action)
         } label: {
             Text(label)
-                .font(theme.idFont(.system(size: 11.5, weight: .semibold, design: .rounded), size: 11, weight: .medium))
+                .appFont(theme.appIdentifierFont(.system(size: 11.5, weight: .semibold, design: .rounded), size: 11, weight: .medium))
                 .foregroundStyle(recording ? theme.accent.color : (model.settings.shortcut(for: action) == nil ? theme.text2.color : theme.text.color))
                 .frame(minWidth: 64)
                 .padding(.horizontal, 8)

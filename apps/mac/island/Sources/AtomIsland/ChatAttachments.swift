@@ -70,7 +70,7 @@ struct AttachedFilesRow: View {
             // Notes are host-resolved ids, not local files; retain their existing remove-only chips.
             ForEach(notes) { note in
                 HStack(spacing: 4) {
-                    Image(systemName: "brain").font(.system(size: 10))
+                    Image(systemName: "brain").appFont(.system(size: 10))
                     Text(note.title).lineLimit(1).truncationMode(.middle).frame(maxWidth: 160)
                     removeButton(note.title) { removeNote(note.id) }
                 }
@@ -78,16 +78,16 @@ struct AttachedFilesRow: View {
                 .background(Capsule().fill(theme.fill2.color))
             }
         }
-        .font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+        .appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color)
     }
 
     private func message(_ text: String) -> some View {
-        Text(text).font(.system(size: 11)).foregroundStyle(theme.problem.color)
+        Text(text).appFont(.system(size: 11)).foregroundStyle(theme.problem.color)
     }
 
     private func removeButton(_ name: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
+            Image(systemName: "xmark").appFont(.system(size: 8, weight: .bold))
                 .frame(width: 18, height: 24).contentShape(Rectangle())
         }
         .buttonStyle(.plain)

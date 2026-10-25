@@ -25,8 +25,8 @@ struct ChatAccessMenu: View {
                 Text("Switching modes keeps chat history and saved permissions.")
             } label: {
                 HStack(spacing: 5) {
-                    Image(systemName: current == .full ? "lock.open" : "lock").font(.system(size: 11))
-                    Text(current.title + "  ⌄").font(.system(size: 12))
+                    Image(systemName: current == .full ? "lock.open" : "lock").appFont(.system(size: 11))
+                    Text(current.title + "  ⌄").appFont(.system(size: 12))
                 }.foregroundStyle(theme.text2.color)
             }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()

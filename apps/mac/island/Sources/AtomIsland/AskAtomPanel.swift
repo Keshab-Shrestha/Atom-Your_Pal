@@ -33,12 +33,12 @@ struct AskAtomPanel: View {
             case .idle, .message:
                 askRow
                 if case .message(let words) = phase.wrappedValue {
-                    Text(words).font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+                    Text(words).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color)
                 }
             case .running(let id, _):
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)
-                    Text("ATOM is editing…").font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    Text("ATOM is editing…").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                     Spacer(minLength: 8)
                     QuietButton(title: "Cancel", symbol: "xmark") {
                         model.cancelAskAtom(id: id)
@@ -62,9 +62,9 @@ struct AskAtomPanel: View {
 
     private var askRow: some View {
         HStack(spacing: 8) {
-            Image(systemName: "sparkles").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+            Image(systemName: "sparkles").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
             TextField("Ask ATOM: make it shorter, fix the spelling…", text: instruction.projectedValue)
-                .textFieldStyle(.plain).font(.system(size: 12.5)).foregroundStyle(theme.text.color)
+                .textFieldStyle(.plain).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color)
                 .onSubmit(send)
                 .accessibilityLabel("Ask ATOM to change this text")
             QuietButton(title: "Ask", symbol: "arrow.up") { send() }

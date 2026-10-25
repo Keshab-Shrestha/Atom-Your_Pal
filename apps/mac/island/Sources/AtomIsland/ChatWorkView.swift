@@ -16,7 +16,7 @@ struct ChatWorkView: View {
             } else { toggle }
             if expanded {
                 Text("Observed foreground tools only. Background agents have their own Board history. Missing results mean an unknown outcome; they do not prove nothing happened.")
-                    .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                    .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                 ForEach(work.calls) { call in
                     HStack(spacing: 7) {
                         Image(systemName: symbol(call.state)).accessibilityHidden(true)
@@ -24,17 +24,17 @@ struct ChatWorkView: View {
                         Spacer()
                         Text(call.state == "started" ? "Running" : call.state == "ok" ? "Finished" : call.state == "error" ? "Reported error" : "Outcome unknown")
                         if let ms = call.ms { Text(duration(ms)).monospacedDigit() }
-                    }.font(.system(size: 11)).foregroundStyle(theme.text2.color)
+                    }.appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
                 }
-                if work.calls.isEmpty { Text("No tool calls observed.").font(.system(size: 11)).foregroundStyle(theme.text3.color) }
-                if work.omitted > 0 { Text("\(work.omitted) additional call observations omitted.").font(.system(size: 11)).foregroundStyle(theme.text3.color) }
+                if work.calls.isEmpty { Text("No tool calls observed.").appFont(.system(size: 11)).foregroundStyle(theme.text3.color) }
+                if work.omitted > 0 { Text("\(work.omitted) additional call observations omitted.").appFont(.system(size: 11)).foregroundStyle(theme.text3.color) }
                 ForEach(work.questions.filter { $0.state != "pending" }) { question in
                     VStack(alignment: .leading, spacing: 3) {
                         Text(question.prompt).fontWeight(.medium)
                         Text(question.answer ?? (question.state == "expired" ? "No answer before the card expired." : "Question skipped or interrupted."))
-                    }.font(.system(size: 11)).foregroundStyle(theme.text2.color).textSelection(.enabled)
+                    }.appFont(.system(size: 11)).foregroundStyle(theme.text2.color).textSelection(.enabled)
                 }
-                Text("This work log is temporary and is not restored from saved history.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                Text("This work log is temporary and is not restored from saved history.").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
             }
         }
     }
@@ -45,7 +45,7 @@ struct ChatWorkView: View {
                 Text(label).monospacedDigit()
                 Text("· \(work.calls.count) observed calls")
                 if work.state == "working", let step { Text("· \(step)").lineLimit(1).truncationMode(.tail) }
-            }.font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+            }.appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color)
         }.buttonStyle(.borderless).accessibilityValue(expanded ? "Expanded" : "Collapsed")
             .help("Elapsed foreground work time includes model setup, tool calls and waiting for answers; speech playback is separate")
     }
@@ -70,9 +70,9 @@ struct ChatQuestionCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("ATOM asks").font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.text3.color)
-            Text(question.prompt).font(.system(size: 12.5)).textSelection(.enabled)
-            if let error = question.error { Text(error).font(.system(size: 11)).foregroundStyle(theme.attention.color) }
+            Text("ATOM asks").appFont(.system(size: 11, weight: .semibold)).foregroundStyle(theme.text3.color)
+            Text(question.prompt).appFont(.system(size: 12.5)).textSelection(.enabled)
+            if let error = question.error { Text(error).appFont(.system(size: 11)).foregroundStyle(theme.attention.color) }
             ForEach(question.choices, id: \.self) { choice in
                 Button(choice) { submit(choice) }.buttonStyle(.borderless).multilineTextAlignment(.leading)
             }
@@ -81,12 +81,12 @@ struct ChatQuestionCard: View {
             HStack {
                 Button("Send answer") { submit(answer) }.disabled(answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 Button("Skip") { submit(nil) }
-                if sent { Text("Waiting for confirmation…").font(.system(size: 11)).foregroundStyle(theme.text3.color) }
+                if sent { Text("Waiting for confirmation…").appFont(.system(size: 11)).foregroundStyle(theme.text3.color) }
             }
             Text("Answering gives clarification, not file or system permission. Do not enter passwords or secrets. The message box queues a new message instead.")
-                .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
         }
-        .font(.system(size: 12)).foregroundStyle(theme.text.color)
+        .appFont(.system(size: 12)).foregroundStyle(theme.text.color)
         .padding(12).background(RoundedRectangle(cornerRadius: theme.radiusCard).fill(theme.fill1.color))
         .disabled(sent)
         .onChange(of: work) { _, _ in if question.error != nil { sent = false } }
@@ -101,7 +101,7 @@ struct ChatAccessContent: View {
     @Environment(\.theme) private var theme
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
-            Text("Chat access").font(.headline)
+            Text("Chat access").appFont(.headline)
             if let access = model.chatControls.snapshot?.info?.access {
                 Text("Mode: " + (model.chats?.access?.title ?? "Saved permissions"))
                 Text("Provider: \(access.provider)")
@@ -113,6 +113,6 @@ struct ChatAccessContent: View {
             Text("Change access beside the model selector. Chat only suspends tools and saved file grants. Ask before changes requires a fresh approval for each change-capable call. Saved permissions uses existing grants. Full access skips routine file, classified-command, site-opening and granted-plugin prompts for this chat; protected actions still ask or refuse. Protected files, tool availability and macOS permissions still apply in every mode.")
             Text("To inspect exact file grants, send ‘Show file permissions for this chat’. To revoke them, send ‘Forget file permissions for this chat’.")
             Button("Refresh", action: model.inspectSavedChat)
-        }.font(.system(size: 12)).foregroundStyle(theme.text2.color).padding(16).frame(width: 340)
+        }.appFont(.system(size: 12)).foregroundStyle(theme.text2.color).padding(16).frame(width: 340)
     }
 }

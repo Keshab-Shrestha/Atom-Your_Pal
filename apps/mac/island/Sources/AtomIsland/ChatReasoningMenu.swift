@@ -27,8 +27,8 @@ struct ChatReasoningMenu: View {
                 }
             } label: {
                 HStack(spacing: 5) {
-                    Image(systemName: "brain").font(.system(size: 11))
-                    Text(choice.title + "  ⌄").font(.system(size: 12))
+                    Image(systemName: "brain").appFont(.system(size: 11))
+                    Text(choice.title + "  ⌄").appFont(.system(size: 12))
                 }.foregroundStyle(theme.text2.color)
             }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()

@@ -15,9 +15,9 @@ struct DashboardPane: View {
             VStack(alignment: .leading, spacing: 22) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Dashboard").font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
+                        Text("Dashboard").appFont(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
                         Text("Tokens used by ATOM's chat and the team. On the Claude plan they count toward its limits; dollars are list prices for the calls counted here: tokens, Claude Code's own calls, and web searches at one cent each.")
-                            .font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                            .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                     }
                     Spacer(minLength: 12)
                     updated
@@ -46,10 +46,10 @@ struct DashboardPane: View {
                         TokenTile(value: TokenTotals.short(usage.week.cacheWrite), label: "Cache written, 7 days", detail: "\(TokenTotals.short(usage.today.cacheWrite)) today", small: true)
                         TokenTile(value: TokenTotals.short(usage.week.cacheRead), label: "Cache read, 7 days", detail: "\(TokenTotals.short(usage.today.cacheRead)) today", small: true)
                     }
-                    Text(Self.cacheHelp).font(.system(size: 11)).foregroundStyle(theme.text3.color).padding(.leading, 4)
+                    Text(Self.cacheHelp).appFont(.system(size: 11)).foregroundStyle(theme.text3.color).padding(.leading, 4)
                     if usage.chatCacheCold {
                         Text("Cache went cold: ATOM's last \(Self.coldRuns) chat answers read nothing from the cache, so each one sent its whole prompt again.")
-                            .font(.system(size: 11.5)).foregroundStyle(theme.text2.color).padding(.leading, 4)
+                            .appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).padding(.leading, 4)
                     }
                     if !usage.recent.isEmpty {
                         section("Recent turns") {
@@ -77,18 +77,17 @@ struct DashboardPane: View {
                         }
                     }
                     Text("Cache reads are context read back from Claude's cache; they cost a tenth as much. To use fewer: lower a worker's model on its page, or turn off the large model in the sidebar.")
-                        .font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                        .appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
                 } else {
                     LoadingStateView(text: "Loading tokens…", retry: { model.send(.helpersList) })
                 }
                 // ADR-091: the branches workers made, like pull requests; Keshab pushes one.
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Git: the team's branches").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
+                    Text("Git: the team's branches").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
                     if let problem = model.helpers.problem { ProblemLine(text: problem) }
                     GitSection(model: model)
                 }
             }
-            .frame(maxWidth: 680, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Spacing.panel)
             .padding(.top, 20)
@@ -107,7 +106,7 @@ struct DashboardPane: View {
                     (Text("Updated ") + Text(at, style: .relative) + Text(" ago"))
                 }
             }
-            .font(.system(size: 11)).foregroundStyle(theme.text3.color).lineLimit(1)
+            .appFont(.system(size: 11)).foregroundStyle(theme.text3.color).lineLimit(1)
             .accessibilityLabel("Numbers updated \(at.formatted(.relative(presentation: .named)))")
         }
     }
@@ -120,7 +119,7 @@ struct DashboardPane: View {
 
     private func section(_ title: String, @ViewBuilder _ content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
+            Text(title).appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
             VStack(alignment: .leading, spacing: 0) { content() }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
@@ -129,7 +128,7 @@ struct DashboardPane: View {
     }
 
     private func quiet(_ text: String) -> some View {
-        Text(text).font(.system(size: 12.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 16).padding(.vertical, 14)
+        Text(text).appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 16).padding(.vertical, 14)
     }
 }
 
@@ -144,9 +143,9 @@ private struct TokenTile: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(value).font(theme.idFont(.system(size: small ? 15 : medium ? 18 : 24, weight: .semibold), size: small ? 14 : medium ? 17 : 22)).foregroundStyle(small ? theme.text2.color : theme.text.color)
-            Text(label).font(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(1).minimumScaleFactor(0.8)
-            Text(detail).font(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1).minimumScaleFactor(0.8)
+            Text(value).appFont(theme.appIdentifierFont(.system(size: small ? 15 : medium ? 18 : 24, weight: .semibold), size: small ? 14 : medium ? 17 : 22)).foregroundStyle(small ? theme.text2.color : theme.text.color)
+            Text(label).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(1).minimumScaleFactor(0.8)
+            Text(detail).appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1).minimumScaleFactor(0.8)
         }
         .padding(.horizontal, 14).padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -168,7 +167,7 @@ private struct DayBars: View {
             ForEach(days, id: \.day) { day in
                 VStack(spacing: 6) {
                     Text(day.totals.total == 0 ? "–" : TokenTotals.short(day.totals.io))
-                        .font(theme.idFont(.system(size: 10), size: 9.5)).foregroundStyle(theme.text3.color)
+                        .appFont(theme.appIdentifierFont(.system(size: 10), size: 9.5)).foregroundStyle(theme.text3.color)
                     let tint = day.day == today ? theme.live.color : theme.text2.color
                     VStack(spacing: 0) {
                         Rectangle().fill(tint.opacity(0.28)).frame(height: bar(day.totals.cacheRead, most))
@@ -177,9 +176,9 @@ private struct DayBars: View {
                     }
                     .frame(maxWidth: .infinity)
                     .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
-                    Text(Self.weekday(day.day)).font(.system(size: 10.5)).foregroundStyle(theme.text2.color)
+                    Text(Self.weekday(day.day)).appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)
                     // ADR-098 item 9: the day's cache hit rate.
-                    Text(day.totals.cacheHitText).font(theme.idFont(.system(size: 9.5), size: 9)).foregroundStyle(theme.text3.color)
+                    Text(day.totals.cacheHitText).appFont(theme.appIdentifierFont(.system(size: 9.5), size: 9)).foregroundStyle(theme.text3.color)
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -218,7 +217,7 @@ private struct RecentHeader: View {
             Text("Cache w").frame(width: RecentColumns.number, alignment: .trailing)
             Text("Cache r").frame(width: RecentColumns.number, alignment: .trailing)
         }
-        .font(.system(size: 10, weight: .medium)).foregroundStyle(theme.text3.color)
+        .appFont(.system(size: 10, weight: .medium)).foregroundStyle(theme.text3.color)
         .padding(.horizontal, 16).padding(.top, 10).padding(.bottom, 6)
         .accessibilityHidden(true)
     }
@@ -231,9 +230,9 @@ private struct RecentRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Text(run.model).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2)).lineLimit(1)
+            Text(run.model).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2)).lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Text(run.kindTitle).font(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(1)
+            Text(run.kindTitle).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(1)
                 .frame(width: RecentColumns.kind, alignment: .leading)
             number(run.io, strong: true)
             number(run.cacheWrite)
@@ -245,7 +244,7 @@ private struct RecentRow: View {
     }
 
     private func number(_ n: Int, strong: Bool = false) -> some View {
-        Text(TokenTotals.short(n)).font(theme.idFont(.system(size: 12, weight: strong ? .medium : .regular), size: 11.5))
+        Text(TokenTotals.short(n)).appFont(theme.appIdentifierFont(.system(size: 12, weight: strong ? .medium : .regular), size: 11.5))
             .foregroundStyle(strong ? theme.text.color : theme.text2.color)
             .frame(width: RecentColumns.number, alignment: .trailing)
     }
@@ -261,11 +260,11 @@ private struct HeroTile: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 18) {
-            Text(value).font(theme.idFont(.system(size: 40, weight: .semibold), size: 36)).foregroundStyle(theme.text.color)
+            Text(value).appFont(theme.appIdentifierFont(.system(size: 40, weight: .semibold), size: 36)).foregroundStyle(theme.text.color)
             VStack(alignment: .leading, spacing: 3) {
-                Text(label).font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
-                Text(detail).font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
-                if let trend { Text(trend).font(.system(size: 11.5)).foregroundStyle(theme.text2.color) }
+                Text(label).appFont(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
+                Text(detail).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+                if let trend { Text(trend).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color) }
             }
             Spacer(minLength: 0)
         }
@@ -289,11 +288,11 @@ private struct ShareRow: View {
         let share = of == 0 ? 0 : Double(totals.total) / Double(of)
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(name).font(identifier ? theme.idFont(.system(size: 12.5, weight: .medium), size: 12) : .system(size: 12.5, weight: .medium))
+                Text(name).appFont(identifier ? theme.appIdentifierFont(.system(size: 12.5, weight: .medium), size: 12) : .system(size: 12.5, weight: .medium))
                     .foregroundStyle(identifier ? theme.idColor(theme.text) : theme.text.color).lineLimit(1)
                 Spacer()
                 Text("\(TokenTotals.short(totals.io)) in + out · cache \(TokenTotals.short(totals.cacheWrite + totals.cacheRead)) · \(totals.runs) run\(totals.runs == 1 ? "" : "s")")
-                    .font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text2.color)
+                    .appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text2.color)
             }
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
@@ -323,9 +322,9 @@ private struct PlanMeters: View {
     private func meter(_ label: String, _ used: Double) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
-                Text(label).font(.system(size: 12.5)).foregroundStyle(theme.text.color)
+                Text(label).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color)
                 Spacer()
-                Text("\(Int((used * 100).rounded()))%").font(theme.idFont(.system(size: 11.5), size: 11))
+                Text("\(Int((used * 100).rounded()))%").appFont(theme.appIdentifierFont(.system(size: 11.5), size: 11))
                     .foregroundStyle(used >= NoticeWatcher.warnAt ? theme.attention.color : theme.text2.color)
             }
             GeometryReader { proxy in
@@ -352,20 +351,20 @@ private struct GitSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Local branches · refresh after tasks finish").font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                Text("Local branches · refresh after tasks finish").appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
                 Spacer()
                 QuietButton(title: "Refresh", symbol: "arrow.clockwise") { model.sendHelpers(model.helpers.gitCommand(.gitList)) }
             }
             if let branches = model.helpers.git {
                 if branches.isEmpty {
                     Text("No task branches yet. Branches from active repository projects and granted repositories appear here. Subfolder projects use their own Git workspace.")
-                        .font(.system(size: 12.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 4)
+                        .appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 4)
                 }
                 ForEach(branches) { branch in
                     GitBranchCard(model: model, branch: branch) { confirming.wrappedValue = branch }
                 }
             } else {
-                Text("Looking for branches…").font(.system(size: 12.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 4)
+                Text("Looking for branches…").appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 4)
             }
         }
         .onAppear { model.sendHelpers(model.helpers.gitCommand(.gitList)) }
@@ -389,19 +388,19 @@ struct GitBranchCard: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 StatusDot(color: branch.pushed == .yes ? theme.success.color : branch.pushed == .changed ? theme.attention.color : theme.text3.color, size: 6)
-                Text(branch.repoName).font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
-                Text(branch.branch).font(theme.idFont(.system(size: 11.5), size: 11)).foregroundStyle(theme.idColor(theme.text2))
+                Text(branch.repoName).appFont(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
+                Text(branch.branch).appFont(theme.appIdentifierFont(.system(size: 11.5), size: 11)).foregroundStyle(theme.idColor(theme.text2))
                 Spacer(minLength: 8)
                 Text(branch.uncommitted ? "Uncommitted changes" : branch.pushed == .yes ? "Pushed" : branch.pushed == .changed ? "Changed since push" : "Not pushed")
-                    .font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                    .appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
             }
-            if let title = branch.title { Text("Task \(branch.task): \(title)").font(.system(size: 12.5)).foregroundStyle(theme.text2.color).lineLimit(1) }
+            if let title = branch.title { Text("Task \(branch.task): \(title)").appFont(.system(size: 12.5)).foregroundStyle(theme.text2.color).lineLimit(1) }
             if let tree = branch.worktree {
-                Text("Working copy: \(tree)").font(.system(size: 11, design: .monospaced)).foregroundStyle(theme.text3.color).textSelection(.enabled)
+                Text("Working copy: \(tree)").appFont(.system(size: 11, design: .monospaced)).foregroundStyle(theme.text3.color).textSelection(.enabled)
             }
             if branch.uncommitted {
                 Text("Kept uncommitted for your review. Commit explicitly in Terminal before pushing. This review does not apply the task copy to the original project. New untracked file contents are not included in this diff until staged.")
-                    .font(.system(size: 11.5)).foregroundStyle(theme.attention.color)
+                    .appFont(.system(size: 11.5)).foregroundStyle(theme.attention.color)
             }
             if branch.baseSource != "unavailable" {
                 HStack(spacing: 6) {
@@ -409,30 +408,30 @@ struct GitBranchCard: View {
                     Text("+\(branch.added)").foregroundStyle(theme.success.color)
                     Text("−\(branch.removed)").foregroundStyle(theme.problem.color)
                 }
-                .font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color)
+                .appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color)
             }
             if let warning = branch.baseWarning {
-                Text(warning).font(.system(size: 11)).foregroundStyle(theme.attention.color)
+                Text(warning).appFont(.system(size: 11)).foregroundStyle(theme.attention.color)
             } else {
                 Text("\(branch.baseSource == "saved" ? "Saved start" : "Estimated base"): \(branch.base)\(branch.baseSHA.map { " · " + String($0.prefix(8)) } ?? "")")
-                    .font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color).textSelection(.enabled)
+                    .appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color).textSelection(.enabled)
                 if let behind = branch.behind {
                     Text("\(behind) behind \(branch.base) · local refs")
-                        .font(.system(size: 11)).foregroundStyle(behind > 0 ? theme.attention.color : theme.text3.color)
+                        .appFont(.system(size: 11)).foregroundStyle(behind > 0 ? theme.attention.color : theme.text3.color)
                 }
             }
             VStack(alignment: .leading, spacing: 3) {
                 ForEach(Array(branch.commits.prefix(4).enumerated()), id: \.offset) { _, commit in
                     HStack(spacing: 8) {
-                        Text(commit.sha).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text3))
-                        Text(commit.subject).font(.system(size: 12)).foregroundStyle(theme.text.color).lineLimit(1)
+                        Text(commit.sha).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text3))
+                        Text(commit.subject).appFont(.system(size: 12)).foregroundStyle(theme.text.color).lineLimit(1)
                     }
                 }
-                if branch.commits.count > 4 { Text("and \(branch.commits.count - 4) more").font(.system(size: 11)).foregroundStyle(theme.text3.color) }
+                if branch.commits.count > 4 { Text("and \(branch.commits.count - 4) more").appFont(.system(size: 11)).foregroundStyle(theme.text3.color) }
                 ForEach(Array(branch.files.prefix(6).enumerated()), id: \.offset) { _, file in
                     HStack(spacing: 8) {
-                        Image(systemName: "doc").font(.system(size: 10)).foregroundStyle(theme.text3.color)
-                        Text(file.path).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text2.color).lineLimit(1).truncationMode(.middle)
+                        Image(systemName: "doc").appFont(.system(size: 10)).foregroundStyle(theme.text3.color)
+                        Text(file.path).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text2.color).lineLimit(1).truncationMode(.middle)
                         Spacer(minLength: 4)
                         if let a = file.added, let r = file.removed {
                             Text("+\(a)").foregroundStyle(theme.success.color)
@@ -441,9 +440,9 @@ struct GitBranchCard: View {
                             Text("binary").foregroundStyle(theme.text3.color)
                         }
                     }
-                    .font(theme.idFont(.system(size: 10.5), size: 10))
+                    .appFont(theme.appIdentifierFont(.system(size: 10.5), size: 10))
                 }
-                if branch.files.count > 6 { Text("and \(branch.files.count - 6) more files").font(.system(size: 11)).foregroundStyle(theme.text3.color) }
+                if branch.files.count > 6 { Text("and \(branch.files.count - 6) more files").appFont(.system(size: 11)).foregroundStyle(theme.text3.color) }
             }
             .padding(.top, 2)
             HStack(spacing: 8) {
@@ -456,7 +455,7 @@ struct GitBranchCard: View {
                     .opacity(branch.canPush ? 1 : 0.5)
                     .help(!branch.pushAllowed ? "Push is unavailable for this project’s current access." : branch.remote == nil ? "This repository has no remote named origin." : branch.pushed == .yes ? "Already on the remote." : "Push this branch to origin")
                 Spacer()
-                if let remote = branch.remote { Text(remote).font(theme.idFont(.system(size: 10.5), size: 10)).foregroundStyle(theme.text3.color).lineLimit(1).truncationMode(.middle) }
+                if let remote = branch.remote { Text(remote).appFont(theme.appIdentifierFont(.system(size: 10.5), size: 10)).foregroundStyle(theme.text3.color).lineLimit(1).truncationMode(.middle) }
             }
             if let diff { DiffText(diff: diff) }
         }
@@ -477,7 +476,7 @@ private struct DiffText: View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
                 Text(line.isEmpty ? " " : String(line))
-                    .font(.system(size: 10.5, design: .monospaced))
+                    .appFont(.system(size: 10.5, design: .monospaced))
                     .foregroundStyle(line.hasPrefix("+") && !line.hasPrefix("+++") ? theme.success.color
                         : line.hasPrefix("-") && !line.hasPrefix("---") ? theme.problem.color
                         : line.hasPrefix("@@") ? theme.live.color : theme.text2.color)
@@ -485,7 +484,7 @@ private struct DiffText: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             if diff.truncated || diff.text.split(separator: "\n").count > 400 {
-                Text("The rest is cut off here.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color).padding(.top, 4)
+                Text("The rest is cut off here.").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color).padding(.top, 4)
             }
         }
         .padding(10)

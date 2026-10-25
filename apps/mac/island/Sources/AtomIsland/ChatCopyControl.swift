@@ -82,7 +82,7 @@ struct ChatCopyControl: View {
 
     private var label: some View {
         Label(notice.wrappedValue ?? title, systemImage: notice.wrappedValue == "Copied" ? "checkmark" : notice.wrappedValue == "Copy failed" ? "exclamationmark.triangle" : "doc.on.doc")
-            .font(.system(size: 11.5))
+            .appFont(.system(size: 11.5))
             .foregroundStyle(notice.wrappedValue == "Copy failed" ? theme.problem.color : theme.text2.color)
             .padding(.vertical, 3)
     }

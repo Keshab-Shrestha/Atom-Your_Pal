@@ -134,7 +134,7 @@ struct KeyHint: View {
 
     var body: some View {
         Text(text)
-            .font(theme.idFont(.system(size: 10, weight: .semibold, design: .rounded), size: 10, weight: .medium))
+            .appFont(theme.appIdentifierFont(.system(size: 10, weight: .semibold, design: .rounded), size: 10, weight: .medium))
             .foregroundStyle(theme.text3.color)
     }
 }

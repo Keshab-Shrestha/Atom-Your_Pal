@@ -6,6 +6,7 @@ import AtomIslandCore
 // turn (tap for every stage) and the last problem. The facts come from `NowFacts`.
 
 struct NowCard: View {
+    @Environment(\.appTextSize) private var textSize
     let model: IslandModel
     /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
     private let showsTimings: State<Bool>
@@ -36,11 +37,11 @@ struct NowCard: View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(facts.provider.isEmpty ? "AI model" : facts.provider)
-                    .font(.system(size: 14, weight: .semibold, design: theme.titleDesign))
+                    .appFont(.system(size: 14, weight: .semibold, design: theme.titleDesign))
                     .foregroundStyle(theme.text.color)
                 // The model is an identifier: SF Mono in Void's violet.
-                (Text("Replies from ") + Text(facts.model).font(theme.idFont(.system(size: 11.5), size: 11)).foregroundColor(theme.idColor(theme.text2)))
-                    .font(.system(size: 11.5))
+                (Text("Replies from ") + Text(facts.model).appFont(theme.appIdentifierFont(.system(size: 11.5), size: 11), scaledBy: textSize).foregroundColor(theme.idColor(theme.text2)))
+                    .appFont(.system(size: 11.5))
                     .foregroundStyle(theme.text2.color)
             }
             .lineLimit(1)
@@ -58,7 +59,7 @@ struct NowCard: View {
             if let week = usage.sevenDay { PlanMeter(title: "Weekly", fraction: week, inset: 0, height: 26) }
             if usage.overage == true {
                 Text("Extra usage is on: Claude would charge for more, so ATOM stops.")
-                    .font(.system(size: 10.5))
+                    .appFont(.system(size: 10.5))
                     .foregroundStyle(theme.text3.color)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -75,9 +76,9 @@ struct NowCard: View {
 
     private func fact(symbol: String, text: String, label: String, dimmed: Bool = false) -> some View {
         HStack(spacing: 5) {
-            Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(theme.text3.color)
+            Image(systemName: symbol).appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
             Text(text)
-                .font(theme.idFont(.system(size: 11.5), size: 11))
+                .appFont(theme.appIdentifierFont(.system(size: 11.5), size: 11))
                 .foregroundStyle(dimmed ? theme.text3.color : theme.text2.color)
                 .lineLimit(1)
                 .truncationMode(.middle)
@@ -94,11 +95,11 @@ struct NowCard: View {
                     withAnimation(Motion.settle(reduceMotion)) { showsTimings.wrappedValue.toggle() }
                 } label: {
                     HStack(spacing: 6) {
-                        Text("Last turn").font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
+                        Text("Last turn").appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
                         Spacer(minLength: 6)
-                        Text(summary).font(theme.idFont(.system(size: 11.5).monospacedDigit(), size: 11)).foregroundStyle(theme.text2.color)
+                        Text(summary).appFont(theme.appIdentifierFont(.system(size: 11.5).monospacedDigit(), size: 11)).foregroundStyle(theme.text2.color)
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 9.5, weight: .bold))
+                            .appFont(.system(size: 9.5, weight: .bold))
                             .foregroundStyle(theme.text3.color)
                             .rotationEffect(.degrees(showsTimings.wrappedValue ? 90 : 0))
                     }
@@ -114,9 +115,9 @@ struct NowCard: View {
             }
         } else {
             HStack {
-                Text("Last turn").font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
+                Text("Last turn").appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
                 Spacer()
-                Text("No turn yet").font(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+                Text("No turn yet").appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
             }
             .accessibilityElement(children: .combine)
         }
@@ -125,10 +126,10 @@ struct NowCard: View {
     private func problemLine(_ problem: IslandStatus.Problem) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Label(problem.title, systemImage: "exclamationmark.triangle.fill")
-                .font(.system(size: 12, weight: .semibold))
+                .appFont(.system(size: 12, weight: .semibold))
                 .foregroundStyle(theme.problem.color)
             Text(problem.message)
-                .font(.system(size: 11))
+                .appFont(.system(size: 11))
                 .foregroundStyle(theme.text2.color)
                 .fixedSize(horizontal: false, vertical: true)
                 .textSelection(.enabled)
@@ -154,13 +155,13 @@ private struct TimingDetail: View {
             ForEach(rows, id: \.title) { row in
                 HStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(row.title).font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+                        Text(row.title).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color)
                         if let detail = row.detail {
-                            Text(detail).font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                            Text(detail).appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                         }
                     }
                     Spacer()
-                    Text(row.value).font(theme.idFont(.system(size: 11.5).monospacedDigit(), size: 11)).foregroundStyle(theme.text.color)
+                    Text(row.value).appFont(theme.appIdentifierFont(.system(size: 11.5).monospacedDigit(), size: 11)).foregroundStyle(theme.text.color)
                 }
                 .accessibilityElement(children: .combine)
             }
@@ -170,7 +171,7 @@ private struct TimingDetail: View {
     private func legend(_ title: String, _ color: Color) -> some View {
         HStack(spacing: 4) {
             Circle().fill(color).frame(width: 6, height: 6)
-            Text(title).font(.system(size: 10)).foregroundStyle(theme.text2.color)
+            Text(title).appFont(.system(size: 10)).foregroundStyle(theme.text2.color)
         }
     }
 }
@@ -209,7 +210,7 @@ struct LinkButton: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 12, weight: .semibold))
+                .appFont(.system(size: 12, weight: .semibold))
                 .foregroundStyle(theme.accent.color.opacity(hovering.wrappedValue ? 1 : 0.9))
                 .underline(hovering.wrappedValue)
                 .contentShape(Rectangle())

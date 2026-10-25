@@ -3,9 +3,11 @@ import SwiftUI
 import AtomIslandCore
 
 /// Keep the conversation mounted when the workspace covers a narrow window; resizing cannot replace its editor.
-struct ChatWorkspaceLayout: View {
+struct ChatWorkspaceLayout<Header: View>: View {
     let model: IslandModel
+    @ViewBuilder let header: () -> Header
     @Environment(\.theme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var dragWidth: Double?
     var body: some View {
         GeometryReader { geometry in
@@ -13,8 +15,12 @@ struct ChatWorkspaceLayout: View {
             let shown = model.workspace.shown
             let covering = shown && !layout.split
             ZStack(alignment: .trailing) {
-                ConversationTab(model: model)
-                    .frame(maxWidth: ChatAppearance.column).frame(maxWidth: .infinity)
+                VStack(spacing: 0) {
+                    header()
+                    ConversationTab(model: model)
+                        .frame(maxWidth: .infinity)
+                }
+                    .workspaceLane(color: theme.surfaceSolid)
                     .padding(.trailing, shown && layout.split ? layout.pane + WorkspacePaneLayout.divider : 0)
                     .opacity(covering ? 0 : 1).allowsHitTesting(!covering).accessibilityHidden(covering)
                 if shown {
@@ -24,10 +30,13 @@ struct ChatWorkspaceLayout: View {
                                              preview: { dragWidth = $0 }, commit: { model.settings.workspaceWidth = $0; dragWidth = nil })
                         }
                         ProjectWorkspaceView(model: model).frame(width: layout.pane)
+                            .workspaceLane(color: WorkspaceColors.for(model.settings.theme).workspace)
                     }
+                    .transition(reduceMotion ? .opacity : .move(edge: .trailing).combined(with: .opacity))
                 }
             }
             .onChange(of: shown) { dragWidth = nil }
+            .animation(Motion.workspace(reduceMotion), value: shown)
         }
     }
 }
@@ -42,8 +51,8 @@ private struct WorkspaceDivider: View {
     @State private var hovering = false
     private func bounded(_ value: Double) -> Double { min(maximum, WorkspacePaneLayout.preference(value)) }
     var body: some View {
-        Rectangle().fill(hovering || origin != nil ? theme.text3.color : theme.separator.color)
-            .frame(width: hovering || origin != nil ? 2 : 1)
+        Capsule().fill(hovering || origin != nil ? theme.accent.color : theme.separator.color)
+            .frame(width: 2, height: 48)
             .frame(width: WorkspacePaneLayout.divider, height: nil).frame(maxHeight: .infinity)
             .contentShape(Rectangle())
             .onHover { hovering = $0; ($0 ? NSCursor.resizeLeftRight : NSCursor.arrow).set() }

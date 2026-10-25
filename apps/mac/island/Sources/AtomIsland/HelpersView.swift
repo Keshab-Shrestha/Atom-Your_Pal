@@ -2,11 +2,12 @@ import AppKit
 import SwiftUI
 import AtomIslandCore
 
-/// ATOM's shared desktop shell (ADR-176), adapted from T3 Code. All pages share navigation and neutral surfaces.
+/// Native four-lane workspace (ADR-201). All destinations keep their existing model/controller operations.
 /// The logic lives in `HelpersState`; these views only draw it.
 struct HelpersView: View {
     let model: IslandModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.islandSnapshot) private var snapshot
 
     /// Room at the top of the sidebar for the window's buttons (the title bar is transparent over the content).
     static let titleBarRoom: CGFloat = 40
@@ -16,78 +17,32 @@ struct HelpersView: View {
     var body: some View {
         let chat = model.windowPage == .chat
         let palette = ChatAppearance.palette(theme: model.settings.theme)
-        let sidebarHidden = model.settings.sidebarHidden
-        HStack(spacing: 0) {
+        let sidebarHidden = model.settings.sidebarHidden || (model.windowPage != .chat && model.windowPage != .settings)
+        HStack(spacing: 8) {
+            WorkspaceNavigationRail(model: model)
+                .themed(WorkspaceColors.for(model.settings.theme).navigationPalette)
             if !sidebarHidden {
-                HStack(spacing: 0) {
-                    HelperSidebar(model: model).frame(width: 232)
-                        .themed(ChatAppearance.palette(theme: model.settings.theme, sidebar: true))
-                    Rectangle().fill(palette.separator.color).frame(width: palette.isFlat ? 1 : 0.5)
-                }
-                .transition(.move(edge: .leading))
+                HelperSidebar(model: model).frame(width: 236)
+                    .themed(ChatAppearance.palette(theme: model.settings.theme, sidebar: true))
+                    .workspaceLane(color: WorkspaceColors.for(model.settings.theme).panel)
+                    .transition(reduceMotion ? .opacity : .move(edge: .leading).combined(with: .opacity))
             }
-            VStack(spacing: 0) {
-            // ADR-091: a top bar over every page, with the page's name; it moves the window.
-            let page = Self.page(model)
-            // These pages bring their own back button ("‹ Settings", "‹ Board", "Cancel"); two arrows said the same thing twice.
-            let ownBack = model.windowPage == .agents && (model.helpers.isCreatingAgent || model.helpers.openJobId != nil
-                || (!model.helpers.showsBoard && model.helpers.selectedHelper != nil && model.helpers.isSoulOpen))
-            // A Settings page (Model, Voice...) goes back to the Settings list with this arrow, the one in the top bar.
-            let settingsBack: (() -> Void)? = model.windowPage == .settings && model.settingsPage != nil
-                ? { withAnimation(Motion.settle(reduceMotion)) { model.settingsPage = nil } } : nil
-            WindowTopBar(title: page.title, symbol: page.symbol, compact: true, context: chat ? model.chats?.currentProject?.name : model.windowPage == .settings && model.settingsPage != nil ? "Settings" : nil, showSidebar: sidebarHidden ? { model.toggleSidebar() } : nil, back: settingsBack ?? (model.history.canGoBack && !ownBack ? { model.goBack() } : nil)) {
-                if model.windowPage == .chat {
-                    // 2026-10-15: New chat, Sounds and Delete are not here. New chat is the icon beside search in the
-                    // sidebar, Delete is on a chat's row there, and the sounds are in Settings → Sounds.
-                    Button { model.toggleWorkspace() } label: {
-                        Image(systemName: "sidebar.right").frame(width: 24, height: 24)
-                            .foregroundStyle(model.workspace.shown ? palette.text.color : palette.text2.color)
-                    }.buttonStyle(SnapshotBorderlessButtonStyle()).font(.system(size: 11))
-                        .accessibilityLabel(model.workspace.shown ? "Close workspace" : "Open workspace")
-                        .help("Toggle workspace (⌥⌘R)")
-                    ConversationControls(model: model)
+            if chat {
+                ChatWorkspaceLayout(model: model) { topBar }
+            } else {
+                VStack(spacing: 0) {
+                    topBar
+                    pageContent.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 }
-            }
-            Group {
-                if model.windowPage == .dashboard {
-                    DashboardPane(model: model)
-                } else if model.windowPage == .scheduled {
-                    ScheduledPane(model: model)
-                } else if model.windowPage == .plugins {
-                    PluginsPane(model: model)
-                } else if model.windowPage == .brain {
-                    BrainPane(model: model)
-                } else if model.windowPage == .chat {
-                    // ADR-089: the conversation, as in the panel, a readable width in the middle of the window.
-                    ChatWorkspaceLayout(model: model)
-                } else if model.windowPage == .settings {
-                    SettingsTab(model: model)
-                        .frame(maxWidth: 784)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 8)
-                } else if model.helpers.isCreatingAgent {
-                    NewAgentPane(model: model)
-                } else if model.helpers.openJobId != nil {
-                    ThreadPane(model: model)
-                } else if model.helpers.showsBoard {
-                    BoardPane(model: model)
-                } else if let helper = model.helpers.selectedHelper {
-                    if model.helpers.isSoulOpen, let soul = helper.soul {
-                        // A new version (a save or a restore) starts the form again from what is now current.
-                        SoulPane(model: model, helper: helper, soul: soul).id("\(helper.id)-\(helper.soulVersion)")
-                    } else {
-                        HelperPane(model: model, helper: helper)
-                    }
-                } else {
-                    Waiting(text: model.helpers.list == nil ? "Waiting for ATOM…" : "No helpers yet")
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .workspaceLane(color: palette.surfaceSolid)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .background(Rectangle().fill(palette.surfaceFill(solid: true)).ignoresSafeArea())
+        .padding(8).padding(.top, 30)
+        .background(WorkspaceColors.for(model.settings.theme).frame.color.ignoresSafeArea())
+        .background { if !snapshot { WindowDragArea() } }
         .background(DesktopWindowAppearance(palette: palette))
-        .animation(Motion.settle(reduceMotion), value: sidebarHidden)
+        .animation(Motion.workspace(reduceMotion), value: sidebarHidden)
         .ignoresSafeArea(edges: .top)
         // ADR-096: every change of page or of what is open is a step Back returns to.
         .onChange(of: model.location, initial: true) { model.recordLocation() }
@@ -105,7 +60,53 @@ struct HelpersView: View {
         }
         .themed(palette)
         .environment(\.desktopDesign, true)
+        .appFont(.system(size: 13))
+        .environment(\.appTextSize, model.settings.textSize)
     }
+
+    private var topBar: some View {
+        let page = Self.page(model)
+        let ownBack = model.windowPage == .agents && (model.helpers.isCreatingAgent || model.helpers.openJobId != nil
+            || (!model.helpers.showsBoard && model.helpers.selectedHelper != nil && model.helpers.isSoulOpen))
+        let settingsBack: (() -> Void)? = model.windowPage == .settings && model.settingsPage != nil
+            ? { withAnimation(Motion.workspace(reduceMotion)) { model.settingsPage = nil } } : nil
+        return WindowTopBar(title: page.title, symbol: page.symbol, compact: true,
+            context: model.windowPage == .chat ? model.chats?.currentProject?.name : model.windowPage == .settings ? "Preferences" : "Workspace",
+            showSidebar: model.settings.sidebarHidden && (model.windowPage == .chat || model.windowPage == .settings) ? { model.toggleSidebar() } : nil,
+            back: model.windowPage == .dashboard ? nil : settingsBack ?? (model.history.canGoBack && !ownBack ? { model.goBack() } : nil)) {
+                if model.windowPage == .chat {
+                    Button { model.toggleWorkspace() } label: {
+                        Image(systemName: "sidebar.right").frame(width: 30, height: 30)
+                            .foregroundStyle(model.workspace.shown ? model.settings.theme.palette.accent.color : model.settings.theme.palette.text2.color)
+                    }.buttonStyle(WorkspacePressStyle()).appFont(.system(size: 13))
+                        .accessibilityLabel(model.workspace.shown ? "Close workspace" : "Open workspace")
+                        .help("Toggle workspace (⌥⌘R)")
+                    ConversationControls(model: model)
+                }
+            }
+    }
+
+    @ViewBuilder private var pageContent: some View {
+        switch model.windowPage {
+        case .dashboard: DashboardPane(model: model)
+        case .scheduled: ScheduledPane(model: model)
+        case .plugins: PluginsPane(model: model)
+        case .brain: BrainPane(model: model)
+        case .chat: EmptyView() // ChatWorkspaceLayout keeps the composer mounted through pane resizing.
+        case .settings:
+            SettingsTab(model: model).frame(maxWidth: .infinity).padding(.top, 8)
+        case .agents:
+            if model.helpers.isCreatingAgent { NewAgentPane(model: model) }
+            else if model.helpers.openJobId != nil { ThreadPane(model: model) }
+            else if model.helpers.showsBoard { BoardPane(model: model) }
+            else if let helper = model.helpers.selectedHelper {
+                if model.helpers.isSoulOpen, let soul = helper.soul {
+                    SoulPane(model: model, helper: helper, soul: soul).id("\(helper.id)-\(helper.soulVersion)")
+                } else { HelperPane(model: model, helper: helper) }
+            } else { Waiting(text: model.helpers.list == nil ? "Waiting for ATOM…" : "No helpers yet") }
+        }
+    }
+
 }
 
 extension HelpersView {
@@ -142,7 +143,7 @@ private struct Waiting: View {
     var body: some View {
         VStack(spacing: 8) {
             ProgressView().controlSize(.small)
-            Text(text).font(.system(size: 12)).foregroundStyle(theme.text2.color)
+            Text(text).appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -154,9 +155,6 @@ private struct HelperSidebar: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
     @Environment(\.desktopDesign) private var desktopDesign
-    /// The page being dragged. `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
-    private let dragging = State<SidebarItem?>(initialValue: nil)
-    @Environment(\.islandSnapshot) private var snapshot
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -165,9 +163,9 @@ private struct HelperSidebar: View {
                 SettingsSidebar(model: model)
             } else {
                 // ADR-098: one search over chats, tasks and reports; its results replace the pages while there are words.
+                SidebarSearchField(model: model).padding(.bottom, 6)
                 HStack(spacing: 4) {
-                    SidebarSearchField(model: model)
-                    ProjectFilterButton(model: model)
+                    ProjectFilterButton(model: model, expanded: true)
                     NewProjectButton(model: model)
                     Button {
                         model.navigate {
@@ -176,30 +174,27 @@ private struct HelperSidebar: View {
                             model.windowPage = .chat
                         }
                     } label: {
-                        Image(systemName: "square.and.pencil").font(.system(size: 13)).foregroundStyle(theme.text2.color)
+                        Image(systemName: "square.and.pencil").appFont(.system(size: 13)).foregroundStyle(theme.text2.color)
                             .frame(width: 28, height: 30).contentShape(Rectangle())
                     }.buttonStyle(.plain).help(model.sidebarProjectFilter == nil ? "Start a new chat" : "New chat in the selected project")
                         .accessibilityLabel("New chat")
                         .disabled(model.chats?.projects?.first(where: { $0.id == model.sidebarProjectFilter })?.archived == true)
                 }.padding(.bottom, 8)
-                ProjectFilterSummary(model: model)
+                if !model.searchQuery.isEmpty { ProjectFilterSummary(model: model) }
                 if !model.searchQuery.isEmpty {
                     Scrollable { SidebarSearchResults(model: model) }
                 } else {
-                    // App destinations retain their drag order; projects and chats share the scrolling region.
-                    group(model.settings.sidebar.top, bottom: false)
-                    // ADR-107: projects (a folder and its chats) above the plain chats.
+                    // Destinations live in the rail; this list retains the existing project scope.
                     Scrollable {
                         ChatsList(model: model)
                     }
                         .frame(maxHeight: .infinity)
                 }
                 if !model.searchQuery.isEmpty { Spacer(minLength: 0) }
-                group(model.settings.sidebar.bottom, bottom: true)
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.top, desktopDesign ? 12 : HelpersView.titleBarRoom)
+        .padding(.horizontal, 12)
+        .padding(.top, desktopDesign ? 16 : HelpersView.titleBarRoom)
         .padding(.bottom, 10)
         .frame(maxHeight: .infinity, alignment: .top)
         // Darker than the window: the list sits back, the chosen helper comes forward. Void: one black, the hairline
@@ -207,101 +202,11 @@ private struct HelperSidebar: View {
         .background((desktopDesign ? theme.surfaceSolid.color : theme.isFlat ? Color.clear : theme.isDark ? Color.black.opacity(0.2) : theme.fill1.color).ignoresSafeArea())
     }
 
-    /// One group of pages. Each row can be dragged onto another row, or onto the strip at the end of the group (the way
-    /// into an empty group). The right-click menu does the same without a mouse.
-    private func group(_ items: [SidebarItem], bottom: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(items, id: \.self) { item in
-                if snapshot {
-                    row(item) // `ImageRenderer` cannot draw drag and drop: the gallery shows plain rows
-                } else {
-                    row(item)
-                        .onDrag {
-                            dragging.wrappedValue = item
-                            return NSItemProvider(object: item.rawValue as NSString)
-                        }
-                        .onDrop(of: [.text], delegate: SidebarDrop(target: item, toBottom: bottom, dragging: dragging.projectedValue, layout: layout))
-                        .contextMenu {
-                            Button("Move up") { withAnimation(.easeInOut(duration: 0.15)) { model.settings.sidebar.shift(item, by: -1) } }
-                            Button("Move down") { withAnimation(.easeInOut(duration: 0.15)) { model.settings.sidebar.shift(item, by: 1) } }
-                            Button(bottom ? "Move to the top group" : "Move to the bottom group") {
-                                withAnimation(.easeInOut(duration: 0.15)) { model.settings.sidebar.move(item, before: nil, toBottom: !bottom) }
-                            }
-                        }
-                }
-            }
-            if snapshot {
-                Color.clear.frame(height: bottom ? 6 : 8)
-            } else {
-                Color.clear.frame(height: bottom ? 6 : 8)
-                    .onDrop(of: [.text], delegate: SidebarDrop(target: nil, toBottom: bottom, dragging: dragging.projectedValue, layout: layout))
-            }
-        }
-    }
-
-    private var layout: Binding<SidebarLayout> {
-        Binding(get: { model.settings.sidebar }, set: { model.settings.sidebar = $0 })
-    }
-
-    @ViewBuilder
-    private func row(_ item: SidebarItem) -> some View {
-        switch item {
-        case .dashboard:
-            page { model.navigate { model.windowPage = .dashboard } } label: {
-                let today = model.helpers.list?.usage?.today.total ?? 0
-                SidebarRow(symbol: "chart.bar.xaxis", title: "Dashboard", detail: today == 0 ? nil : "\(TokenTotals.short(today)) tokens today", selected: model.windowPage == .dashboard)
-            }
-        case .board:
-            page {
-                model.navigate {
-                    model.windowPage = .agents
-                    model.helpers.selectBoard()
-                    // Anything that waits for Keshab opens Needs you, so it cannot be missed; otherwise the view in use.
-                    model.boardView = BoardAttention(list: model.helpers.list, approvalPending: model.approval.pending != nil).view(whenOpening: model.boardView)
-                }
-            } label: {
-                BoardRow(model: model, selected: model.windowPage == .agents && model.helpers.showsBoard)
-            }
-        case .scheduled:
-            // ADR-094: everything that runs by itself.
-            page { model.navigate { model.windowPage = .scheduled } } label: {
-                SidebarRow(symbol: "clock", title: "Scheduled", detail: model.helpers.list.map(ScheduledRow.detail) ?? nil, selected: model.windowPage == .scheduled)
-            }
-        case .brain:
-            // The second brain: notes that link to each other, as a graph.
-            page { model.navigate { model.windowPage = .brain } } label: {
-                let notes = model.brain.graph?.noteCount
-                SidebarRow(symbol: "brain.head.profile", title: "Second brain", detail: notes.map { $0 == 0 ? "Empty" : "\($0) notes" }, selected: model.windowPage == .brain)
-            }
-        case .plugins:
-            page { model.navigate { model.windowPage = .plugins } } label: {
-                let on = model.helpers.list?.mcp.filter(\.enabled).count ?? 0
-                SidebarRow(symbol: "puzzlepiece.extension", title: "Plugins", detail: on == 0 ? nil : "\(on) on", selected: model.windowPage == .plugins)
-            }
-        case .settings:
-            page { model.navigate { model.windowPage = .settings } } label: {
-                SidebarRow(symbol: "gearshape", title: "Settings", detail: nil, selected: model.windowPage == .settings)
-            }
-        }
-    }
-
-    /// A sidebar page as a tap target. Not a `Button`: a button takes the mouse-down and the row could not be dragged. It
-    /// keeps what a button gives: it takes keyboard focus (the system focus ring shows), Return and Space press it, and
-    /// VoiceOver can press it. (Open Design's accessibility baseline: focus must stay visible and keys must work.)
-    private func page<Label: View>(_ action: @escaping () -> Void, @ViewBuilder label: () -> Label) -> some View {
-        label()
-            .contentShape(Rectangle())
-            .onTapGesture(perform: action)
-            .focusable()
-            .onKeyPress(.return) { action(); return .handled }
-            .onKeyPress(.space) { action(); return .handled }
-            .accessibilityAction(.default, action)
-    }
 }
 
 /// A drag of a sidebar page over a row (or over the strip at the end of a group): the page moves there at once, so the
 /// rows make room while it is held. Dropping ends the drag.
-private struct SidebarDrop: DropDelegate {
+struct SidebarDrop: DropDelegate {
     /// The row dropped on; nil for the strip at the end of the group.
     let target: SidebarItem?
     let toBottom: Bool
@@ -333,22 +238,30 @@ private struct WindowHeader: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            if let pal = PalLibrary.pal {
-                TimelineView(.animation(minimumInterval: 1.0 / 24)) { context in
-                    PalPortrait(character: pal, animation: PalAnimation.name(mood: PetBrain.mood(for: model.status.kind) ?? .resting, reaction: nil),
-                                time: context.date.timeIntervalSinceReferenceDate, size: desktopDesign ? 26 : 44, glow: theme.usesGlow)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(model.windowPage == .settings ? "Settings" : "Chats")
+                    .appFont(.system(size: 22, weight: .medium, design: .serif)).foregroundStyle(theme.text.color)
+                HStack(spacing: 5) {
+                    Circle().fill(statusColor).frame(width: 5, height: 5)
+                    Text(model.status.title).appFont(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(1)
                 }
-            }
-            VStack(alignment: .leading, spacing: 1) {
-                Text("ATOM").font(.system(size: desktopDesign ? 13 : 14, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
-                Text(model.status.title).font(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(1)
             }
             Spacer(minLength: 0)
             SidebarToggleButton(hidden: false) { model.toggleSidebar() }
         }
-        .padding(.leading, desktopDesign ? 68 : 6).padding(.trailing, 6)
-        .padding(.bottom, 8)
+        .padding(.horizontal, 4).padding(.bottom, 12)
     }
+
+    private var statusColor: Color {
+        switch model.status.kind {
+        case .ready: theme.success.color
+        case .problem: theme.problem.color
+        case .notice: theme.attention.color
+        case .listening: theme.live.color
+        default: theme.accent.color
+        }
+    }
+
 }
 
 /// ADR-089: a page of the ATOM window in the sidebar: Chat, Settings.
@@ -363,12 +276,12 @@ struct SidebarRow: View {
 
     var body: some View {
         HStack(spacing: 11) {
-            Image(systemName: symbol).font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+            Image(systemName: symbol).appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
                 .frame(width: 26, height: 26)
                 .overlay { if theme.isFlat && !desktopDesign { Circle().strokeBorder(theme.border.color, lineWidth: 1) } }
             VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.system(size: 13, weight: selected ? .medium : .regular)).foregroundStyle(theme.text.color)
-                if let detail, !desktopDesign { Text(detail).font(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1) }
+                Text(title).appFont(.system(size: 13, weight: selected ? .medium : .regular)).foregroundStyle(theme.text.color)
+                if let detail, !desktopDesign { Text(detail).appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1) }
             }
             Spacer(minLength: 0)
         }
@@ -413,7 +326,7 @@ struct HelperBadge: View {
                 }
             } else {
                 Text(helper.name.prefix(1).uppercased())
-                    .font(.system(size: size * 0.42, weight: .semibold, design: .rounded))
+                    .appFont(.system(size: size * 0.42, weight: .semibold, design: .rounded))
                     .foregroundStyle(theme.text.color)
             }
         }
@@ -473,7 +386,7 @@ private struct HelperPane: View {
                     HelperBadge(helper: helper, size: 42)
                     VStack(alignment: .leading, spacing: 2) {
                         NameTitle(model: model, helper: helper).id(helper.id) // a rename in progress belongs to one agent
-                        Text(Self.subtitle(helper)).font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                        Text(Self.subtitle(helper)).appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                             .lineLimit(1)
                     }
                     Spacer(minLength: 8)
@@ -510,7 +423,7 @@ private struct HelperPane: View {
                     Text(helper.role == "improver"
                         ? "\(helper.name) reviews the tasks you rate as not good and suggests one change to that worker's soul. You accept or reject it on the worker's page. Its reviews are on the board."
                         : "\(helper.name) is not ready for jobs yet. You can shape its soul now.")
-                        .font(.system(size: 12.5)).foregroundStyle(theme.text2.color)
+                        .appFont(.system(size: 12.5)).foregroundStyle(theme.text2.color)
                 }
             }
             .padding(.horizontal, Spacing.panel)
@@ -550,10 +463,10 @@ struct PillMenuLabel: View {
             Text(label).foregroundStyle(theme.text3.color)
             // The app or model is an identifier: SF Mono in Void (a sentence such as "Chosen by Laya" stays sans).
             Text(value).fontWeight(.medium).foregroundStyle(dimmed ? theme.text2.color : theme.text.color)
-                .font(identifier ? theme.idFont(.system(size: 11.5), size: 11) : .system(size: 11.5))
-            Image(systemName: "chevron.up.chevron.down").font(.system(size: 8, weight: .bold)).foregroundStyle(theme.text3.color)
+                .appFont(identifier ? theme.appIdentifierFont(.system(size: 11.5), size: 11) : .system(size: 11.5))
+            Image(systemName: "chevron.up.chevron.down").appFont(.system(size: 8, weight: .bold)).foregroundStyle(theme.text3.color)
         }
-        .font(.system(size: 11.5))
+        .appFont(.system(size: 11.5))
         .lineLimit(1)
         .padding(.horizontal, 12)
         .frame(height: 28)
@@ -679,19 +592,19 @@ private struct TaskField: View {
         let ready = !draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         HStack(spacing: 8) {
             if snapshot { // ImageRenderer cannot draw a text field
-                Text(placeholder).font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
+                Text(placeholder).appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 TextField(placeholder, text: draft.projectedValue)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 12.5))
+                    .appFont(.system(size: 12.5))
                     .foregroundStyle(theme.text.color)
                     .onSubmit(add)
                     .accessibilityLabel("Task for \(helper.name)")
             }
             Button(action: add) {
                 Image(systemName: "arrow.up")
-                    .font(.system(size: 11, weight: .bold))
+                    .appFont(.system(size: 11, weight: .bold))
                     .foregroundStyle(ready ? (theme.isGhost ? theme.text.color : theme.onAccent.color) : theme.text3.color)
                     .frame(width: 28, height: 28)
                     .background(ControlFill(Circle(), fill: ready ? AnyShapeStyle(theme.accentFill) : AnyShapeStyle(theme.fill2.color), hovering: ready))
@@ -736,8 +649,8 @@ private struct JobList: View {
         VStack(alignment: .leading, spacing: 0) {
             if helper.jobs.isEmpty {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("No jobs yet").font(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color)
-                    Text("Give \(helper.name) a task above.").font(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+                    Text("No jobs yet").appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color)
+                    Text("Give \(helper.name) a task above.").appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(16)
@@ -763,7 +676,7 @@ private struct JobRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Button { model.navigate { model.sendHelpers(model.helpers.openThread(job.id)) } } label: {
                     Text(job.title ?? job.task)
-                        .font(.system(size: 13, weight: job.hasReport ? .semibold : .medium))
+                        .appFont(.system(size: 13, weight: job.hasReport ? .semibold : .medium))
                         .foregroundStyle(theme.text.color)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
@@ -773,17 +686,17 @@ private struct JobRow: View {
                 if job.isWaiting, let list = model.helpers.list { WaitingLine(job: job, list: list) }
                 if let held = job.held { HeldLine(reason: held) }
                 if let summary = job.summary {
-                    Text(summary).font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+                    Text(summary).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color)
                 }
                 if job.state == .running, let step = job.step {
                     HStack(spacing: 8) {
                         if let progress = job.progress { ProgressLine(fraction: progress) }
-                        Text(step).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.statusDots ? theme.text2.color : theme.live.color).lineLimit(1)
+                        Text(step).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.statusDots ? theme.text2.color : theme.live.color).lineLimit(1)
                     }
                 }
                 if job.state == .failed, let error = job.error { ProblemLine(text: error, dot: false) }
                 // The model and Laya's reason are identifiers: SF Mono in Void.
-                if let meta = meta { Text(meta).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(2) }
+                if let meta = meta { Text(meta).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(2) }
             }
             .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 8)
@@ -885,7 +798,7 @@ struct ReadReportButton: View {
         let violet = theme.idColor(theme.accent)
         return Button(action: action) {
             Text("Read report")
-                .font(.system(size: 11.5, weight: .medium))
+                .appFont(.system(size: 11.5, weight: .medium))
                 .foregroundStyle(violet)
                 .padding(.horizontal, 12)
                 .frame(height: ControlMetrics.buttonHeight)
@@ -901,7 +814,7 @@ struct ReadReportButton: View {
     private var lit: some View {
         Button(action: action) {
             Text("Read report")
-                .font(.system(size: 11.5, weight: .semibold))
+                .appFont(.system(size: 11.5, weight: .semibold))
                 .foregroundStyle(theme.accent.color)
                 .padding(.horizontal, 13)
                 .frame(height: ControlMetrics.buttonHeight)
@@ -927,8 +840,8 @@ struct QuietButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 5) {
-                if let symbol { Image(systemName: symbol).font(.system(size: 10, weight: .semibold)) }
-                Text(title).font(.system(size: 11.5, weight: .medium))
+                if let symbol { Image(systemName: symbol).appFont(.system(size: 10, weight: .semibold)) }
+                Text(title).appFont(.system(size: 11.5, weight: .medium))
             }
             .foregroundStyle(hovering.wrappedValue ? theme.text.color : theme.text2.color)
             .padding(.horizontal, 12)
@@ -959,12 +872,12 @@ struct ProblemLine: View {
             // Void (ADR-086): the colour is only the dot; the words stay quiet.
             HStack(alignment: .firstTextBaseline, spacing: 7) {
                 if dot { StatusDot(color: theme.problem.color, size: 6) }
-                Text(text).font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+                Text(text).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color)
             }
             .fixedSize(horizontal: false, vertical: true)
         } else {
             Label(text, systemImage: "exclamationmark.triangle.fill")
-                .font(.system(size: 11))
+                .appFont(.system(size: 11))
                 .foregroundStyle(theme.problem.color)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -992,21 +905,21 @@ private struct NameTitle: View {
             if editing.wrappedValue {
                 TextField("Name", text: draft.projectedValue)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 18, weight: .semibold, design: theme.titleDesign))
+                    .appFont(.system(size: 18, weight: .semibold, design: theme.titleDesign))
                     .frame(maxWidth: 220)
                     .onSubmit(save)
                     .onExitCommand { editing.wrappedValue = false }
                 QuietButton(title: "Cancel") { editing.wrappedValue = false }
                 SaveButton(enabled: changed, label: "Save name", action: save)
             } else {
-                Text(helper.name).font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
+                Text(helper.name).appFont(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
                 if model.savedField == "agent-name" && model.helpers.problem == nil { SavedMark() }
                 if helper.soul != nil {
                     Button {
                         draft.wrappedValue = helper.name
                         editing.wrappedValue = true
                     } label: {
-                        Image(systemName: "pencil").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                        Image(systemName: "pencil").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
                     }
                     .buttonStyle(.plain)
                     .help("Rename \(helper.name)")
@@ -1037,7 +950,7 @@ private struct ChatsList: View {
 
     var body: some View {
         let list = model.chats
-        Text("Chats").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+        Text("Chats").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
             .accessibilityAddTraits(.isHeader).padding(.horizontal, 10).padding(.top, 8)
         let active = ProjectSidebarScope.activeChats(list?.chats ?? [], projects: list?.projects ?? [], selected: model.sidebarProjectFilter)
         if !active.isEmpty {
@@ -1045,12 +958,12 @@ private struct ChatsList: View {
                 SidebarChatRow(model: model, chat: chat, current: chat.id == list?.current)
             }
             if !showAll && active.count > 40 {
-                Button("Show all loaded chats") { showAll = true }.font(.system(size: 11)).buttonStyle(.borderless)
+                Button("Show all loaded chats") { showAll = true }.appFont(.system(size: 11)).buttonStyle(.borderless)
             }
         } else if list == nil {
             LoadingStateView(text: "Loading chats…", retry: { model.send(.chatsList) }).padding(.horizontal, 10)
         } else {
-            Text("No active chats. Start one with New chat above.").font(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+            Text("No active chats. Start one with New chat above.").appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
                 .padding(.horizontal, 10).padding(.vertical, 4)
         }
         ChatControlFeedback(model: model).padding(.horizontal, 10).padding(.vertical, 4)
@@ -1061,7 +974,7 @@ private struct ChatsList: View {
                     ForEach(archived) { chat in
                         SidebarChatRow(model: model, chat: chat, current: chat.id == list.current)
                     }
-                }.font(.system(size: 11.5)).foregroundStyle(theme.text2.color).padding(.horizontal, 10)
+                }.appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).padding(.horizontal, 10)
             }
         }
     }

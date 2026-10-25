@@ -13,8 +13,8 @@ struct EmptyStateView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
-            Text(detail).font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
+            Text(title).appFont(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
+            Text(detail).appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
             if let action { QuietButton(title: action.title, symbol: action.symbol, action: action.run).padding(.top, 4) }
         }
         .padding(.top, 6)
@@ -48,12 +48,12 @@ struct LoadingStateView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 // `ImageRenderer` cannot draw a spinner.
-                if snapshot { Image(systemName: "ellipsis").font(.system(size: 11)).foregroundStyle(theme.text3.color) } else { ProgressView().controlSize(.small) }
-                Text(text).font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
+                if snapshot { Image(systemName: "ellipsis").appFont(.system(size: 11)).foregroundStyle(theme.text3.color) } else { ProgressView().controlSize(.small) }
+                Text(text).appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color)
             }
             if slow {
                 Text("This is taking longer than expected. ATOM may still be starting, or it may have stopped.")
-                    .font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
+                    .appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
                 if let retry { QuietButton(title: "Ask again", symbol: "arrow.clockwise", action: retry) }
             }
         }

@@ -16,38 +16,44 @@ struct WindowTopBar<Trailing: View>: View {
     @ViewBuilder let trailing: () -> Trailing
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
         HStack(spacing: 8) {
             if let showSidebar { SidebarToggleButton(hidden: true, action: showSidebar) }
             if let back {
                 Button(action: back) {
-                    Image(systemName: "chevron.left").font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.text2.color)
+                    Image(systemName: "chevron.left").appFont(.system(size: 12, weight: .semibold)).foregroundStyle(theme.text2.color)
                         .frame(width: 24, height: 24).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .help("Back (⌘[)")
                 .accessibilityLabel("Back")
             }
-            if !compact { Image(systemName: symbol).font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color) }
-            if compact, let context {
-                Text(context).font(.system(size: 13)).foregroundStyle(theme.text3.color).lineLimit(1)
-                Text("/").foregroundStyle(theme.text3.color)
+            if !compact { Image(systemName: symbol).appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color) }
+            VStack(alignment: .leading, spacing: 3) {
+                if compact, let context {
+                    Text(context).appFont(.system(size: 10.5, weight: .medium)).foregroundStyle(theme.text3.color).lineLimit(1)
+                }
+                Text(title).appFont(.system(size: compact ? 17 : 12.5, weight: .medium, design: compact ? .serif : .default))
+                    .foregroundStyle(theme.text.color).lineLimit(1)
             }
-            Text(title).font(.system(size: compact ? 13 : 12.5, weight: compact ? .medium : .semibold)).foregroundStyle(theme.text.color).lineLimit(1)
             Spacer(minLength: 8)
             trailing()
         }
-        .padding(.leading, compact && showSidebar != nil ? 82 : 18)
+        .padding(.leading, 18)
         .padding(.trailing, 18)
-        .frame(height: compact ? 44 : HelpersView.titleBarRoom)
+        .frame(height: compact ? 64 : HelpersView.titleBarRoom)
         // 2026-10-15: room above the bar, so the back arrow and the page's name sit level with the app name in the
         // sidebar and not up beside the window's buttons. It is part of the bar: it still moves the window.
-        .padding(.top, compact ? 8 : HelpersView.topBarGap)
+        .padding(.top, compact ? 0 : HelpersView.topBarGap)
+        .background {
+            if compact && !reduceTransparency { Rectangle().fill(.ultraThinMaterial).opacity(0.35) }
+        }
         // Snapshots cannot draw an AppKit view; the window can.
         .background { if !snapshot { WindowDragArea() } }
         .overlay(alignment: .bottom) {
-            Rectangle().fill(theme.isFlat ? theme.border.color : theme.separator.color).frame(height: theme.isFlat ? 1 : 0.5)
+            LinearGradient(colors: [.clear, theme.separator.color.opacity(0.4)], startPoint: .top, endPoint: .bottom).frame(height: 5)
         }
     }
 }
@@ -82,7 +88,7 @@ struct SidebarToggleButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: "sidebar.left").font(.system(size: 13, weight: .regular)).foregroundStyle(theme.text2.color)
+            Image(systemName: "sidebar.left").appFont(.system(size: 13, weight: .regular)).foregroundStyle(theme.text2.color)
                 .frame(width: 24, height: 24).contentShape(Rectangle())
         }
         .buttonStyle(.plain)

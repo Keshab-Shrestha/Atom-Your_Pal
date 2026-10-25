@@ -16,7 +16,7 @@ struct RememberRows: View {
                 RememberRow(model: model, item: item, editing: state.editingId == item.id)
             }
             if let error = state.error, !state.items.isEmpty {
-                Text(error).font(.system(size: 11)).foregroundStyle(theme.problem.color)
+                Text(error).appFont(.system(size: 11)).foregroundStyle(theme.problem.color)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 14)
             }
         }
@@ -34,10 +34,10 @@ private struct RememberRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "brain.head.profile").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+            Image(systemName: "brain.head.profile").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
             if editing {
                 TextField("Fact", text: Binding(get: { model.suggestions.draft }, set: { model.suggestions.draft = $0 }))
-                    .textFieldStyle(.plain).font(.system(size: 12.5)).foregroundStyle(theme.text.color)
+                    .textFieldStyle(.plain).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color)
                     .onSubmit { model.acceptSuggestionEdit() }
                     .onExitCommand { model.suggestions.stopEditing() }
                     .accessibilityLabel("Edit the fact to remember")
@@ -45,8 +45,8 @@ private struct RememberRow: View {
                 QuietButton(title: "Remember", symbol: "checkmark") { model.acceptSuggestionEdit() }
             } else {
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Remember?").font(.system(size: 10.5, weight: .medium)).foregroundStyle(theme.text3.color)
-                    Text(item.text).font(.system(size: 12.5)).foregroundStyle(theme.text.color).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    Text("Remember?").appFont(.system(size: 10.5, weight: .medium)).foregroundStyle(theme.text3.color)
+                    Text(item.text).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color).lineLimit(2).fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 QuietButton(title: "Not this", symbol: "xmark") { model.denySuggestion(item.id) }

@@ -4,6 +4,10 @@ import SwiftUI
 /// one hand. Things arrive with a little life and leave without fuss: nothing springs on the way out.
 /// Every name takes Reduce Motion: springs become a plain 0.15 s ease-out, breathing stops, cascades collapse.
 enum Motion {
+    /// Workspace panes retarget immediately, with no overshoot or delayed input.
+    static func workspace(_ reduceMotion: Bool) -> Animation {
+        reduceMotion ? plain : .spring(response: 0.32, dampingFraction: 1)
+    }
     /// The Reduce Motion fallback for every spring.
     static let plain = Animation.easeOut(duration: 0.15)
 
@@ -46,7 +50,7 @@ enum Motion {
 
     /// Content hand-off between tabs and pages: the old content leaves first, then the new one settles in.
     static func handOffOut(_ reduceMotion: Bool) -> Animation { reduceMotion ? plain : .easeIn(duration: 0.14) }
-    static func handOffIn(_ reduceMotion: Bool) -> Animation { reduceMotion ? plain : settle(false).delay(0.12) }
+    static func handOffIn(_ reduceMotion: Bool) -> Animation { workspace(reduceMotion) }
 
     /// The hand-off as a transition, for content keyed by its tab or page: it leaves with a quick fade; the new
     /// content waits, then settles in from 98%. With Reduce Motion, a plain cross-fade.

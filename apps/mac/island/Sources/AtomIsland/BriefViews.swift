@@ -21,7 +21,7 @@ struct BriefCard: View {
             } else if state.running {
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)
-                    Text("Making your brief…").font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    Text("Making your brief…").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -34,7 +34,7 @@ struct BriefCard: View {
     private func card(_ entry: BriefEntry, running: Bool) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Your day").font(.system(size: 13, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
+                Text("Your day").appFont(.system(size: 13, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
                 Spacer(minLength: 8)
                 if running {
                     ProgressView().controlSize(.small)
@@ -44,9 +44,9 @@ struct BriefCard: View {
                 }
             }
             ForEach(Array(entry.lines.enumerated()), id: \.offset) { _, line in
-                Text(line).font(.system(size: 12.5)).foregroundStyle(theme.text.color).fixedSize(horizontal: false, vertical: true)
+                Text(line).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color).fixedSize(horizontal: false, vertical: true)
             }
-            Text(footer(entry)).font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+            Text(footer(entry)).appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -78,11 +78,11 @@ struct BriefHistory: View {
         let older = Array(model.dailyBrief.history.dropFirst().prefix(6))
         if !older.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Earlier briefs").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+                Text("Earlier briefs").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
                 ForEach(older) { entry in
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(entry.day).font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text2.color)
-                        Text(entry.lines.joined(separator: " ")).font(.system(size: 12)).foregroundStyle(theme.text.color).lineLimit(3)
+                        Text(entry.day).appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text2.color)
+                        Text(entry.lines.joined(separator: " ")).appFont(.system(size: 12)).foregroundStyle(theme.text.color).lineLimit(3)
                     }
                     .padding(.vertical, 2)
                 }

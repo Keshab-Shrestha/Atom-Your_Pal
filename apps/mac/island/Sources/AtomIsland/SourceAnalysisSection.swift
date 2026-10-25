@@ -14,7 +14,7 @@ struct SourceAnalysisSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Divider()
-            Text("Background analysis").font(.system(size: 14, weight: .semibold))
+            Text("Background analysis").appFont(.system(size: 14, weight: .semibold))
             Text("Analyze the imported copies in chunks with Claude or Codex. Progress is saved between chunks; source files, notes, chats and permissions stay unchanged. Refresh the folder separately when you want newer copies.")
             if let error = model.sourceAnalysisError { ProblemLine(text: error) }
             if let view, let record = view.record {
@@ -75,7 +75,7 @@ struct SourceAnalysisSection: View {
             }
             Button("Reload analysis status") { model.requestSourceAnalysis("get", before: cursor) }.disabled(waiting)
         }
-        .font(.system(size: 12)).foregroundStyle(theme.text.color)
+        .appFont(.system(size: 12)).foregroundStyle(theme.text.color)
         .confirmationDialog("Clear saved analysis, progress and its schedule? Imported notes and original files stay untouched. Today's model budget is retained.", isPresented: $clearing) {
             Button("Clear derived analysis", role: .destructive) { cursor = nil; model.requestSourceAnalysis("clear") }
             Button("Cancel", role: .cancel) {}

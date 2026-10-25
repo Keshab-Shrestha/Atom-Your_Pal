@@ -134,6 +134,7 @@ struct WorkStripView: View {
         .shadow(color: .black.opacity(palette.usesShadows ? (palette.isDark ? 0.3 : 0.12) : 0), radius: 2, y: 1)
         .shadow(color: .black.opacity(palette.usesShadows ? (palette.isDark ? 0.36 : 0.14) : 0), radius: 12, y: 7)
         .themed(palette)
+        .environment(\.appTextSize, model.settings.textSize)
         .environment(\.islandSnapshot, snapshot)
         .animation(.easeOut(duration: 0.18), value: asking)
         .padding(WorkStripController.shadowInset)
@@ -153,7 +154,7 @@ private struct StepRow: View {
             WorkGlyph(outcome: model.work.outcome)
                 .frame(width: 14, height: 14)
             Text(model.work.line)
-                .font(.system(size: 13, weight: .medium))
+                .appFont(.system(size: 13, weight: .medium))
                 .foregroundStyle(theme.text.color)
                 .lineLimit(1)
                 .truncationMode(.tail)
@@ -165,7 +166,7 @@ private struct StepRow: View {
             if model.work.outcome == .working {
                 Button { model.stopWork() } label: {
                     HStack(spacing: 6) {
-                        Text("Stop").font(.system(size: 12, weight: .medium))
+                        Text("Stop").appFont(.system(size: 12, weight: .medium))
                         KeyHint(text: "esc")
                     }
                     .foregroundStyle(theme.text.color)
@@ -199,23 +200,23 @@ private struct AskingView: View {
                     Circle().fill(theme.attention.color).frame(width: 7, height: 7)
                         .shadow(color: theme.attention.color.opacity(theme.usesGlow ? 0.8 : 0), radius: 4)
                     Text("ATOM needs your OK")
-                        .font(.system(size: 11.5, weight: .medium))
+                        .appFont(.system(size: 11.5, weight: .medium))
                         .foregroundStyle(theme.statusDots ? theme.text2.color : theme.attention.color) // Void: colour only on the dot
                 }
                 VStack(alignment: .leading, spacing: 3) {
                     Text(request.summary)
-                        .font(.system(size: 16, weight: .semibold, design: theme.titleDesign))
+                        .appFont(.system(size: 16, weight: .semibold, design: theme.titleDesign))
                         .foregroundStyle(theme.text.color)
                         .lineLimit(2)
                     if !request.reason.isEmpty {
                         Text(request.fileReview != nil || request.accessChange ? request.reason : "Because \(request.reason)")
-                            .font(.system(size: 12))
+                            .appFont(.system(size: 12))
                             .foregroundStyle(theme.text2.color)
                             .lineLimit(request.accessChange ? nil : 1)
                     }
                     if request.rememberFile && request.fileReview == nil {
                         Text("This file only. Chat access lasts until you revoke it.")
-                            .font(.system(size: 11))
+                            .appFont(.system(size: 11))
                             .foregroundStyle(theme.text2.color)
                             .lineLimit(1)
                     }
@@ -229,7 +230,7 @@ private struct AskingView: View {
                 Spacer(minLength: 0)
                 Button { onAnswer(false, false) } label: {
                     HStack(spacing: 6) {
-                        Text("Decline").font(.system(size: 12.5, weight: .medium))
+                        Text("Decline").appFont(.system(size: 12.5, weight: .medium))
                         KeyHint(text: "esc")
                     }
                     .foregroundStyle(theme.text.color)
@@ -249,7 +250,7 @@ private struct AskingView: View {
                 }
                 Button { if request.fileReview != nil { onReview() } else { onAnswer(true, false) } } label: {
                     // Void: a ghost button with an amber hairline and label (ADR-086); elsewhere the one fill.
-                    Text(request.accessChange ? "Enable Full access" : request.fileReview != nil ? "Review changes…" : request.rememberFile ? "Allow for task" : "Allow").font(.system(size: 12.5, weight: .semibold))
+                    Text(request.accessChange ? "Enable Full access" : request.fileReview != nil ? "Review changes…" : request.rememberFile ? "Allow for task" : "Allow").appFont(.system(size: 12.5, weight: .semibold))
                         .foregroundStyle(theme.isGhost ? theme.attention.color : theme.onAttention.color)
                         .padding(.horizontal, 24)
                         .frame(minWidth: 104, minHeight: 32)
@@ -289,7 +290,7 @@ struct WorkGlyph: View {
     @ViewBuilder private var lanternGlyph: some View {
         switch outcome {
         case .working: WorkingLight(color: theme.live.color)
-        case .done: Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundStyle(theme.success.color)
+        case .done: Image(systemName: "checkmark").appFont(.system(size: 11, weight: .bold)).foregroundStyle(theme.success.color)
         case .stopped: RoundedRectangle(cornerRadius: 1.5, style: .continuous).fill(theme.text3.color).frame(width: 7, height: 7)
         case .failed: Circle().fill(theme.problem.color).frame(width: 7, height: 7).shadow(color: theme.problem.color.opacity(0.7), radius: 3.5)
         }
@@ -426,7 +427,7 @@ struct PointLabelView: View {
             Circle().fill(palette.live.color).frame(width: 6, height: 6)
                 .shadow(color: palette.live.color.opacity(palette.usesGlow ? 0.8 : 0), radius: 3)
             Text(text)
-                .font(.system(size: 12, weight: .medium))
+                .appFont(.system(size: 12, weight: .medium))
                 .foregroundStyle(palette.text.color)
                 .lineLimit(1)
                 .truncationMode(.tail)

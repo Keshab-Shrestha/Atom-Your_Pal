@@ -80,7 +80,7 @@ struct LocalBackupPane: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Local text backup").font(.system(size: 18, weight: .semibold))
+                Text("Local text backup").appFont(.system(size: 18, weight: .semibold))
                 Spacer()
                 Button("Done") { dismiss() }.keyboardShortcut(.cancelAction)
             }
@@ -101,23 +101,23 @@ struct LocalBackupPane: View {
                         if busy { ProgressView().controlSize(.small) }
                     }
                     Text("Save stores the address/model and clears this temporary conversation without connecting. Check server sends a model-list request without your messages. A listed model is not proof it can answer. This backup offers text replies only; tools, vision and thinking controls are unavailable.")
-                        .font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                        .appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
                     readiness
                     Button("Forget backup configuration…") { confirmForget = true }.disabled(unavailable || client.response == nil)
                     }.padding(.top, 6)
                     }
                     Divider()
-                    Text("Temporary backup conversation").font(.system(size: 14, weight: .semibold))
+                    Text("Temporary backup conversation").appFont(.system(size: 14, weight: .semibold))
                     Text("Only this panel's messages are included. Your server may retain or forward them. Cloud chats, notes, files and permissions stay separate.")
-                        .font(.system(size: 11)).foregroundStyle(theme.text2.color)
+                        .appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
                     ForEach(Array((client.response?.turns ?? []).enumerated()), id: \.offset) { _, turn in
                         VStack(alignment: .leading, spacing: 6) {
                             HStack {
                                 Text(turn.role == "user" ? "You" : "Local backup · \(client.response?.config?.model ?? "")")
-                                    .font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                                    .appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
                                 Spacer()
                                 Button("Copy") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(turn.content, forType: .string) }
-                                    .buttonStyle(.plain).font(.system(size: 11))
+                                    .buttonStyle(.plain).appFont(.system(size: 11))
                             }
                             Text(turn.content).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
                         }
@@ -125,11 +125,11 @@ struct LocalBackupPane: View {
                     }
                     if let usage = client.response?.usage {
                         Text("Last answer: \(String(format: "%.2f", Double(usage.durationMs) / 1000)) s total · server-reported tokens: \(usage.input.map(String.init) ?? "unknown") input / \(usage.output.map(String.init) ?? "unknown") output. Non-streaming; this is completion time, not first-token latency.")
-                            .font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                            .appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
                         if usage.truncated { Text("The last answer reached its output budget and may be incomplete.").foregroundStyle(theme.attention.color) }
                     }
                 }
-                .font(.system(size: 12)).padding(.trailing, 4)
+                .appFont(.system(size: 12)).padding(.trailing, 4)
             }
                     SoulField(label: "Message to the local backup", text: $input, lines: 3)
                     HStack(spacing: 12) {
@@ -174,7 +174,7 @@ struct LocalBackupPane: View {
     @ViewBuilder private var readiness: some View {
         if let value = client.response?.readiness {
             Text("Server checked at \(value.checkedAt) · \(value.durationMs) ms · \(value.listed ? "configured model listed" : "configured model missing") · \(value.textVerified ? "text reply verified this session" : "text generation not yet verified"). Check expires after five minutes.")
-                .font(.system(size: 11)).foregroundStyle(theme.text2.color).textSelection(.enabled)
-        } else { Text("Not checked. No automatic connection or fallback.").font(.system(size: 11)).foregroundStyle(theme.text3.color) }
+                .appFont(.system(size: 11)).foregroundStyle(theme.text2.color).textSelection(.enabled)
+        } else { Text("Not checked. No automatic connection or fallback.").appFont(.system(size: 11)).foregroundStyle(theme.text3.color) }
     }
 }

@@ -1,5 +1,29 @@
 # ZENO Project Status
 
+## Rail selection polish and requested push — 26 October 2026
+
+Remove the selected icon’s small edge marker, retaining its quiet background and accessible selected state. Package the cumulative native workspace redesign for the user-requested commit/push on codex/workspace-reference-design. Final build, strict signature verification, 22 visual renders and live selection review passed; no Swift suite. Exclude unrelated graphify-out/. [Details](docs/workspace-reference-redesign.md#selection-polish-and-branch-handoff--26-october-2026).
+
+## Smaller rail icons — 25 October 2026
+
+Reduce navigation symbols and the Home app icon by 25% to match the 51-point rail; retain button targets, captions, badges and navigation. Keep icon dimensions independent of font-size settings. Rebuilt and running. Release/signature/diff checks pass; 22 visual scenes rendered and live Appearance/rail review passed. Small font and Daylight remain selected after relaunch. No unit-test suite, commit or push. [Details](docs/workspace-reference-redesign.md#smaller-rail-artwork--25-october-2026).
+
+## Home navigation, font size and narrower rail — 25 October 2026
+
+Hide shared-history Back on Home, narrow the rail 68 → 51 points, and add persisted app-wide font sizes in Appearance. Shared typography scales native text without changing model, grants, history or data. Implemented, rebuilt and running. Release/signature/diff checks pass; 22 visual scenes rendered. Live Home no-Back and whole-workspace Default/Larger scaling passed. Relaunch succeeded; current Small preference reads back as 90 and was left untouched. No Swift suite, commit or push. [Details](docs/workspace-reference-redesign.md#home-navigation-font-size-and-narrower-rail--25-october-2026).
+
+## App-icon Home shortcut — 25 October 2026
+
+Replace the rail mark with ATOM’s actual app icon opening Dashboard as Home; remove the duplicate Dashboard and Companion buttons, keeping Companion in Settings. Rebuilt and running. Verified app-icon → Dashboard, no duplicate rail shortcuts, and Settings → ATOM access with Settings selected. Release compilation, strict signature verification, 16 visual renders and diff checks pass. No unit-test suite, commit or push. [Details](docs/workspace-reference-redesign.md#app-icon-home-shortcut--25-october-2026).
+
+## Contextual panels and full-width pages — 25 October 2026
+
+Addressing the workspace follow-up: keep chats only in the Chats sidebar, retain Settings' own navigation, and reclaim the second lane on all other pages. Remove legacy page/chat width caps and clarify the persistent rail with named icons and a distinct Dashboard destination. Runtime, drafts, project filters, saved navigation order and permissions remain unchanged. Implemented, rebuilt and running. Sixteen isolated scenes rendered; native navigation confirmed automatic sidebar removal/return, retained conversation/project and composer controls. Restored the original sidebar preference. Strict signature verification and diff checks pass; no Swift test suite, commit or push. [Details](docs/workspace-reference-redesign.md#panel-width-follow-up--25-october-2026).
+
+## Native workspace redesign — 25 October 2026
+
+Implemented and running on `codex/workspace-reference-design`: four native lanes, clearer composer/header hierarchy, six reference palettes and reduced-motion/contrast behavior. Release build and strict signature check passed; twelve visual scenes rendered and live navigation/draft continuity checked. No provider/runtime/permission changes. No commit or push. [Details and acceptance scope](docs/workspace-reference-redesign.md).
+
 ## Optional Jev/Laya computer decisions — implemented, 24 October 2026
 
 Settings → General now offers Chat model (default), Jev cloud and Laya local, plus optional local backup for Jev and native Keychain-backed key entry. Keshab chose both providers with selection under his control. Added bounded choice among prepared checked button plans; deterministic execution policy, observations, Stop, history and grants remain authoritative. Repaired the existing Laya virtualenv's broken Python link/config using installed Python 3.14.8, with recovery copies and no installation/download. Local warm calls can be fast (54 ms isolated; 509 ms full app context), but both real app examples abstained and sent no input; no overall task-speed gain is certified. Jev credential/network acceptance awaits a locally entered key. Typecheck/172 focused TypeScript checks, native release build, signing and real settings/abstention checks pass; no Swift suite/commit/push. Leave the default selected so Keshab can choose. [Scope, security, repair and evidence](docs/computer-decision-providers.md). Next: real-key Jev validation and representative choice accuracy/speed evaluation before relying on automatic selection. Cursor acceptance stays deferred.

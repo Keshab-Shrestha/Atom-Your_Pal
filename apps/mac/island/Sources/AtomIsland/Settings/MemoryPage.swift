@@ -62,10 +62,10 @@ private struct EmptyMemoryCard: View {
     var body: some View {
         Card(footer: "Kept on this Mac only, and shared with the AI model when it helps answer.") {
             VStack(spacing: 6) {
-                Image(systemName: "brain.head.profile").font(.system(size: 20, weight: .regular)).foregroundStyle(theme.text2.color)
-                Text("Nothing kept yet").font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.text.color)
+                Image(systemName: "brain.head.profile").appFont(.system(size: 20, weight: .regular)).foregroundStyle(theme.text2.color)
+                Text("Nothing kept yet").appFont(.system(size: 12, weight: .semibold)).foregroundStyle(theme.text.color)
                 Text("Say “Remember that…” and ATOM keeps it, even after a restart.")
-                    .font(.system(size: 10.5)).foregroundStyle(theme.text2.color).multilineTextAlignment(.center)
+                    .appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color).multilineTextAlignment(.center)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
@@ -99,7 +99,7 @@ private struct KeptChatsCard: View {
                 RowDivider()
                 HStack {
                     Text(picked.isEmpty ? "Choose chats to keep" : picked.count == 1 ? "1 chat chosen" : "\(picked.count) chats chosen")
-                        .font(.system(size: 10.5)).foregroundStyle(theme.text2.color)
+                        .appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)
                     Spacer()
                     SaveButton(enabled: !picked.isEmpty, label: "Keep chosen chats in memory") {
                         model.keepChats(picked)
@@ -117,12 +117,12 @@ private struct KeptChatsCard: View {
         if chat.indexing {
             HStack(spacing: 6) {
                 ProgressView().controlSize(.small)
-                Text("Keeping…").font(.system(size: 10.5)).foregroundStyle(theme.text2.color)
+                Text("Keeping…").appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)
             }
         } else if chat.kept {
             HStack(spacing: 6) {
                 Label("Kept", systemImage: "checkmark.circle.fill").labelStyle(.titleAndIcon)
-                    .font(.system(size: 10.5, weight: .medium)).foregroundStyle(theme.text2.color)
+                    .appFont(.system(size: 10.5, weight: .medium)).foregroundStyle(theme.text2.color)
                 PillButton(title: "Remove") { model.dropKeptChat(chat.id) }
             }
         } else {
@@ -133,7 +133,7 @@ private struct KeptChatsCard: View {
                 }
             ))
             .toggleStyle(.checkbox)
-            .font(.system(size: 10.5))
+            .appFont(.system(size: 10.5))
         }
     }
 
@@ -183,15 +183,15 @@ private struct NoteRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(text).font(.system(size: 12)).foregroundStyle(theme.text.color)
+                Text(text).appFont(.system(size: 12)).foregroundStyle(theme.text.color)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                Text(caption).font(.system(size: 10)).foregroundStyle(theme.text3.color)
+                Text(caption).appFont(.system(size: 10)).foregroundStyle(theme.text3.color)
             }
             Spacer(minLength: 4)
             Button(action: remove) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 9, weight: .bold))
+                    .appFont(.system(size: 9, weight: .bold))
                     .foregroundStyle(theme.text2.color)
                     .frame(width: 20, height: 20)
                     .background(ControlFill(Circle(), fill: theme.fill2.color, hovering: hovering.wrappedValue))
@@ -218,15 +218,15 @@ private struct MemoryRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.text).font(.system(size: 12)).foregroundStyle(theme.text.color)
+                Text(item.text).appFont(.system(size: 12)).foregroundStyle(theme.text.color)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                Text(caption).font(.system(size: 10)).foregroundStyle(theme.text3.color)
+                Text(caption).appFont(.system(size: 10)).foregroundStyle(theme.text3.color)
             }
             Spacer(minLength: 4)
             Button(action: forget) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 9, weight: .bold))
+                    .appFont(.system(size: 9, weight: .bold))
                     .foregroundStyle(theme.text2.color)
                     .frame(width: 20, height: 20)
                     .background(ControlFill(Circle(), fill: theme.fill2.color, hovering: hovering.wrappedValue))

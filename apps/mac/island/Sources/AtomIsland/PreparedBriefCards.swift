@@ -16,8 +16,8 @@ struct PreparedBriefCards: View {
         let entry = model.dailyBrief.history.first(where: { $0.preparation?.cards.isEmpty == false }) ?? latest
         if let entry, let work = entry.preparation {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Prepared for review").font(.system(size: 13, weight: .semibold))
-                Text(latest?.preparation?.statusText ?? work.statusText).font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                Text("Prepared for review").appFont(.system(size: 13, weight: .semibold))
+                Text(latest?.preparation?.statusText ?? work.statusText).appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 if entry.id != model.dailyBrief.latest?.id {
                     Text("Showing earlier saved cards; these excerpts have not been refreshed.").foregroundStyle(theme.text3.color)
                 }
@@ -33,8 +33,8 @@ struct PreparedBriefCards: View {
                 }
                 ForEach(Array(work.cards.enumerated()), id: \.offset) { _, card in
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(card.title).font(.system(size: 12.5, weight: .medium))
-                        Text(card.body).font(.system(size: 12)).lineLimit(4)
+                        Text(card.title).appFont(.system(size: 12.5, weight: .medium))
+                        Text(card.body).appFont(.system(size: 12)).lineLimit(4)
                         Text("Sources: " + card.sources.map(\.label).joined(separator: ", ")).foregroundStyle(theme.text3.color)
                         Button("Review and edit") { review = PreparedReview(card: card) }
                     }
@@ -42,7 +42,7 @@ struct PreparedBriefCards: View {
                     .background(theme.fill1.color, in: RoundedRectangle(cornerRadius: 10))
                 }
             }
-            .font(.system(size: 11)).foregroundStyle(theme.text.color)
+            .appFont(.system(size: 11)).foregroundStyle(theme.text.color)
             .sheet(item: $review) { value in PreparedBriefEditor(card: value.card) }
         }
     }
@@ -63,7 +63,7 @@ private struct PreparedBriefEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Review prepared work").font(.headline)
+                Text("Review prepared work").appFont(.headline)
                 Spacer()
                 Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
             }
@@ -91,7 +91,7 @@ private struct PreparedBriefEditor: View {
                 ChatCopyControl(title: "Copy edited text") { MarkdownCopy.Content(text: title + "\n\n" + bodyText) }
             }
         }
-        .font(.system(size: 12)).padding(20).frame(width: 620, height: 620)
+        .appFont(.system(size: 12)).padding(20).frame(width: 620, height: 620)
         .background(theme.surfaceSolid.color).foregroundStyle(theme.text.color)
     }
 }

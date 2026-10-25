@@ -8,9 +8,15 @@ struct AppearanceSection: View {
 
     var body: some View {
         let settings = model.settings
-        // Six themes since Void (ADR-086): two rows of three, so every name fits on one line.
-        let themes = AppTheme.allCases
-        Card("Theme", footer: "Applied to the whole window and companion. " + settings.theme.detail) {
+        let themes: [AppTheme] = [.sapphire, .champagne, .emerald, .plum, .cobalt, .teal]
+        Card("Font size", footer: "Changes text across workspace pages, chat messages and typing fields. Saved on this Mac.") {
+            ChoiceRow(title: "Text size", selection: settings.textSize) { settings.textSize = $0 }
+            Text("A calmer place to do your best work.")
+                .appFont(.system(size: 14)).foregroundStyle(theme.text.color)
+                .padding(.horizontal, Spacing.well).padding(.bottom, Spacing.well)
+                .accessibilityLabel("Font size preview")
+        }
+        Card("Workspace themes", footer: "Applied to the whole window and companion. " + settings.theme.detail) {
             VStack(spacing: 6) {
                 ForEach(Array(stride(from: 0, to: themes.count, by: 3)), id: \.self) { start in
                     HStack(spacing: 4) {
@@ -22,7 +28,19 @@ struct AppearanceSection: View {
             }
             .padding(8)
         }
-        ResetPageCard(footer: "The theme goes back to its default.") { settings.resetAppearance() }
+        Card("Original themes") {
+            VStack(spacing: 6) {
+                let originals = AppTheme.allCases.filter { !themes.contains($0) }
+                ForEach(Array(stride(from: 0, to: originals.count, by: 3)), id: \.self) { start in
+                    HStack(spacing: 4) {
+                        ForEach(originals[start..<min(start + 3, originals.count)]) { option in
+                            ThemeSwatch(option: option, selected: settings.theme == option) { settings.theme = option }
+                        }
+                    }
+                }
+            }.padding(8)
+        }
+        ResetPageCard(footer: "The theme and font size go back to their defaults.") { settings.resetAppearance() }
     }
 }
 
@@ -53,7 +71,8 @@ private struct ThemeSwatch: View {
                 .frame(height: 54)
                 .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(p.border.color, lineWidth: 0.5))
                 Text(option.title)
-                    .font(.system(size: 11, weight: selected ? .semibold : .regular))
+                    .appFont(.system(size: 11, weight: selected ? .semibold : .regular))
+                    .multilineTextAlignment(.center).frame(minHeight: 28, alignment: .top)
                     .foregroundStyle(selected ? theme.text.color : theme.text2.color)
             }
             .padding(4)

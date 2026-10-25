@@ -21,16 +21,16 @@ struct ChatTaskResults: View {
                         Text("Changes stay in their task working copy until you review and commit them.")
                         Spacer()
                         Button("Refresh") { refresh() }
-                    }.font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+                    }.appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color)
                     ForEach(tasks.prefix(10)) { item in
                         VStack(alignment: .leading, spacing: 6) {
                             HStack(alignment: .top) {
                                 VStack(alignment: .leading, spacing: 3) {
-                                    Text(item.job.title ?? item.job.task).font(.system(size: 12.5, weight: .medium)).lineLimit(2)
+                                    Text(item.job.title ?? item.job.task).appFont(.system(size: 12.5, weight: .medium)).lineLimit(2)
                                     Text("#\(item.id) · \(item.helperName) · \(item.job.state == .done ? "Ready for review" : item.job.state.rawValue)")
-                                        .font(.system(size: 11)).foregroundStyle(theme.text3.color)
-                                    if let step = item.job.step { Text(step).font(.system(size: 11.5)) }
-                                    if let error = item.job.error { Text(error).font(.system(size: 11.5)).foregroundStyle(theme.problem.color) }
+                                        .appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
+                                    if let step = item.job.step { Text(step).appFont(.system(size: 11.5)) }
+                                    if let error = item.job.error { Text(error).appFont(.system(size: 11.5)).foregroundStyle(theme.problem.color) }
                                 }
                                 Spacer()
                                 Button(selected == item.id ? "Close result" : "Review result") {
@@ -41,7 +41,7 @@ struct ChatTaskResults: View {
                             if selected == item.id {
                                 if model.helpers.thread?.id == item.id, let report = model.helpers.thread?.report {
                                     Text("Agent report · check claims are reported, not independently certified by ATOM")
-                                        .font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                                        .appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
                                     ReportSection(report: report)
                                 }
                                 if let branch = model.helpers.git?.first(where: { $0.task == item.id }) {
@@ -53,23 +53,23 @@ struct ChatTaskResults: View {
                                                 _ = ChatClipboard.write(MarkdownCopy.reply("cd -- " + quoted))
                                             }
                                             Button("Open Terminal") { model.selectWorkspace(.terminal) }
-                                        }.font(.system(size: 11.5)).buttonStyle(.borderless)
+                                        }.appFont(.system(size: 11.5)).buttonStyle(.borderless)
                                         Text("Terminal starts in the project folder. Review and paste the copied command to work in this task's copy. Commands run only when you enter them.")
-                                            .font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                                            .appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
                                     }
                                 } else {
                                     Text("No task branch is available. This task may not use Git; its report describes the outcome.")
-                                        .font(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+                                        .appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
                                 }
                             }
                         }
                         Divider()
                     }
-                    if tasks.count > 10 { Text("Showing the newest ten task results.").font(.system(size: 11)) }
+                    if tasks.count > 10 { Text("Showing the newest ten task results.").appFont(.system(size: 11)) }
                     if let problem = model.helpers.problem { Text(problem).foregroundStyle(theme.problem.color) }
                 }.padding(.top, 10)
             }
-            .font(.system(size: 12, weight: .medium))
+            .appFont(.system(size: 12, weight: .medium))
             .padding(.vertical, 8)
             .task(id: tasks.map { "\($0.id):\($0.job.state.rawValue)" }.joined(separator: ",")) { refresh() }
             .alert("Push \(confirming?.branch ?? "")?", isPresented: Binding(get: { confirming != nil }, set: { if !$0 { confirming = nil } }), presenting: confirming) { branch in

@@ -27,7 +27,7 @@ struct NewProjectButton: View {
     @Environment(\.theme) private var theme
     var body: some View {
         Button { model.openProjectSources() } label: {
-            Image(systemName: "folder.badge.plus").font(.system(size: 13)).foregroundStyle(theme.text2.color)
+            Image(systemName: "folder.badge.plus").appFont(.system(size: 13)).foregroundStyle(theme.text2.color)
                 .frame(width: 28, height: 30).contentShape(Rectangle())
         }.buttonStyle(.plain).help("New project or repository").accessibilityLabel("New project")
             .disabled(model.chats?.projects == nil || model.projectSource.pending != nil)
@@ -73,7 +73,7 @@ struct ProjectSourceSheet: View {
                     Button { source = nil; model.projectSource = ProjectSourceState() } label: { Image(systemName: "chevron.left") }
                         .accessibilityLabel("Back to project sources")
                 }
-                Text(source?.title ?? "New project").font(.system(size: 18, weight: .semibold)).accessibilityAddTraits(.isHeader)
+                Text(source?.title ?? "New project").appFont(.system(size: 18, weight: .semibold)).accessibilityAddTraits(.isHeader)
                 Spacer()
                 Button(busy ? "Cancel creation" : finished ? "Done" : "Cancel") {
                     if busy { model.cancelProjectSource() } else { dismiss() }
@@ -82,20 +82,20 @@ struct ProjectSourceSheet: View {
             if source == nil { chooser }
             else { form }
             if let notice = model.projectSource.notice {
-                Text(verbatim: notice).font(.system(size: 12)).foregroundStyle(theme.attention.color)
+                Text(verbatim: notice).appFont(.system(size: 12)).foregroundStyle(theme.attention.color)
                     .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
                 if let attempt = model.projectSource.attempt {
                     Text(verbatim: "Attempted folder: " + ProjectList.label(forPath: attempt.path))
-                        .font(.system(size: 11, design: .monospaced)).foregroundStyle(theme.text2.color)
+                        .appFont(.system(size: 11, design: .monospaced)).foregroundStyle(theme.text2.color)
                         .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
                 }
             }
             if busy {
                 ProgressView(model.projectSource.cancelling ? "Cancelling…" : "Creating project…")
-                    .font(.system(size: 12)).frame(maxWidth: .infinity, alignment: .leading)
+                    .appFont(.system(size: 12)).frame(maxWidth: .infinity, alignment: .leading)
             } else if finished {
                 Label("Project added. Your current chat is unchanged.", systemImage: "checkmark.circle")
-                    .font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
             }
         }
         .padding(22).frame(width: 500, alignment: .leading).foregroundStyle(theme.text.color)
@@ -106,7 +106,7 @@ struct ProjectSourceSheet: View {
     }
     private var chooser: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if snapshot { Text("Search sources…").font(.system(size: 13)).foregroundStyle(theme.text3.color).padding(.vertical, 6) }
+            if snapshot { Text("Search sources…").appFont(.system(size: 13)).foregroundStyle(theme.text3.color).padding(.vertical, 6) }
             else {
                 TextField("Search sources…", text: $query).textFieldStyle(.plain).focused($searchFocused)
                     .accessibilityLabel("Search project sources").padding(.vertical, 6)
@@ -116,17 +116,17 @@ struct ProjectSourceSheet: View {
                     .onSubmit { if choices.indices.contains(cursor) { source = choices[cursor] } }
             }
             Rectangle().fill(theme.separator.color).frame(height: 1)
-            if choices.isEmpty { Text("No matching sources").font(.system(size: 12)).foregroundStyle(theme.text2.color).padding(.vertical, 16) }
+            if choices.isEmpty { Text("No matching sources").appFont(.system(size: 12)).foregroundStyle(theme.text2.color).padding(.vertical, 16) }
             ForEach(Array(choices.enumerated()), id: \.element) { index, item in
                 Button { source = item } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: item.symbol).font(.system(size: 15)).frame(width: 22)
+                        Image(systemName: item.symbol).appFont(.system(size: 15)).frame(width: 22)
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(item.title).font(.system(size: 13, weight: .medium))
-                            Text(item.detail).font(.system(size: 11)).foregroundStyle(theme.text2.color)
+                            Text(item.title).appFont(.system(size: 13, weight: .medium))
+                            Text(item.detail).appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
                         }
                         Spacer()
-                        Image(systemName: "chevron.right").font(.system(size: 10)).foregroundStyle(theme.text3.color)
+                        Image(systemName: "chevron.right").appFont(.system(size: 10)).foregroundStyle(theme.text3.color)
                     }.padding(10).contentShape(Rectangle())
                         .background(index == cursor ? theme.fill2.color : .clear, in: RoundedRectangle(cornerRadius: 7))
                 }.accessibilityLabel("Source: " + item.title)
@@ -138,24 +138,24 @@ struct ProjectSourceSheet: View {
             if source == .git || source == .github {
                 field("Repository", value: $remote, placeholder: source == .github ? "owner/repository or HTTPS URL" : "https://host/owner/repository.git")
                 Text("Public HTTPS repositories only. Sign-in and credential prompts are not supported. Submodules and Git LFS downloads are skipped.")
-                    .font(.system(size: 11)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
+                    .appFont(.system(size: 11)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
             }
             field("Project name", value: $name, placeholder: "Project name")
             if source != .folder { field("Folder name", value: $folder, placeholder: "Defaults to project name") }
             Button(source == .folder ? "Choose local folder…" : "Choose parent folder…", action: chooseLocation)
                 .accessibilityLabel(source == .folder ? "Choose local project folder" : "Choose project parent folder")
             if let destination {
-                Text(verbatim: ProjectList.label(forPath: destination.path)).font(.system(size: 12, design: .monospaced))
+                Text(verbatim: ProjectList.label(forPath: destination.path)).appFont(.system(size: 12, design: .monospaced))
                     .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
                 Text(ProjectList.grantQuestion(folderLabel: ProjectList.label(forPath: destination.path)))
-                    .font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
+                    .appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
             } else {
                 Text(source == .folder ? "Select the existing folder to review its project access." : "A new folder is created inside the selected parent. Existing folders are never overwritten.")
-                    .font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
+                    .appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
             }
             if source != .folder {
                 Text("Creation is limited to two minutes, about 256 MiB and 20,000 entries. A failed or cancelled attempt can leave a partial folder for you to inspect.")
-                    .font(.system(size: 11)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
+                    .appFont(.system(size: 11)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
             }
             HStack {
                 Spacer()
@@ -166,8 +166,8 @@ struct ProjectSourceSheet: View {
     }
     @ViewBuilder private func field(_ label: String, value: Binding<String>, placeholder: String) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text(label).font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
-            if snapshot { Text(value.wrappedValue.isEmpty ? placeholder : value.wrappedValue).font(.system(size: 13)).foregroundStyle(theme.text2.color) }
+            Text(label).appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+            if snapshot { Text(value.wrappedValue.isEmpty ? placeholder : value.wrappedValue).appFont(.system(size: 13)).foregroundStyle(theme.text2.color) }
             else { TextField(placeholder, text: value).textFieldStyle(.roundedBorder).accessibilityLabel(label) }
         }
     }

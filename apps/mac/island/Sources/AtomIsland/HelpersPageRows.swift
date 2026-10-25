@@ -14,10 +14,10 @@ struct HeldLine: View {
             // Void (ADR-086): the colour is only the dot; the words stay quiet.
             HStack(alignment: .firstTextBaseline, spacing: 7) {
                 StatusDot(color: theme.attention.color, size: 6)
-                Text(reason).font(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(2)
+                Text(reason).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(2)
             }
         } else {
-            Label(reason, systemImage: "pause.circle").font(.system(size: 11.5)).foregroundStyle(theme.attention.color).lineLimit(2)
+            Label(reason, systemImage: "pause.circle").appFont(.system(size: 11.5)).foregroundStyle(theme.attention.color).lineLimit(2)
         }
     }
 }
@@ -31,8 +31,8 @@ struct PlanFirstRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Plan first").font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
-                Text("New tasks start with a plan for your OK.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                Text("Plan first").appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
+                Text("New tasks start with a plan for your OK.").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
             }
             Spacer(minLength: 4)
             ThemedSwitch(isOn: helper.planFirst, set: { model.sendHelpers(model.helpers.setPlanFirst($0)) }, label: "Plan first")
@@ -50,8 +50,8 @@ struct BrowserRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Browser").font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
-                Text("Opens pages in ATOM's own browser. Each new site and each form asks you first.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                Text("Browser").appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
+                Text("Opens pages in ATOM's own browser. Each new site and each form asks you first.").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
             }
             Spacer(minLength: 4)
             ThemedSwitch(isOn: helper.browser, set: { model.sendHelpers(model.helpers.setBrowser($0)) }, label: "Browser")
@@ -68,12 +68,12 @@ struct RoutinesSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Routines").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+            Text("Routines").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             ForEach(routines) { routine in
                 HStack(alignment: .top, spacing: 10) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(routine.task).font(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
-                        Text(Self.detail(routine)).font(.system(size: 11)).foregroundStyle(theme.text2.color)
+                        Text(routine.task).appFont(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
+                        Text(Self.detail(routine)).appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
                     }
                     Spacer(minLength: 8)
                     QuietButton(title: "Remove") { model.sendHelpers(model.helpers.deleteRoutine(routine.id)) }
@@ -96,11 +96,11 @@ struct FilesNote: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Files").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+            Text("Files").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             Text("\(helper.name) can read and write in your home folder and on external drives. A new file is saved at once. Changing a file that exists asks you first. It never deletes, and never opens secrets, hidden folders, ~/Library or identity, bank and tax documents.")
-                .font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
+                .appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
             Text("In a git repository, \(helper.name) works on its own branch. It never pushes: you can push its branch from the Dashboard.")
-                .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
         }
     }
 }
@@ -140,17 +140,17 @@ struct ProposalsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Tinker suggests").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+            Text("Tinker suggests").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             ForEach(proposals.filter { $0.state == "pending" || $0.state == "accepted" }) { p in
                 VStack(alignment: .leading, spacing: 4) {
                     if p.state == "pending", let pieces = p.segments(against: soul), pieces.contains(where: { $0.kind != .same }) {
-                        Text(p.fieldTitle).font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                        Text(p.fieldTitle).appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
                         InlineDiffText(pieces: pieces)
                     } else {
-                        Text("\(p.fieldTitle): \(p.text)").font(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color)
+                        Text("\(p.fieldTitle): \(p.text)").appFont(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    Text(p.reason).font(.system(size: 11.5)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
+                    Text(p.reason).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
                     // ADR-098 item 8: how the change does on this agent's test cases.
                     TestRunView(model: model, kind: "soul", id: p.id, tests: p.tests,
                                 hasCases: !(model.helpers.list?.testCases(kind: "soul", target: model.helpers.selectedHelper?.id ?? "").isEmpty ?? true),
@@ -160,7 +160,7 @@ struct ProposalsSection: View {
                             QuietButton(title: "Accept", symbol: "checkmark") { model.sendHelpers(model.helpers.answerProposal(p.id, accept: true)) }
                             QuietButton(title: "Reject", symbol: "xmark") { model.sendHelpers(model.helpers.answerProposal(p.id, accept: false)) }
                         } else {
-                            Text("Accepted").font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                            Text("Accepted").appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
                             QuietButton(title: "Undo", symbol: "arrow.uturn.backward") { model.sendHelpers(model.helpers.undoProposal(p.id)) }
                         }
                     }
@@ -186,16 +186,16 @@ struct RateSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("How did it go?").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+            Text("How did it go?").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             if let rating = job.rating {
                 Text(rating != "good" ? "You rated it not good; Tinker reviews it." : job.canBecomeSkill ? "You rated it good; Tinker drafts a skill from it." : "You rated it good.")
-                    .font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
             } else {
                 if snapshot {
-                    Text("What was wrong? (optional)").font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
+                    Text("What was wrong? (optional)").appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color)
                 } else {
                     TextField("What was wrong? (optional)", text: comment.projectedValue)
-                        .textFieldStyle(.plain).font(.system(size: 12.5)).foregroundStyle(theme.text.color)
+                        .textFieldStyle(.plain).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color)
                         .accessibilityLabel("What was wrong")
                 }
                 HStack(spacing: 8) {
@@ -210,7 +210,7 @@ struct RateSection: View {
             if job.canBecomeSkill {
                 if let draft = model.helpers.list?.skillDrafts.first(where: { $0.jobId == job.id }) {
                     Text("Skill draft \(draft.name): \(draft.state == "pending" ? "waits for you on the Plugins page" : draft.state).")
-                        .font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                        .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 } else if job.rating != "good" {
                     QuietButton(title: "Make a skill", symbol: "wand.and.stars") { model.sendHelpers(model.helpers.makeSkill()) }
                 }
@@ -227,22 +227,22 @@ struct PaperclipSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Paperclip · \(tasks.count)").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
+            Text("Paperclip · \(tasks.count)").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
             Text("Paperclip's agents run outside ATOM's checks: Paperclip decides their tools and folders. Its telemetry is on unless PAPERCLIP_TELEMETRY_DISABLED=1 is set where it runs.")
-                .font(.system(size: 10.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true).padding(.leading, 4)
+                .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true).padding(.leading, 4)
             if tasks.isEmpty {
-                Text("No tasks yet. Ask ATOM to hand one to a Paperclip agent.").font(.system(size: 12)).foregroundStyle(theme.text2.color).padding(.leading, 4)
+                Text("No tasks yet. Ask ATOM to hand one to a Paperclip agent.").appFont(.system(size: 12)).foregroundStyle(theme.text2.color).padding(.leading, 4)
             }
             ForEach(tasks) { task in
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
-                        Text("Paperclip").font(theme.idFont(.system(size: 10.5), size: 10)).foregroundStyle(theme.idColor(theme.text2))
-                        if let identifier = task.identifier { Text(identifier).font(theme.idFont(.system(size: 10.5), size: 10)).foregroundStyle(theme.text3.color) }
-                        Text(task.status).font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                        Text("Paperclip").appFont(theme.appIdentifierFont(.system(size: 10.5), size: 10)).foregroundStyle(theme.idColor(theme.text2))
+                        if let identifier = task.identifier { Text(identifier).appFont(theme.appIdentifierFont(.system(size: 10.5), size: 10)).foregroundStyle(theme.text3.color) }
+                        Text(task.status).appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                     }
-                    Text(task.title).font(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
-                    Text(task.agent).font(.system(size: 11)).foregroundStyle(theme.text2.color)
-                    if let result = task.result { Text(result).font(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(4) }
+                    Text(task.title).appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
+                    Text(task.agent).appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
+                    if let result = task.result { Text(result).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(4) }
                 }
                 .padding(.horizontal, 16).padding(.vertical, 10)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -287,7 +287,7 @@ struct InlineDiffText: View {
             case .added: return text + Text(piece.text).foregroundColor(theme.success.color)
             }
         }
-        .font(.system(size: 12.5))
+        .appFont(.system(size: 12.5))
         .fixedSize(horizontal: false, vertical: true)
         .textSelection(.enabled)
         .accessibilityLabel(pieces.compactMap { p in p.kind == .same ? p.text : p.kind == .removed ? "removed \(p.text)" : "added \(p.text)" }.joined(separator: " "))

@@ -46,10 +46,10 @@ struct FailureCard: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: failure.offersLog ? "stop.circle.fill" : "exclamationmark.triangle.fill")
-                        .font(.system(size: 13, weight: .semibold))
+                        .appFont(.system(size: 13, weight: .semibold))
                         .foregroundStyle(theme.problem.color)
                     Text(failure.sentence)
-                        .font(.system(size: 12, weight: .medium))
+                        .appFont(.system(size: 12, weight: .medium))
                         .foregroundStyle(theme.text.color)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -59,7 +59,7 @@ struct FailureCard: View {
                 }
                 if case .showCommand(let text) = failure.action, showing.wrappedValue {
                     Text(text)
-                        .font(.system(size: 10.5, design: .monospaced))
+                        .appFont(.system(size: 10.5, design: .monospaced))
                         .foregroundStyle(theme.text.color)
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
@@ -80,7 +80,7 @@ struct FailureCard: View {
                         model.openSettings(nil)
                     } label: {
                         Text("Details in Settings")
-                            .font(.system(size: 10))
+                            .appFont(.system(size: 10))
                             .foregroundStyle(theme.text3.color)
                             .contentShape(Rectangle())
                     }
@@ -116,12 +116,12 @@ struct PermissionRowView: View {
         let state = model.permissions.states[row]
         HStack(alignment: .center, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(row.title).font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
-                Text(row.usage).font(.system(size: 10.5)).foregroundStyle(theme.text2.color)
+                Text(row.title).appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
+                Text(row.usage).appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)
                     .fixedSize(horizontal: false, vertical: true)
                 if let state {
                     Label(row.stateLine(state), systemImage: Self.symbol(state))
-                        .font(.system(size: 10.5, weight: .medium))
+                        .appFont(.system(size: 10.5, weight: .medium))
                         .foregroundStyle(color(state))
                         .fixedSize(horizontal: false, vertical: true)
                 }

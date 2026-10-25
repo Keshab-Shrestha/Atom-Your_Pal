@@ -29,7 +29,7 @@ struct ProjectWorkspaceView: View {
                     WorkspaceTerminalView(model: model)
                 } else {
                 if let message = model.workspace.notice {
-                    Text(verbatim: message).font(.system(size: 11)).foregroundStyle(theme.text2.color).textSelection(.enabled)
+                    Text(verbatim: message).appFont(.system(size: 11)).foregroundStyle(theme.text2.color).textSelection(.enabled)
                 }
                 if model.workspace.pending != nil {
                     ProgressView("Loading workspace…").frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -47,17 +47,17 @@ struct ProjectWorkspaceView: View {
                 }
             } else {
                 Text("Open an active project chat to browse its folder and review tracked task edits.")
-                    .font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 Button("Choose a surface") { model.selectWorkspace(nil) }
                     .accessibilityLabel("Choose a workspace surface")
                 Spacer()
             }
         }
-        .padding(12)
+        .padding(16)
         .foregroundStyle(theme.text.color)
         .buttonStyle(SnapshotBorderlessButtonStyle())
         .frame(minWidth: 260, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(theme.surfaceSolid.color)
+        .background(WorkspaceColors.for(model.settings.theme).workspace.color)
         .task(id: scope) {
             guard !snapshot else { return }
             pieces = nil
@@ -81,9 +81,9 @@ struct ProjectWorkspaceView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Workspace").font(.system(size: 13, weight: .medium))
+                Text("Workspace").appFont(.system(size: 18, weight: .medium, design: .serif))
                 Text(verbatim: model.chats?.currentProject?.name ?? "This chat")
-                    .font(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(1)
+                    .appFont(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(1)
             }
             Spacer(minLength: 4)
             if model.workspace.tab != "browser" && model.workspace.tab != "terminal" {
@@ -106,7 +106,7 @@ struct ProjectWorkspaceView: View {
                     ForEach(WorkspaceSurface.allCases, id: \.self) { surface in
                         Button { model.selectWorkspace(surface) } label: {
                             Text(surface.title).fixedSize()
-                                .font(.system(size: 12, weight: model.workspace.tab == surface.rawValue ? .medium : .regular))
+                                .appFont(.system(size: 12, weight: model.workspace.tab == surface.rawValue ? .medium : .regular))
                                 .foregroundStyle(model.workspace.tab == surface.rawValue ? theme.text.color : theme.text3.color)
                                 .padding(.horizontal, 8).padding(.vertical, 7)
                                 .background(model.workspace.tab == surface.rawValue ? theme.fill2.color : .clear, in: RoundedRectangle(cornerRadius: 6))
@@ -115,7 +115,7 @@ struct ProjectWorkspaceView: View {
                     }
                 }.fixedSize(horizontal: true, vertical: false)
                 if snapshot {
-                    Text((WorkspaceSurface(rawValue: model.workspace.tab)?.title ?? "Surface") + " ▾").font(.system(size: 12)).padding(7)
+                    Text((WorkspaceSurface(rawValue: model.workspace.tab)?.title ?? "Surface") + " ▾").appFont(.system(size: 12)).padding(7)
                 } else {
                     Menu {
                         ForEach(WorkspaceSurface.allCases, id: \.self) { surface in
@@ -123,7 +123,7 @@ struct ProjectWorkspaceView: View {
                                 .disabled(!model.workspaceSurfaceAvailable(surface))
                         }
                     } label: {
-                        Text(WorkspaceSurface(rawValue: model.workspace.tab)?.title ?? "Surface").font(.system(size: 12))
+                        Text(WorkspaceSurface(rawValue: model.workspace.tab)?.title ?? "Surface").appFont(.system(size: 12))
                     }.menuStyle(.borderlessButton).fixedSize().accessibilityLabel("Workspace surface")
                 }
             }
@@ -134,17 +134,17 @@ struct ProjectWorkspaceView: View {
     private var surfaceChooser: some View {
         VStack(alignment: .leading, spacing: 8) {
             Spacer(minLength: 16)
-            Text("Open a surface").font(.system(size: 14, weight: .medium)).padding(.bottom, 12)
+            Text("Open a surface").appFont(.system(size: 14, weight: .medium)).padding(.bottom, 12)
             ForEach(WorkspaceSurface.allCases, id: \.self) { surface in
                 Button { model.selectWorkspace(surface) } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: surface.symbol).font(.system(size: 15)).frame(width: 22)
+                        Image(systemName: surface.symbol).appFont(.system(size: 15)).frame(width: 22)
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(surface.title).font(.system(size: 13, weight: .medium))
-                            Text(surface.detail).font(.system(size: 11)).foregroundStyle(theme.text2.color)
+                            Text(surface.title).appFont(.system(size: 13, weight: .medium))
+                            Text(surface.detail).appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
                         }
                         Spacer(minLength: 0)
-                        Image(systemName: "chevron.right").font(.system(size: 10)).foregroundStyle(theme.text3.color)
+                        Image(systemName: "chevron.right").appFont(.system(size: 10)).foregroundStyle(theme.text3.color)
                     }.padding(10).contentShape(Rectangle())
                         .background(theme.fill2.color.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
                 }.buttonStyle(.plain).disabled(!model.workspaceSurfaceAvailable(surface))
@@ -152,7 +152,7 @@ struct ProjectWorkspaceView: View {
             }
             if !model.workspaceAvailable {
                 Text("Files, Changes, Git and Terminal need an active project chat. Browser works beside any chat.")
-                    .font(.system(size: 12)).foregroundStyle(theme.text2.color).padding(.top, 8)
+                    .appFont(.system(size: 12)).foregroundStyle(theme.text2.color).padding(.top, 8)
             }
             Spacer(minLength: 16)
         }.frame(maxWidth: 380, maxHeight: .infinity, alignment: .leading)
@@ -168,18 +168,18 @@ struct ProjectWorkspaceView: View {
                     }.buttonStyle(SnapshotBorderlessButtonStyle())
                 }
                 Text(verbatim: model.workspace.folder.isEmpty ? "Project folder" : model.workspace.folder)
-                    .font(.system(size: 11, design: .monospaced)).lineLimit(2).textSelection(.enabled)
+                    .appFont(.system(size: 11, design: .monospaced)).lineLimit(2).textSelection(.enabled)
             }
-            if snapshot { Text("Filter this folder").font(.system(size: 12)).foregroundStyle(theme.text3.color) }
+            if snapshot { Text("Filter this folder").appFont(.system(size: 12)).foregroundStyle(theme.text3.color) }
             else { TextField("Filter this folder", text: Binding(get: { filter }, set: { filter = $0 })).textFieldStyle(.roundedBorder).accessibilityLabel("Filter project folder") }
             Text("Hidden, generated, linked and protected paths are excluded.")
-                .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
             Scrollable {
                 WorkspaceRows(spacing: 3) {
                     let entries = (result?.entries ?? []).filter { filter.isEmpty || $0.name.localizedStandardContains(filter) }
                     if entries.isEmpty {
                         Text(result == nil ? "Refresh to load this folder." : filter.isEmpty ? "No supported files in this folder." : "No matching files.")
-                            .font(.system(size: 12)).foregroundStyle(theme.text2.color).padding(.vertical, 12)
+                            .appFont(.system(size: 12)).foregroundStyle(theme.text2.color).padding(.vertical, 12)
                     }
                     ForEach(entries) { entry in
                         Button {
@@ -191,8 +191,8 @@ struct ProjectWorkspaceView: View {
                                 Image(systemName: entry.directory ? "folder" : "doc.text").frame(width: 16)
                                 Text(verbatim: entry.name).lineLimit(2).multilineTextAlignment(.leading)
                                 Spacer(minLength: 0)
-                                if entry.directory { Image(systemName: "chevron.right").font(.system(size: 9)) }
-                            }.font(.system(size: 12)).padding(.horizontal, 7).padding(.vertical, 7).contentShape(Rectangle())
+                                if entry.directory { Image(systemName: "chevron.right").appFont(.system(size: 9)) }
+                            }.appFont(.system(size: 12)).padding(.horizontal, 7).padding(.vertical, 7).contentShape(Rectangle())
                         }
                         .buttonStyle(.plain).accessibilityLabel("\(entry.directory ? "Open folder" : "Preview file") \(entry.name)")
                     }
@@ -200,21 +200,21 @@ struct ProjectWorkspaceView: View {
             }
             if result?.limited == true {
                 Text("Folder listing is limited to 300 entries, 128 KiB or 1,000 examined names. Open a smaller folder in Finder for omitted files.")
-                    .font(.system(size: 10.5)).foregroundStyle(theme.text2.color)
+                    .appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)
             }
-            Button("Open project in Finder") { revealProject() }.buttonStyle(SnapshotBorderlessButtonStyle()).font(.system(size: 11))
+            Button("Open project in Finder") { revealProject() }.buttonStyle(SnapshotBorderlessButtonStyle()).appFont(.system(size: 11))
         }
     }
 
     private var changesPane: some View {
         VStack(alignment: .leading, spacing: 8) {
             Button("Open Git branch review") { model.openWorkspaceBranches() }
-                .buttonStyle(SnapshotBorderlessButtonStyle()).font(.system(size: 11))
+                .buttonStyle(SnapshotBorderlessButtonStyle()).appFont(.system(size: 11))
             Scrollable {
                 WorkspaceRows(spacing: 8) {
                     if (result?.changes ?? []).isEmpty {
                         Text(result == nil ? "Refresh to load tracked changes." : "No retained task checkpoints in this project.")
-                            .font(.system(size: 12)).foregroundStyle(theme.text2.color).padding(.vertical, 12)
+                            .appFont(.system(size: 12)).foregroundStyle(theme.text2.color).padding(.vertical, 12)
                     }
                     ForEach(result?.changes ?? []) { change in
                         Button {
@@ -222,11 +222,11 @@ struct ProjectWorkspaceView: View {
                             model.requestWorkspace(.review, path: change.path, job: change.job)
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(verbatim: change.path).font(.system(size: 12, weight: .medium)).lineLimit(2)
-                                Text(verbatim: "Task #\(change.job) · \(change.task)").font(.system(size: 11)).lineLimit(3)
+                                Text(verbatim: change.path).appFont(.system(size: 12, weight: .medium)).lineLimit(2)
+                                Text(verbatim: "Task #\(change.job) · \(change.task)").appFont(.system(size: 11)).lineLimit(3)
                                 Text(verbatim: "\(change.kind.capitalized) · \(change.state == "ready" ? "Review available" : change.state.capitalized) · \(change.jobState)")
-                                    .font(.system(size: 10.5)).foregroundStyle(theme.text2.color)
-                                if let reason = change.reason { Text(verbatim: reason).font(.system(size: 11)).foregroundStyle(theme.text2.color) }
+                                    .appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)
+                                if let reason = change.reason { Text(verbatim: reason).appFont(.system(size: 11)).foregroundStyle(theme.text2.color) }
                             }
                             .frame(maxWidth: .infinity, alignment: .leading).padding(9)
                             .background(theme.fill2.color.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
@@ -234,7 +234,7 @@ struct ProjectWorkspaceView: View {
                     }
                 }
             }
-            if result?.limited == true { Text("Showing a bounded selection of the newest tracked files (200 / 256 KiB at most).").font(.system(size: 11)).foregroundStyle(theme.text2.color) }
+            if result?.limited == true { Text("Showing a bounded selection of the newest tracked files (200 / 256 KiB at most).").appFont(.system(size: 11)).foregroundStyle(theme.text2.color) }
         }
     }
 
@@ -245,7 +245,7 @@ struct ProjectWorkspaceView: View {
             pathHeader(path)
             fileActions(path)
             Text("Read-only preview · UTF-8 · up to 32 KiB / 1,000 lines")
-                .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
             literalText(text)
         }
     }
@@ -256,16 +256,16 @@ struct ProjectWorkspaceView: View {
                 .buttonStyle(SnapshotBorderlessButtonStyle())
             pathHeader(review.path)
             if let selected {
-                Text(verbatim: "Task #\(selected.job) · \(selected.task)").font(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(3)
+                Text(verbatim: "Task #\(selected.job) · \(selected.task)").appFont(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(3)
             }
-            Text(verbatim: review.note).font(.system(size: 11)).foregroundStyle(theme.text2.color)
+            Text(verbatim: review.note).appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
             if snapshot {
-                HStack { Text("Changes"); Text("Original"); Text("Current") }.font(.system(size: 11)).padding(6).background(theme.fill2.color)
+                HStack { Text("Changes"); Text("Original"); Text("Current") }.appFont(.system(size: 11)).padding(6).background(theme.fill2.color)
             } else { Picker("Change view", selection: Binding(get: { mode }, set: { mode = $0 })) {
                 Text("Changes").tag("changes"); Text("Original").tag("before"); Text("Current").tag("after")
             }.pickerStyle(.segmented) }
             if mode == "changes" {
-                Text("Removed text is crossed out; added text is green.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                Text("Removed text is crossed out; added text is green.").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                 WorkspaceTextScroll {
                     Group {
                         if snapshot { InlineDiffText(pieces: InlineDiff.segments(old: review.before, new: review.after)) }
@@ -288,14 +288,14 @@ struct ProjectWorkspaceView: View {
 
     private func pathHeader(_ path: String) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(verbatim: path).font(.system(size: 12, weight: .medium, design: .monospaced)).textSelection(.enabled)
-            if let root = result?.root { Text(verbatim: root).font(.system(size: 10.5)).foregroundStyle(theme.text3.color).textSelection(.enabled) }
+            Text(verbatim: path).appFont(.system(size: 12, weight: .medium, design: .monospaced)).textSelection(.enabled)
+            if let root = result?.root { Text(verbatim: root).appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color).textSelection(.enabled) }
         }
     }
     private func literalText(_ text: String) -> some View {
         WorkspaceTextScroll {
             Text(verbatim: text.isEmpty ? "(Empty file)" : text)
-                .font(.system(size: 11.5, design: .monospaced)).foregroundStyle(theme.text.color)
+                .appFont(.system(size: 11.5, design: .monospaced)).foregroundStyle(theme.text.color)
                 .textSelection(.enabled).fixedSize(horizontal: true, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .topLeading).padding(10)
         }.frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -308,7 +308,7 @@ struct ProjectWorkspaceView: View {
                 Button("Open in editor…") { model.openWorkspaceFile(path, finder: false) }
                 Button("Reveal in Finder") { model.openWorkspaceFile(path, finder: true) }
             }.menuStyle(.borderlessButton).fixedSize() }
-        }.font(.system(size: 11)).buttonStyle(SnapshotBorderlessButtonStyle())
+        }.appFont(.system(size: 11)).buttonStyle(SnapshotBorderlessButtonStyle())
     }
     private func parent(_ path: String) -> String { path.split(separator: "/").dropLast().joined(separator: "/") }
     private func revealProject() {

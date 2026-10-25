@@ -39,18 +39,18 @@ struct McpPasteForm: View {
         let parsed = McpConfigImport.parse(text.wrappedValue, existing: existing)
         VStack(alignment: .leading, spacing: 10) {
             Text("Paste a server the way Claude Desktop writes it: the whole config file, its mcpServers block, or one server.")
-                .font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
             HStack(spacing: 8) {
                 QuietButton(title: "Import from Claude Desktop", symbol: "square.and.arrow.down") { importFile() }
                 Spacer()
             }
-            if let notice = notice.wrappedValue { Text(notice).font(.system(size: 11)).foregroundStyle(theme.text3.color) }
+            if let notice = notice.wrappedValue { Text(notice).appFont(.system(size: 11)).foregroundStyle(theme.text3.color) }
             editor
             ForEach(parsed.entries) { entry in entryRow(entry) }
             ForEach(parsed.problems, id: \.self) { problem in ProblemLine(text: problem) }
             HStack {
                 Text("Saved switched off. Test it, then turn it on for the workers you choose.")
-                    .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                    .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                 Spacer()
                 let count = parsed.addable.count
                 PillButton(title: count == 0 ? "Add" : count == 1 ? "Add 1 server" : "Add \(count) servers", symbol: "plus", prominent: true) { add(parsed) }
@@ -75,7 +75,7 @@ struct McpPasteForm: View {
                 }
             }
         }
-        .font(.system(size: 11.5, design: .monospaced))
+        .appFont(.system(size: 11.5, design: .monospaced))
         .padding(8)
         .background(RoundedRectangle(cornerRadius: theme.radiusControl + 2, style: .continuous)
             .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: 1))
@@ -83,12 +83,12 @@ struct McpPasteForm: View {
 
     private func entryRow(_ entry: McpConfigImport.Entry) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Image(systemName: entry.exists ? "checkmark.circle" : "plus.circle").font(.system(size: 12))
+            Image(systemName: entry.exists ? "checkmark.circle" : "plus.circle").appFont(.system(size: 12))
                 .foregroundStyle(entry.exists ? theme.text3.color : theme.success.color)
             VStack(alignment: .leading, spacing: 1) {
-                Text(entry.draft.name).font(theme.idFont(.system(size: 12.5, weight: .medium), size: 12)).foregroundStyle(theme.text.color)
-                Text(entry.summary).font(.system(size: 11, design: .monospaced)).foregroundStyle(theme.text2.color).lineLimit(2)
-                if !entry.notes.isEmpty { Text(entry.notes.joined(separator: " · ")).font(.system(size: 10.5)).foregroundStyle(theme.text3.color) }
+                Text(entry.draft.name).appFont(theme.appIdentifierFont(.system(size: 12.5, weight: .medium), size: 12)).foregroundStyle(theme.text.color)
+                Text(entry.summary).appFont(.system(size: 11, design: .monospaced)).foregroundStyle(theme.text2.color).lineLimit(2)
+                if !entry.notes.isEmpty { Text(entry.notes.joined(separator: " · ")).appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color) }
             }
             Spacer(minLength: 0)
         }

@@ -15,12 +15,12 @@ struct SidebarSearchField: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+            Image(systemName: "magnifyingglass").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
             if snapshot {
-                Text("Search").font(.system(size: 12.5)).foregroundStyle(theme.text3.color).frame(maxWidth: .infinity, alignment: .leading)
+                Text("Search").appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color).frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 TextField("Search everything", text: Binding(get: { model.searchText }, set: { model.searchText = $0 }))
-                    .textFieldStyle(.plain).font(.system(size: 12.5)).foregroundStyle(theme.text.color)
+                    .textFieldStyle(.plain).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color)
                     .focused(focus.projectedValue)
                     .onSubmit { model.submitSearch() }
                     .onKeyPress(.downArrow) { model.moveSearchCursor(1); return .handled }
@@ -30,7 +30,7 @@ struct SidebarSearchField: View {
             }
             if !model.searchText.isEmpty {
                 Button { model.clearSearch() } label: {
-                    Image(systemName: "xmark.circle.fill").font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                    Image(systemName: "xmark.circle.fill").appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Clear search")
@@ -67,10 +67,10 @@ struct SidebarSearchResults: View {
             ScrollViewReader { proxy in
                 VStack(alignment: .leading, spacing: 0) {
                     if sections.isEmpty {
-                        Text("Nothing found.").font(.system(size: 11.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 10).padding(.vertical, 4)
+                        Text("Nothing found.").appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 10).padding(.vertical, 4)
                     }
                     ForEach(sections) { section in
-                        Text(section.title).font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color).padding(.horizontal, 10).padding(.top, 8)
+                        Text(section.title).appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color).padding(.horizontal, 10).padding(.top, 8)
                         ForEach(section.entries) { entry in
                             let canOpen = model.canOpenSearchEntry(entry)
                             Button { model.openSearchEntry(entry) } label: { row(entry, chosen: entry.id == chosen) }
@@ -90,7 +90,7 @@ struct SidebarSearchResults: View {
         } else {
             HStack(spacing: 6) {
                 ProgressView().controlSize(.small)
-                Text("Searching…").font(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+                Text("Searching…").appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
             }
             .padding(.horizontal, 10).padding(.vertical, 4)
         }
@@ -105,14 +105,14 @@ struct SidebarSearchResults: View {
     private func row(_ entry: SearchEntry, chosen: Bool) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             if let page = entry.page {
-                Text(page.rawValue).font(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(1)
+                Text(page.rawValue).appFont(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(1)
             } else if let hit = entry.hit {
-                Text(hit.title).font(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(1)
+                Text(hit.title).appFont(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(1)
                 if !hit.snippet.isEmpty, hit.snippet != hit.title {
-                    Text(hit.snippet).font(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(2)
+                    Text(hit.snippet).appFont(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(2)
                 }
                 if let at = hit.at {
-                    Text(at, format: .relative(presentation: .named)).font(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1)
+                    Text(at, format: .relative(presentation: .named)).appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1)
                 }
             }
         }
@@ -140,14 +140,14 @@ struct TaskLabelsSection: View {
         let typed = !draft.wrappedValue.trimmingCharacters(in: .whitespaces).isEmpty
         let full = job.labels.count >= TaskLabels.maxLabels
         VStack(alignment: .leading, spacing: 8) {
-            Text("Labels").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+            Text("Labels").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             if !job.labels.isEmpty {
                 HStack(spacing: 6) {
                     ForEach(job.labels, id: \.self) { label in
                         HStack(spacing: 4) {
-                            Text(label).font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text.color)
+                            Text(label).appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text.color)
                             Button { model.sendHelpers(model.helpers.removeLabel(label)) } label: {
-                                Image(systemName: "xmark").font(.system(size: 8, weight: .bold)).foregroundStyle(theme.text3.color)
+                                Image(systemName: "xmark").appFont(.system(size: 8, weight: .bold)).foregroundStyle(theme.text3.color)
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("Remove label \(label)")
@@ -160,10 +160,10 @@ struct TaskLabelsSection: View {
             if !full {
                 HStack(spacing: 8) {
                     if snapshot {
-                        Text("Add label").font(.system(size: 12.5)).foregroundStyle(theme.text3.color).frame(maxWidth: .infinity, alignment: .leading)
+                        Text("Add label").appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color).frame(maxWidth: .infinity, alignment: .leading)
                     } else {
                         TextField("Add label", text: Binding(get: { draft.wrappedValue }, set: { draft.wrappedValue = $0 }))
-                            .textFieldStyle(.plain).font(.system(size: 12.5)).foregroundStyle(theme.text.color)
+                            .textFieldStyle(.plain).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color)
                             .onSubmit(add)
                             .accessibilityLabel("New label")
                     }

@@ -59,11 +59,11 @@ struct Composer: View {
                 MentionPicker(items: mentionItems, selected: min(pick.wrappedValue, mentionItems.count - 1), choose: choose)
             }
             if let message = projectSearchNotice.wrappedValue, mentionClosed.wrappedValue == nil, MentionMenu.query(in: draft.wrappedValue) != nil, readOnly == nil {
-                Text(message).font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                Text(message).appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
             }
             if let error = model.modelError {
                 HStack(alignment: .top, spacing: 8) {
-                    Text(error).font(.system(size: 12)).foregroundStyle(theme.problem.color).fixedSize(horizontal: false, vertical: true)
+                    Text(error).appFont(.system(size: 12)).foregroundStyle(theme.problem.color).fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
                     Button { model.modelError = nil } label: { Image(systemName: "xmark") }
                         .buttonStyle(.plain).accessibilityLabel("Dismiss settings error")
@@ -80,18 +80,18 @@ struct Composer: View {
                 Group {
                     if let notice = readOnly {
                         // ADR-098: Telegram or the local API writes this chat. Reading, copying and search still work.
-                        Text(notice).font(.system(size: 14)).foregroundStyle(theme.text2.color).lineLimit(2)
+                        Text(notice).appFont(.system(size: 14)).foregroundStyle(theme.text2.color).lineLimit(2)
                             .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
                             .accessibilityLabel(notice)
                     } else if snapshot {
                         // `ImageRenderer` cannot draw a text field: show the placeholder as it would appear.
-                        Text(placeholder).font(.system(size: 14)).foregroundStyle(theme.text3.color).lineLimit(1)
+                        Text(placeholder).appFont(.system(size: 14)).foregroundStyle(theme.text3.color).lineLimit(1)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     } else {
                         TextField(placeholder, text: draft.projectedValue, prompt: Text(placeholder).foregroundColor(theme.text3.color), axis: .vertical)
                             .lineLimit(ComposerLines.range)
                             .textFieldStyle(.plain)
-                            .font(.system(size: 14))
+                            .appFont(.system(size: 14))
                             .foregroundStyle(theme.text.color)
                             .focused($focused)
                             .onSubmit(send)
@@ -108,8 +108,8 @@ struct Composer: View {
                     ViewThatFits(in: .horizontal) {
                         HStack(spacing: 12) {
                             if snapshot {
-                                Text("Default model").font(.system(size: 12)).foregroundStyle(theme.text2.color)
-                                Image(systemName: "chevron.down").font(.system(size: 9)).foregroundStyle(theme.text3.color)
+                                Text("Default model").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
+                                Image(systemName: "chevron.down").appFont(.system(size: 9)).foregroundStyle(theme.text3.color)
                             } else {
                                 ChatModelMenu(model: model)
                                 ChatReasoningMenu(model: model)
@@ -155,7 +155,7 @@ struct Composer: View {
             }
             if !snapshot, readOnly == nil, model.queue.awaitingStart || model.queue.running {
                 Text(model.queue.awaitingStart ? "Sending… · Return: queue another message" : "Return: queue message · ⌘Return: send next now")
-                    .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                    .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
             }
         }
         .onChange(of: draft.wrappedValue) { _, now in
@@ -182,8 +182,8 @@ struct Composer: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(composerShape.fill(theme.fill1.color))
-        .overlay(composerShape.strokeBorder(theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.5))
+        .background(composerShape.fill(theme.fill2.color))
+        .overlay(composerShape.strokeBorder(focused ? theme.accent.color.opacity(0.7) : theme.border.color, lineWidth: 1))
         // Dropping files on the composer attaches them.
         .modifier(ComposerDropTarget(files: attached))
     }
@@ -191,7 +191,7 @@ struct Composer: View {
     @ViewBuilder private var queueControls: some View {
         if !model.queue.messages.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Queued (\(model.queue.messages.count))").font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.text2.color)
+                Text("Queued (\(model.queue.messages.count))").appFont(.system(size: 11, weight: .semibold)).foregroundStyle(theme.text2.color)
                 ScrollView(.vertical, showsIndicators: true) {
                     VStack(spacing: 4) {
                         ForEach(Array(model.queue.messages.enumerated()), id: \.element.id) { index, message in
@@ -211,9 +211,9 @@ struct Composer: View {
         if !model.heldInputs.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Held messages (\(model.heldInputs.count)) · review before sending")
-                    .font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.text2.color)
+                    .appFont(.system(size: 11, weight: .semibold)).foregroundStyle(theme.text2.color)
                 Text("Some input may have reached ATOM. Refresh Recovery and check saved history before retrying.")
-                    .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                    .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                 ScrollView(.vertical, showsIndicators: true) {
                     VStack(spacing: 4) {
                         ForEach(Array(model.heldInputs.enumerated()), id: \.element.id) { index, message in
@@ -234,11 +234,11 @@ struct Composer: View {
                 }
             }
             .menuStyle(.borderlessButton).fixedSize()
-            .font(.system(size: 11)).foregroundStyle(theme.text2.color)
+            .appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
             .help("Open a saved chat, or recover an unfinished chat into an empty message box. Recovered text is never sent automatically.")
         }
         if let notice = model.inputNotice {
-            Text(notice).font(.system(size: 11)).foregroundStyle(theme.problem.color)
+            Text(notice).appFont(.system(size: 11)).foregroundStyle(theme.problem.color)
         }
     }
 
@@ -447,7 +447,7 @@ private struct AttachButton: View {
 
     var body: some View {
         Button(action: choose) {
-            Image(systemName: "paperclip").font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+            Image(systemName: "paperclip").appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
                 .frame(width: 28, height: 28).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -491,8 +491,8 @@ private struct SkillsMenu: View {
             }
         } label: {
             HStack(spacing: 4) {
-                Image(systemName: "sparkles").font(.system(size: 10.5, weight: .medium))
-                Text("Skills").font(.system(size: 11.5))
+                Image(systemName: "sparkles").appFont(.system(size: 10.5, weight: .medium))
+                Text("Skills").appFont(.system(size: 11.5))
             }
             .foregroundStyle(theme.text2.color)
             .padding(.horizontal, 8).frame(height: 28).contentShape(Rectangle())
@@ -518,8 +518,8 @@ private struct QueuedRow: View {
     var body: some View {
         HStack(spacing: 8) {
             Text(held ? "\(position)" : position == 1 ? "Next" : "\(position)")
-                .font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.text2.color)
-            Text(summary).font(.system(size: 12)).foregroundStyle(theme.text.color).lineLimit(1).truncationMode(.tail)
+                .appFont(.system(size: 11, weight: .semibold)).foregroundStyle(theme.text2.color)
+            Text(summary).appFont(.system(size: 12)).foregroundStyle(theme.text.color).lineLimit(1).truncationMode(.tail)
             Spacer(minLength: 8)
             Button("Edit", action: edit).disabled(!canEdit).help("Move this message to an empty composer; submitting it again adds it at the end")
             Button(held ? "Discard" : "Remove", action: remove).help("Remove only this unsent message")
@@ -527,7 +527,7 @@ private struct QueuedRow: View {
                 Button("Send next now", action: sendNow).disabled(!canSend).help("Stop the current answer and send this message; the remaining entries keep their order")
             }
         }
-        .buttonStyle(.plain).font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+        .buttonStyle(.plain).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color)
         .padding(.horizontal, 10).frame(height: 30)
         .background(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous).fill(theme.fill2.color))
         .accessibilityElement(children: .contain)
@@ -589,7 +589,7 @@ private struct ComposerButton: View {
         let tint: Color? = listening ? theme.live.color : nil
         return Button(action: action) {
             Image(systemName: empty ? "mic" : queueing ? "arrow.turn.down.right" : "arrow.up")
-                .font(.system(size: empty ? 12.5 : 11.5, weight: empty ? .regular : .semibold))
+                .appFont(.system(size: empty ? 12.5 : 11.5, weight: empty ? .regular : .semibold))
                 .foregroundStyle(tint ?? (empty ? theme.text2.color : theme.text.color))
                 .frame(width: 30, height: 30)
                 .background(ControlFill(Circle(), fill: Color.clear, hovering: !empty, tint: tint))
@@ -608,7 +608,7 @@ private struct ComposerButton: View {
         let lit = !empty || listening
         return Button(action: action) {
             Image(systemName: empty ? "mic.fill" : queueing ? "arrow.turn.down.right" : "arrow.up")
-                .font(.system(size: empty ? 12 : 11.5, weight: .bold))
+                .appFont(.system(size: empty ? 12 : 11.5, weight: .bold))
                 .foregroundStyle(lit ? theme.onAccent.color : theme.text3.color)
                 .frame(width: 30, height: 30)
                 .background(Circle().fill(lit ? theme.accentFill : AnyShapeStyle(theme.fill2.color)))
@@ -742,10 +742,10 @@ private struct EmptyConversation: View {
     var body: some View {
         VStack(spacing: 12) {
             Text("What can I help you with?")
-                .font(.system(size: 26, weight: .medium))
+                .appFont(.system(size: 26, weight: .medium))
                 .foregroundStyle(theme.text.color)
             Text("Ask a question or start something new.")
-                .font(.system(size: 14)).foregroundStyle(theme.text3.color)
+                .appFont(.system(size: 14)).foregroundStyle(theme.text3.color)
             BriefCard(model: model).padding(.top, 6).frame(maxWidth: 520) // upgrades.md C3: today's brief, when there is one
             EmptyConversationExamples(model: model).padding(.top, 6)
         }
@@ -786,11 +786,11 @@ struct TurnView: View {
                             .lineLimit(collapsed ? UserMessagePreview.lineLimit : nil)
                             .truncationMode(.tail)
                             .accessibilityHint(collapsed ? "Message preview. Open Message actions and choose Show full message to read the rest." : "")
-                            .font(.system(size: 14))
+                            .appFont(.system(size: 14))
                             .foregroundStyle(theme.text.color)
                             .lineSpacing(3)
                             .padding(10)
-                            .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).fill(theme.fill1.color))
+                            .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).fill(theme.accent.color.opacity(theme.isDark ? 0.14 : 0.08)))
                             .textSelection(.enabled)
                             .contextMenu { userActions(collapsed: collapsed) }
                             .overlay(alignment: .topLeading) {
@@ -848,7 +848,7 @@ struct TurnView: View {
                 ProjectFileLinks(text: reply, project: project)
             }
             if let notice = pathNotice.wrappedValue {
-                Text(notice).font(.system(size: 11)).foregroundStyle(theme.problem.color)
+                Text(notice).appFont(.system(size: 11)).foregroundStyle(theme.problem.color)
             }
         }
         .overlay {
@@ -903,12 +903,12 @@ struct TurnView: View {
             // Void: the colour is only the dot; the words stay quiet.
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 StatusDot(color: color).alignmentGuide(.firstTextBaseline) { $0[.bottom] - 0.5 }
-                Text(text).font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                Text(text).appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
             }
             .fixedSize(horizontal: false, vertical: true)
         } else {
             Label(text, systemImage: symbol)
-                .font(.system(size: 11.5, weight: .medium))
+                .appFont(.system(size: 11.5, weight: .medium))
                 .foregroundStyle(color)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -918,6 +918,7 @@ struct TurnView: View {
 /// Pal's reply at reading size. While it is being spoken, a caret of Pal's light glows after the last word: the
 /// same text is laid out twice, the lower copy invisible except for the caret's glow, so the glow sits exactly on it.
 private struct ReplyText: View {
+    @Environment(\.appTextSize) private var textSize
     let text: String
     let latest: Bool
     let streaming: Bool
@@ -935,25 +936,27 @@ private struct ReplyText: View {
 
     private var plain: some View {
         let light = theme.glow.a > 0 ? theme.glow.with(alpha: 1).color : theme.accent.color
+        let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        let rendered = (try? AttributedString(markdown: text, options: options)).map { Text($0) } ?? Text(text)
         return ZStack(alignment: .topLeading) {
             if streaming, theme.usesGlow {
-                (Text(text).foregroundColor(.clear) + caret(theme.isDark ? light : theme.accent.color))
+                (rendered.foregroundColor(.clear) + caret(theme.isDark ? light : theme.accent.color))
                     .shadow(color: light.opacity(0.9), radius: 5)
                     .modifier(Breathing(active: !snapshot && !reduceMotion))
                     .accessibilityHidden(true)
             }
-            (Text(text).foregroundColor(latest ? theme.text.color : theme.text2.color)
+            (rendered.foregroundColor(latest ? theme.text.color : theme.text2.color)
                 + (streaming ? caret(theme.isDark ? light : theme.accent.color) : Text("")))
                 .textSelection(.enabled)
         }
-        .font(.system(size: 14))
+        .appFont(.system(size: 14))
         .lineSpacing(5)
         .fixedSize(horizontal: false, vertical: true)
         .animation(Motion.glow(reduceMotion), value: latest)
     }
 
     private func caret(_ colour: Color) -> Text {
-        Text(" \u{25CF}").font(.system(size: 8)).baselineOffset(1).foregroundColor(colour)
+        Text(" \u{25CF}").appFont(.system(size: 8), scaledBy: textSize).baselineOffset(1).foregroundColor(colour)
     }
 }
 

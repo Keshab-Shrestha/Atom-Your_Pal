@@ -12,8 +12,8 @@ struct ToolTimelineSection: View {
         VStack(alignment: .leading, spacing: 6) {
             Button { withAnimation(Motion.snap(reduceMotion)) { isOpen.toggle() } } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: isOpen ? "chevron.down" : "chevron.right").font(.system(size: 9, weight: .semibold))
-                    Text("Tool calls (\(calls.count))").font(.system(size: 11.5, weight: .medium))
+                    Image(systemName: isOpen ? "chevron.down" : "chevron.right").appFont(.system(size: 9, weight: .semibold))
+                    Text("Tool calls (\(calls.count))").appFont(.system(size: 11.5, weight: .medium))
                 }
                 .foregroundStyle(theme.text3.color)
             }
@@ -22,7 +22,7 @@ struct ToolTimelineSection: View {
             .accessibilityValue(isOpen ? "Open" : "Closed")
             if isOpen {
                 if calls.isEmpty {
-                    Text("Nothing recorded for this task.").font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    Text("Nothing recorded for this task.").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }
                 ForEach(calls, id: \.id) { ToolCallRow(call: $0) }
             }
@@ -45,7 +45,7 @@ private struct ToolCallRow: View {
                 .accessibilityLabel(label)
                 .accessibilityHint(hasResult ? (isOpen ? "Hides the result" : "Shows the result") : "")
             if isOpen, let result = call.result {
-                Text(result).font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                Text(result).appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                     .fixedSize(horizontal: false, vertical: true).padding(.leading, 15)
             }
         }
@@ -55,11 +55,11 @@ private struct ToolCallRow: View {
     private var line: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Circle().fill(color).frame(width: 7, height: 7)
-            Text(call.tool).font(theme.idFont(.system(size: 12.5), size: 11.5)).foregroundStyle(theme.idColor(theme.text))
-            Text(call.input).font(.system(size: 12)).foregroundStyle(theme.text2.color).lineLimit(1).truncationMode(.tail)
+            Text(call.tool).appFont(theme.appIdentifierFont(.system(size: 12.5), size: 11.5)).foregroundStyle(theme.idColor(theme.text))
+            Text(call.input).appFont(.system(size: 12)).foregroundStyle(theme.text2.color).lineLimit(1).truncationMode(.tail)
             Spacer(minLength: 4)
-            if let ms = call.durationText { Text(ms).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color) }
-            Text(call.at.formatted(date: .omitted, time: .shortened)).font(theme.idFont(.system(size: 11), size: 10.5))
+            if let ms = call.durationText { Text(ms).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color) }
+            Text(call.at.formatted(date: .omitted, time: .shortened)).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5))
                 .foregroundStyle(theme.text3.color)
         }
         .contentShape(Rectangle())

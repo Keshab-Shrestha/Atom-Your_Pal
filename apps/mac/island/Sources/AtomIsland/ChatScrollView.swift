@@ -30,7 +30,7 @@ struct ChatScrollView<Content: View>: View {
                     Label("Scroll to end", systemImage: "arrow.down.to.line")
                 }
                 .buttonStyle(.borderless)
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .padding(.vertical, 6)
                 .accessibilityHint("Show the latest messages and follow new replies")
             }

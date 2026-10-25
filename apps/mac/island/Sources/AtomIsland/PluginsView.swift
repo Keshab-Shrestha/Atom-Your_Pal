@@ -20,13 +20,13 @@ struct PluginsPane: View {
         Scrollable {
             VStack(alignment: .leading, spacing: 22) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Plugins").font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
-                    Text("Skills and MCP servers your workers may use. Nothing is on until you turn it on.").font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    Text("Plugins").appFont(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
+                    Text("Skills and MCP servers your workers may use. Nothing is on until you turn it on.").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("MCP servers").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+                        Text("MCP servers").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
                         Spacer()
                         if model.savedField == "mcp" && model.helpers.problem == nil { SavedMark() }
                         QuietButton(title: adding.wrappedValue ? "Cancel" : "Add server", symbol: adding.wrappedValue ? "xmark" : "plus") {
@@ -45,7 +45,7 @@ struct PluginsPane: View {
                     ForEach(list?.mcp ?? []) { server in ServerCard(model: model, server: server, team: list?.helpers ?? []) }
                 }
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Skills").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+                    Text("Skills").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
                     // ADR-094: Tinker's drafts and edits wait here; nothing is used or changed before you answer.
                     ForEach((list?.skillDrafts ?? []).filter { $0.state == "pending" }) { draft in SkillDraftCard(model: model, draft: draft) }
                     ForEach((list?.skillEdits ?? []).filter { $0.state == "pending" || $0.state == "accepted" }) { edit in SkillEditCard(model: model, edit: edit) }
@@ -56,7 +56,6 @@ struct PluginsPane: View {
                 }
                 HubSkillsSection(model: model, hub: list?.skillHub ?? .empty) // B3.5
             }
-            .frame(maxWidth: 680, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Spacing.panel)
             .padding(.top, 28)
@@ -113,7 +112,7 @@ struct PluginsPane: View {
                 field("Headers, Name: value per line (kept private)", text: d.headers, hint: "Authorization: Bearer …", lines: 3)
             }
             HStack {
-                Text("Saved switched off. Test it, then turn it on for the workers you choose.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                Text("Saved switched off. Test it, then turn it on for the workers you choose.").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                 Spacer()
                 SaveButton(enabled: draft.wrappedValue != McpServerDraft(), commandS: true, label: "Save server", action: save)
             }
@@ -141,18 +140,18 @@ private struct ServerCard: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 StatusDot(color: server.enabled ? theme.success.color : server.problem != nil ? theme.problem.color : theme.text3.color, size: 6)
-                Text(server.name).font(theme.idFont(.system(size: 13, weight: .semibold), size: 12.5)).foregroundStyle(theme.text.color)
-                Text(server.kind == "command" ? (server.command ?? "") : (server.url ?? "")).font(theme.idFont(.system(size: 11), size: 10.5))
+                Text(server.name).appFont(theme.appIdentifierFont(.system(size: 13, weight: .semibold), size: 12.5)).foregroundStyle(theme.text.color)
+                Text(server.kind == "command" ? (server.command ?? "") : (server.url ?? "")).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5))
                     .foregroundStyle(theme.text3.color).lineLimit(1).truncationMode(.middle)
                 Spacer(minLength: 8)
                 QuietButton(title: "Test") { model.sendHelpers(model.helpers.mcpCommand(.mcpTest(id: server.id))) }
                 QuietButton(title: "Remove") { model.sendHelpers(model.helpers.mcpCommand(.mcpRemove(id: server.id))) }
             }
             if let problem = server.problem { ProblemLine(text: problem) }
-            else if server.tested { Text(server.tools.isEmpty ? "No tools." : "Tools: \(server.tools.joined(separator: ", "))").font(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(2) }
-            else { Text("Not tested yet.").font(.system(size: 11.5)).foregroundStyle(theme.text3.color) }
+            else if server.tested { Text(server.tools.isEmpty ? "No tools." : "Tools: \(server.tools.joined(separator: ", "))").appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(2) }
+            else { Text("Not tested yet.").appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color) }
             let secrets = server.envKeys + server.headerKeys
-            if !secrets.isEmpty { Text("Private: \(secrets.joined(separator: ", "))").font(.system(size: 10.5)).foregroundStyle(theme.text3.color) }
+            if !secrets.isEmpty { Text("Private: \(secrets.joined(separator: ", "))").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color) }
             HStack(spacing: 16) {
                 toggle("On", server.enabled, enabled: server.enabled || server.canTurnOn) { model.sendHelpers(model.helpers.mcpCommand(.mcpSet(id: server.id, enabled: $0, trusted: nil, workers: nil))) }
                 toggle("Trusted", server.trusted, enabled: true) { model.sendHelpers(model.helpers.mcpCommand(.mcpSet(id: server.id, enabled: nil, trusted: $0, workers: nil))) }
@@ -182,7 +181,7 @@ private struct ServerCard: View {
     private func toggle(_ label: String, _ on: Bool, enabled: Bool, set: @escaping (Bool) -> Void) -> some View {
         HStack(spacing: 8) {
             ThemedSwitch(isOn: on, set: set, label: label).disabled(!enabled)
-            Text(label).font(.system(size: 12)).foregroundStyle(enabled ? theme.text.color : theme.text3.color)
+            Text(label).appFont(.system(size: 12)).foregroundStyle(enabled ? theme.text.color : theme.text3.color)
         }
         .opacity(enabled ? 1 : 0.6)
     }
@@ -197,15 +196,15 @@ private struct SkillDraftCard: View {
     var body: some View {
         SkillCard {
             HStack(spacing: 8) {
-                Text("New skill").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
-                Text(draft.name).font(theme.idFont(.system(size: 13, weight: .semibold), size: 12.5)).foregroundStyle(theme.text.color)
+                Text("New skill").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                Text(draft.name).appFont(theme.appIdentifierFont(.system(size: 13, weight: .semibold), size: 12.5)).foregroundStyle(theme.text.color)
                 Spacer(minLength: 8)
                 QuietButton(title: "Approve", symbol: "checkmark") { model.sendHelpers(model.helpers.answerSkillDraft(draft.id, approve: true)) }
                 QuietButton(title: "Reject", symbol: "xmark") { model.sendHelpers(model.helpers.answerSkillDraft(draft.id, approve: false)) }
             }
-            Text(draft.description).font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
-            Text(draft.preview).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(6)
-            Text("From task #\(draft.jobId). Nothing uses it until you approve it.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+            Text(draft.description).appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
+            Text(draft.preview).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(6)
+            Text("From task #\(draft.jobId). Nothing uses it until you approve it.").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
         }
     }
 }
@@ -219,8 +218,8 @@ private struct SkillEditCard: View {
     var body: some View {
         SkillCard {
             HStack(spacing: 8) {
-                Text(edit.state == "accepted" ? "Edited" : "Edit").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
-                Text(edit.skill).font(theme.idFont(.system(size: 13, weight: .semibold), size: 12.5)).foregroundStyle(theme.text.color)
+                Text(edit.state == "accepted" ? "Edited" : "Edit").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                Text(edit.skill).appFont(theme.appIdentifierFont(.system(size: 13, weight: .semibold), size: 12.5)).foregroundStyle(theme.text.color)
                 Spacer(minLength: 8)
                 if edit.state == "pending" {
                     QuietButton(title: "Accept", symbol: "checkmark") { model.sendHelpers(model.helpers.answerSkillEdit(edit.id, accept: true)) }
@@ -229,7 +228,7 @@ private struct SkillEditCard: View {
                     QuietButton(title: "Undo", symbol: "arrow.uturn.backward") { model.sendHelpers(model.helpers.undoSkillEdit(edit.id)) }
                 }
             }
-            Text(edit.reason).font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
+            Text(edit.reason).appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
             side("Before", edit.before)
             side("After", edit.after)
             // ADR-098 item 8: how the edit does on the skill's test cases.
@@ -240,8 +239,8 @@ private struct SkillEditCard: View {
 
     private func side(_ label: String, _ text: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
-            Text(label).font(.system(size: 10.5, weight: .medium)).foregroundStyle(theme.text3.color).frame(width: 44, alignment: .leading)
-            Text(text.isEmpty ? "(nothing)" : text).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text2.color).lineLimit(6)
+            Text(label).appFont(.system(size: 10.5, weight: .medium)).foregroundStyle(theme.text3.color).frame(width: 44, alignment: .leading)
+            Text(text.isEmpty ? "(nothing)" : text).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text2.color).lineLimit(6)
         }
     }
 }

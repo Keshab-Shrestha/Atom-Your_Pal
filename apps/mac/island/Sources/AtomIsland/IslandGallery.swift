@@ -18,6 +18,11 @@ enum IslandGallery {
             AppIconArt.render(to: directory)
             return
         }
+        if AtomEnv.read("ATOM_ISLAND_GALLERY_ONLY") == "workspace" {
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            writeWorkspaceDesign(to: directory)
+            return
+        }
 
         let model = IslandModel(settings: IslandSettings(defaults: defaults))
         let lines = [
@@ -81,6 +86,7 @@ enum IslandGallery {
         writeAdaptation(to: directory)
         writeStudio(to: directory)
         writeWorkspace(to: directory)
+        writeWorkspaceDesign(to: directory)
         writeProjects(to: directory)
         writeProjects(to: directory, theme: .lantern, name: "16-projects-lantern")
         writeBrain(to: directory)

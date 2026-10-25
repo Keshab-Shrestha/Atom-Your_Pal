@@ -14,8 +14,8 @@ struct ChatModelMenu: View {
             let value = model.chats?.currentModel.map { info.modelName(provider: provider, model: $0) } ?? info.currentModelName
             Button { presentation = Presentation(id: model.chats?.current ?? "") } label: {
                 HStack(spacing: 5) {
-                    Image(systemName: ModelProviderSymbol.name(provider)).font(.system(size: 11))
-                    Text(value + "  ⌄").font(.system(size: 12)).lineLimit(1)
+                    Image(systemName: ModelProviderSymbol.name(provider)).appFont(.system(size: 11))
+                    Text(value + "  ⌄").appFont(.system(size: 12)).lineLimit(1)
                 }.foregroundStyle(theme.text2.color)
             }
             .buttonStyle(.plain).fixedSize()
@@ -114,7 +114,7 @@ struct ChatModelPicker: View {
                 Button { query = "" } label: { Image(systemName: "xmark.circle.fill") }
                     .buttonStyle(.plain).accessibilityLabel("Clear model search")
             }
-        }.font(.system(size: 13)).padding(12)
+        }.appFont(.system(size: 13)).padding(12)
     }
 
     @ViewBuilder private var modelList: some View {
@@ -135,7 +135,7 @@ struct ChatModelPicker: View {
     @ViewBuilder private var modelRows: some View {
         if entries.isEmpty {
             Text(filter == "favorites" && query.isEmpty ? "Star a model to keep it here." : "No matching models.")
-                .font(.system(size: 12)).foregroundStyle(theme.text3.color).padding(14)
+                .appFont(.system(size: 12)).foregroundStyle(theme.text3.color).padding(14)
         }
         ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
             modelRow(entry, highlighted: cursor == index).id(entry.id)
@@ -150,18 +150,18 @@ struct ChatModelPicker: View {
             Button { choose(entry) } label: {
                 HStack(spacing: 8) {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(entry.name).font(.system(size: 12.5, weight: selected ? .medium : .regular)).foregroundStyle(theme.text.color).lineLimit(2)
+                        Text(entry.name).appFont(.system(size: 12.5, weight: selected ? .medium : .regular)).foregroundStyle(theme.text.color).lineLimit(2)
                         Text(entry.providerName + (entry.available ? "" : " · Unavailable on this Mac"))
-                            .font(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(2)
+                            .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(2)
                     }
                     Spacer(minLength: 0)
-                    if selected { Image(systemName: "checkmark").font(.system(size: 10)).foregroundStyle(theme.accent.color) }
+                    if selected { Image(systemName: "checkmark").appFont(.system(size: 10)).foregroundStyle(theme.accent.color) }
                 }.padding(.leading, 9).padding(.vertical, 8).contentShape(Rectangle())
             }.buttonStyle(.plain).disabled(!entry.available)
                 .accessibilityLabel(entry.name + ", " + entry.providerName + (entry.available ? "" : ", unavailable"))
                 .accessibilityAddTraits(selected ? .isSelected : [])
             Button { model.settings.toggleFavoriteModel(provider: entry.provider, model: entry.model) } label: {
-                Image(systemName: favorite ? "star.fill" : "star").font(.system(size: 11))
+                Image(systemName: favorite ? "star.fill" : "star").appFont(.system(size: 11))
                     .foregroundStyle(favorite ? theme.accent.color : theme.text3.color).frame(width: 26, height: 28)
             }.buttonStyle(.plain).padding(.trailing, 4)
                 .disabled(!favorite && model.settings.favoriteModels.count >= 128)
@@ -172,7 +172,7 @@ struct ChatModelPicker: View {
 
     private func providerButton(_ id: String, name: String, symbol: String) -> some View {
         Button { filter = id; query = "" } label: {
-            Image(systemName: symbol).font(.system(size: 15)).foregroundStyle(filter == id ? theme.accent.color : theme.text2.color)
+            Image(systemName: symbol).appFont(.system(size: 15)).foregroundStyle(filter == id ? theme.accent.color : theme.text2.color)
                 .frame(width: 32, height: 30).background(filter == id ? theme.fill3.color : .clear, in: RoundedRectangle(cornerRadius: 6))
         }.buttonStyle(.plain).help(name).accessibilityLabel("Show " + name)
             .accessibilityAddTraits(filter == id ? .isSelected : [])
@@ -189,19 +189,19 @@ struct ChatModelPicker: View {
             if !custom {
                 Button { custom = true; focused = .custom } label: { Label("Custom model…", systemImage: "plus") }.buttonStyle(.plain)
             }
-            Text("Applies to the next turn in this chat.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
-        }.font(.system(size: 12)).foregroundStyle(theme.text2.color).padding(12)
+            Text("Applies to the next turn in this chat.").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+        }.appFont(.system(size: 12)).foregroundStyle(theme.text2.color).padding(12)
     }
 
     private var customForm: some View {
         VStack(alignment: .leading, spacing: 12) {
             Button { custom = false; focused = .search } label: { Label("Models", systemImage: "chevron.left") }.buttonStyle(.plain)
-            Text("Custom model").font(.system(size: 14, weight: .medium))
-            Text(customProvider?.name ?? "Choose a provider").font(.system(size: 12)).foregroundStyle(theme.text2.color)
+            Text("Custom model").appFont(.system(size: 14, weight: .medium))
+            Text(customProvider?.name ?? "Choose a provider").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
             TextField("Model id", text: $customId).textFieldStyle(.roundedBorder).focused($focused, equals: .custom)
                 .accessibilityLabel("Custom model id").onSubmit { chooseCustom() }
             Text("Use the provider buttons to choose where this model runs. Model availability is checked by that provider when you send.")
-                .font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                .appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
             Button("Use model", action: chooseCustom).disabled(customProvider?.available != true || !ModelInfo.isValidModelId(customId.trimmingCharacters(in: .whitespaces)))
             Spacer(minLength: 0)
         }.padding(14)

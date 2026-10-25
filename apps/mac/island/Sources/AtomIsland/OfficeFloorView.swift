@@ -322,7 +322,7 @@ struct ViewChoice: View {
                 if badge > 0 { Text(compact ? "\(badge)" : "· \(badge)") }
             }
             .lineLimit(1).fixedSize()
-            .font(.system(size: 12, weight: .medium))
+            .appFont(.system(size: 12, weight: .medium))
                 .foregroundStyle(selected ? theme.text.color : theme.text3.color)
                 .padding(.horizontal, compact ? 9 : 12).padding(.vertical, 6)
                 .background(RoundedRectangle(cornerRadius: theme.radiusControl + 2, style: .continuous)

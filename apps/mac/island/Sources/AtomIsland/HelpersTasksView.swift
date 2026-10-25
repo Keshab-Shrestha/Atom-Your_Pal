@@ -17,19 +17,19 @@ struct BoardRow: View {
         // The row speaks for the Board and for what waits for Keshab (ADR-116): one count, one short phrase, one badge.
         let attention = BoardAttention(list: model.helpers.list, approvalPending: model.approval.pending != nil)
         HStack(spacing: 11) {
-            Image(systemName: "square.grid.2x2").font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+            Image(systemName: "square.grid.2x2").appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
                 .frame(width: 26, height: 26)
                 .overlay { if theme.isFlat && !appDesign { Circle().strokeBorder(theme.border.color, lineWidth: 1) } }
             VStack(alignment: .leading, spacing: 1) {
-                Text("Board").font(.system(size: 13, weight: selected ? .medium : .regular)).foregroundStyle(theme.text.color)
+                Text("Board").appFont(.system(size: 13, weight: selected ? .medium : .regular)).foregroundStyle(theme.text.color)
                 if !appDesign {
-                    Text(attention.rowText).font(.system(size: 11)).foregroundStyle(attention.needsYou ? theme.text.color : theme.text3.color)
+                    Text(attention.rowText).appFont(.system(size: 11)).foregroundStyle(attention.needsYou ? theme.text.color : theme.text3.color)
                 }
             }
             Spacer(minLength: 0)
             if attention.needsYou {
                 // A number, not a dot: it cannot be missed. Yellow when something is for Keshab to answer, red when only failures wait.
-                Text("\(attention.total)").font(.system(size: 11, weight: .semibold, design: .rounded)).foregroundStyle(Color.black)
+                Text("\(attention.total)").appFont(.system(size: 11, weight: .semibold, design: .rounded)).foregroundStyle(Color.black)
                     .padding(.horizontal, 7).frame(minWidth: 20, minHeight: 18)
                     .background(Capsule().fill(attention.asks > 0 ? theme.attention.color : theme.problem.color))
             }
@@ -72,9 +72,9 @@ struct BoardPane: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(model.boardView == .floor ? "ATOM Studio" : model.boardView.title)
-                        .font(.system(size: 20, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
+                        .appFont(.system(size: 20, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
                     Text(model.boardView == .floor ? "A shared space for your agents. Open a character to see its work." : "Tasks, decisions and results from your team.")
-                        .font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                        .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }
                 Spacer(minLength: 10)
                 QuietButton(title: "Agents", symbol: "person.2") { model.showsAllAgents = true }
@@ -106,14 +106,14 @@ struct BoardPane: View {
                 // ADR-111: the work plans: a goal, its portions and how far each is.
                 if let plans = model.helpers.list?.plans, !plans.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Plans").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
+                        Text("Plans").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
                         ForEach(plans.prefix(3)) { plan in PlanCard(model: model, plan: plan) }
                     }
                 }
                 // ADR-093: an agent whose soul.md is broken is missing from the team; say which and why.
                 if let problems = model.helpers.list?.agentProblems, !problems.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Not loaded (data/agents/<folder>/soul.md)").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+                        Text("Not loaded (data/agents/<folder>/soul.md)").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
                         ForEach(problems, id: \.line) { ProblemLine(text: $0.line) }
                     }
                 }
@@ -122,14 +122,14 @@ struct BoardPane: View {
                     studioStatus
                     OfficeFloor(model: model).frame(maxHeight: max(220, viewport.size.height - 130)).frame(maxWidth: .infinity)
                     Text("Workstations show active tasks. The lounge holds available agents. Amber or red signals need your review.")
-                        .font(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+                        .appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
                     DisclosureGroup("Agent directory") { TeamChips(model: model).padding(.top, 8) }
-                        .font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+                        .appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
                 }
                 if model.helpers.list == nil {
                     LoadingStateView(text: "Loading the Board…", retry: { model.send(.helpersList) })
                 } else if board.isEmpty, label != nil, model.boardView == .columns {
-                    Text("No task on the Board has this label.").font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
+                    Text("No task on the Board has this label.").appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color)
                 } else if board.isEmpty, model.boardView == .columns {
                     EmptyStateView(title: "No tasks yet",
                                    detail: "Choose a worker and give it a task, or ask ATOM in chat to delegate one. Tasks show here by status, with a count for each.")
@@ -138,7 +138,7 @@ struct BoardPane: View {
                 ForEach(model.boardView == .floor ? [] : board, id: \.column) { group in
                     VStack(alignment: .leading, spacing: 8) {
                         Text("\(group.column.title) · \(group.items.count)")
-                            .font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
+                            .appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
                         BoardWell(model: model, items: group.items)
                     }
                 }
@@ -192,25 +192,25 @@ private struct BoardCard: View {
         HStack(alignment: .top, spacing: 12) {
             JobDot(job: job).padding(.top, 5)
             VStack(alignment: .leading, spacing: 3) {
-                Text(job.title ?? job.task).font(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
+                Text(job.title ?? job.task).appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
                     .multilineTextAlignment(.leading)
                 HStack(spacing: 6) {
-                    Text(item.helperName).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2))
-                    Text("#\(job.id)").font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color)
+                    Text(item.helperName).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2))
+                    Text("#\(job.id)").appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color)
                     if job.comments > 0 {
-                        Label("\(job.comments)", systemImage: "text.bubble").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                        Label("\(job.comments)", systemImage: "text.bubble").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                     }
-                    if let parent = job.parentId { Text("for #\(parent)").font(.system(size: 10.5)).foregroundStyle(theme.text3.color) }
+                    if let parent = job.parentId { Text("for #\(parent)").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color) }
                 }
                 if job.state == .running, let step = job.step {
-                    Text(step).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text2.color).lineLimit(1)
+                    Text(step).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text2.color).lineLimit(1)
                 }
                 if job.isWaiting, let list = model.helpers.list { WaitingLine(job: job, list: list) }
                 if let held = job.held { HeldLine(reason: held) }
-                if job.state == .failed, let error = job.error { Text(error).font(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(2) }
+                if job.state == .failed, let error = job.error { Text(error).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(2) }
             }
             Spacer(minLength: 8)
-            Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(theme.text3.color).padding(.top, 4)
+            Image(systemName: "chevron.right").appFont(.system(size: 10, weight: .semibold)).foregroundStyle(theme.text3.color).padding(.top, 4)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -227,7 +227,7 @@ struct WaitingLine: View {
     var body: some View {
         let names = job.waitingFor.map { id in list.item(id).map { "\($0.job.shortTitle) (\($0.helperName))" } ?? "#\(id)" }
         Label("Waits for \(names.joined(separator: ", "))", systemImage: "hourglass")
-            .font(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(2)
+            .appFont(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(2)
     }
 }
 
@@ -281,7 +281,7 @@ struct ThreadPane: View {
                     } else if item.job.hasReport {
                         HStack(spacing: 8) {
                             ProgressView().controlSize(.small)
-                            Text("Loading report…").font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                            Text("Loading report…").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                         }
                     }
                     if let goal = model.helpers.thread?.goal, goal.tasks.count > 1 { GoalSection(goal: goal, list: model.helpers.list) }
@@ -317,19 +317,19 @@ struct ThreadPane: View {
     private func header(_ item: BoardItem) -> some View {
         let job = item.job
         return VStack(alignment: .leading, spacing: 6) {
-            Text(job.task).font(.system(size: 16, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
+            Text(job.task).appFont(.system(size: 16, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 8) {
                 JobDot(job: job)
-                Text(job.isWaiting ? "Waiting" : job.badge).font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
-                Text(item.helperName).font(theme.idFont(.system(size: 12), size: 11)).foregroundStyle(theme.idColor(theme.text2))
-                Text("#\(job.id)").font(theme.idFont(.system(size: 12), size: 11)).foregroundStyle(theme.text3.color)
+                Text(job.isWaiting ? "Waiting" : job.badge).appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
+                Text(item.helperName).appFont(theme.appIdentifierFont(.system(size: 12), size: 11)).foregroundStyle(theme.idColor(theme.text2))
+                Text("#\(job.id)").appFont(theme.appIdentifierFont(.system(size: 12), size: 11)).foregroundStyle(theme.text3.color)
                 Spacer(minLength: 0)
                 if let next = job.retriedAs {
                     if model.helpers.list?.item(next) != nil {
                         QuietButton(title: "Open retry #\(next)") { model.sendHelpers(model.helpers.openThread(next)) }
                     } else {
-                        Text("Retry #\(next) is no longer listed").font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+                        Text("Retry #\(next) is no longer listed").appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color)
                     }
                 } else if !job.advisory && (job.state == .failed || job.state == .stopped) {
                     QuietButton(title: job.recoveryNeeded ? "Retry after review" : "Retry", symbol: "arrow.clockwise") { model.sendHelpers(model.helpers.retry(job.id)) }
@@ -340,17 +340,17 @@ struct ThreadPane: View {
                 if job.state.isActive { QuietButton(title: "Stop") { model.sendHelpers(model.helpers.stopJob(job.id)) } }
             }
             if job.advisory {
-                Text("Advisory review · supplied context only").font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                Text("Advisory review · supplied context only").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 if let parent = job.parentId, model.helpers.list?.item(parent) != nil {
                     QuietButton(title: "Open parent #\(parent)") { model.sendHelpers(model.helpers.openThread(parent)) }
                 } else {
-                    Text("Ask for a new review in the parent chat.").font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    Text("Ask for a new review in the parent chat.").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }
             }
-            if let goal = job.goal, goal != job.task { Text("Goal: \(goal)").font(.system(size: 12)).foregroundStyle(theme.text2.color) }
+            if let goal = job.goal, goal != job.task { Text("Goal: \(goal)").appFont(.system(size: 12)).foregroundStyle(theme.text2.color) }
             if job.state == .failed, let error = job.error { ProblemLine(text: error) }
-            if job.recoveryNeeded, let step = job.step { Text("Last recorded step: \(step)").font(.system(size: 12)).foregroundStyle(theme.text2.color) }
-            if let previous = job.retryOf { Text("New attempt of task #\(previous)").font(.system(size: 12)).foregroundStyle(theme.text2.color) }
+            if job.recoveryNeeded, let step = job.step { Text("Last recorded step: \(step)").appFont(.system(size: 12)).foregroundStyle(theme.text2.color) }
+            if let previous = job.retryOf { Text("New attempt of task #\(previous)").appFont(.system(size: 12)).foregroundStyle(theme.text2.color) }
             if let held = job.held { HeldLine(reason: held) }
         }
     }
@@ -366,10 +366,10 @@ private struct PlanSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(job.awaitsApproval ? "The plan, waiting for your OK" : job.planStatus == "approved" ? "The plan you approved" : "The plan")
-                .font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
-            Text(plan.summary).font(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).fixedSize(horizontal: false, vertical: true)
+                .appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+            Text(plan.summary).appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).fixedSize(horizontal: false, vertical: true)
             ForEach(Array(plan.lines.enumerated()), id: \.offset) { _, line in
-                Text(line).font(.system(size: 12.5)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
+                Text(line).appFont(.system(size: 12.5)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
             }
             if job.awaitsApproval {
                 HStack(spacing: 8) {
@@ -390,18 +390,18 @@ private struct SubTasksSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Handed off").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+            Text("Handed off").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             ForEach(ids, id: \.self) { id in
                 HStack(spacing: 8) {
                     if let item = model.helpers.list?.item(id) {
                         JobDot(job: item.job)
                         Button { model.navigate { model.sendHelpers(model.helpers.openThread(id)) } } label: {
-                            Text(item.job.shortTitle).font(.system(size: 12.5)).foregroundStyle(theme.text.color)
+                            Text(item.job.shortTitle).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color)
                         }
                         .buttonStyle(.plain)
-                        Text(item.helperName).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text3))
+                        Text(item.helperName).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text3))
                     } else {
-                        Text("Task #\(id)").font(.system(size: 12.5)).foregroundStyle(theme.text2.color)
+                        Text("Task #\(id)").appFont(.system(size: 12.5)).foregroundStyle(theme.text2.color)
                     }
                 }
             }
@@ -416,17 +416,17 @@ private struct SubAgentsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Sub-agents").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+            Text("Sub-agents").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             ForEach(Array(subAgents.enumerated()), id: \.offset) { _, agent in
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 8) {
                         Circle().fill(color(agent.state)).frame(width: 7, height: 7)
-                        Text(agent.name).font(theme.idFont(.system(size: 12.5), size: 11.5)).foregroundStyle(theme.idColor(theme.text))
-                        Text(agent.stateTitle).font(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+                        Text(agent.name).appFont(theme.appIdentifierFont(.system(size: 12.5), size: 11.5)).foregroundStyle(theme.idColor(theme.text))
+                        Text(agent.stateTitle).appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
                     }
                     .accessibilityElement(children: .combine)
                     if let detail = agent.detail {
-                        Text(detail).font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true).padding(.leading, 15)
+                        Text(detail).appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true).padding(.leading, 15)
                     }
                 }
             }
@@ -454,7 +454,7 @@ private struct WaitsForSection: View {
         if !job.blockedBy.isEmpty || (job.state == .queued && !others.isEmpty) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
-                    Text("Waits for").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+                    Text("Waits for").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
                     Spacer()
                     if job.state == .queued {
                         Menu {
@@ -465,25 +465,25 @@ private struct WaitsForSection: View {
                                 }
                             }
                         } label: {
-                            Text("Change").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text2.color)
+                            Text("Change").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text2.color)
                         }
                         .menuStyle(.button).buttonStyle(.plain).fixedSize()
                     }
                 }
                 if job.blockedBy.isEmpty {
-                    Text("Nothing: it starts when its worker is free.").font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    Text("Nothing: it starts when its worker is free.").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }
                 ForEach(job.blockedBy, id: \.self) { id in
                     HStack(spacing: 8) {
                         if let other = list?.item(id) {
                             JobDot(job: other.job)
                             Button { model.navigate { model.sendHelpers(model.helpers.openThread(id)) } } label: {
-                                Text(other.job.shortTitle).font(.system(size: 12.5)).foregroundStyle(theme.text.color)
+                                Text(other.job.shortTitle).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color)
                             }
                             .buttonStyle(.plain)
-                            Text(other.helperName).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text3))
+                            Text(other.helperName).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text3))
                         } else {
-                            Text("Task #\(id)").font(.system(size: 12.5)).foregroundStyle(theme.text2.color)
+                            Text("Task #\(id)").appFont(.system(size: 12.5)).foregroundStyle(theme.text2.color)
                         }
                     }
                 }
@@ -500,12 +500,12 @@ struct ReportSection: View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 5) {
                 // Void: the report's title is the window's one display line, in New York.
-                Text(report.title).font(theme.isFlat ? .system(size: 24, weight: .regular, design: .serif) : .system(size: 19, weight: .semibold, design: .rounded))
+                Text(report.title).appFont(theme.isFlat ? .system(size: 24, weight: .regular, design: .serif) : .system(size: 19, weight: .semibold, design: .rounded))
                     .foregroundStyle(theme.text.color)
-                Text(report.summary).font(.system(size: 13)).foregroundStyle(theme.text2.color)
+                Text(report.summary).appFont(.system(size: 13)).foregroundStyle(theme.text2.color)
             }
             ForEach(Array(report.paragraphs.enumerated()), id: \.offset) { _, paragraph in
-                Text(paragraph).font(.system(size: 13)).foregroundStyle(theme.text.color).lineSpacing(3.5)
+                Text(paragraph).appFont(.system(size: 13)).foregroundStyle(theme.text.color).lineSpacing(3.5)
             }
             if !report.sources.isEmpty { SourceList(sources: report.sources).padding(.top, 4) }
         }
@@ -520,8 +520,8 @@ private struct GoalSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("The whole goal").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
-            Text(goal.progress(in: list)).font(.system(size: 12.5)).foregroundStyle(theme.text2.color)
+            Text("The whole goal").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+            Text(goal.progress(in: list)).appFont(.system(size: 12.5)).foregroundStyle(theme.text2.color)
             if let report = goal.report { ReportSection(report: report) }
         }
         .padding(.top, 6)
@@ -550,22 +550,22 @@ private struct NotesSection: View {
     var body: some View {
         let typed = !draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         VStack(alignment: .leading, spacing: 8) {
-            Text("Notes").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+            Text("Notes").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             ForEach(comments) { comment in
                 VStack(alignment: .leading, spacing: 2) {
                     if let delivery = comment.delivery {
                         Text(delivery == "live" ? "Keshab (while running)" : "Keshab (after this run: the run could not take it)")
-                            .font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                            .appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
                     }
-                    Text(comment.text).font(.system(size: 12.5)).foregroundStyle(theme.text.color).fixedSize(horizontal: false, vertical: true)
+                    Text(comment.text).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color).fixedSize(horizontal: false, vertical: true)
                     if let at = comment.createdAt {
-                        Text(at.formatted(date: .abbreviated, time: .shortened)).font(theme.idFont(.system(size: 10.5), size: 10)).foregroundStyle(theme.text3.color)
+                        Text(at.formatted(date: .abbreviated, time: .shortened)).appFont(theme.appIdentifierFont(.system(size: 10.5), size: 10)).foregroundStyle(theme.text3.color)
                     }
                 }
             }
             HStack(spacing: 8) {
                 if snapshot {
-                    Text(prompt).font(.system(size: 12.5)).foregroundStyle(theme.text3.color).frame(maxWidth: .infinity, alignment: .leading)
+                    Text(prompt).appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color).frame(maxWidth: .infinity, alignment: .leading)
                 } else {
                     SoulField(label: steers ? "Message" : "Note", text: draft.projectedValue, lines: 2)
                         .accessibilityLabel(steers ? "Message" : "Note")
@@ -594,12 +594,12 @@ private struct ActivitySection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Activity").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+            Text("Activity").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             ForEach(Array(activity.enumerated()), id: \.offset) { _, line in
                 HStack(spacing: 10) {
-                    Text(line.at.map { $0.formatted(date: .omitted, time: .shortened) } ?? "").font(theme.idFont(.system(size: 11), size: 10.5))
+                    Text(line.at.map { $0.formatted(date: .omitted, time: .shortened) } ?? "").appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5))
                         .foregroundStyle(theme.text3.color).frame(width: 64, alignment: .leading)
-                    Text(line.title).font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    Text(line.title).appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }
             }
         }
@@ -613,7 +613,7 @@ struct SourceList: View {
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
         VStack(alignment: .leading, spacing: 8) {
-            Text("Sources").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
+            Text("Sources").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
             VStack(spacing: 0) {
                 ForEach(Array(sources.enumerated()), id: \.offset) { index, source in
                     if index > 0 { Rectangle().fill(theme.separator.color).frame(height: 0.5).padding(.leading, 40) }
@@ -636,16 +636,16 @@ struct SourceRow: View {
             if let url = ReportSource.webURL(source.url.absoluteString) { NSWorkspace.shared.open(url) }
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: "link").font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.statusDots ? theme.text2.color : theme.accent.color)
+                Image(systemName: "link").appFont(.system(size: 11, weight: .semibold)).foregroundStyle(theme.statusDots ? theme.text2.color : theme.accent.color)
                     .frame(width: 16)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(source.title).font(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color)
+                    Text(source.title).appFont(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color)
                     // The host is an identifier: SF Mono in Void's violet.
-                    Text(source.url.host ?? source.url.absoluteString).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text3))
+                    Text(source.url.host ?? source.url.absoluteString).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text3))
                 }
                 .lineLimit(1)
                 Spacer(minLength: 6)
-                Image(systemName: "arrow.up.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(theme.text3.color)
+                Image(systemName: "arrow.up.right").appFont(.system(size: 10, weight: .semibold)).foregroundStyle(theme.text3.color)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
@@ -671,9 +671,9 @@ private struct TeamChips: View {
                     HStack(spacing: 8) {
                         HelperBadge(helper: helper, size: 26)
                         VStack(alignment: .leading, spacing: 0) {
-                            Text(helper.name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(theme.text.color).lineLimit(1)
+                            Text(helper.name).appFont(.system(size: 12.5, weight: .semibold)).foregroundStyle(theme.text.color).lineLimit(1)
                             Text(TeamRoster.isWorking(helper) ? helper.activity : helper.roleTitle)
-                                .font(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1)
+                                .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1)
                         }
                         Spacer(minLength: 0)
                     }
@@ -696,7 +696,7 @@ private struct TeamChips: View {
 
     private func quiet(_ title: String, symbol: String, help: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Label(title, systemImage: symbol).font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+            Label(title, systemImage: symbol).appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
                 .padding(.horizontal, 10).padding(.vertical, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
@@ -727,10 +727,10 @@ private struct AllAgentsList: View {
         let shape = RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("All agents · \(everyone.count)").font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
+                Text("All agents · \(everyone.count)").appFont(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
                 Spacer(minLength: 0)
                 Button { model.navigate { model.showsAllAgents = false } } label: {
-                    Image(systemName: "xmark").font(.system(size: 10, weight: .bold)).foregroundStyle(theme.text3.color)
+                    Image(systemName: "xmark").appFont(.system(size: 10, weight: .bold)).foregroundStyle(theme.text3.color)
                         .frame(width: 22, height: 22).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -739,13 +739,13 @@ private struct AllAgentsList: View {
                 .accessibilityLabel("Close")
             }
             HStack(spacing: 7) {
-                Image(systemName: "magnifyingglass").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                Image(systemName: "magnifyingglass").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
                 if snapshot { // ImageRenderer cannot draw a text field
-                    Text("Search by name or role").font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
+                    Text("Search by name or role").appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
                     TextField("Search by name or role", text: query.projectedValue)
-                        .textFieldStyle(.plain).font(.system(size: 12.5)).foregroundStyle(theme.text.color)
+                        .textFieldStyle(.plain).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color)
                         .focused(searchFocused.projectedValue)
                         .onAppear { searchFocused.wrappedValue = true }
                         .onSubmit { if found.count == 1 { open(found[0]) } }
@@ -758,7 +758,7 @@ private struct AllAgentsList: View {
                 .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
             if found.isEmpty {
                 Text("No agent's name or role has “\(query.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines))”.")
-                    .font(.system(size: 12)).foregroundStyle(theme.text3.color).padding(.vertical, 6)
+                    .appFont(.system(size: 12)).foregroundStyle(theme.text3.color).padding(.vertical, 6)
             } else {
                 // ADR-095: grouped by manager (one untitled group without Managers).
                 let groups = model.helpers.list.map { TeamRoster.grouped(found, in: $0) } ?? [("", found)]
@@ -766,7 +766,7 @@ private struct AllAgentsList: View {
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(groups, id: \.title) { group in
                             if !group.title.isEmpty {
-                                Text(group.title).font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                                Text(group.title).appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
                                     .frame(height: Self.headerHeight, alignment: .bottom).padding(.leading, 4)
                             }
                             ForEach(group.helpers) { row($0) }
@@ -788,9 +788,9 @@ private struct AllAgentsList: View {
             HStack(spacing: 9) {
                 HelperBadge(helper: helper, size: 24)
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(helper.name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(theme.text.color)
+                    Text(helper.name).appFont(.system(size: 12.5, weight: .semibold)).foregroundStyle(theme.text.color)
                     Text(TeamRoster.isWorking(helper) ? "\(helper.roleTitle) · \(helper.activity)" : helper.roleTitle)
-                        .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                        .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                 }
                 .lineLimit(1)
                 Spacer(minLength: 0)
@@ -826,7 +826,7 @@ extension BoardPane {
             }.buttonStyle(.plain)
                 .accessibilityLabel("Review items needing your attention, \(attention.total)")
         }
-        .font(.system(size: 11.5, weight: .medium))
+        .appFont(.system(size: 11.5, weight: .medium))
         .padding(.horizontal, 3)
     }
     /// The Board's switch: what waits for Keshab first, with its count (Needs you and Issues moved here from the sidebar on

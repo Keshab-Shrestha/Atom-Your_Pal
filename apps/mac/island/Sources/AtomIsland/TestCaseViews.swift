@@ -29,7 +29,7 @@ struct TestRunView: View {
         if tests != nil || hasCases {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
-                    Text(tests?.line ?? "Test cases: not run yet").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text2.color)
+                    Text(tests?.line ?? "Test cases: not run yet").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text2.color)
                     if let tests, !tests.results.isEmpty {
                         QuietButton(title: expanded.wrappedValue ? "Hide" : "Compare", symbol: expanded.wrappedValue ? "chevron.up" : "chevron.down") {
                             expanded.wrappedValue.toggle()
@@ -48,13 +48,13 @@ struct TestRunView: View {
 
     private func caseView(_ result: TestCaseResult) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(result.task).font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
+            Text(result.task).appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
             HStack(alignment: .top, spacing: 10) {
                 side("Old", result.oldAnswer)
                 side("New", result.newAnswer)
             }
             Text(result.reason.map { "\(result.verdict): \($0)" } ?? result.verdict)
-                .font(.system(size: 11)).foregroundStyle(result.better == "new" ? theme.accent.color : theme.text2.color)
+                .appFont(.system(size: 11)).foregroundStyle(result.better == "new" ? theme.accent.color : theme.text2.color)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(10)
@@ -63,8 +63,8 @@ struct TestRunView: View {
 
     private func side(_ label: String, _ text: String?) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(label).font(.system(size: 10.5, weight: .medium)).foregroundStyle(theme.text3.color)
-            Text(text ?? "—").font(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(10).fixedSize(horizontal: false, vertical: true)
+            Text(label).appFont(.system(size: 10.5, weight: .medium)).foregroundStyle(theme.text3.color)
+            Text(text ?? "—").appFont(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(10).fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
@@ -81,11 +81,11 @@ struct TestCasesList: View {
         let cases = model.helpers.list?.testCases(kind: kind, target: target) ?? []
         if !cases.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
-                Text("Test cases · \(cases.count) of 10").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+                Text("Test cases · \(cases.count) of 10").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
                 ForEach(cases) { c in
                     HStack(spacing: 8) {
-                        Text("#\(c.jobId)").font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color)
-                        Text(c.task).font(.system(size: 12)).foregroundStyle(theme.text2.color).lineLimit(1)
+                        Text("#\(c.jobId)").appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color)
+                        Text(c.task).appFont(.system(size: 12)).foregroundStyle(theme.text2.color).lineLimit(1)
                         Spacer(minLength: 8)
                         QuietButton(title: "Delete", symbol: "trash") { model.sendHelpers(model.helpers.deleteTestCase(c.id)) }
                     }
@@ -105,19 +105,19 @@ struct SaveTestCaseSection: View {
         if job.state == .done, let helper = model.helpers.openItem?.helperId {
             let skills = model.helpers.thread?.id == job.id ? model.helpers.thread?.testSkills ?? [] : []
             VStack(alignment: .leading, spacing: 6) {
-                Text("Test case").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+                Text("Test case").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
                 HStack(spacing: 8) {
                     button(kind: "soul", target: helper, title: "Save as test case")
                     ForEach(skills, id: \.self) { skill in button(kind: "skill", target: skill, title: "Save for \(skill)") }
                 }
-                Text("Tinker's changes run against your test cases before you approve them.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                Text("Tinker's changes run against your test cases before you approve them.").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
             }
         }
     }
 
     @ViewBuilder private func button(kind: String, target: String, title: String) -> some View {
         if model.helpers.list?.testCases.contains(where: { $0.jobId == job.id && $0.kind == kind && $0.target == target }) == true {
-            Text(kind == "soul" ? "Saved as a test case" : "Saved for \(target)").font(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+            Text(kind == "soul" ? "Saved as a test case" : "Saved for \(target)").appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
         } else {
             QuietButton(title: title, symbol: "checklist") { model.sendHelpers(model.helpers.saveTestCase(kind: kind, target: target)) }
         }

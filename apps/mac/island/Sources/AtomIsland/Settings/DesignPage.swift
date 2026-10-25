@@ -71,7 +71,7 @@ private struct DesignShowcase: View {
         VStack(alignment: .leading, spacing: Spacing.wells) {
             Card("Component previews") {
                 Text("Examples of ATOM’s interface. Loading, empty and error states below are demonstrations, not the app’s current status.")
-                    .font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                     .fixedSize(horizontal: false, vertical: true).padding(Spacing.well)
             }
             ShowcaseGroup("Type") {
@@ -79,17 +79,17 @@ private struct DesignShowcase: View {
                     ForEach(DesignCatalog.typeScale, id: \.name) { step in
                         HStack(alignment: .firstTextBaseline, spacing: 10) {
                             Text(step.size >= 26 ? "1,284" : step.role)
-                                .font(.system(size: step.size, weight: step.size >= 15 ? .semibold : .regular).monospacedDigit())
+                                .appFont(.system(size: step.size, weight: step.size >= 15 ? .semibold : .regular).monospacedDigit())
                                 .foregroundStyle(step.size <= 11 ? theme.text3.color : step.size == 12 ? theme.text2.color : theme.text.color)
                                 .lineLimit(1)
                             Spacer(minLength: 6)
-                            Text(step.size >= 26 ? "Number · 26 pt" : "\(Int(step.size)) pt").font(theme.idFont(.caption2, size: 11)).foregroundStyle(theme.idColor(theme.text3))
+                            Text(step.size >= 26 ? "Number · 26 pt" : "\(Int(step.size)) pt").appFont(theme.appIdentifierFont(.caption2, size: 11)).foregroundStyle(theme.idColor(theme.text3))
                         }
                     }
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text("claude-opus").font(theme.idFont(.system(size: 12, design: .monospaced), size: 12)).foregroundStyle(theme.idColor(theme.accent))
-                        Text("1.4 s").font(theme.idFont(.system(size: 12, design: .monospaced), size: 12)).foregroundStyle(theme.text2.color)
-                        Text("— identifiers and readouts are SF Mono").font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                        Text("claude-opus").appFont(theme.appIdentifierFont(.system(size: 12, design: .monospaced), size: 12)).foregroundStyle(theme.idColor(theme.accent))
+                        Text("1.4 s").appFont(theme.appIdentifierFont(.system(size: 12, design: .monospaced), size: 12)).foregroundStyle(theme.text2.color)
+                        Text("— identifiers and readouts are SF Mono").appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
                     }
                 }
             }
@@ -162,7 +162,7 @@ private struct DesignShowcase: View {
     private func statusRow(_ word: String, _ kind: IslandStatus.Kind) -> some View {
         HStack(spacing: 8) {
             StatusDot(color: theme.tint(kind))
-            Text(word).font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
+            Text(word).appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, Spacing.well)
@@ -174,7 +174,7 @@ private struct DesignShowcase: View {
     /// `inset: false` for content that pads itself, such as a `Row`.
     private func stateWell(_ label: String, inset: Bool = true, @ViewBuilder _ content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(label).font(theme.idFont(.caption2, size: 11)).foregroundStyle(theme.text3.color)
+            Text(label).appFont(theme.appIdentifierFont(.caption2, size: 11)).foregroundStyle(theme.text3.color)
                 .padding(.horizontal, inset ? 0 : Spacing.well)
             content()
         }
@@ -185,7 +185,7 @@ private struct DesignShowcase: View {
     }
 
     private func caption(_ text: String) -> some View {
-        Text(text).font(.system(size: 11)).foregroundStyle(theme.text3.color)
+        Text(text).appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
             .fixedSize(horizontal: false, vertical: true)
     }
 }
@@ -204,7 +204,7 @@ private struct ShowcaseGroup<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title.uppercased())
-                .font(.system(size: 11, weight: .semibold)).tracking(0.6)
+                .appFont(.system(size: 11, weight: .semibold)).tracking(0.6)
                 .foregroundStyle(theme.text3.color)
                 .accessibilityAddTraits(.isHeader)
             content
@@ -236,7 +236,7 @@ private struct DesignTokenList: View {
                 }
             }
             Text("Click a token to copy its CSS variable. The same values live in design/atom-design-system/tokens.css.")
-                .font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                .appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -265,28 +265,28 @@ private struct TokenRow: View {
                 TokenSample(token: token).frame(width: 32, alignment: .leading).frame(minHeight: 20)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(token.name)
-                        .font(theme.idFont(.system(size: 12, design: .monospaced), size: 12))
+                        .appFont(theme.appIdentifierFont(.system(size: 12, design: .monospaced), size: 12))
                         .foregroundStyle(theme.text.color)
                     Text(token.role)
-                        .font(.system(size: 11)).foregroundStyle(theme.text2.color)
+                        .appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
                         .fixedSize(horizontal: false, vertical: true)
                     // A Swift name in mono; a description of where it lives in plain type.
                     Text(token.source)
-                        .font(token.source.contains(" ") ? .system(size: 11) : theme.idFont(.system(size: 11, design: .monospaced), size: 11))
+                        .appFont(token.source.contains(" ") ? .system(size: 11) : theme.appIdentifierFont(.system(size: 11, design: .monospaced), size: 11))
                         .foregroundStyle(theme.text3.color)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 6)
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(copied ? "Copied" : token.display)
-                        .font(theme.idFont(.system(size: 11, design: .monospaced), size: 11))
+                        .appFont(theme.appIdentifierFont(.system(size: 11, design: .monospaced), size: 11))
                         .foregroundStyle(copied ? theme.success.color : theme.text2.color)
                         .multilineTextAlignment(.trailing)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: 220, alignment: .trailing)
                     if let contrast = token.contrast {
                         Text(String(format: "%.1f:1", contrast))
-                            .font(theme.idFont(.system(size: 11, design: .monospaced), size: 11))
+                            .appFont(theme.appIdentifierFont(.system(size: 11, design: .monospaced), size: 11))
                             .foregroundStyle(contrast >= 4.5 ? theme.text3.color : theme.problem.color)
                     }
                 }
@@ -326,15 +326,15 @@ private struct TokenSample: View {
             // A ruler: bars share a left edge, 32 pt fills the column.
             Rectangle().fill(theme.text2.color).frame(width: max(2, p * 24 / 32), height: 4).frame(height: 16)
         case .points(let p):
-            Text(p >= 26 ? "42" : "Aa").font(.system(size: p, weight: .medium).monospacedDigit()).foregroundStyle(theme.text.color)
+            Text(p >= 26 ? "42" : "Aa").appFont(.system(size: p, weight: .medium).monospacedDigit()).foregroundStyle(theme.text.color)
                 .lineLimit(1).fixedSize()
         case .duration(let ms):
             // A bar as long as the time: 200 ms fills the column.
             Capsule().fill(theme.text2.color).frame(width: CGFloat(ms) * 24 / 200, height: 4).frame(height: 16)
         case .text where token.name == "--font-mono":
-            Text("{}").font(.system(size: 12, design: .monospaced)).foregroundStyle(theme.text.color)
+            Text("{}").appFont(.system(size: 12, design: .monospaced)).foregroundStyle(theme.text.color)
         case .text where token.group == .type:
-            Text("Aa").font(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color)
+            Text("Aa").appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color)
         case .text where token.name == "--focus-ring":
             RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(theme.text.color, lineWidth: 2).frame(width: 20, height: 20)
         case .text where token.name == "--elev-ring":

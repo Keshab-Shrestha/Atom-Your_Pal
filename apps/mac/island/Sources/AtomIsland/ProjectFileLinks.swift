@@ -29,7 +29,7 @@ struct ProjectFileLinks: View {
             }
             if let message = notice.wrappedValue { Text(message).foregroundStyle(theme.problem.color) }
         }
-        .font(.system(size: 11.5)).buttonStyle(.borderless).foregroundStyle(theme.text2.color)
+        .appFont(.system(size: 11.5)).buttonStyle(.borderless).foregroundStyle(theme.text2.color)
         .task(id: [text, project?.id ?? "", project?.folderPath ?? "", String(project?.missing ?? true), String(project?.archived ?? true), String(snapshot)]) {
             files.wrappedValue = []; notice.wrappedValue = nil
             guard !snapshot, let project else { return }

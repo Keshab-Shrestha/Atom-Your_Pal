@@ -11,7 +11,7 @@ enum ChatAppearance {
     /// Keep the desktop layout while honoring every color in the user's chosen theme.
     static func palette(theme: AppTheme, sidebar: Bool = false) -> ThemePalette {
         var p = theme.palette
-        if sidebar { p.surfaceSolid = p.fill1.over(p.surfaceSolid) }
+        if sidebar { p.surfaceSolid = WorkspaceColors.for(theme).panel }
         p.surface = p.surfaceSolid
         p.surfaceTop = nil
         return p

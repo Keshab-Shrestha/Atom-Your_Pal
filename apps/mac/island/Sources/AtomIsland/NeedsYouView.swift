@@ -17,8 +17,8 @@ struct NeedsYouPane: View {
         Scrollable {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 2) {
-                    if !embedded { Text("Needs you").font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color) }
-                    Text("What waits for your answer, and tasks that failed. Nothing here is done without you.").font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    if !embedded { Text("Needs you").appFont(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color) }
+                    Text("What waits for your answer, and tasks that failed. Nothing here is done without you.").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
                 if let request = model.approval.pending {
@@ -48,13 +48,12 @@ struct NeedsYouPane: View {
                 }
                 ForEach(items) { item in row(item) }
                 if !failed.isEmpty {
-                    Text("Failed · \(failed.count)").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.top, items.isEmpty ? 0 : 6)
+                    Text("Failed · \(failed.count)").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.top, items.isEmpty ? 0 : 6)
                     Text("Open a task to review what happened before trying it again. Interrupted work may already have changed files.")
-                        .font(.system(size: 11.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
+                        .appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
                     ForEach(failed) { item in FailedTaskCard(model: model, item: item) }
                 }
             }
-            .frame(maxWidth: 680, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Spacing.panel)
             .padding(.top, embedded ? 4 : 28)
@@ -119,11 +118,11 @@ struct NeedsYouPane: View {
     private func card(kind: String, who: String, title: String, detail: String, tests: TestRunView? = nil, @ViewBuilder actions: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Text(kind).font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
-                if !who.isEmpty { Text(who).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2)) }
+                Text(kind).appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                if !who.isEmpty { Text(who).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2)) }
             }
-            Text(title).font(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).fixedSize(horizontal: false, vertical: true).lineLimit(3)
-            Text(detail).font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true).lineLimit(8) // 8: an approval can carry a whole soul (create_agent)
+            Text(title).appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).fixedSize(horizontal: false, vertical: true).lineLimit(3)
+            Text(detail).appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true).lineLimit(8) // 8: an approval can carry a whole soul (create_agent)
             if let tests { tests.padding(.top, 2) }
             HStack(spacing: 8) { actions() }.padding(.top, 4)
         }
@@ -145,16 +144,16 @@ struct FailedTaskCard: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 JobDot(job: item.job)
-                Text(item.helperName).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2))
-                Text("#\(item.id)").font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color)
-                if item.job.autoRetries > 0 { Text("tried again once").font(.system(size: 11)).foregroundStyle(theme.text3.color) }
+                Text(item.helperName).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2))
+                Text("#\(item.id)").appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color)
+                if item.job.autoRetries > 0 { Text("tried again once").appFont(.system(size: 11)).foregroundStyle(theme.text3.color) }
                 Spacer(minLength: 0)
-                if let ended = item.job.endedAt { Text(ended, style: .relative).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color) }
+                if let ended = item.job.endedAt { Text(ended, style: .relative).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color) }
             }
-            Text(item.job.shortTitle).font(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
-            if item.job.recoveryNeeded { Text("Interrupted · outcome unconfirmed").font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color) }
+            Text(item.job.shortTitle).appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
+            if item.job.recoveryNeeded { Text("Interrupted · outcome unconfirmed").appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color) }
             if let error = item.job.error { ProblemLine(text: error, dot: false) }
-            if item.job.recoveryNeeded, let step = item.job.step { Text("Last recorded step: \(step)").font(.system(size: 11.5)).foregroundStyle(theme.text2.color) }
+            if item.job.recoveryNeeded, let step = item.job.step { Text("Last recorded step: \(step)").appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color) }
             HStack(spacing: 8) {
                 if !item.job.recoveryNeeded { QuietButton(title: "Retry", symbol: "arrow.clockwise") { model.sendHelpers(model.helpers.retry(item.id)) } }
                 QuietButton(title: item.job.recoveryNeeded ? "Review attempt" : "Open") { model.navigate { model.windowPage = .agents; model.sendHelpers(model.helpers.openThread(item.id)) } }

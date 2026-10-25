@@ -8,7 +8,7 @@ struct ChatControlFeedback: View {
     var body: some View {
         if let notice = model.chatControls.notice {
             VStack(alignment: .leading, spacing: 4) {
-                Text(notice).font(.system(size: 11)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
+                Text(notice).appFont(.system(size: 11)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
                 HStack {
                     if model.chatControls.undo != nil {
                         Button("Undo pin/archive", action: model.undoChatFlags).disabled(model.chatControls.mutation != nil)
@@ -19,7 +19,7 @@ struct ChatControlFeedback: View {
                     if model.chatControls.mutation == nil {
                         Button("Dismiss") { model.chatControls.notice = nil }
                     }
-                }.buttonStyle(.borderless).font(.system(size: 11))
+                }.buttonStyle(.borderless).appFont(.system(size: 11))
             }
         }
     }
@@ -97,7 +97,7 @@ struct ConversationControls: View {
 
     private var contextDetails: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("What this chat remembers").font(.headline)
+            Text("What this chat remembers").appFont(.headline)
             Text("Your messages stay saved. ATOM uses recent messages to continue this conversation, and can summarize older ones in long chats. Memory never grants file or tool access.")
             if let note = model.cacheExpiredNotice { Text(note) }
             if let info = model.chatControls.snapshot?.info {
@@ -158,7 +158,7 @@ struct ConversationControls: View {
             }
             Button("Refresh saved details", action: model.inspectSavedChat)
         }
-        .font(.system(size: 12)).foregroundStyle(theme.text2.color)
+        .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
     }
 }
 
@@ -168,13 +168,13 @@ struct SavedChatHistory: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Saved history").font(.headline)
+                Text("Saved history").appFont(.headline)
                 Spacer()
                 Button("Close") { model.chatControls.historyShown = false; model.chatControls.reading = nil }
                     .keyboardShortcut(.cancelAction)
             }
             Text("Read-only pages from the saved archive. Editing/retrying creates a new chat before that message; review it before sending. Existing file/network effects are not undone.")
-                .font(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+                .appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
             HStack {
                 Button("First / Reload", action: model.refreshSavedHistory)
                 Button("Previous", action: model.previousSavedHistory).disabled(model.chatControls.previous.isEmpty)
@@ -188,8 +188,8 @@ struct SavedChatHistory: View {
                     ForEach(model.chatControls.history?.page?.messages ?? []) { message in
                         VStack(alignment: .leading, spacing: 6) {
                             Text("m\(message.seq) · \(message.role == "user" ? "You" : "ATOM") · text offset \(message.offset)")
-                                .font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
-                            Text(message.text).font(.system(size: 12.5)).textSelection(.enabled)
+                                .appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                            Text(message.text).appFont(.system(size: 12.5)).textSelection(.enabled)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             HStack {
                                 ChatCopyControl(title: "Copy this part") { MarkdownCopy.Content(text: message.text) }
@@ -199,7 +199,7 @@ struct SavedChatHistory: View {
                                 }
                                 Button("Fork through here") { branch("fork", message.seq) }
                             }
-                            .font(.system(size: 11.5)).buttonStyle(.borderless)
+                            .appFont(.system(size: 11.5)).buttonStyle(.borderless)
                             .disabled(!model.chatBranchAvailable)
                         }
                     }

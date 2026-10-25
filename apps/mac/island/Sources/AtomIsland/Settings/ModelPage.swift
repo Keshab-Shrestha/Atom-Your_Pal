@@ -68,7 +68,7 @@ struct ModelSection: View {
                 if let error = model.modelError {
                     RowDivider()
                     Label(error, systemImage: "exclamationmark.triangle.fill")
-                        .font(.system(size: 11))
+                        .appFont(.system(size: 11))
                         .foregroundStyle(theme.problem.color)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(Spacing.well)
@@ -120,7 +120,7 @@ struct ModelSection: View {
             HStack(spacing: 6) {
                 TextField("model-id", text: $customId)
                     .textFieldStyle(.plain)
-                    .font(theme.idFont(.system(size: 12), size: 11.5))
+                    .appFont(theme.appIdentifierFont(.system(size: 12), size: 11.5))
                     .frame(width: 180)
                     .padding(.horizontal, 8).padding(.vertical, 4)
                     .background(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous)

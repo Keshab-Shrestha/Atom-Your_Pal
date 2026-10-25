@@ -18,8 +18,8 @@ struct CheckpointSection: View {
         VStack(alignment: .leading, spacing: 6) {
             Button { withAnimation(Motion.snap(reduceMotion)) { isOpen.toggle() } } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: isOpen ? "chevron.down" : "chevron.right").font(.system(size: 9, weight: .semibold))
-                    Text("File changes (\(checkpoints.count))").font(.system(size: 11.5, weight: .medium))
+                    Image(systemName: isOpen ? "chevron.down" : "chevron.right").appFont(.system(size: 9, weight: .semibold))
+                    Text("File changes (\(checkpoints.count))").appFont(.system(size: 11.5, weight: .medium))
                 }
                 .foregroundStyle(theme.text3.color)
             }
@@ -32,19 +32,19 @@ struct CheckpointSection: View {
 
     @ViewBuilder private var content: some View {
         if checkpoints.isEmpty {
-            Text("No file edits recorded.").font(.system(size: 12)).foregroundStyle(theme.text2.color)
+            Text("No file edits recorded.").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
         }
         if readyCount > 0 { undoAll }
         ForEach(checkpoints, id: \.path) { CheckpointRow(model: model, jobId: jobId, checkpoint: $0) }
         if bashRan {
-            Text("Commands can change files ATOM does not track.").font(.system(size: 12)).foregroundStyle(theme.text2.color)
+            Text("Commands can change files ATOM does not track.").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
         }
     }
 
     @ViewBuilder private var undoAll: some View {
         if confirmingAll {
             HStack(spacing: 8) {
-                Text("Undo all changes this task made?").font(.system(size: 12)).foregroundStyle(theme.text.color)
+                Text("Undo all changes this task made?").appFont(.system(size: 12)).foregroundStyle(theme.text.color)
                 QuietButton(title: "Undo") {
                     confirmingAll = false
                     model.sendHelpers(model.helpers.undoCheckpoints(jobId: jobId))
@@ -69,16 +69,16 @@ private struct CheckpointRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(checkpoint.path).font(theme.idFont(.system(size: 12.5), size: 11.5)).foregroundStyle(theme.idColor(theme.text))
+                Text(checkpoint.path).appFont(theme.appIdentifierFont(.system(size: 12.5), size: 11.5)).foregroundStyle(theme.idColor(theme.text))
                     .lineLimit(1).truncationMode(.middle)
-                Text(checkpoint.kind == .created ? "created" : "edited").font(.system(size: 10.5, weight: .medium))
+                Text(checkpoint.kind == .created ? "created" : "edited").appFont(.system(size: 10.5, weight: .medium))
                     .foregroundStyle(theme.text3.color)
                 Spacer(minLength: 4)
                 trailing
             }
             if confirmingForce {
                 HStack(spacing: 8) {
-                    Text("Replace the newer version of this file?").font(.system(size: 12)).foregroundStyle(theme.text.color)
+                    Text("Replace the newer version of this file?").appFont(.system(size: 12)).foregroundStyle(theme.text.color)
                     QuietButton(title: "Restore") {
                         confirmingForce = false
                         model.sendHelpers(model.helpers.undoCheckpoints(jobId: jobId, path: checkpoint.path, force: true))
@@ -98,15 +98,15 @@ private struct CheckpointRow: View {
                 .accessibilityLabel("Undo \(checkpoint.path)")
                 .accessibilityHint("Puts back this file")
         case .changed:
-            Text("Changed since this task").font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+            Text("Changed since this task").appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color)
             QuietButton(title: "Restore anyway") { confirmingForce = true }
                 .accessibilityLabel("Restore \(checkpoint.path) anyway")
                 .accessibilityHint("Asks you to confirm first")
         case .undone:
-            Text("Undone").font(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+            Text("Undone").appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
         case .skipped:
-            Text(checkpoint.reason ?? "").font(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(1)
-            Text("Not undoable").font(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+            Text(checkpoint.reason ?? "").appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(1)
+            Text("Not undoable").appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
         }
     }
 }

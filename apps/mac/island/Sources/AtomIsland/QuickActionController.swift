@@ -45,7 +45,7 @@ final class QuickActionController: NSObject, NSWindowDelegate {
                                    replace: { [weak self] text in await self?.replace(text, in: target) ?? "" },
                                    draft: { [weak self] text in self?.showReply(text, target: target) },
                                    close: { [weak self] in self?.close() })
-            .themed(model.settings.theme.palette)
+            .themed(model.settings.theme.palette).environment(\.appTextSize, model.settings.textSize)
         present(view, width: 440)
     }
 
@@ -56,7 +56,7 @@ final class QuickActionController: NSObject, NSWindowDelegate {
         present(ReplyDraftPane(session: session, source: text, close: { [weak self] in self?.close() },
                                insertTarget: target.name, insertRunning: { target.app.map { !$0.isTerminated } ?? false },
                                insert: { [weak self] draft in await self?.insertDraft(draft, in: target) ?? "" })
-            .themed(model.settings.theme.palette), width: 560, height: 580)
+            .themed(model.settings.theme.palette).environment(\.appTextSize, model.settings.textSize), width: 560, height: 580)
     }
 
     private func present<Content: View>(_ view: Content, width: CGFloat, height: CGFloat? = nil) {
@@ -155,10 +155,10 @@ struct QuickActionView: View {
             header
             switch (found, phase.wrappedValue) {
             case (.refused(let words), _):
-                Text(words).font(.system(size: 12.5)).foregroundStyle(theme.text2.color)
+                Text(words).appFont(.system(size: 12.5)).foregroundStyle(theme.text2.color)
             case (.nothing, _):
                 Text("Nothing is selected and the clipboard has no text. Select some text, then press the shortcut again.")
-                    .font(.system(size: 12.5)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
+                    .appFont(.system(size: 12.5)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
             case (.text(let quick), .choosing):
                 actions(quick)
             case (.text(let quick), .asking):
@@ -166,7 +166,7 @@ struct QuickActionView: View {
             case (.text, .running(let id, _, _)):
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)
-                    Text("ATOM is working…").font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    Text("ATOM is working…").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                     Spacer(minLength: 8)
                     QuietButton(title: "Cancel", symbol: "xmark") {
                         model.cancelAskAtom(id: id)
@@ -184,9 +184,9 @@ struct QuickActionView: View {
                     }
                     .disabled(current.wrappedValue == original)
                 }
-                if !note.wrappedValue.isEmpty { Text(note.wrappedValue).font(.system(size: 11.5)).foregroundStyle(theme.problem.color) }
+                if !note.wrappedValue.isEmpty { Text(note.wrappedValue).appFont(.system(size: 11.5)).foregroundStyle(theme.problem.color) }
             case (.text, .card(let words)):
-                ScrollView { Text(words).font(.system(size: 12.5)).foregroundStyle(theme.text.color).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }
+                ScrollView { Text(words).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }
                     .frame(maxHeight: 300)
                 HStack(spacing: 8) {
                     QuietButton(title: "Back", symbol: "chevron.left") { phase.wrappedValue = .choosing }
@@ -198,7 +198,7 @@ struct QuickActionView: View {
                     }
                 }
             case (.text, .message(let words)):
-                Text(words).font(.system(size: 12.5)).foregroundStyle(theme.text2.color)
+                Text(words).appFont(.system(size: 12.5)).foregroundStyle(theme.text2.color)
                 QuietButton(title: "Back", symbol: "chevron.left") { phase.wrappedValue = .choosing }
             }
         }
@@ -211,12 +211,12 @@ struct QuickActionView: View {
 
     private var header: some View {
         HStack(spacing: 6) {
-            Image(systemName: "sparkles").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+            Image(systemName: "sparkles").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
             if case .text(let quick) = found {
                 Text(quick.source.label + (quick.truncated ? " (cut to \(SelectionCapture.maxCharacters) characters)" : ""))
-                    .font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                    .appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
             } else {
-                Text("Quick actions").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                Text("Quick actions").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
             }
             Spacer(minLength: 8)
             QuietButton(title: "Close", symbol: "xmark") { close() }
@@ -226,17 +226,17 @@ struct QuickActionView: View {
     private func actions(_ quick: QuickText) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(String(quick.text.prefix(160)).replacingOccurrences(of: "\n", with: " ") + (quick.text.count > 160 ? "…" : ""))
-                .font(.system(size: 12)).foregroundStyle(theme.text2.color).lineLimit(3)
+                .appFont(.system(size: 12)).foregroundStyle(theme.text2.color).lineLimit(3)
             VStack(spacing: 0) {
                 ForEach(QuickAction.allCases) { action in
                     if action != QuickAction.allCases.first { RowDivider(inset: 0) }
                     Button { choose(action, quick) } label: {
                         HStack(spacing: 8) {
-                            Image(systemName: action.symbol).font(.system(size: 11)).frame(width: 18)
-                            Text(action.title).font(.system(size: 12.5))
+                            Image(systemName: action.symbol).appFont(.system(size: 11)).frame(width: 18)
+                            Text(action.title).appFont(.system(size: 12.5))
                             Spacer(minLength: 0)
                             if action.changesText && !quick.canReplace {
-                                Text("Copy only").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                                Text("Copy only").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                             }
                         }
                         .foregroundStyle(theme.text.color)
@@ -253,7 +253,7 @@ struct QuickActionView: View {
     private func askField(_ quick: QuickText) -> some View {
         HStack(spacing: 8) {
             TextField("What should ATOM do with it?", text: instruction.projectedValue)
-                .textFieldStyle(.plain).font(.system(size: 12.5)).foregroundStyle(theme.text.color)
+                .textFieldStyle(.plain).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color)
                 .onSubmit { start(.ask, quick) }
             QuietButton(title: "Back", symbol: "chevron.left") { phase.wrappedValue = .choosing }
             QuietButton(title: "Ask", symbol: "arrow.up") { start(.ask, quick) }

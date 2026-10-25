@@ -3,14 +3,22 @@ import AtomIslandCore
 
 struct ProjectFilterButton: View {
     let model: IslandModel
+    var expanded = false
     @State private var presented = false
     @Environment(\.theme) private var theme
     var body: some View {
         Button { presented.toggle() } label: {
-            Image(systemName: "line.3.horizontal.decrease")
-                .font(.system(size: 12)).foregroundStyle(theme.text2.color)
-                .frame(width: 28, height: 30)
-                .background(model.sidebarProjectFilter == nil ? .clear : theme.fill2.color, in: RoundedRectangle(cornerRadius: 6))
+            HStack(spacing: 7) {
+                Image(systemName: expanded ? "folder" : "line.3.horizontal.decrease")
+                if expanded {
+                    Text(model.chats?.projects?.first { $0.id == model.sidebarProjectFilter }?.name ?? "All projects")
+                        .lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
+                    Image(systemName: "chevron.down").appFont(.system(size: 8, weight: .semibold))
+                }
+            }
+            .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
+            .padding(.horizontal, expanded ? 9 : 0).frame(width: expanded ? nil : 28, height: 32)
+            .background(theme.fill1.color, in: RoundedRectangle(cornerRadius: 8))
         }.buttonStyle(.plain).help("Choose a project. Search still covers all content.")
             .accessibilityLabel("Projects").accessibilityIdentifier("projects.filter")
             .disabled(model.chats?.projects == nil)
@@ -28,17 +36,17 @@ struct ProjectFilterSummary: View {
             let name = model.chats?.projects?.first { $0.id == id }?.name ?? "Selected project"
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
-                    Image(systemName: "folder").font(.system(size: 10))
+                    Image(systemName: "folder").appFont(.system(size: 10))
                     Text(name).lineLimit(1).help(name)
                     Spacer(minLength: 0)
                     Button { model.settings.projectFilter = nil } label: {
                         Image(systemName: "xmark").frame(width: 20, height: 20)
                     }.buttonStyle(.plain).accessibilityLabel("Show all projects")
-                }.font(.system(size: 11, weight: .medium))
+                }.appFont(.system(size: 11, weight: .medium))
                 if !model.searchQuery.isEmpty {
-                    Text("Search covers all projects.").font(.system(size: 10.5))
+                    Text("Search covers all projects.").appFont(.system(size: 10.5))
                 } else if model.chats?.currentProjectId != id {
-                    Text("Current chat is outside this filter.").font(.system(size: 10.5))
+                    Text("Current chat is outside this filter.").appFont(.system(size: 10.5))
                 }
             }.foregroundStyle(theme.text2.color).padding(.horizontal, 8).padding(.bottom, 6)
         }
@@ -61,9 +69,9 @@ struct ProjectFilterPicker: View {
         VStack(alignment: .leading, spacing: 0) {
             if snapshot {
                 Text(initialQuery.isEmpty ? "Search projects…" : initialQuery)
-                    .font(.system(size: 13)).foregroundStyle(theme.text2.color).padding(12)
+                    .appFont(.system(size: 13)).foregroundStyle(theme.text2.color).padding(12)
             } else {
-                TextField("Search projects…", text: $query).textFieldStyle(.plain).font(.system(size: 13))
+                TextField("Search projects…", text: $query).textFieldStyle(.plain).appFont(.system(size: 13))
                     .focused($focused).padding(12).accessibilityLabel("Search projects")
                     .onKeyPress(.downArrow) { move(1); return .handled }
                     .onKeyPress(.upArrow) { move(-1); return .handled }
@@ -75,7 +83,7 @@ struct ProjectFilterPicker: View {
                 Scrollable {
                     VStack(spacing: 2) {
                         if choices.isEmpty {
-                            Text("No matching projects").font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                            Text("No matching projects").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                                 .frame(maxWidth: .infinity, alignment: .leading).padding(12)
                         }
                         ForEach(Array(choices.enumerated()), id: \.element.id) { index, choice in
@@ -87,7 +95,7 @@ struct ProjectFilterPicker: View {
             }.frame(maxHeight: .infinity)
             Rectangle().fill(theme.separator.color).frame(height: 1)
             Text("Filters lists only · Search covers all content")
-                .font(.system(size: 10.5)).foregroundStyle(theme.text3.color).padding(10)
+                .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color).padding(10)
         }
         .frame(width: 340, height: 360).background(theme.surfaceSolid.color)
         .onAppear { query = initialQuery; if !snapshot { focused = true } }
@@ -99,22 +107,22 @@ struct ProjectFilterPicker: View {
             Button { choose(choice) } label: {
                 HStack(spacing: 8) {
                     Image(systemName: choice.project?.missing == true ? "exclamationmark.triangle" : "folder")
-                        .frame(width: 18).font(.system(size: 12))
+                        .frame(width: 18).appFont(.system(size: 12))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(choice.title).font(.system(size: 12, weight: .medium)).lineLimit(1)
+                        Text(choice.title).appFont(.system(size: 12, weight: .medium)).lineLimit(1)
                         if let project = choice.project, project.archived || project.missing {
                             Text([project.archived ? "Archived" : nil, project.missing ? "Folder unavailable" : nil].compactMap { $0 }.joined(separator: " · "))
-                                .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                                .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                         }
                     }
                     Spacer(minLength: 4)
-                    if selected { Image(systemName: "checkmark").font(.system(size: 10, weight: .semibold)) }
+                    if selected { Image(systemName: "checkmark").appFont(.system(size: 10, weight: .semibold)) }
                 }.foregroundStyle(theme.text.color).padding(9).contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityLabel("Filter: " + choice.title)
                 .accessibilityAddTraits(selected ? .isSelected : [])
             if let project = choice.project {
                 Button { close(); model.openProjectSettings(project.id) } label: {
-                    Image(systemName: "gearshape").font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    Image(systemName: "gearshape").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                         .frame(width: 30, height: 34).contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityLabel("Settings for " + project.name).help("Project settings")
             }

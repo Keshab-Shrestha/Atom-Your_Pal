@@ -41,7 +41,7 @@ private struct CapabilityRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(item.title).font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
+            Text(item.title).appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
             if !item.examples.isEmpty {
                 FlowLayout(spacing: 5) {
                     ForEach(Array(item.examples.enumerated()), id: \.offset) { _, example in ExampleChip(text: example) }
@@ -62,7 +62,7 @@ struct ExampleChip: View {
 
     var body: some View {
         Text("“\(text)”")
-            .font(.system(size: 11))
+            .appFont(.system(size: 11))
             .foregroundStyle(theme.text2.color)
             .lineLimit(1)
             .padding(.horizontal, theme.isGhost ? 10 : 8)
@@ -78,7 +78,7 @@ private struct KeyCap: View {
 
     var body: some View {
         Text(text)
-            .font(theme.idFont(.system(size: 11.5, weight: .semibold, design: .rounded), size: 11, weight: .medium))
+            .appFont(theme.appIdentifierFont(.system(size: 11.5, weight: .semibold, design: .rounded), size: 11, weight: .medium))
             .foregroundStyle(theme.text.color)
             .padding(.horizontal, 8)
             .frame(height: 22)
@@ -103,7 +103,7 @@ struct EmptyConversationExamples: View {
             }
             Button { model.showExamples() } label: {
                 Text("What can I ask?")
-                    .font(.system(size: 11.5, weight: .medium))
+                    .appFont(.system(size: 11.5, weight: .medium))
                     .foregroundStyle(theme.accent.color)
                     .contentShape(Rectangle())
             }
@@ -139,7 +139,7 @@ struct PlanMeter: View {
     var body: some View {
         let percent = PlanUsage.percent(fraction)
         HStack(spacing: 10) {
-            Text(title).font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
+            Text(title).appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
                 .frame(width: 52, alignment: .leading)
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
@@ -149,7 +149,7 @@ struct PlanMeter: View {
             }
             .frame(height: 6)
             Text("\(percent)%")
-                .font(theme.idFont(.system(size: 11.5, weight: .medium).monospacedDigit(), size: 11))
+                .appFont(theme.appIdentifierFont(.system(size: 11.5, weight: .medium).monospacedDigit(), size: 11))
                 .foregroundStyle(PlanUsage.level(fraction) == .normal ? theme.text2.color : color)
                 .frame(width: 38, alignment: .trailing)
         }
