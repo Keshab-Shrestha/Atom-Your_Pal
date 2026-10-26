@@ -4,7 +4,7 @@ import { HelperError } from "./jobs.ts";
 import type { StoreContext } from "./store-context.ts";
 import type { HelperStore } from "./store-types.ts";
 
-export function planMethods(ctx: StoreContext): Pick<HelperStore, "addPlan" | "plan" | "latestPlan" | "plans" | "linkPlanJob"> {
+export function planMethods(ctx: StoreContext): Pick<HelperStore, "addPlan" | "plan" | "latestPlan" | "planForChat" | "planHistory" | "plans" | "linkPlanJob"> {
   const { emit, get, workPlans, planView } = ctx;
   const planOf = (id: number) => {
     const stored = workPlans.get(id);
@@ -25,6 +25,17 @@ export function planMethods(ctx: StoreContext): Pick<HelperStore, "addPlan" | "p
     latestPlan(chatId) {
       const stored = workPlans.latestOf(chatId);
       return stored && planView(stored);
+    },
+
+    planForChat(chatId, id) {
+      if (!Number.isSafeInteger(id) || id < 1) throw new HelperError("plan must be a positive plan id from this chat's history.");
+      const stored = workPlans.getInChat(chatId, id);
+      return stored && planView(stored);
+    },
+
+    planHistory(chatId, before) {
+      if (before !== undefined && (!Number.isSafeInteger(before) || before < 1)) throw new HelperError("before must be a positive plan id from the previous page.");
+      return workPlans.historyOf(chatId, before).map(planView);
     },
 
     plans(limit) {

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { Message } from "@atom/contracts";
-import { validChatBrief, type ChatStore } from "@atom/memory";
+import { validChatBrief, type ChatStore, type RecallView } from "@atom/memory";
 import { CHAT_REPLAY_BYTES, chatContext, excerpt } from "./chat-history.ts";
 import type { ContinuityView } from "./chat-continuity.ts";
 
@@ -30,6 +30,7 @@ export interface ChatControlResponse {
   revision?: string;
   brief?: { text: string; version: number };
   continuity?: ContinuityView;
+  recall?: RecallView;
   info?: { messages: number; archiveBytes: number; replayBytes: number; replayBudget: number; omitted: number; lastUser?: number;
     access?: { mode?: import("@atom/contracts").ChatAccessMode; provider: string; hostTools: boolean; project: boolean; fileGrants: number; computer: boolean; web: boolean } };
   page?: { messages: { seq: number; role: string; offset: number; text: string }[]; nextMessage?: number; nextOffset?: number };

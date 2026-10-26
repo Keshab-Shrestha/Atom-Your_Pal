@@ -19,8 +19,9 @@ import {
   type TokenUsage,
 } from "@atom/llm-gateway";
 import { join } from "node:path";
-import type { HelperStore, HelperView } from "@atom/helpers";
-import type { FilePermissions } from "@atom/memory";
+import { budgetContext, CHAT_CONTEXT_BYTES, type ContextPart, type HelperStore, type HelperView } from "@atom/helpers";
+import { selectWorkflow, workflowRouteContext } from "@atom/helpers";
+import { RECALL_SOURCES, type FilePermissions, type MemorySelection, type RecallEvent, type RecallPayload } from "@atom/memory";
 import type { FileApproval, FileEditReview } from "./computer-bridge.ts";
 import { denyRead } from "./folder-run.ts";
 import { BUILT_IN_AGENTS, agentDefinitions, nativeMembers } from "./native-agents.ts";
@@ -118,7 +119,7 @@ const WEB_TOOLS = ["WebSearch", "WebFetch"];
 
 /** Phase N2: the chat's sub-agents, their Board rows and their safety. */
 export interface NativeTeamDeps {
-  helpers: TeamScope["helpers"] & BoardStore & Pick<HelperStore, "mcpServers"> & Partial<Pick<HelperStore, "guardPreviewEdit">> & PlanStore;
+  helpers: TeamScope["helpers"] & BoardStore & Pick<HelperStore, "mcpServers"> & Partial<Pick<HelperStore, "guardPreviewEdit" | "recordTaskInspection" | "recordTaskVerification">> & PlanStore;
   approve(request: { summary: string; reason: string; reasonMax?: number }, signal?: AbortSignal): Promise<boolean>;
   approveFile?(request: { summary: string; reason: string }, signal?: AbortSignal): Promise<FileApproval>;
   approveFileEdit?(request: FileEditReview & { summary: string }, signal?: AbortSignal): Promise<boolean>;
@@ -144,6 +145,9 @@ export interface NativeCore extends Core {
   /** Keshab's note to a native job: a message to the main agent of its chat. False when that cannot happen now. */
   steer(job: number, text: string): boolean;
 }
+
+/** Selection provenance stays host-side; the context compiler only renders text. */
+export type ChatContextPart = ContextPart & { memorySelection?: MemorySelection };
 
 export interface NativeCoreDeps {
   accessFor?(chat: string): ChatAccessMode;
@@ -171,8 +175,15 @@ export interface NativeCoreDeps {
   revokeToolPermissions?(chatId: string): void;
   /** Every turn: the time, memory facts, the pointed window. A throw is ignored. */
   context?(input: ZenoInput, context: RequestContext): Promise<string | undefined> | string | undefined;
+  /** Host-classified context. Takes precedence over context; legacy opaque blocks stay required. */
+  contextParts?(input: ZenoInput, context: RequestContext): Promise<readonly ChatContextPart[] | undefined> | readonly ChatContextPart[] | undefined;
   /** Only the first message after a session opens: memory guidance, conversation notes, kept chats, a project digest. */
   opening?(chatId: string, text: string): Promise<string | undefined> | string | undefined;
+  openingParts?(chatId: string, text: string): Promise<readonly ContextPart[] | undefined> | readonly ContextPart[] | undefined;
+  /** Shared context payload budget only; required instructions may exceed it without being clipped. */
+  contextBytes?: number;
+  /** Host-only bounded context provenance, never an instruction or a grant. */
+  onRecall?(event: RecallEvent): void;
   /** ADR-107: a project chat's note (constant per session) and read access. */
   project?(chatId: string): { note: string; files?: ProjectFiles } | undefined;
   /**
@@ -262,6 +273,58 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
       return undefined; // context is a help, never a reason to fail a request
     }
   };
+  const requiredPart = (id: string, text: string | undefined): ContextPart[] => text ? [{ id, kind: "required", text }] : [];
+  const workflowParts = (text: string, context: RequestContext, project: boolean, web: boolean, skip: boolean): ChatContextPart[] => {
+    // Explicit skills keep their existing precedence; plain providers/Chat only never acquire worker guidance.
+    if (skip || !deps.team) return [];
+    try {
+      const team = deps.team;
+      const route = selectWorkflow(text, () => ({ project, web, kits: nativeMembers(team.helpers.list()).map((h) => h.kit) }));
+      try {
+        if (route.kind !== "none") deps.log?.("chat.workflow", { chatId: context.sessionId, requestId: context.requestId, state: route.kind,
+          ...("workflow" in route ? { workflow: route.workflow.id, revision: route.workflow.revision } : {}),
+          ...(route.kind === "selected" ? { reason: route.reason } : {}) });
+      } catch { /* Metadata logging cannot affect routing. */ }
+      return requiredPart("workflow.route", workflowRouteContext(route));
+    } catch {
+      try { deps.log?.("chat.workflow_unavailable", { chatId: context.sessionId, requestId: context.requestId }); } catch { /* Metadata only. */ }
+      return [];
+    }
+  };
+  const turnContext = async (input: ZenoInput, context: RequestContext): Promise<readonly ChatContextPart[]> => deps.contextParts
+    ? (await quiet(() => deps.contextParts!(input, context))) ?? []
+    : requiredPart("legacy.turn", (await quiet(() => deps.context?.(input, context)))?.trim());
+  const openingContext = async (chat: string, text: string): Promise<readonly ContextPart[]> => deps.openingParts
+    ? (await quiet(() => deps.openingParts!(chat, text))) ?? []
+    : requiredPart("legacy.opening", (await quiet(() => deps.opening?.(chat, text)))?.trim());
+  const composeContext = (parts: readonly ContextPart[], context: RequestContext) => {
+    const result = budgetContext(parts, deps.contextBytes ?? CHAT_CONTEXT_BYTES);
+    try { deps.log?.("chat.context_budget", { chatId: context.sessionId, requestId: context.requestId, ...result.receipt }); } catch { /* diagnostics never affect execution */ }
+    return result;
+  };
+  const recallAttempt = (parts: readonly ChatContextPart[], budget: ReturnType<typeof budgetContext>, history: RecallPayload["history"], context: RequestContext, chatOnly: boolean, signal: AbortSignal) => {
+    const attempt = randomUUID();
+    const emit = (event: RecallEvent) => {
+      try { deps.onRecall?.(event); } catch { /* Diagnostic persistence never changes a reply or execution policy. */ }
+    };
+    emit({ kind: "prepared", chat: context.sessionId, request: context.requestId, attempt,
+      payload: { schema: "atom.recall/v1", personal: chatOnly ? "disabled" : "enabled",
+        facts: chatOnly ? null : parts.find((p) => p.id === "turn.memory-facts")?.memorySelection ?? null,
+        history, blocks: budget.receipt.parts.flatMap((p) => {
+          const source = RECALL_SOURCES.find((s) => s === p.id);
+          return source ? [{ source, selection: p.selection, offeredBytes: p.offeredBytes, retainedBytes: p.retainedBytes }] : [];
+        }) } });
+    let finished = false;
+    const finish = (outcome: "completed" | "failed" | "cancelled") => {
+      if (finished) return;
+      finished = true; signal.removeEventListener("abort", abort);
+      emit({ kind: "finished", chat: context.sessionId, request: context.requestId, attempt, outcome });
+    };
+    const abort = () => finish("cancelled");
+    signal.addEventListener("abort", abort, { once: true });
+    if (signal.aborted) abort();
+    return finish;
+  };
   const briefContext = (chat: string) => {
     if (!deps.chatBrief) return undefined;
     const brief = deps.chatBrief(chat);
@@ -279,9 +342,10 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
     const team = access === "chat-only" ? undefined : deps.team;
     let gate: NativeGate | undefined;
     let entry: Live | undefined;
-    const plans: PlanBook | undefined = team && planBook(team.helpers, chat, deps.log);
-    const board = team && boardRecorder(team.helpers, chat, { onEnd: (job) => gate?.agentEnded(job), ...(deps.log ? { log: deps.log } : {}) });
     const project = files && !readOnly ? { cwd: files.cwd } : undefined;
+    const plans: PlanBook | undefined = team && planBook(team.helpers, chat, deps.log, { projectRoot: project?.cwd, web: tools.includes("WebSearch"), approve: team.approve,
+      allowed: () => (deps.accessFor?.(chat) ?? "checked") === access && (!project || deps.project?.(chat)?.files?.cwd === project.cwd) });
+    const board = team && boardRecorder(team.helpers, chat, { beforeReport: (job) => gate?.fileReadback?.(job), onEnd: (job) => gate?.agentEnded(job), ...(deps.log ? { log: deps.log } : {}) });
     gate = nativeGate({
       accessSignal: () => entry?.signal,
       access: chatAccessPolicy(access, () => deps.accessFor?.(chat) ?? "checked", deps.approveAccess),
@@ -293,6 +357,8 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
               chatId: chat,
               helpers: team.helpers,
               board,
+              hostFileChecks: true,
+              ...(project ? { projectCurrent: () => deps.project?.(chat)?.files?.cwd === project.cwd } : {}),
               ...(plans ? { plans } : {}),
               approve: team.approve,
               ...(team.approveFile ? { approveFile: team.approveFile } : {}),
@@ -418,7 +484,10 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
     const asked = skill?.text ?? text;
     const selected = replay(turns, asked);
     const continuity = await quiet(() => deps.continuity?.(chat, turns, selected.start));
-    const extra = [chatOnly ? undefined : (await quiet(() => deps.context?.({ ...input, text }, context)))?.trim(), skill?.block, briefContext(chat), chatOnly ? CHAT_ONLY_NOTICE : permissionContext(chat), access === "ask-changes" ? ASK_CHANGES_NOTICE : access === "full" ? FULL_ACCESS_NOTICE : undefined].filter(Boolean).join("\n\n");
+    const extra: ChatContextPart[] = [...(chatOnly ? [] : await turnContext({ ...input, text }, context)),
+      ...requiredPart("user.skill", skill?.block), ...requiredPart("user.chat-brief", briefContext(chat)),
+      ...requiredPart("policy.permissions", chatOnly ? CHAT_ONLY_NOTICE : permissionContext(chat)),
+      ...requiredPart("policy.access", access === "ask-changes" ? ASK_CHANGES_NOTICE : access === "full" ? FULL_ACCESS_NOTICE : undefined)];
     const project = chatOnly ? undefined : await quiet(() => deps.project?.(chat));
     // Attached files give read access to their own folder only: no sandbox, no worktrees, no Bash (those are for a project).
     const attached = project || chatOnly ? undefined : await quiet(() => deps.attachments?.turn(chat));
@@ -426,6 +495,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
     const base = chatOnly ? CHAT_ONLY_SYSTEM_PROMPT : deps.team ? NATIVE_TEAM_PROMPT : NATIVE_SYSTEM_PROMPT;
     const prompt = project ? `${base}\n\n${project.note}` : attached ? `${base}\n\n${attached.note}` : base;
     const web = !chatOnly && Boolean(deps.web) && (!files || files.web === true); // as the plan adapter: ADR-069, ADR-107
+    extra.push(...workflowParts(text, context, Boolean(project?.files), web, chatOnly || Boolean(skill)));
     const tools = [...(files ? READ_TOOLS : []), ...(web ? WEB_TOOLS : []), ...(!chatOnly && deps.team ? ["Agent"] : [])];
     const key = JSON.stringify([prompt, tools, files?.cwd, reasoning, access]);
     const readOnly = !project && Boolean(attached);
@@ -452,26 +522,35 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
       entry.gate.newAnswer(files);
       // A new session without a resumable one gets the conversation so far as a transcript.
       let replayNote = opened && !resume ? selected.notice : undefined;
+      let history: RecallPayload["history"] = opened && !resume
+        ? { mode: "replay", suppliedMessages: selected.messages.length, omittedMessages: selected.start }
+        : { mode: "provider-session", suppliedMessages: 0, omittedMessages: null };
       let body = opened && !resume && turns.length ? promptFrom([...selected.messages, { role: "user", content: asked }]) : asked;
       if (!opened && entry.missed?.length) {
         const missed = replay(entry.missed, asked);
         if (missed.notice) {
+          history = { mode: "replay", suppliedMessages: selected.messages.length, omittedMessages: selected.start };
           body = promptFrom([...selected.messages, { role: "user", content: asked }]);
           replayNote = selected.notice;
         } else {
+          history = { mode: "provider-session-and-catchup", suppliedMessages: entry.missed.length, omittedMessages: null };
           const heard = entry.missed.map((m) => `${m.role === "user" ? "User" : "ATOM"}: ${m.content.trim()}`).join("\n");
           body = `Meanwhile, this chat went on elsewhere (another model, the phone or the window):\n${heard}\n\nThe user now says:\n${asked}`;
         }
         entry.missed = undefined;
       }
-      const opening = opened && !chatOnly ? (await quiet(() => deps.opening?.(chat, text)))?.trim() : undefined;
+      const opening = opened && !chatOnly ? await openingContext(chat, text) : [];
       const typed = deps.screenReplies && input.source === "text" ? TYPED_NOTE : undefined;
       const continuityNote = continuity && (opened || entry.continuityKey !== continuity.key) ? continuity.text : undefined;
-      const ctx = [opening, chatOnly ? undefined : addressed(text), typed, extra, replayNote, continuityNote].filter(Boolean).join("\n\n");
-      const message = ctx ? `${body}\n\n${CONTEXT_LABEL}\n${ctx}` : body;
+      const parts = [...opening, ...requiredPart("user.addressed-worker", chatOnly ? undefined : addressed(text)),
+        ...requiredPart("response.format", typed), ...extra, ...requiredPart("history.replay-notice", replayNote),
+        ...requiredPart("history.continuity", continuityNote)];
+      const ctx = composeContext(parts, context);
+      const message = ctx.text ? `${body}\n\n${CONTEXT_LABEL}\n${ctx.text}` : body;
       lastAttempt = entry;
       const stopObserving = deps.onSdkEvent ? entry.handle.onEvent((event) => deps.onSdkEvent!(chat, event)) : undefined;
       let reply: { text: string; sessionId?: string };
+      const finishRecall = recallAttempt(parts, ctx, history, context, chatOnly, signal);
       try {
         reply = await entry.handle.send(message, {
           clientComposed: chatOnly || Boolean(deps.clientComposed) || needsComposed(message),
@@ -479,6 +558,10 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
           ...(onText ? { onText } : {}),
         });
         if (continuity) entry.continuityKey = continuity.key;
+        finishRecall(signal.aborted ? "cancelled" : "completed");
+      } catch (error) {
+        finishRecall(signal.aborted ? "cancelled" : "failed");
+        throw error;
       } finally { stopObserving?.(); }
       return { ...reply, resumed: Boolean(resume) };
     };
@@ -515,8 +598,12 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
     const attached = !project && hasTools ? await quiet(() => deps.attachments?.turn(chat)) : undefined;
     const files = project?.files ?? attached?.files;
     const skill = chatOnly ? undefined : deps.skills?.use(text);
-    const extra = [chatOnly ? undefined : (await quiet(() => deps.context?.({ ...input, text }, context)))?.trim(), skill?.block, briefContext(chat), chatOnly ? CHAT_ONLY_NOTICE : permissionContext(chat), access === "ask-changes" ? ASK_CHANGES_NOTICE : access === "full" ? FULL_ACCESS_NOTICE : undefined].filter(Boolean).join("\n\n");
-    const opening = !chatOnly && turns.length === 0 ? (await quiet(() => deps.opening?.(chat, text)))?.trim() : undefined;
+    const extra: ChatContextPart[] = [...(chatOnly ? [] : await turnContext({ ...input, text }, context)),
+      ...requiredPart("user.skill", skill?.block), ...requiredPart("user.chat-brief", briefContext(chat)),
+      ...requiredPart("policy.permissions", chatOnly ? CHAT_ONLY_NOTICE : permissionContext(chat)),
+      ...requiredPart("policy.access", access === "ask-changes" ? ASK_CHANGES_NOTICE : access === "full" ? FULL_ACCESS_NOTICE : undefined)];
+    extra.push(...workflowParts(text, context, Boolean(project?.files), Boolean(deps.web) && (!files || files.web === true), !hasTools || Boolean(skill)));
+    const opening = !chatOnly && turns.length === 0 ? await openingContext(chat, text) : [];
     const archive = turns.map((m) => (!chatOnly && deps.attachments ? { ...m, content: deps.attachments.expand(chat, m.content) } : m));
     const asked = !chatOnly && deps.attachments ? deps.attachments.expand(chat, skill?.text ?? text) : skill?.text ?? text;
     const window = windows.get(chat);
@@ -526,11 +613,16 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
     const continuity = (await quiet(() => deps.continuity?.(chat, turns, selected.start)))?.text;
     if (turns[selected.start]) windows.set(chat, { start: selected.start, anchor: turns[selected.start]! });
     const notice = selected.notice ? `${selected.notice} ${chatOnly ? "Chat only disables archive tools; ask for missing context rather than inventing it." : hasTools ? "Use the own-chat history tools to recover earlier details before guessing." : "This provider has no archive tools; ask the user for the missing detail or suggest switching to Claude or Codex. Do not invent it."}` : undefined;
-    const response = await other.complete(
+    const parts = [...opening, ...extra, ...requiredPart("history.replay-notice", notice), ...requiredPart("history.continuity", continuity)];
+    const compiled = composeContext(parts, context);
+    const systemExtra = compiled.text;
+    const finishRecall = recallAttempt(parts, compiled, { mode: "replay", suppliedMessages: selected.messages.length, omittedMessages: selected.start }, context, chatOnly, signal);
+    let response;
+    try { response = await other.complete(
       {
         access,
         system: hasTools ? [CODEX_SYSTEM_PROMPT, project?.note, attached?.note].filter(Boolean).join("\n\n") : chatOnly ? CHAT_ONLY_SYSTEM_PROMPT : PLAIN_SYSTEM_PROMPT,
-        ...(opening || extra || notice || continuity ? { systemExtra: [opening, extra, notice, continuity].filter(Boolean).join("\n\n") } : {}),
+        ...(systemExtra ? { systemExtra } : {}),
         messages: [...selected.messages, { role: "user" as const, content: asked }],
         ...(hasTools ? { historyTools: historyTools(chat) } : {}),
         ...(hasTools ? { web: Boolean(deps.web) && (!files || files.web === true) } : {}),
@@ -542,9 +634,10 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
         ...(hooks?.onText ? { onText: hooks.onText } : {}),
       },
       signal,
-    );
+    ); } catch (error) { finishRecall(signal.aborted ? "cancelled" : "failed"); throw error; }
     const reply = response.text.trim();
-    if (!reply) throw new GatewayError("unknown", "other", "The model gave no reply.");
+    if (!reply) { finishRecall("failed"); throw new GatewayError("unknown", "other", "The model gave no reply."); }
+    finishRecall(signal.aborted ? "cancelled" : "completed");
     const entry = live.get(chat);
     if (entry && !entry.handle.closed) {
       if (entry.handle.background === 0) entry.handle.close("context_shared");

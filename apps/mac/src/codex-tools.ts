@@ -1,6 +1,6 @@
 import { chatAccessPolicy, CHAT_ONLY_NOTICE, type AccessApproval, type ChatAccessPolicy } from "./chat-access.ts";
 import type { ChatAccessMode } from "@atom/contracts";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { importedNoteResult } from "./brain-source-context.ts";
 import { readFile, writeFile, mkdir, readdir, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
@@ -13,12 +13,15 @@ import { nativeMembers, RESEARCH_PAGES } from "./native-agents.ts";
 import { CODEX_SKILL_BUDGET, CODEX_SKILL_CHARS, codexWorkerCapabilities, codexWorkerPrompt, observeCodexWorker } from "./codex-worker.ts";
 import { boardRecorder } from "./native-board.ts";
 import { nativeGate, type NativeGate } from "./native-safety.ts";
-import { planBook, withPlanTools } from "./native-plan.ts";
+import { planBook, withPlanTools, type PlanBook } from "./native-plan.ts";
 import type { NativeTeamDeps } from "./native-core.ts";
 import { withHistoryTools } from "./chat-history.ts";
 import { SKILL_NAME } from "./skills.ts";
 import { readPublicPage } from "./public-page.ts";
 import { prepareProjectInspection, PROJECT_INSPECTION_COMMANDS } from "./project-command.ts";
+import { taskRevisionObservation } from "./git-review.ts";
+import { fileVerificationSummary, taskFileChecks } from "@atom/helpers";
+import { captureVerificationWorkspace, verifyTaskFiles } from "./task-file-verification.ts";
 import { SECRET_SHAPES } from "./folder-run.ts";
 import { codexMcpServers, codexWorkerMcp } from "./codex-mcp.ts";
 import { codexWorkerBrowser } from "./codex-browser.ts";
@@ -61,7 +64,7 @@ export interface CodexToolRouterOptions {
 
 /** Codex requests policy-checked host tools; it never receives an unrestricted shell or direct write access. */
 export function createCodexToolRouter(options: CodexToolRouterOptions) {
-  const chats = new Map<string, { gate: NativeGate; board?: ReturnType<typeof boardRecorder>; tools: ToolRunner; cwd?: string; access: ChatAccessMode; policy: ChatAccessPolicy }>();
+  const chats = new Map<string, { gate: NativeGate; board?: ReturnType<typeof boardRecorder>; plans?: PlanBook; tools: ToolRunner; cwd?: string; project: boolean; access: ChatAccessMode; policy: ChatAccessPolicy }>();
   const running = new Map<number, AbortController>();
   const approvalSignal = new AsyncLocalStorage<AbortSignal | undefined>();
   const webAllowed = (req: ModelRequest): boolean => req.web === true && (!req.files || req.files.web === true) && options.webAllowed?.(req.context.sessionId) === true;
@@ -150,12 +153,11 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
   function state(req: ModelRequest) {
     const chat = req.context.sessionId;
     let entry = chats.get(chat);
-    if (entry && (entry.cwd !== req.files?.cwd || entry.access !== (req.access ?? "checked"))) { if (entry.board?.running().length) throw new Error("Wait for this chat's agent to finish before changing its project or access."); chats.delete(chat); entry = undefined; }
+    if (entry && (entry.cwd !== req.files?.cwd || entry.project !== (req.project === true) || entry.access !== (req.access ?? "checked"))) { if (entry.board?.running().length) throw new Error("Wait for this chat's agent to finish before changing its project or access."); chats.delete(chat); entry = undefined; }
     if (!entry) {
       const team = options.team;
       let gate: NativeGate;
       const board = team && boardRecorder(team.helpers, chat);
-      const plans = team && planBook(team.helpers, chat);
       const access = req.access ?? "checked";
       const policy = chatAccessPolicy(access, () => options.accessFor?.(chat) ?? "checked", options.approveAccess ? async (request, taskSignal) => {
         const caller = approvalSignal.getStore();
@@ -164,6 +166,8 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
         const allowed = await options.approveAccess!(request, signal);
         return allowed && !signal?.aborted;
       } : undefined);
+      const plans = team && planBook(team.helpers, chat, undefined, { projectRoot: req.project ? req.files?.cwd : undefined, web: webAllowed(req), approve: team.approve,
+        allowed: () => policy.isCurrent?.() === true && (!req.project || commandsAllowed(req)) });
       gate = nativeGate({
         access: policy,
         accessSignal: () => approvalSignal.getStore(),
@@ -199,10 +203,11 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
           },
         } : {}),
       });
-      entry = { gate, access, policy, ...(board ? { board } : {}), tools: plans ? withPlanTools(options.tools, plans) : options.tools, ...(req.files ? { cwd: req.files.cwd } : {}) };
+      entry = { gate, access, policy, project: req.project === true, ...(board ? { board } : {}), ...(plans ? { plans } : {}), tools: plans ? withPlanTools(options.tools, plans) : options.tools, ...(req.files ? { cwd: req.files.cwd } : {}) };
       chats.set(chat, entry);
     }
     entry.gate.newAnswer(req.files);
+    entry.plans?.setWebAvailable?.(webAllowed(req));
     return entry;
   }
 
@@ -380,7 +385,21 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
               if (readable.behavior !== "allow") return result(workerCall, readable.message ?? "That project target cannot be read.", true);
             }
             if (activeSignal.aborted || !commandAllowed()) return result(workerCall, "The task or project changed; no command ran.", true);
+            const attempt = team.helpers.taskEvidence?.(job);
+            const observed = attempt?.state === "running" && typeof team.helpers.recordTaskInspection === "function";
+            const before = observed ? await taskRevisionObservation(worker.cwd, AbortSignal.any([activeSignal, AbortSignal.timeout(250)])) : { state: "unavailable" as const };
+            if (activeSignal.aborted || !commandAllowed()) return result(workerCall, "The task or project changed; no command ran.", true);
             const answer = await runCodexProjectInspection({ program: options.program, cwd: worker.cwd, argv: prepared.argv, signal: activeSignal, allowed: commandAllowed });
+            if (observed) {
+              const after = await taskRevisionObservation(worker.cwd, AbortSignal.any([activeSignal, AbortSignal.timeout(250)]));
+              // Only host-owned execution metadata is persisted. Never infer test success or persist stdout/argv.
+              try {
+                team.helpers.recordTaskInspection?.(job, { id: randomUUID(), attempt: attempt!.attempt, utility: prepared.argv[0]!.split("/").at(-1)!,
+                  commandDigest: createHash("sha256").update(JSON.stringify(prepared.argv)).digest("hex"),
+                  workspaceDigest: createHash("sha256").update(worker.cwd).digest("hex"),
+                  exitCode: answer.exitCode ?? null, before, after });
+              } catch { /* An unavailable receipt does not change the execution outcome or grant a retry. */ }
+            }
             if (SECRET_SHAPES.some((pattern) => pattern.test(answer.text))) return result(workerCall, "Command output contained secret-shaped data and was withheld.", true);
             if (workerCall.input.command === "grep" && answer.exitCode === 1) return result(workerCall, "No matching lines.\n" + redact(answer.text));
             return result(workerCall, redact(answer.text), answer.isError);
@@ -443,11 +462,35 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
         const hook = (entry.gate.hooks.WorktreeCreate as { hooks: (() => Promise<any>)[] }[])[0]!.hooks[0]!;
         worker.cwd = (await hook()).hookSpecificOutput.worktreePath;
       }
+      const declared = team.helpers.latestPlan(req.context.sessionId)?.portions.find((p) => p.job === job);
+      const fileChecks = taskFileChecks(declared?.fileChecks);
+      const verificationWorkspace = fileChecks?.length ? captureVerificationWorkspace(worker.cwd) : undefined;
+      const verificationAttempt = fileChecks?.length ? team.helpers.taskEvidence?.(job) : undefined;
+      const recordVerification = team.helpers.recordTaskVerification?.bind(team.helpers);
       const system = codexWorkerPrompt(member, worker.cwd, Boolean(team.readAssignedSkill), hasWeb, hasCommands, mcpServers.map((s) => s.name), Boolean(config), advisory.specs.length > 0, hasPreviewReview);
       const reply = await createGateway({ provider: adapter, timeoutMs: 300_000, maxRetries: 0 }).complete({ system, messages: [{ role: "user", content: String(verdict.updatedInput?.prompt ?? call.input.prompt) }], context: { ...req.context, sessionId: `${req.context.sessionId}:job:${job}` } }, controller.signal);
       await advisory.close(); // A parent cannot finish while an unawaited child still owns a provider session.
+      if (controller.signal.aborted) throw new Error("The task was stopped before completion was recorded.");
+      let verificationNote = "";
+      if (fileChecks?.length) {
+        verificationNote = "\n\nATOM host file checks: unavailable; no matched result or whole-task correctness is claimed.";
+        if (hasCommands && verificationWorkspace && verificationAttempt?.state === "running" && recordVerification) {
+          const allowed = () => commandAllowed() && realish(worker.cwd) === verificationWorkspace.root
+            && (!options.accessFor || options.accessFor(req.context.sessionId) === (req.access ?? "checked"))
+            && team.helpers.taskEvidence?.(job)?.attempt === verificationAttempt.attempt;
+          try {
+            const checkSignal = AbortSignal.any([controller.signal, AbortSignal.timeout(3000)]);
+            const observed = await verifyTaskFiles({ workspace: verificationWorkspace, checks: fileChecks, signal: checkSignal, allowed,
+              readAllowed: async (path, check) => (await approvalSignal.run(check, () => checked(entry.gate, { id: randomUUID(), name: "Read", input: { file_path: path } }, worker))).behavior === "allow" });
+            if (allowed() && recordVerification(job, { id: randomUUID(), attempt: verificationAttempt.attempt, ...observed })) {
+              verificationNote = `\n\nATOM host receipt: ${fileVerificationSummary(observed.checks)}`;
+            }
+          } catch { /* A verification failure never rewrites the worker's report or fabricates evidence. */ }
+        }
+      }
+      if (controller.signal.aborted) throw new Error("The task was stopped before completion was recorded.");
       entry.board.onEvent({ type: "system", subtype: "task_notification", task_id: id, status: "completed", summary: reply.text });
-      return result(call, `${member.name}'s report (task ${job}):\n${reply.text}`);
+      return result(call, `${member.name}'s report (task ${job}):\n${reply.text}${verificationNote}`);
     } catch (error) {
       await advisory.close();
       entry.board.onEvent({ type: "system", subtype: "task_notification", task_id: id, status: controller.signal.aborted ? "stopped" : "failed", summary: redact(error instanceof Error ? error.message : "Codex task failed.") });

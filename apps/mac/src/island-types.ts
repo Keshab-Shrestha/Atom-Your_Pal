@@ -230,6 +230,8 @@ export interface IslandProjects {
 export interface IslandHelpers {
   /** Every helper with its newest jobs, in the fixed order. */
   list(): HelperItem[];
+  /** All active native jobs owned by one chat, without the recent-job display limit. */
+  activeNativeJobs?(chat: string): number[];
   /** Installed app names, sorted: the choices for `helper.set`. */
   apps(): Promise<string[]>;
   /** Throws, with words for the user, for an unknown helper. */

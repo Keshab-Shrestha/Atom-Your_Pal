@@ -182,7 +182,7 @@ export function taskStarter(deps: TaskTurnDeps): (helper: string, task: string, 
       try {
         if (attempt && deps.retryPending && !deps.retryPending(attempt.id)) return;
         deps.core.resume(chat, []);
-        await deps.core.handle({ text: `${name}, ${task}`, source: "text" });
+        await deps.core.handle({ text: `${name}, ${task}${attempt ? "\n\nThis is an explicit retry of the saved task. Use its host-bound plan if present; do not replace it, dispatch other portions or reuse earlier verification as a new result. Inspect existing effects before changing files." : ""}`, source: "text" });
         deps.log.info("task.turn", { helper, ok: true });
       } catch (error) {
         reason = reasonOf(error);

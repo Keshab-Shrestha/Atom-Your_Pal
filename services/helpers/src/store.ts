@@ -14,6 +14,14 @@ import { skillHubStore } from "./skill-hub.ts";
 import { mcpTable } from "./mcp.ts";
 import { usageTable } from "./usage.ts";
 import { toolCallTable } from "./tool-calls.ts";
+import { taskEvidenceTable } from "./task-evidence.ts";
+import { fileCheckManifest, taskFileChecks, verificationInput } from "./file-checks.ts";
+import { workflowTaskContract } from "./workflow-contract.ts";
+import { workflowReference } from "./workflow-routing.ts";
+import { workflowRetryContext } from "./workflow-retry.ts";
+import { parseWriteScope } from "./write-scopes.ts";
+import { planRepairStore } from "./workflow-repair.ts";
+import { workflowRecovery } from "./workflow-recovery.ts";
 import { planTable, viewOfPlan, type StoredPlan } from "./plans.ts";
 import { auditTable } from "./audit.ts";
 import { checkpointTable } from "./checkpoints.ts";
@@ -215,6 +223,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const mcp = mcpTable(db);
   const tokens = usageTable(db, now);
   const toolCalls = toolCallTable(db); // B3.1
+  const taskEvidence = taskEvidenceTable(db, opened); // ADR-204: independent host attempts and inspection receipts
   const workPlans = planTable(db, now); // ADR-111
   const dropPlanLink = db.prepare("DELETE FROM plan_jobs WHERE job_id = ?"); // a removed task frees its portion (it showed "running" for ever)
   const unlinkParent = db.prepare("UPDATE jobs SET parent_id = NULL WHERE parent_id = ?");
@@ -263,7 +272,10 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     return row ? toJob(row) : undefined;
   };
 
-  const log = (id: number, kind: Activity["kind"], at = now()) => insertEvent.run(id, kind, at.toISOString());
+  const log = (id: number, kind: Activity["kind"], at = now()) => {
+    taskEvidence.transition(id, kind, at);
+    return insertEvent.run(id, kind, at.toISOString());
+  };
 
   /** Blockers checked: unique, at most MAX_BLOCKERS, each an existing task that has not failed or been stopped. */
   function checkBlockers(raw: readonly number[], self?: number): number[] {
@@ -427,8 +439,16 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   });
 
   /** ADR-111: a stored plan with the state of each portion, read from the Board jobs. */
-  const planView = (stored: StoredPlan): PlanView =>
-    viewOfPlan(stored, workPlans.jobs(stored.id), (job) => get(job)?.state, (agent) => (roster().some((m) => m.id === agent) ? current(agent).name : agent));
+  const planView = (stored: StoredPlan): PlanView => {
+    const view = viewOfPlan(stored, workPlans.jobs(stored.id), (id) => {
+      const job = get(id);
+      return job?.retryOf !== undefined && job.state === "queued" ? "waiting" : job?.state;
+    }, (agent) => (roster().some((m) => m.id === agent) ? current(agent).name : agent), repairs.ofPlan(stored));
+    return { ...view, portions: view.portions.map((p) => {
+      const id = p.resultJob ?? p.job;
+      return { ...p, recovery: workflowRecovery(p, id === undefined ? undefined : get(id), id === undefined ? undefined : taskEvidence.stateOf(id)) };
+    }) };
+  };
 
   // What the method groups in store-routines.ts and store-mcp.ts need from this closure.
   const reportOf: HelperStore["report"] = (id) => {
@@ -436,6 +456,62 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       if (!row) return undefined;
       return { jobId: row.job_id, title: row.title, summary: row.summary, body: row.body, sources: JSON.parse(row.sources) as Source[] };
   };
+
+  const retryLineage = (job: Job): Job[] => {
+    const chain: Job[] = [], seen = new Set<number>();
+    let current = job;
+    while (true) {
+      if (seen.has(current.id) || chain.length >= 1000) throw new HelperError("The retry lineage is unavailable. Review the original task before starting new work.");
+      seen.add(current.id); chain.push(current);
+      if (current.retryOf === undefined) return chain;
+      const parent = get(current.retryOf);
+      if (!parent) throw new HelperError("The original retry task was removed; its workflow context cannot be recovered safely.");
+      current = parent;
+    }
+  };
+  const retrySource = (job: Job) => {
+    for (const source of retryLineage(job)) {
+      const linked = workPlans.ofJob(source.id);
+      if (!linked) continue;
+      const portion = linked.plan.portions.find((p) => p.n === linked.n);
+      if (!portion || linked.plan.chatId !== source.chatId || portion.agent !== source.helper || portion.task !== source.task) throw new HelperError("The original task's plan binding changed. Review it before retrying.");
+      workflowTaskContract(portion.contract); workflowReference(portion.workflow); taskFileChecks(portion.fileChecks);
+      parseWriteScope(portion.writeScope); workflowRetryContext(portion.retryContext);
+      return { ...linked, portion, job: source };
+    }
+  };
+  const nativeRetryPlan: HelperStore["nativeRetryPlan"] = (chatId) => {
+    const found = retryInChat.get(chatId) as { id: number } | undefined;
+    if (!found) {
+      if (/^task-retry-\d+$/.test(chatId)) throw new HelperError("That retry intent no longer exists. Review the original task instead.");
+      return;
+    }
+    const job = mustGet(found.id), linked = workPlans.ofJob(job.id);
+    if (job.retryOf === undefined) throw new HelperError("This chat has no persisted retry intent.");
+    const source = retrySource(mustGet(job.retryOf));
+    if (linked) {
+      const portion = linked.plan.portions[0], context = workflowRetryContext(portion?.retryContext);
+      if (linked.plan.chatId !== chatId || linked.plan.id !== workPlans.latestOf(chatId)?.id || linked.plan.portions.length !== 1
+        || linked.n !== 1 || portion?.n !== 1 || portion.after.length || portion.agent !== job.helper || portion.task !== job.task
+        || !context || context.previousJob !== job.retryOf || !source || context.sourceJob !== source.job.id
+        || context.sourcePlan !== source.plan.id || context.sourcePortion !== source.n || linked.plan.goal !== source.plan.goal
+        || (["contract", "workflow", "fileChecks", "writeScope", "scopeBinding"] as const).some((field) => JSON.stringify(portion[field]) !== JSON.stringify(source.portion[field]))) throw new HelperError("This retry's saved workflow binding is unavailable or changed; it cannot run with a replacement plan.");
+      workflowTaskContract(portion.contract); workflowReference(portion.workflow); taskFileChecks(portion.fileChecks); parseWriteScope(portion.writeScope);
+      return { job: job.id, plan: planView(linked.plan) };
+    }
+    if (source || workPlans.latestOf(chatId)) throw new HelperError("This retry is missing its original workflow binding. No uncontracted fallback is allowed.");
+    return { job: job.id }; // A legacy task with no plan keeps its existing explicit retry path.
+  };
+  const nativeWorkflowScope: HelperStore["nativeWorkflowScope"] = (chatId) => {
+    const retry = retryInChat.get(chatId) as { id: number } | undefined;
+    const lineage = retry ? retryLineage(mustGet(retry.id)) : undefined;
+    const rootChat = lineage?.[lineage.length - 1]?.chatId ?? chatId;
+    // UNION (not UNION ALL) also terminates safely for malformed descendant cycles.
+    const rows = db.prepare("WITH RECURSIVE family(id) AS (SELECT id FROM jobs WHERE chat_id = ? UNION SELECT j.id FROM jobs j JOIN family f ON j.retry_of = f.id) SELECT j.* FROM jobs j JOIN family f ON f.id = j.id WHERE j.state = 'running' ORDER BY j.id").all(rootChat) as unknown as JobRow[];
+    return { chatId: rootChat, jobs: rows.map(toJob) };
+  };
+  const repairs = planRepairStore(db, { plans: workPlans, get, report: reportOf, evidence: (id) => taskEvidence.of(id),
+    retry: nativeRetryPlan, view: planView, scope: nativeWorkflowScope, transaction, now });
   const ctx: StoreContext = {
     now, emit, routines, mcp, roster, availableHelper, cleanTask, get, mustGet, mustHelper, current, report: reportOf, tests, skills, proposals, tinkerOf,
     workPlans, planView, toolCalls, checkpoints, grantsOf, newSoulVersion, writeBack, soulRow, putRating, jobById, askTinker,
@@ -680,6 +756,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       if (!reserved && /^task-retry-\d+$/.test(links.chatId)) throw new HelperError("That retry attempt no longer exists. Start a new task instead.");
       if (reserved) {
         const attempt = mustGet(reserved.id);
+        nativeRetryPlan(links.chatId); // Refuse missing/replaced saved contracts before claiming this intent.
         if (attempt.helper !== helper) throw new HelperError("This retry is reserved for its original worker.");
         if (attempt.state !== "queued" || Number(claim.run(attempt.id).changes) !== 1) throw new HelperError("This retry attempt was already dispatched. Review its task instead of starting it again.");
         log(attempt.id, "running");
@@ -699,8 +776,22 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       return mustGet(id);
     },
 
+    runningNativeJobs(chatId) {
+      return (db.prepare("SELECT * FROM jobs WHERE chat_id = ? AND state = 'running' ORDER BY id").all(chatId) as unknown as JobRow[]).map(toJob);
+    },
+
+    nativeRetryPlan,
+    nativeWorkflowScope,
+
+    preparePlanRepair: repairs.prepare,
+    acceptPlanRepair(chat, plan, portion, retry, reviewDigest) {
+      const receipt = repairs.accept(chat, plan, portion, retry, reviewDigest);
+      emit({ action: "plan_work", plan, portion });
+      return receipt;
+    },
+
     queueNativeRetry(id) {
-      let attempt = 0, created = false;
+      let attempt = 0, created = false, retryPlanId: number | undefined;
       transaction(() => {
         const old = mustGet(id);
         if (old.nativeScope === "advisory") throw new HelperError("Advisory children cannot retry independently. Ask their parent for a new bounded review.");
@@ -710,11 +801,38 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         }
         if (old.state !== "failed" && old.state !== "stopped") throw new HelperError("Only a failed or stopped task can be tried again.");
         availableHelper(old.helper);
+        const source = retrySource(old);
+        if (source && source.portion.agent !== old.helper) throw new HelperError("The original workflow's worker no longer matches this retry.");
         attempt = insertTask(old.helper, old.task, [], { goal: null, parentId: null, goalId: null, planFirst: false });
         linkRetry.run(id, `task-retry-${attempt}`, attempt);
         rememberRetry.run(attempt, id);
+        if (source) {
+          const inherited = workflowRetryContext(source.portion.retryContext);
+          const links = workPlans.jobs(source.plan.id);
+          const sourceView = planView(source.plan);
+          const excerpt = (text: string, length: number) => text.replace(/\s+/g, " ").trim().slice(0, length);
+          const prerequisites = inherited?.prerequisites ?? source.portion.after.map((n) => {
+            const portion = source.plan.portions.find((p) => p.n === n);
+            const observed = sourceView.portions.find((p) => p.n === n);
+            const jobId = observed?.resultJob ?? links.find((p) => p.n === n)?.job;
+            const job = jobId !== undefined ? get(jobId) : undefined;
+            const accepted = observed?.repair?.state === "accepted" && observed.repair.receipt.retryJob === jobId;
+            if (!portion || !job || observed?.state !== "done" || job.state !== "done" || job.chatId !== source.plan.chatId && !accepted) throw new HelperError("A prerequisite's saved outcome is unavailable. Review the original plan before retrying this portion.");
+            const report = reportOf(job.id);
+            return { n, agent: portion.agent, title: report ? excerpt(report.title, 80) : "Report unavailable",
+              summary: report ? excerpt(report.summary, 160) : "No saved report is available; no prerequisite result is inferred.",
+              ...(report ? { body: excerpt(report.body, 1200) } : {}), ...(accepted ? { repairJob: job.id } : {}) };
+          });
+          const retryContext = workflowRetryContext({ schema: "atom.workflow-retry/v1", previousJob: old.id, sourceJob: source.job.id,
+            sourcePlan: source.plan.id, sourcePortion: source.n, prerequisites })!;
+          // Keep the original binding exactly. Admission rechecks the selected project; never rebind to a new folder.
+          retryPlanId = workPlans.add(`task-retry-${attempt}`, { goal: source.plan.goal,
+            portions: [{ ...source.portion, n: 1, after: [], retryContext }] });
+          if (!workPlans.link(retryPlanId, 1, attempt)) throw new HelperError("The retry's plan could not be bound to its queued attempt.");
+        }
         log(id, "retried"); created = true;
       });
+      if (retryPlanId !== undefined) emit({ action: "plan_work", plan: retryPlanId, portion: 1 });
       if (created) emit({ action: "job", helper: mustGet(attempt).helper, job: attempt, state: "queued" });
       return { job: mustGet(attempt), created };
     },
@@ -853,6 +971,33 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     },
 
     report: reportOf,
+    taskEvidence: (id) => get(id) ? taskEvidence.of(id) : undefined,
+    recordTaskInspection(id, receipt) {
+      const job = get(id);
+      if (!job || job.state !== "running" || job.nativeScope === "advisory") return false;
+      return taskEvidence.record(id, receipt, now());
+    },
+    recordTaskVerification(id, receipt) {
+      const job = get(id), checked = verificationInput(receipt);
+      if (!job || job.state !== "running" || !job.chatId || job.nativeScope === "advisory" || !checked) return false;
+      const plan = workPlans.latestOf(job.chatId);
+      const linked = plan && workPlans.jobs(plan.id).find((p) => p.job === id);
+      const portion = linked && plan!.portions.find((p) => p.n === linked.n);
+      try {
+        const declared = portion && taskFileChecks(portion.fileChecks);
+        if (!declared?.length || fileCheckManifest(declared) !== checked.manifestDigest || declared.length !== checked.checks.length) return false;
+        for (const [index, result] of checked.checks.entries()) {
+          const c = declared[index]!;
+          const matched = c.kind === "exists" ? "file_present" : c.kind === "contains" ? "literal_present" : "digest_matches";
+          const mismatched = c.kind === "contains" ? "literal_missing" : c.kind === "sha256" ? "digest_mismatch" : "file_missing";
+          if (result.state === "matched" && result.reason !== matched
+            || result.state === "not-matched" && result.reason !== "file_missing" && result.reason !== mismatched
+            || c.kind === "sha256" && result.state === "matched" && result.snapshot !== c.expected
+            || c.kind === "sha256" && result.reason === "digest_mismatch" && result.snapshot === c.expected) return false;
+        }
+        return taskEvidence.recordVerification(id, checked, now());
+      } catch { return false; } // Corrupt/changed declarations cannot acquire a success receipt.
+    },
 
     start(id) {
       const job = mustGet(id);
@@ -868,6 +1013,16 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       if (Number(setStep.run(text, id).changes) === 0) return false;
       emit({ action: "step", helper: get(id)!.helper, job: id });
       return true;
+    },
+
+    stageNativeReport(id, report) {
+      const job = get(id);
+      if (!job?.chatId || job.state !== "running" || job.nativeScope === "advisory") return false;
+      const sources = webSources(report.sources).map((s) => ({ title: s.title, url: s.url }));
+      const changed = Number(db.prepare("INSERT OR REPLACE INTO reports(job_id, title, summary, body, sources) SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM jobs WHERE id = ? AND state = 'running' AND chat_id IS NOT NULL AND native_scope IS NULL)")
+        .run(id, report.title, report.summary, report.body, JSON.stringify(sources), id).changes) > 0;
+      if (changed) emit({ action: "job", helper: job.helper, job: id, state: "running" });
+      return changed;
     },
 
     finish(id, report, partial = false) {

@@ -191,6 +191,23 @@ test("a background turn ending cannot clear the status of a worker that still ru
   } finally { await h.send({ type: "quit" }); store.close(); }
 });
 
+test("talk.cancel stops background native workers only in the current chat after its foreground loop is idle", async () => {
+  const store = openHelperStore({ path: ":memory:" });
+  const own = store.addNativeJob("quill", "Cedar current chat", { chatId: "cedar" });
+  const other = store.addNativeJob("penny", "Cedar other chat", { chatId: "other" });
+  const h = islandHarness({ helpers: islandHelpers(store, async () => []),
+    core: { sessionId: "cedar", reset() {}, async handle() { return { requestId: "r", text: "Cedar" }; } } });
+  try {
+    await tick(2);
+    assert.equal(h.session.loop.state, "idle");
+    await h.send({ type: "talk.cancel" });
+    assert.equal(store.get(own.id)?.state, "stopped");
+    assert.equal(store.get(other.id)?.state, "running");
+    await h.send({ type: "talk.cancel" });
+    assert.equal(store.get(other.id)?.state, "running", "repeated Stop cannot broaden to another chat");
+  } finally { await h.send({ type: "quit" }); store.close(); }
+});
+
 test("a foreground reply ending cannot replace another task's pending approval with Thinking or Ready", async () => {
   const activity = taskActivityFixture(); const bridge = createComputerBridge();
   let release!: () => void; const pending = new Promise<void>((r) => { release = r; });

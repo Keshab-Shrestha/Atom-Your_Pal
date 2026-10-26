@@ -39,6 +39,9 @@ struct ChatTaskResults: View {
                                 }.buttonStyle(.borderless)
                             }
                             if selected == item.id {
+                                if model.helpers.thread?.id == item.id, let evidence = model.helpers.thread?.executionEvidence {
+                                    TaskEvidenceSection(evidence: evidence)
+                                }
                                 if model.helpers.thread?.id == item.id, let report = model.helpers.thread?.report {
                                     Text("Agent report · check claims are reported, not independently certified by ATOM")
                                         .appFont(.system(size: 11)).foregroundStyle(theme.text3.color)

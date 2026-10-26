@@ -242,6 +242,13 @@ public struct TaskActivity: Sendable, Equatable {
     }
 }
 
+/// Host-owned execution metadata; it never certifies a worker's natural-language claims.
+public struct TaskExecutionEvidence: Sendable, Equatable {
+    public var summary: String
+    public var details: String
+    public init(summary: String, details: String) { self.summary = summary; self.details = details }
+}
+
 /// The `thread` event: a task's notes, activity and report (ADR-087, Task 3.4).
 public struct HelperThread: Sendable, Equatable {
     public var id: Int
@@ -260,10 +267,12 @@ public struct HelperThread: Sendable, Equatable {
     public var checkpoints: [HelperCheckpoint]
     /// B3.4: a command ran, so files may have changed that ATOM did not track.
     public var bashRan: Bool
+    public var executionEvidence: TaskExecutionEvidence?
 
     public init(id: Int, comments: [TaskComment], activity: [TaskActivity], report: HelperReport? = nil, goal: HelperGoal? = nil,
                 plan: JobPlan? = nil, handOffs: [Int] = [], testSkills: [String] = [], toolCalls: [HelperToolCall] = [],
-                checkpoints: [HelperCheckpoint] = [], bashRan: Bool = false) {
+                checkpoints: [HelperCheckpoint] = [], bashRan: Bool = false, executionEvidence: TaskExecutionEvidence? = nil) {
+        self.executionEvidence = executionEvidence
         self.checkpoints = checkpoints
         self.bashRan = bashRan
         self.toolCalls = toolCalls

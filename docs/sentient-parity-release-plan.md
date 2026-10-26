@@ -4,6 +4,10 @@
 
 Keshab requested a plan for the discovered note-search bug, release readiness and full Sentient parity. This extends the [initial seven-group adoption plan](sentient-adoption-plan.md); it does not reclassify implemented code as accepted product behavior. Execute one capability at a time, recording evidence and unresolved cases before moving on.
 
+26 October research addendum: the [Oh My Hermes inquiry](oh-my-hermes-feature-inquiry.md) proposes memory explanations, stronger completion evidence, measured context budgets and extensions to existing task dependencies. These are not implemented or newly accepted scope. Preserve release-first ordering and the policies below. Later TASK.md evidence supersedes this plan's historical implementation/acceptance checkpoints.
+
+Subsequent decision: Keshab authorized [ATOM-native OMH orchestration](omh-native-orchestration.md). Its first task-contract slice is implemented but not live-accepted. Broader routing, budgets, evidence, repair and memory changes remain staged work; this does not certify release readiness or replace the existing parity backlog.
+
 ## Baseline and completion definitions
 
 - ATOM: `010ffe1`, pushed to main. All seven initial coding groups exist. The [results](sentient-adoption-results.md) record automated and bounded native evidence; their older intermediate remaining lists are historical when superseded by newer sections.

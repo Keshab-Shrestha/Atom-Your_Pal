@@ -395,6 +395,8 @@ Kept chats (ADR-097):
 - The embedding model runs on this Mac. Its file downloads once from Hugging Face into `models/huggingface`. After that, no chat text leaves the Mac for the search.
 - Logs record chat ids, counts and states only. Logs never record chat text.
 
+Recall context receipts (ADR-207) retain only host-selected fact IDs/reasons, source-group byte decisions and request outcome metadata in the existing local memory DB, bounded to eight per chat and 1,000 per owner. No fact/query text, prompt, reply or source path is copied. Same-chat inspection is read-only; deleting a chat clears its receipts and late finishes cannot recreate them. Receipts neither certify model use nor grant access; previously sent copies can remain in provider sessions. [Collector coverage and limits](docs/omh-memory-receipts.md).
+
 ---
 
 ## 18. Knowledge Security

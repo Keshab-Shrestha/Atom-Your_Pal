@@ -15,6 +15,15 @@ export * from "./checkpoints.ts";
 export * from "./test-cases.ts";
 export { MAX_LABELS, type TaskSearchHit } from "./search.ts";
 export * from "./work-plan.ts";
+export * from "./workflow-contract.ts";
+export * from "./workflow-retry.ts";
+export * from "./workflow-repair.ts";
+export * from "./workflow-recovery.ts";
+export * from "./workflow-routing.ts";
+export * from "./task-evidence.ts";
+export * from "./file-checks.ts";
+export * from "./context-budget.ts";
+export * from "./write-scopes.ts";
 export * from "./audit.ts";
 
 export * from "./file-preview.ts";

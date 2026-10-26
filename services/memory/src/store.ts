@@ -13,6 +13,7 @@ import { openChatIndex, type ChatIndex } from "./chat-index.ts";
 import { openProjects, type ProjectStore } from "./projects.ts";
 import { openSuggestions, type Suggestions } from "./suggestions.ts";
 import { openBriefs, type Briefs } from "./briefs.ts";
+import { openRecallReceipts, type RecallReceipts } from "./recall-receipts.ts";
 
 // ADR-058: facts the user asks ATOM to keep, in one local SQLite file. Each memory has an owner, a scope,
 // provenance and a lifecycle (SECURITY.md §17). Forgetting deletes the row.
@@ -84,6 +85,7 @@ export interface MemoryStore {
   /** ADR-091: Keshab's chat sessions. */
   readonly chats: ChatStore;
   readonly chatContinuity?: ChatContinuityStore;
+  readonly recallReceipts?: RecallReceipts;
   readonly foreground: ForegroundStore;
   readonly filePermissions: FilePermissions;
   /** The second brain: notes that link to each other (brain.ts). */
@@ -232,6 +234,7 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
   const foreground = openForeground(db, now);
   const chats = openChats(db, now, (id) => { filePermissions.forChat(id).revokeAll(); foreground.forgetChat(id); });
   const chatContinuity = openChatContinuity(db);
+  const recallReceipts = openRecallReceipts(db, owner, now);
   const chatIndex = openChatIndex(db, now);
   const projects = openProjects(db, now);
   const brain = openBrain(db, now);
@@ -243,6 +246,7 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
   return {
     chats,
     chatContinuity,
+    recallReceipts,
     foreground,
     filePermissions,
     brain,

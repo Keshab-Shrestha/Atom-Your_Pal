@@ -42,7 +42,7 @@ import { createCodexToolRouter } from "./codex-tools.ts";
 import { createNoteModel, createNotes } from "./notes.ts";
 import { createChatUsageRecorder, createOverheadRecorder } from "./usage-report.ts";
 import { makePrivate, ownFolders } from "./private-files.ts";
-import { createNativeCore, type NativeCore } from "./native-core.ts";
+import { createNativeCore, type NativeCore, type ChatContextPart } from "./native-core.ts";
 import { randomUUID } from "node:crypto";
 import { createTinkerRun } from "./tinker.ts";
 import { startTinkerRunner, TINKER_TIME_LIMIT_MS, type TinkerRunner } from "./tinker-runner.ts";
@@ -55,7 +55,7 @@ import {
   DEFAULT_MAX_MEMORIES,
   episodeContext,
   MEMORY_GUIDANCE,
-  memoryContext,
+  memoryContextSelection,
 } from "@atom/memory";
 import {
   createScheduleTool,
@@ -64,6 +64,7 @@ import {
   isFinal,
   type TestKind,
   type HelperView,
+  type ContextPart,
 } from "@atom/helpers";
 import { createLayaEngine, acceptedComputerPlan } from "@atom/decision-engine";
 import type { InputSource, Message, ZenoInput } from "@atom/contracts";
@@ -330,6 +331,7 @@ export function createRuntime(
       });
       if (result.ok && result.info) {
         result.continuity = continuity?.inspect(command.id);
+        result.recall = memory.recallReceipts?.inspect(command.id);
         const choice = chatChoice(command.id, "text");
         const projectId = projects?.projectOf(command.id);
         const project = projectId ? projects?.island.list().find((p) => p.id === projectId) : undefined;
@@ -344,6 +346,7 @@ export function createRuntime(
     remove: (id) => {
       chatTurns.markDeleted(id); // a turn running in it must not save it back
       continuity?.forget(id);
+      memory.recallReceipts?.forget(id);
       episodes?.discard(id); // ADR-108: no note for a deleted chat
       attachments?.remove(id); // ADR-113: and none of its files
       return memory.chats.remove(id);
@@ -788,16 +791,32 @@ export function createRuntime(
               if (!other) otherModels.set(id, (other = createModel(choice, apiKey)));
               return other;
             },
-            context: (input: ZenoInput) => [nowLine(), memory ? memoryContext(input.text, { store: memory }) : undefined, screen.take()].filter(Boolean).join("\n\n"),
+            contextParts: (input: ZenoInput): ChatContextPart[] => {
+              const facts = memory ? memoryContextSelection(input.text, { store: memory }) : undefined;
+              const pointed = screen.take();
+              return [{ id: "turn.time", kind: "required", text: nowLine() },
+                ...(facts ? [{ id: "turn.memory-facts", kind: "required" as const, text: facts.text ?? "", memorySelection: facts.selection }] : []),
+                ...(pointed ? [{ id: "turn.pointed-window", kind: "required" as const, text: pointed }] : [])];
+            },
+            onRecall: (event) => {
+              if (chatTurns.wasDeleted(event.chat)) return;
+              try { memory?.recallReceipts?.record(event); }
+              catch { log.warn("chat.recall_receipt_unavailable", { stage: event.kind }); }
+            },
             // Phase N3: no team line: the agents reach Claude Code as its agent listing ("Name: role"), and the
             // line named the legacy delegate tool, which the native engine does not have.
-            opening: async (chatId: string, text: string) =>
-              [
-                memory ? MEMORY_GUIDANCE : undefined,
-                await keptChats?.context(text).catch((error: unknown) => void log.warn("memory.kept_search_failed", { message: describe(error) })),
-                memory && episodes ? episodeContext(memory, taskContextChat(chatId)) : undefined,
-                projects?.digest(taskContextChat(chatId)),
-              ].filter(Boolean).join("\n\n"),
+            openingParts: async (chatId: string, text: string): Promise<ContextPart[]> => {
+              const kept = await keptChats?.context(text).catch((error: unknown) => void log.warn("memory.kept_search_failed", { message: describe(error) }));
+              const recent = memory && episodes ? episodeContext(memory, taskContextChat(chatId)) : undefined;
+              const digest = projects?.digest(taskContextChat(chatId));
+              return [
+                ...(memory ? [{ id: "opening.memory-guidance", kind: "required" as const, text: MEMORY_GUIDANCE }] : []),
+                ...(kept ? [{ id: "opening.kept-chat-hits", kind: "optional" as const, priority: 100, text: kept }] : []),
+                ...(recent ? [{ id: "opening.recent-episodes", kind: "optional" as const, priority: 60, text: recent }] : []),
+                // This digest describes THIS chat, so retain it with continuity rather than treating it as optional discovery.
+                ...(digest ? [{ id: "opening.current-chat-digest", kind: "required" as const, text: digest }] : []),
+              ];
+            },
             ...(projects ? { project: (chatId: string) => projects.turn(taskContextChat(chatId)) } : {}),
             ...(attachments ? { attachments: { turn: (chatId: string) => attachments.turn(taskContextChat(chatId)), expand: (chatId: string, text: string) => attachments.expand(taskContextChat(chatId), text) } } : {}),
             // A skill of the name first, then one of Keshab's Claude commands (ADR-117): both are "/name words".

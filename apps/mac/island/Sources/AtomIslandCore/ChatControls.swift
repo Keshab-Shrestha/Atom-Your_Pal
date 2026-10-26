@@ -38,6 +38,11 @@ public struct ChatHistoryCursor: Sendable, Equatable {
 }
 
 public struct ChatControlResponse: Codable, Sendable, Equatable {
+    public struct Recall: Codable, Sendable, Equatable {
+        public let summary: String
+        public let details: String
+        public let at: String
+    }
     public struct Continuity: Codable, Sendable, Equatable {
         public struct Summary: Codable, Sendable, Equatable {
             public struct Item: Codable, Sendable, Equatable {
@@ -106,6 +111,7 @@ public struct ChatControlResponse: Codable, Sendable, Equatable {
     public let revision: String?
     public let brief: ChatBrief?
     public let continuity: Continuity?
+    public let recall: Recall?
     public let info: Info?
     public let page: Page?
     public let branch: Branch?

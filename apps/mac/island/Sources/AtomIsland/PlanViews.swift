@@ -12,7 +12,7 @@ struct PlanDots: View {
         HStack(spacing: 4) {
             ForEach(plan.portions) { portion in
                 Circle()
-                    .fill(color(portion.state))
+                    .fill(portion.recoveryState.needsReview ? theme.problem.color : color(portion.state))
                     .frame(width: 7, height: 7)
                     .opacity(portion.state == .waiting ? 0.55 : 1)
             }
@@ -49,6 +49,16 @@ struct PlanCard: View {
                 PlanDots(plan: plan)
             }
             .padding(.horizontal, 16).padding(.vertical, 12)
+            if plan.needsRecoveryReview {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(plan.recoveryTitle).appFont(.system(size: 12, weight: .semibold)).foregroundStyle(theme.problem.color)
+                    Text(plan.recoverySummary).appFont(.system(size: 11)).foregroundStyle(theme.text.color)
+                    Text("Open affected tasks and review existing changes before choosing Retry. This summary does not restart work.")
+                        .appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 16).padding(.bottom, 12)
+            }
             ForEach(plan.portions) { portion in
                 Rectangle().fill(theme.separator.color).frame(height: theme.isFlat ? 1 : 0.5)
                 PlanPortionRow(model: model, plan: plan, portion: portion)
@@ -72,11 +82,24 @@ private struct PlanPortionRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(portion.task).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color).lineLimit(2)
                 Text("\(portion.name) · \(portion.stateText(portions: plan.portions))")
-                    .appFont(.system(size: 11)).foregroundStyle(portion.state == .failed || portion.state == .blocked ? theme.problem.color : theme.text3.color)
+                    .appFont(.system(size: 11)).foregroundStyle(portion.recoveryState.needsReview ? theme.problem.color : theme.text3.color)
+                if portion.resultJob != nil {
+                    Text("Report only · files stay in their workspace")
+                        .appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
+                }
+                if let detail = portion.recoveryDetail {
+                    Text(detail).appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer(minLength: 8)
-            if let job = portion.job {
-                QuietButton(title: portion.state == .done ? "Report" : "Open") { model.navigate { model.sendHelpers(model.helpers.openThread(job)) } }
+            if let result = portion.resultJob {
+                QuietButton(title: "Retry report") { model.navigate { model.sendHelpers(model.helpers.openThread(result)) } }
+                if let original = portion.job {
+                    QuietButton(title: "Original") { model.navigate { model.sendHelpers(model.helpers.openThread(original)) } }
+                }
+            } else if let job = portion.job {
+                QuietButton(title: portion.recoveryState.needsReview ? "Review" : portion.state == .done ? "Report" : "Open") { model.navigate { model.sendHelpers(model.helpers.openThread(job)) } }
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 9)

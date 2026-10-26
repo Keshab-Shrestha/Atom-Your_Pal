@@ -110,6 +110,20 @@ struct ConversationControls: View {
                     }.padding(.top, 6)
                 }
             } else { Text("Send a message to save this chat, or refresh its details.") }
+            if let saved = model.chatControls.snapshot, saved.id == model.savedChat?.id, let recall = saved.recall {
+                Divider()
+                Text("Latest recorded request").fontWeight(.medium)
+                Text(recall.summary)
+                DisclosureGroup("Memory context details") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Prepared: " + recall.at).foregroundStyle(theme.text3.color)
+                        Text(recall.details).textSelection(.enabled)
+                    }.padding(.top, 6)
+                }
+            } else {
+                Text("No memory context record is available here yet. Records start with requests made by the updated runtime.")
+                    .foregroundStyle(theme.text3.color)
+            }
             if let continuity = model.chatControls.snapshot?.continuity {
                 Divider()
                 Text("Older-message summaries").fontWeight(.medium)

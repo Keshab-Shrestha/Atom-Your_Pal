@@ -9,7 +9,7 @@ import { redact, tokensOf, toolCallRecorder } from "@atom/llm-gateway";
  * description; the sources are the web addresses in the text. Logs ids and states only, never text.
  */
 
-export type BoardStore = Pick<HelperStore, "get" | "step" | "finish" | "fail" | "stop" | "recordToolCall" | "addUsage" | "linkNativeTask" | "list" | "setModel" | "recoverNativeJob">;
+export type BoardStore = Pick<HelperStore, "get" | "step" | "finish" | "fail" | "stop" | "recordToolCall" | "addUsage" | "linkNativeTask" | "list" | "setModel" | "recoverNativeJob"> & Partial<Pick<HelperStore, "stageNativeReport">>;
 
 export interface BoardRecorder {
   /** The gate made a job for this Agent call (its tool_use_id). */
@@ -55,6 +55,8 @@ export function boardRecorder(
   options: {
     /** After a sub-agent stops: retain its working copy and report, free the browser. No implicit commit. */
     onEnd?(job: number): void | Promise<void>;
+    /** Return a bounded host readback for this job, or undefined to keep ordinary completion synchronous. */
+    beforeReport?(job: number): ((signal: AbortSignal) => Promise<void>) | undefined;
     log?(event: string, fields: Record<string, unknown>): void;
   } = {},
 ): BoardRecorder {
@@ -65,6 +67,7 @@ export function boardRecorder(
   const countedMessages = new Set<string>(); // assistant message ids whose usage is already recorded
   const metered = new Set<number>(); // jobs whose usage came per message: their AgentOutput is not counted again
   const ended = new Set<number>();
+  const finishing = new Map<number, { controller: AbortController; promise: Promise<void> }>();
   const timelines = new Map<number, ReturnType<typeof toolCallRecorder>>();
   const log = (event: string, fields: Record<string, unknown>) => {
     try {
@@ -100,7 +103,8 @@ export function boardRecorder(
     return t;
   };
 
-  const end = (job: number, outcome: { report?: string; failed?: string; stopped?: boolean; interrupted?: boolean }) => {
+  type Outcome = { report?: string; failed?: string; stopped?: boolean; interrupted?: boolean };
+  const finalize = (job: number, outcome: Outcome) => {
     if (ended.has(job)) return;
     ended.add(job);
     const row = helpers.get(job);
@@ -126,6 +130,41 @@ export function boardRecorder(
     void Promise.resolve()
       .then(() => options.onEnd?.(job))
       .catch(() => log("agent.end_failed", { job }));
+  };
+
+  const end = (job: number, outcome: Outcome): void | Promise<void> => {
+    if (ended.has(job)) return;
+    const pending = finishing.get(job);
+    // Stop/failure/recovery wins immediately over a delayed normal completion.
+    if (outcome.stopped || outcome.interrupted || outcome.failed !== undefined) {
+      pending?.controller.abort();
+      finishing.delete(job);
+      return finalize(job, outcome);
+    }
+    if (pending) return pending.promise;
+    let readback: ((signal: AbortSignal) => Promise<void>) | undefined;
+    safe(() => { if (helpers.get(job)?.state === "running") readback = options.beforeReport?.(job); }, { job });
+    if (!readback) return finalize(job, outcome);
+    const runReadback = readback;
+    const controller = new AbortController();
+    let abort: () => void = () => {};
+    const stopped = new Promise<void>((resolve) => { abort = resolve; controller.signal.addEventListener("abort", abort, { once: true }); });
+    const timer = setTimeout(() => controller.abort(), 5000);
+    timer.unref?.();
+    const state = { controller, promise: Promise.resolve() };
+    state.promise = Promise.race([Promise.resolve().then(() => controller.signal.aborted ? undefined : runReadback(controller.signal)), stopped])
+      .catch(() => log("agent.file_readback_unavailable", { job }))
+      .then(() => { if (!ended.has(job) && finishing.get(job) === state) finalize(job, outcome); })
+      .catch(() => log("agent.end_failed", { job }))
+      .finally(() => {
+        clearTimeout(timer); controller.signal.removeEventListener("abort", abort); controller.abort();
+        if (finishing.get(job) === state) finishing.delete(job);
+      });
+    finishing.set(job, state);
+    // Register completion first: persisting the report may emit a reentrant Stop or duplicate completion.
+    // Cancellation must not discard a returned report or mark it verified.
+    safe(() => { helpers.stageNativeReport?.(job, reportFrom(redact(outcome.report ?? ""), [...byCall.values()].find((c) => c.job === job)?.description ?? "", roleOf(job))); }, { job });
+    return state.promise;
   };
 
   const modelled = new Set<number>();
@@ -209,12 +248,12 @@ export function boardRecorder(
     return open;
   };
 
-  const hook = (f: (input: Record<string, any>) => void) => [
+  const hook = (f: (input: Record<string, any>) => void | Promise<void>) => [
     {
       hooks: [
         async (input: Record<string, any>) => {
           try {
-            f(input);
+            await f(input);
           } catch {
             // never block a sub-agent over a Board row
           }
@@ -240,7 +279,7 @@ export function boardRecorder(
       SubagentStart: hook((input) => void jobOfAgent(String(input.agent_id), String(input.agent_type))),
       SubagentStop: hook((input) => {
         const job = jobOfAgent(String(input.agent_id), String(input.agent_type));
-        if (job !== undefined) end(job, { report: typeof input.last_assistant_message === "string" ? input.last_assistant_message : "" });
+        if (job !== undefined) return end(job, { report: typeof input.last_assistant_message === "string" ? input.last_assistant_message : "" });
       }),
     },
     jobOfAgent,

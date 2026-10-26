@@ -802,7 +802,21 @@ private struct Fields {
                       let agent = q["agent"] as? String, let task = q["task"] as? String,
                       let state = (q["state"] as? String).flatMap(PlanPortion.State.init(rawValue:)) else { return nil }
                 let job = (q["job"] as? NSNumber).flatMap { CFGetTypeID($0) == CFBooleanGetTypeID() ? nil : $0.intValue }
-                return PlanPortion(n: n.intValue, agent: agent, name: q["name"] as? String ?? agent, task: task, after: ids(q["after"]), job: job, state: state)
+                let resultJob = (q["resultJob"] as? NSNumber).flatMap { value -> Int? in
+                    guard CFGetTypeID(value) != CFBooleanGetTypeID(), value.intValue > 0,
+                          value.doubleValue == Double(value.intValue) else { return nil }
+                    return value.intValue
+                }
+                if q["resultJob"] != nil && resultJob == nil { return nil }
+                let recovery: PlanPortion.Recovery?
+                if let rawRecovery = q["recovery"] {
+                    if let record = rawRecovery as? [String: Any], record["schema"] as? String == "atom.workflow-recovery/v1",
+                       let kind = record["kind"] as? String, let known = PlanPortion.Recovery(rawValue: kind) {
+                        recovery = known
+                    } else { recovery = .unconfirmed }
+                } else { recovery = nil }
+                return PlanPortion(n: n.intValue, agent: agent, name: q["name"] as? String ?? agent, task: task, after: ids(q["after"]), job: job, state: state,
+                                   resultJob: resultJob, repairUnavailable: flag(q["repairUnavailable"]), recovery: recovery)
             }
             return WorkPlanItem(id: id.intValue, goal: goal, createdAt: (p["createdAt"] as? String).flatMap(Self.date), portions: portions,
                                 complete: flag(p["complete"]), stuck: flag(p["stuck"]))
@@ -846,6 +860,10 @@ private struct Fields {
             goal = HelperGoal(id: id.intValue, text: text, ended: ended.boolValue, tasks: Self.ids(g["tasks"]),
                               report: try report(g["report"], id: id.intValue, field: "goal"))
         }
+        var executionEvidence: TaskExecutionEvidence?
+        if let e = values["executionEvidence"] as? [String: Any], let summary = e["summary"] as? String, let details = e["details"] as? String {
+            executionEvidence = TaskExecutionEvidence(summary: summary, details: details)
+        }
         return HelperThread(id: try int("id"), comments: try comments.map { entry in
             guard let c = entry as? [String: Any], let id = c["id"] as? NSNumber, let text = c["text"] as? String else { throw invalid("comments") }
             return TaskComment(id: id.intValue, text: text, createdAt: (c["createdAt"] as? String).flatMap(Self.date),
@@ -856,7 +874,8 @@ private struct Fields {
         }, report: try report(values["report"], id: try int("id"), field: "report"), goal: goal, plan: plan,
            handOffs: Self.ids(values["handOffs"]), testSkills: values["testSkills"] as? [String] ?? [],
            toolCalls: Self.toolCalls(values["toolCalls"]), checkpoints: Self.checkpoints(values["checkpoints"]),
-           bashRan: (values["bashRan"] as? NSNumber).map { CFGetTypeID($0) == CFBooleanGetTypeID() && $0.boolValue } ?? false)
+           bashRan: (values["bashRan"] as? NSNumber).map { CFGetTypeID($0) == CFBooleanGetTypeID() && $0.boolValue } ?? false,
+           executionEvidence: executionEvidence)
     }
 
     /// B3.4: a task's file checkpoints; a malformed one is left out, anything else reads as none.

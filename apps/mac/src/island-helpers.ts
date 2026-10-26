@@ -1,6 +1,6 @@
 // ADR-081: the helper store as the island sees it (wire shapes, ISO dates, sorted app names).
 
-import { HelperError, describeSchedule, nextDue, type HelperStore, type Job, type PlanModel, type Schedule, type TaskSearchHit, type TestKind } from "@atom/helpers";
+import { HelperError, describeSchedule, nextDue, taskEvidenceSummary, taskEvidenceText, type HelperStore, type Job, type PlanModel, type Schedule, type TaskSearchHit, type TestKind } from "@atom/helpers";
 import type { IslandHelpers } from "./island.ts";
 import type { JobItem, PlanItem, RoutineInput, SkillDraftItem, SkillEditItem, TestCaseItem, TestsItem } from "./island-protocol.ts";
 
@@ -157,7 +157,9 @@ export function islandHelpers(
         id: p.id,
         goal: p.goal,
         createdAt: p.createdAt.toISOString(),
-        portions: p.portions.map((x) => ({ n: x.n, agent: x.agent, name: x.name, task: x.task, after: x.after, ...(x.job !== undefined ? { job: x.job } : {}), state: x.state })),
+        portions: p.portions.map((x) => ({ n: x.n, agent: x.agent, name: x.name, task: x.task, after: x.after, ...(x.job !== undefined ? { job: x.job } : {}),
+          ...(x.resultJob !== undefined ? { resultJob: x.resultJob } : {}), ...(x.repair?.state === "unavailable" ? { repairUnavailable: true } : {}),
+          ...(x.recovery ? { recovery: x.recovery } : {}), state: x.state })),
         complete: p.complete,
         stuck: p.stuck,
       })),
@@ -248,10 +250,12 @@ export function islandHelpers(
       const calls = store.toolCalls(id);
       const kept = store.checkpoints(id); // B3.4
       const { report } = thread;
+      const evidence = store.taskEvidence?.(id);
       const goalId = store.get(id)?.goalId;
       const goal = goalId === undefined ? undefined : store.goal(goalId);
       return {
         id,
+        ...(evidence ? { executionEvidence: { summary: taskEvidenceSummary(evidence), details: taskEvidenceText(evidence, true) } } : {}),
         comments: thread.comments.map((c) => ({ id: c.id, text: c.text, createdAt: c.createdAt.toISOString(), ...(c.delivery ? { delivery: c.delivery } : {}) })),
         activity: thread.activity.map((a) => ({ kind: a.kind, at: a.at.toISOString() })),
         ...(thread.plan ? { plan: thread.plan } : {}),
@@ -287,6 +291,7 @@ export function islandHelpers(
     allowLarge: () => store.allowLarge(),
     setAllowLarge: (allowed) => store.setAllowLarge(allowed),
     models: () => models().map(({ id, name, tier }) => ({ id, name, tier })),
+    activeNativeJobs: (chat) => store.runningNativeJobs(chat).map((job) => job.id),
     stop: (id) => store.stop(id),
     remove: (id) => store.remove(id),
     onChange: (listener) => store.onChange(listener),

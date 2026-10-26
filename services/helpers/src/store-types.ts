@@ -5,6 +5,14 @@ import type { SkillDraft, SkillDraftState, SkillDraftTarget, SkillEdit, SkillEdi
 import type { HubFile, HubInstalled, HubPending } from "./skill-hub.ts";
 import type { AgentProblem, Kit } from "./agents.ts";
 import type { WorkPlan } from "./work-plan.ts";
+import type { WorkflowTaskContract } from "./workflow-contract.ts";
+import type { WorkflowReference } from "./workflow-routing.ts";
+import type { WorkflowRetryContext } from "./workflow-retry.ts";
+import type { PlanRepairReceipt, PlanRepairReview, PlanRepairView } from "./workflow-repair.ts";
+import type { WorkflowRecovery } from "./workflow-recovery.ts";
+import type { WriteScopeBinding } from "./write-scopes.ts";
+import type { TaskEvidence, TaskInspectionInput } from "./task-evidence.ts";
+import type { TaskFileCheck, TaskVerificationInput } from "./file-checks.ts";
 import type { AuditEntry } from "./audit.ts";
 import type { McpServer, McpServerInput } from "./mcp.ts";
 import type { RecordedUsage, UsageEntry, UsageSummary } from "./usage.ts";
@@ -216,6 +224,17 @@ export interface PlanPortionView {
   name: string;
   task: string;
   after: number[];
+  /** Expected work, not host-observed verification. */
+  contract?: WorkflowTaskContract;
+  workflow?: WorkflowReference;
+  fileChecks?: TaskFileCheck[];
+  writeScope?: string[];
+  scopeBinding?: WriteScopeBinding;
+  retryContext?: WorkflowRetryContext;
+  /** Accepted report handoff; the original job and its outcome remain intact. */
+  repair?: PlanRepairView;
+  resultJob?: number;
+  recovery?: WorkflowRecovery;
   /** The Board job the portion became; absent while it waits. */
   job?: number;
   state: PortionState;
@@ -367,10 +386,18 @@ export interface HelperStore {
   plan(id: number): PlanView | undefined;
   /** The newest plan of a chat. */
   latestPlan(chatId: string): PlanView | undefined;
+  /** Read a specific plan only within its owning chat; never changes the latest plan or its jobs. */
+  planForChat(chatId: string, id: number): PlanView | undefined;
+  /** Up to ten plans in this chat, newest first; before is an exclusive plan-id cursor. */
+  planHistory(chatId: string, before?: number): PlanView[];
   /** The newest plans of every chat, newest first. */
   plans(limit: number): PlanView[];
   /** Ties a portion to the Board job it became. Throws HelperError when the portion has a job already. */
   linkPlanJob(planId: number, n: number, job: number): void;
+  /** Host-only review of an eligible completed retry; never starts or changes work. */
+  preparePlanRepair(chatId: string, plan: number, portion: number, retry: number): PlanRepairReview;
+  /** Caller requires fresh explicit approval of this exact review digest. No model-facing direct writer. */
+  acceptPlanRepair(chatId: string, plan: number, portion: number, retry: number, reviewDigest: string): PlanRepairReceipt;
   /** B3.1: one tool call's start or end in a run of this task (an unknown task, a bad state, an end without its start is ignored). */
   recordToolCall(jobId: number, event: ToolCallEvent): void;
   /** B3.1: the task's newest tool calls (at most 100), oldest first. */
@@ -487,6 +514,10 @@ export interface HelperStore {
   addNativeJob(helper: string, task: string, links: { chatId: string; sdkTaskId?: string; advisoryParentId?: number }): Job;
   /** Persist one retry intent before dispatch; repeated requests return the same attempt without dispatching again. */
   queueNativeRetry(id: number): { job: Job; created: boolean };
+  /** Host-bound retry intent and its single-portion plan, when the source belonged to a plan. */
+  nativeRetryPlan(chatId: string): { job: number; plan?: PlanView } | undefined;
+  /** Planning-only family scope: the source chat and active jobs in it or its explicit retry descendants. */
+  nativeWorkflowScope(chatId: string): { chatId: string; jobs: Job[] };
   /** A retry's main turn ended without starting its worker. Never changes a running/completed attempt. */
   failQueuedRetry(id: number, reason: string): void;
   /** Lost the worker's provider session: retain its last step and require review, never replay it. */
@@ -494,6 +525,8 @@ export interface HelperStore {
   /** ADR-110 (N2): Claude Code's task id of a native job, once the task has started. */
   linkNativeTask(id: number, sdkTaskId: string): void;
   get(id: number): Job | undefined;
+  /** All active native tasks of a chat, independent of the sidebar's recent-job limit. */
+  runningNativeJobs(chatId: string): Job[];
   goal(id: number): Goal | undefined;
   /** Every queued job whose blockers are all done, oldest first (for the job runner). */
   queued(): Job[];
@@ -524,6 +557,10 @@ export interface HelperStore {
   /** Deletes a job and its report, stopping it first if it has not ended. False when there is none. */
   remove(id: number): boolean;
   report(id: number): Report | undefined;
+  /** Host-only attempt/evidence access. No model-facing writer is registered. */
+  taskEvidence(id: number): TaskEvidence | undefined;
+  recordTaskInspection(id: number, receipt: TaskInspectionInput): boolean;
+  recordTaskVerification(id: number, receipt: TaskVerificationInput): boolean;
   /**
    * For the job runner (Task 3.2). These throw HelperError for an unknown job or a move its life does not allow.
    * `start` claims a queued task whose blockers are done, atomically: a second claim throws.
@@ -532,6 +569,8 @@ export interface HelperStore {
   /** Records a running job's progress. False (and nothing saved) unless the job is running. */
   step(id: number, text: string): boolean;
   finish(id: number, report: ReportInput, partial?: boolean): void;
+  /** Preserve a native worker report while host readback is pending; never changes job/attempt completion state. */
+  stageNativeReport(id: number, report: ReportInput): boolean;
   fail(id: number, error: string, partial?: boolean): void;
   /** Called after every change. Returns an unsubscribe. */
   onChange(listener: (change: HelperChange) => void): () => void;

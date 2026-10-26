@@ -3,15 +3,16 @@ import { promisify } from "node:util";
 import { relative, resolve } from "node:path";
 import { lstatSync, realpathSync } from "node:fs";
 import { previewText, readFilePreview } from "@atom/helpers";
+import type { RevisionObservation } from "@atom/helpers";
 const run = promisify(execFile);
 const LIMIT = 256 * 1024;
 const flags = ["--literal-pathspecs", "-c", "safe.bareRepository=explicit", "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false"];
 
 /** No shell, inherited Git routing, interactive prompt, optional index write, diff driver or working-tree filter. */
-async function command(root: string, args: string[], overrides: string[] = []): Promise<Buffer> {
+async function command(root: string, args: string[], overrides: string[] = [], signal?: AbortSignal): Promise<Buffer> {
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_") && !["SSH_ASKPASS", "SSH_ASKPASS_REQUIRE", "GCM_INTERACTIVE"].includes(key)));
   return (await run("git", ["-C", root, ...flags, ...overrides, ...args], { timeout: 8000, maxBuffer: LIMIT,
-    encoding: "buffer", env: { ...env, GIT_OPTIONAL_LOCKS: "0", GIT_TERMINAL_PROMPT: "0", GIT_ASKPASS: "", SSH_ASKPASS: "", SSH_ASKPASS_REQUIRE: "never", GCM_INTERACTIVE: "never", GIT_PAGER: "cat", GIT_EXTERNAL_DIFF: "" } })).stdout;
+    encoding: "buffer", signal, env: { ...env, GIT_OPTIONAL_LOCKS: "0", GIT_TERMINAL_PROMPT: "0", GIT_ASKPASS: "", SSH_ASKPASS: "", SSH_ASKPASS_REQUIRE: "never", GCM_INTERACTIVE: "never", GIT_PAGER: "cat", GIT_EXTERNAL_DIFF: "" } })).stdout;
 }
 const text = async (root: string, args: string[], overrides?: string[]) => (await command(root, args, overrides)).toString("utf8").trim();
 const optional = (root: string, args: string[]) => text(root, args).catch(() => "");
@@ -23,12 +24,12 @@ export interface GitWorkspace {
 }
 export interface GitReview { path: string; section: GitSection; before: string; after: string; beforeLabel: string; afterLabel: string; base?: string; note: string }
 
-async function context(root: string) {
-  const repo = await text(root, ["rev-parse", "--show-toplevel"]);
+async function context(root: string, signal?: AbortSignal) {
+  const repo = (await command(root, ["rev-parse", "--show-toplevel"], [], signal)).toString("utf8").trim();
   if (realpathSync(repo) !== repo || (root !== repo && !root.startsWith(repo + "/"))) throw new Error("This project is not inside an available Git working tree.");
   // Ask for names only: values can be executable commands or credentials and never leave Git.
   let keys: string[] = [];
-  try { keys = (await command(root, ["config", "--null", "--name-only", "--get-regexp", "^filter\\..*\\.(clean|smudge|process|required)$"])).toString("utf8").split("\0").filter(Boolean); }
+  try { keys = (await command(root, ["config", "--null", "--name-only", "--get-regexp", "^filter\\..*\\.(clean|smudge|process|required)$"], [], signal)).toString("utf8").split("\0").filter(Boolean); }
   catch (error) { if ((error as { code?: unknown }).code !== 1) throw error; }
   const overrides: string[] = [];
   for (const key of keys) {
@@ -36,6 +37,20 @@ async function context(root: string) {
     overrides.push("-c", `${key}=${key.endsWith(".required") ? "false" : ""}`);
   }
   return { repo, prefix: root === repo ? "" : relative(repo, root) + "/", overrides, filtersDisabled: keys.length > 0 };
+}
+
+/** Best-effort source identity for host receipts. Never certifies dirty/ignored files or a test environment. */
+export async function taskRevisionObservation(root: string, signal: AbortSignal): Promise<RevisionObservation> {
+  try {
+    const ctx = await context(root, signal);
+    const [headBytes, status] = await Promise.all([
+      command(root, ["rev-parse", "--verify", "HEAD"], ctx.overrides, signal),
+      command(root, ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=all", "--", "."], ctx.overrides, signal),
+    ]);
+    const head = headBytes.toString("utf8").trim();
+    if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(head) || signal.aborted) return { state: "unavailable" };
+    return { state: status.length ? "dirty" : "clean", head };
+  } catch { return { state: "unavailable" }; }
 }
 
 /** Git porcelain v1 -z paths are repository-relative. Rename source and destination are separate NUL records. */

@@ -273,6 +273,7 @@ struct ThreadPane: View {
                     WaitsForSection(model: model, job: item.job)
                     if let handOffs = model.helpers.thread?.handOffs, !handOffs.isEmpty { SubTasksSection(model: model, ids: handOffs) }
                     if !item.job.subAgents.isEmpty { SubAgentsSection(subAgents: item.job.subAgents) }
+                    if model.helpers.thread?.id == item.id, let evidence = model.helpers.thread?.executionEvidence { TaskEvidenceSection(evidence: evidence) }
                     if let report = model.helpers.report {
                         if let app = model.helpers.openTaskApp {
                             QuietButton(title: "Open in \(app)", symbol: "arrow.up.forward.app") { model.sendHelpers(model.helpers.openReportInApp()) }
@@ -488,6 +489,21 @@ private struct WaitsForSection: View {
                     }
                 }
             }
+        }
+    }
+}
+
+struct TaskEvidenceSection: View {
+    let evidence: TaskExecutionEvidence
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(evidence.summary).appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
+            DisclosureGroup("Execution details") {
+                Text(evidence.details).appFont(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(theme.text3.color).textSelection(.enabled).padding(.top, 5)
+            }.appFont(.system(size: 11))
         }
     }
 }

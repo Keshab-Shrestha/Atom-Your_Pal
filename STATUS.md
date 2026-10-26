@@ -1,5 +1,37 @@
 # ZENO Project Status
 
+## Claude file-verification acceptance — 27 October 2026
+
+Actual Claude/native checks passed for an isolated one-file edit plus independent literal/hash readback, protected-path refusal, a deliberate mismatch on a fresh attempt and Stop before collection with no late receipt. Source project unchanged; task edits remain isolated/uncommitted, no commands/tests/Git run by workers, no continuing grants, zero active fixture workers. One first Stop trial finished before a usable click and is not counted as cancellation evidence. No product code/build/suite/commit/push this step. Open reporting issue: the stopped model summary undercounted completed reads (one claimed versus five host-recorded). Next bounded correction is authoritative stopped-task summaries, then Codex acceptance. [Evidence and exact limits](docs/omh-claude-file-acceptance-2026-10-27.md).
+
+## OMH cumulative integration and actual-app acceptance — finalized 27 October 2026
+
+The accumulated native integration now compiles, is packaged with ATOM Local Signing and has bounded live acceptance. Claude chat/history, contract dispatch, historical inspection, normal restart/draft continuity and honest task evidence passed. Real use exposed a Stop handler gap after a parent reply ended; the corrected handler stopped current-chat native work in a live rerun and the Board displayed recovery guidance. Six isolated host checks and three focused cancellation regressions pass. No Swift/full suite or commit/push. Provider file-readback, native retry/repair approval, abrupt interruption, concurrent races, grant/memory replay and performance acceptance remain open. Earlier slice checkpoints below are historical. [Acceptance](docs/omh-acceptance-2026-10-26.md) · [Before/after architecture](docs/omh-native-orchestration.md).
+
+## Native OMH memory context receipts — 26 October 2026
+
+Fifth slice implemented: saved-fact IDs/selection reasons, context-block budget decisions and per-attempt completion state are now inspectable through the existing chat memory popover. Receipt preparation does not prove model use or expose the provider's retained session contents. History, grants and memory controls remain authoritative. TypeScript/diff checks and native release compilation pass; suites/live acceptance and app restart remain deferred. Changes are local. [Scope and limits](docs/omh-memory-receipts.md).
+
+## Native OMH declared-write scheduling — 26 October 2026
+
+Fourth slice implemented: durable host-bound file scopes, dependency-aware overlap refusal, compatible parallel admission, conservative unknown scopes and hold reasons. Shared reservations and Stop-aware admission protect pending worker creation. TypeScript/diff checks pass; live behavior remains unverified, with no suites, rebuild/restart, commit or push. These are declaration-based scheduling checks, not actual-write attestation. [Details and acceptance](docs/omh-write-scopes.md).
+
+## Native OMH shared context budgets — 26 October 2026
+
+Third slice implemented: chat/opening context, worker handoffs and plan-status expansion now share typed payload allocation. Required instructions and same-chat continuity remain intact; optional reductions are disclosed and logged without source text. TypeScript/diff checks pass. No app restart, suites, live benchmark or push; no measured token/latency improvement claimed. [Details and deferred verification](docs/omh-context-budget.md).
+
+## Native OMH evidence foundation — 26 October 2026
+
+Second slice implemented: durable attempt IDs, interruption/retry separation, host inspection receipts and compact execution evidence beside reports in chat/task views. Exit zero is never promoted to a test pass; dirty, changed, timed-out or unavailable Git observations cannot bind a clean revision. Native release build, TypeScript and diff checks pass. No test suites/live acceptance, runtime restart, app installation or push. This is provenance for a bounded collector, not an independent verification engine. [Scope and caveats](docs/omh-task-evidence.md).
+
+## Native OMH orchestration foundation — 26 October 2026
+
+Selected architecture recorded in ADR-203. First slice implemented: validated per-portion deliverable/scope/verify/stopWhen contracts, existing durable plan storage, admission compilation and on-demand contract inspection. Existing plan scheduler, worker providers and execution policy remain authoritative. Typecheck/diff checks pass; runtime persistence/worker acceptance has not been exercised, and no build/restart/push occurred. This is the first integration slice, not full OMH parity. [Details and remaining slices](docs/omh-native-orchestration.md).
+
+## Oh My Hermes inquiry — 26 October 2026
+
+Completed a pinned source review and comparison with ATOM's existing plans, workers, memory, permissions and native workspace. OMH offers useful memory diagnosis, evidence records, task-specific context and developer orchestration patterns; no live superiority or CUA speed gain established. Proposed additions are research only, with release readiness first and cloud-primary/local-backup retained. Saved locally on `codex/oh-my-hermes-inquiry`; no app change, installation, commit or push. [Detailed findings](docs/oh-my-hermes-feature-inquiry.md).
+
 ## Rail selection polish and requested push — 26 October 2026
 
 Remove the selected icon’s small edge marker, retaining its quiet background and accessible selected state. Package the cumulative native workspace redesign for the user-requested commit/push on codex/workspace-reference-design. Final build, strict signature verification, 22 visual renders and live selection review passed; no Swift suite. Exclude unrelated graphify-out/. [Details](docs/workspace-reference-redesign.md#selection-polish-and-branch-handoff--26-october-2026).

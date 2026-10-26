@@ -3,6 +3,7 @@ import { importedNoteResult } from "./brain-source-context.ts";
 import { homedir } from "node:os";
 import type { ProjectFiles } from "@atom/contracts";
 import type { HelperStore, HelperView } from "@atom/helpers";
+import { taskFileChecks, type TaskFileCheck } from "@atom/helpers";
 import type { FilePermissionScope } from "@atom/memory";
 import type { FileApproval } from "./computer-bridge.ts";
 import { TOOL_SERVER, MAX_PROJECT_FILE_CALLS, redact } from "@atom/llm-gateway";
@@ -14,6 +15,7 @@ import { grantedServers, kitTools, nativeMembers } from "./native-agents.ts";
 import type { BoardRecorder } from "./native-board.ts";
 import type { PlanBook } from "./native-plan.ts";
 import { git, prepareWorkdir, type Workdir } from "./worktree.ts";
+import { captureVerificationWorkspace, verifyTaskFiles, type VerificationWorkspace } from "./task-file-verification.ts";
 
 /**
  * ADR-110: the permission gate of a native chat session. `allowedTools` is empty, so every tool call comes here. The
@@ -48,16 +50,19 @@ const MAX_REMEMBERED = 500;
  * memory, a routine) or send data out. A page can ask for them; only the user's own message may. A new user message clears the main thread's taint.
  */
 export const TAINT_REFUSED_TOOLS: ReadonlySet<string> = new Set([
-  "create_agent", "propose_skill", "improve_skill", "open_url", "remember", "forget", "brain_note", "schedule", "note_add", "reminder_add", "timer_set", "open_app", "computer", "paperclip_hand", "paperclip_decide",
+  "create_agent", "propose_skill", "improve_skill", "open_url", "remember", "forget", "brain_note", "schedule", "note_add", "reminder_add", "timer_set", "open_app", "computer", "paperclip_hand", "paperclip_decide", "plan_repair",
 ]);
 const WEB_TOOLS = "^(?:WebFetch|WebSearch)$";
 
 export interface TeamScope {
   chatId: string;
-  helpers: Pick<HelperStore, "get" | "list" | "mcpServers" | "addNativeJob" | "checkpoint" | "finishCheckpoints" | "setModel" | "linkPlanJob" | "recordSkillUse">;
+  helpers: Pick<HelperStore, "get" | "list" | "mcpServers" | "addNativeJob" | "checkpoint" | "finishCheckpoints" | "setModel" | "linkPlanJob" | "recordSkillUse" | "stop"> & Partial<Pick<HelperStore, "latestPlan" | "taskEvidence" | "recordTaskVerification">>;
   board: BoardRecorder;
   /** ADR-111: the chat's work plan; an Agent call with description "P<n>" is a portion of it. */
   plans?: PlanBook;
+  /** Claude's host readback; Codex collects through its separate fixed host adapter. */
+  hostFileChecks?: boolean;
+  projectCurrent?(): boolean;
   approve(request: { summary: string; reason: string; reasonMax?: number }, signal?: AbortSignal): Promise<boolean>;
   approveFile?(request: { summary: string; reason: string }, signal?: AbortSignal): Promise<FileApproval>;
   permissions?: FilePermissionScope;
@@ -110,6 +115,8 @@ export interface NativeGate {
   admitAdvisory(parentAgentId: string, input: Record<string, unknown>, callId: string): { job: number } | { message: string };
   /** Stop host approvals immediately, even before the SDK reports a task id. */
   cancelJob(job: number): void;
+  /** Host-only completion hook, absent for jobs without captured declared checks. */
+  fileReadback?(job: number): ((signal: AbortSignal) => Promise<void>) | undefined;
   /** A sub-agent's job ended: its worktree is retained uncommitted (never pushed), its browser freed. */
   agentEnded(job: number): Promise<void>;
 }
@@ -123,6 +130,8 @@ export function nativeGate(scope: NativeScope): NativeGate {
   const agentCalls = new Map<string, Promise<Verdict>>();
   const team = scope.team;
   const work = new Map<number, Workdir>();
+  const fileReadbacks = new Map<number, { attempt: string; helper: string; checks: TaskFileCheck[]; workspace?: VerificationWorkspace; tree: boolean; observed: boolean; invalid: boolean }>();
+  const checkingFiles = new Set<number>();
   const tainted = new Map<string, string>(); // ADR-123: "main" or "job:<n>" (or the agent id) -> what it read; never logged
   const taintKey = (agentId: unknown): string => {
     if (typeof agentId !== "string" || !agentId) return "main";
@@ -187,6 +196,9 @@ export function nativeGate(scope: NativeScope): NativeGate {
   /** The main thread's Agent call: one of ATOM's agents; makes the Board job; Laya's model; a worktree in a project. */
   const agentCall = async (input: Record<string, unknown>, id: string): Promise<Verdict> => {
     if (!team) return deny("This chat has no agents.");
+    if (/^task-retry-\d+$/.test(team.chatId) && !team.plans) return deny("This retry requires host workflow admission. No plain-task fallback is allowed.");
+    const admissionSignal = scope.accessSignal?.();
+    if (admissionSignal?.aborted) return cancelled();
     const type = typeof input.subagent_type === "string" ? input.subagent_type : "general-purpose";
     const member = nativeMembers(team.helpers.list()).find((m) => m.id === type);
     if (!member) return deny(`"${type.slice(0, 40)}" is not one of your agents. Pick one by its description, or make one with create_agent.`);
@@ -195,39 +207,65 @@ export function nativeGate(scope: NativeScope): NativeGate {
     const claim = team.plans?.claim(String(input.description ?? ""), member) ?? ({ kind: "none" } as const);
     if (claim.kind === "deny") return deny(claim.message);
     const planned = claim.kind === "ok" ? claim : undefined;
+    if (!planned) {
+      const problem = team.plans?.reserveUnplanned?.(id, member);
+      if (problem) return deny(problem);
+    }
+    let released = false;
     const release = () => {
+      if (released) return;
+      released = true;
+      admissionSignal?.removeEventListener("abort", release);
       if (planned) team.plans?.release(planned.plan, planned.n);
+      else team.plans?.releaseUnplanned?.(id);
     };
+    admissionSignal?.addEventListener("abort", release, { once: true });
     const updated: Record<string, unknown> = Object.fromEntries(AGENT_FIELDS.filter((k) => k in input).map((k) => [k, input[k]]));
     if (planned) updated.prompt = planned.prompt;
     updated.run_in_background = true;
     const task = planned ? planned.task : String(input.prompt ?? "");
-    if (!member.pinnedModel && team.chooseModel) {
-      const model = await team.chooseModel(task, member).catch(() => undefined);
-      if (model) updated.model = model;
-    }
     let job;
     try {
+      if (!member.pinnedModel && team.chooseModel) {
+        const model = await team.chooseModel(task, member).catch(() => undefined);
+        if (model) updated.model = model;
+      }
+      if (admissionSignal?.aborted) return cancelled();
+      const isolated = member.kit === "folders" && team.project && await isRepo(team.project.cwd);
+      // Model choice and repository detection may finish after Stop. Never create a late worker/Board row.
+      if (admissionSignal?.aborted) return cancelled();
+      const problem = planned && team.plans?.confirm?.(planned.plan, planned.n);
+      if (problem) return deny(problem);
       job = team.helpers.addNativeJob(member.id, task, { chatId: team.chatId });
-      if (job.retryOf !== undefined) updated.prompt = `This is a user-requested retry of task #${job.retryOf}. Its earlier outcome may be unconfirmed and files may already have changed. Inspect the actual files and previous results before editing; do not repeat work already completed. If the task lacks enough file or project context, stop and ask instead of guessing a folder. The saved task is:\n${job.task}`;
-      if (planned) team.helpers.linkPlanJob(planned.plan, planned.n, job.id);
+      if (admissionSignal?.aborted) throw new Error("The turn stopped during worker admission; no worker was dispatched.");
+      if (job.retryOf !== undefined) updated.prompt = `This is a user-requested retry of task #${job.retryOf}. Its earlier outcome may be unconfirmed and files may already have changed. Inspect the actual files and previous results before editing; do not repeat work already completed. If the task lacks enough file or project context, stop and ask instead of guessing a folder. The saved task is:\n${planned?.prompt ?? job.task}`;
+      if (planned) {
+        const view = team.helpers.latestPlan?.(team.chatId);
+        const bound = view?.portions.find((p) => p.n === planned.n);
+        // Planned retries were linked atomically while queued; never overwrite their original source-plan link.
+        if (job.retryOf !== undefined) {
+          if (view?.id !== planned.plan || bound?.job !== job.id) throw new Error("The retry's saved plan binding changed before dispatch.");
+        } else team.helpers.linkPlanJob(planned.plan, planned.n, job.id);
+      }
+      if (planned && team.hostFileChecks && team.project && member.kit === "folders" && team.helpers.recordTaskVerification) {
+        const portion = team.helpers.latestPlan?.(team.chatId)?.portions.find((p) => p.job === job!.id);
+        const checks = taskFileChecks(portion?.fileChecks), attempt = team.helpers.taskEvidence?.(job.id);
+        if (checks?.length && attempt?.state === "running") fileReadbacks.set(job.id, { attempt: attempt.attempt, helper: member.id, checks,
+          ...(isolated ? {} : { workspace: captureVerificationWorkspace(team.project.cwd) }), tree: Boolean(isolated), observed: false, invalid: false });
+      }
+      // Keep admission held through synchronous job linkage/Board setup; the durable running row then owns it.
+      if (team.preloadedSkills !== false) for (const skill of member.skills) team.helpers.recordSkillUse(job.id, skill);
+      if (tainted.has("main")) tainted.set(`job:${job.id}`, tainted.get("main")!);
+      team.board.opened(id, job.id, String(input.description ?? ""));
+      const chosen = typeof updated.model === "string" ? updated.model : member.pinnedModel;
+      if (chosen) team.helpers.setModel(job.id, chosen, updated.model ? "Chosen by Laya." : "Pinned by Keshab.");
+      if (admissionSignal?.aborted) throw new Error("The turn stopped during worker admission; no worker was dispatched.");
+      if (isolated) { updated.isolation = "worktree"; pendingTrees.push(job.id); }
     } catch (error) {
-      release();
+      if (job) { fileReadbacks.delete(job.id); team.helpers.stop(job.id); } // no SDK worker was dispatched
       return deny(error instanceof Error ? error.message : String(error));
-    }
-    release();
-    // The agent's skills are preloaded into its context when it starts (the SDK's `skills` field), so it never has to call the Skill tool, and a use was
-    // recorded only at that call: none was, a bad rating asked for no edit, and the self-improving loop never ran (found by the live test, 2026-10-16).
-    // Every skill the agent was given counts as used by its task.
-    if (team.preloadedSkills !== false) for (const skill of member.skills) team.helpers.recordSkillUse(job.id, skill);
-    if (tainted.has("main")) tainted.set(`job:${job.id}`, tainted.get("main")!); // a task made after web text starts tainted, not clean
-    team.board.opened(id, job.id, String(input.description ?? ""));
-    // Phase N3: the Board shows the model at once (the pin or Laya's choice); the recorder puts the exact one when it runs.
-    const chosen = typeof updated.model === "string" ? updated.model : member.pinnedModel;
-    if (chosen) team.helpers.setModel(job.id, chosen, updated.model ? "Chosen by Laya." : "Pinned by Keshab.");
-    if (member.kit === "folders" && team.project && (await isRepo(team.project.cwd))) {
-      updated.isolation = "worktree";
-      pendingTrees.push(job.id);
+    } finally {
+      release();
     }
     log("agent.call", { job: job.id, helper: member.id, ...(typeof updated.model === "string" ? { model: updated.model } : {}) });
     return { allow: true, input: updated };
@@ -245,6 +283,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
       return deny(`${name} is not available in this chat. Hand file changes and multi-step work to one of your agents with the Agent tool.`);
     }
     if (name === "Agent") {
+      if (scope.accessSignal?.()?.aborted) return cancelled();
       if (!agentCalls.has(id)) agentCalls.set(id, agentCall(input, id));
       return agentCalls.get(id)!;
     }
@@ -263,13 +302,21 @@ export function nativeGate(scope: NativeScope): NativeGate {
   };
 
   /** A sub-agent's tool call: decided in code from its kit and grants. */
-  const subDecide = async (name: string, input: Record<string, unknown>, agentId: string, agentType: string, cwd: string | undefined): Promise<Verdict> => {
+  const subDecide = async (name: string, input: Record<string, unknown>, agentId: string, agentType: string, cwd: string | undefined, hostReadbackJob?: number): Promise<Verdict> => {
     if (name === `mcp__${TOOL_SERVER}__ask_user`) return deny("Question cards belong to the foreground chat. Report the clarification needed to the main agent.");
     if (!team) return deny("There are no agents in this chat.");
     const member = nativeMembers(team.helpers.list()).find((m) => m.id === agentType);
     if (!member) return deny("This agent is not one of ATOM's.");
-    const job = team.board.jobOfAgent(agentId, agentType);
+    const job = hostReadbackJob ?? team.board.jobOfAgent(agentId, agentType);
     if (!active(job)) return cancelled();
+    if (hostReadbackJob !== undefined && name !== "Read") return deny("Host readback permits only the declared file Read check.");
+    if (job !== undefined && checkingFiles.has(job) && hostReadbackJob === undefined) return deny("The worker returned. Host file readback is in progress; no new worker actions are allowed.");
+    const captured = job !== undefined ? fileReadbacks.get(job) : undefined;
+    if (captured && hostReadbackJob === undefined) {
+      const observed = typeof cwd === "string" ? captureVerificationWorkspace(cwd) : undefined;
+      if (observed && captured.workspace && observed.root === captured.workspace.root && observed.dev === captured.workspace.dev && observed.ino === captured.workspace.ino) captured.observed = true;
+      else captured.invalid = true; // Missing/ambiguous SDK cwd must never verify a guessed workspace.
+    }
     if (job !== undefined && team.helpers.get(job)?.nativeScope === "advisory") return deny("Advisory children have no tools, approvals or delegated access. Return advice from supplied context only.");
     const approve: TeamScope["approve"] = (request) => taskApproval(job, (signal) => team.approve(request, signal), false);
     const project = Boolean(team.project);
@@ -383,7 +430,10 @@ export function nativeGate(scope: NativeScope): NativeGate {
       subCalls.set(id, subDecide(name, input, agentId, agentType ?? typeOf.get(agentId) ?? "", cwd));
       if (subCalls.size > MAX_REMEMBERED) subCalls.delete(subCalls.keys().next().value!);
     }
-    return subCalls.get(id)!.then((verdict) => active(team?.board.jobOfAgent(agentId)) ? verdict : cancelled());
+    return subCalls.get(id)!.then((verdict) => {
+      const job = team?.board.jobOfAgent(agentId);
+      return active(job) && (job === undefined || !checkingFiles.has(job)) ? verdict : cancelled();
+    });
   };
   const decide = async (hook: Record<string, any>, name: string, input: Record<string, unknown>, id: string) => {
     const agent = typeof hook.agent_id === "string" && hook.agent_id ? hook.agent_id : undefined;
@@ -452,8 +502,15 @@ export function nativeGate(scope: NativeScope): NativeGate {
           async () => {
             const job = pendingTrees.shift();
             if (job === undefined || !team.project) throw new Error("No ATOM task asked for this worktree.");
+            if (!active(job) || checkingFiles.has(job)) throw new Error("This worker no longer needs a worktree.");
             const made = await prepareWorkdir(team.project.cwd, job, team.worktrees);
+            if (!active(job) || checkingFiles.has(job)) throw new Error("The task ended during worktree preparation; the copy is retained without dispatch.");
             work.set(job, made);
+            const captured = fileReadbacks.get(job);
+            if (captured?.tree) {
+              if (captured.workspace) captured.invalid = true;
+              else captured.workspace = captureVerificationWorkspace(made.dir);
+            }
             log("agent.worktree", { job, branch: Boolean(made.branch) });
             return { hookSpecificOutput: { hookEventName: "WorktreeCreate", worktreePath: made.dir } };
           },
@@ -463,12 +520,46 @@ export function nativeGate(scope: NativeScope): NativeGate {
   }
 
   return {
+    fileReadback(job) {
+      const saved = fileReadbacks.get(job);
+      if (!team?.hostFileChecks || !saved) return;
+      checkingFiles.add(job); // Seal worker actions before Board stages the returned report.
+      return async (completionSignal) => {
+        const workspace = saved.workspace;
+        const record = team.helpers.recordTaskVerification?.bind(team.helpers);
+        if (!workspace || !saved.observed || saved.invalid || !record) {
+          log("agent.file_readback_unavailable", { job });
+          return;
+        }
+        const signal = AbortSignal.any([completionSignal, stopFor(job).signal, AbortSignal.timeout(3000)]);
+        const allowed = () => !signal.aborted && active(job) && fileReadbacks.get(job) === saved && !saved.invalid
+          && (!team.projectCurrent || team.projectCurrent()) && scope.access?.isCurrent?.(signal) !== false
+          && nativeMembers(team.helpers.list()).some((member) => member.id === saved.helper && member.kit === "folders")
+          && team.helpers.taskEvidence?.(job)?.attempt === saved.attempt;
+        try {
+          if (!allowed()) return;
+          log("agent.file_readback_started", { job, predicates: saved.checks.length });
+          const observed = await verifyTaskFiles({
+            workspace, checks: saved.checks, signal, allowed,
+            readAllowed: async (path, readSignal) => {
+              if (!allowed() || readSignal.aborted) return false;
+              const input = { file_path: path }, agent = `host-file-readback:${job}`;
+              if (await scope.access?.check("Read", input, randomUUID(), agent, readSignal)) return false;
+              const verdict = await subDecide("Read", input, agent, saved.helper, workspace.root, job);
+              return verdict.allow && allowed() && !readSignal.aborted;
+            },
+          });
+          const recorded = allowed() && record(job, { id: randomUUID(), attempt: saved.attempt, ...observed });
+          log("agent.file_readback", { job, recorded, predicates: observed.checks.length });
+        } catch { log("agent.file_readback_unavailable", { job }); }
+      };
+    },
     admitAdvisory(parentAgentId, input, callId) {
       if (!team?.hostAdvisory) return { message: "Nested advisory workers are unavailable here." };
       if (Object.keys(input).some((key) => !AGENT_FIELDS.includes(key)) || typeof input.subagent_type !== "string" || typeof input.description !== "string" || typeof input.prompt !== "string" || !input.description.trim() || input.description.length > 80 || !input.prompt.trim() || input.prompt.length > 1000) return { message: "Use an exact worker id, a title up to 80 characters and supplied review context up to 1,000 characters." };
       const parentId = team.board.jobOfAgent(parentAgentId);
       const parent = parentId !== undefined ? team.helpers.get(parentId) : undefined;
-      if (!parent || !active(parentId) || parent.nativeScope || parent.parentId !== undefined || parent.chatId !== team.chatId) return { message: "Only an active root worker in this chat can request an advisory child." };
+      if (!parent || !active(parentId) || checkingFiles.has(parent.id) || parent.nativeScope || parent.parentId !== undefined || parent.chatId !== team.chatId) return { message: "Only an active root worker in this chat can request an advisory child." };
       const current = nativeMembers(team.helpers.list()).find((m) => m.id === parent.helper);
       const child = nativeMembers(team.helpers.list()).find((m) => m.id === input.subagent_type);
       if (!current || !child || child.id === current.id) return { message: "Choose another currently available worker." };
@@ -493,6 +584,9 @@ export function nativeGate(scope: NativeScope): NativeGate {
     cancelJob(job) {
       stopFor(job).abort();
       browsers.get(job)?.stop.abort();
+      // A worker may already have returned while host readback is pending; do not wait for another SDK event.
+      try { if (team?.helpers.get(job)?.state === "running") team.helpers.stop(job); }
+      catch { log("agent.stop_state_unavailable", { job }); }
     },
     revokeFilePermissions() { memories.clear(); },
     newAnswer(next) {
@@ -515,6 +609,8 @@ export function nativeGate(scope: NativeScope): NativeGate {
       }
       const tree = work.get(job);
       work.delete(job);
+      fileReadbacks.delete(job);
+      checkingFiles.delete(job);
       memories.delete(job);
       // What the agent read comes back in its report, so the main thread is tainted from now until the user's next message.
       if (tainted.has(`job:${job}`)) tainted.set("main", tainted.get(`job:${job}`) === "external MCP data" ? "external MCP data" : "an agent read the web");

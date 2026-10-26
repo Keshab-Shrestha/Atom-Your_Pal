@@ -320,6 +320,13 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "talk.cancel":
         options.computer?.cancelAll(); // Esc: anything waiting for the user is a no
         loop.cancel();
+        // A native worker can outlive its parent's foreground reply. Cancelling an idle voice loop alone
+        // would leave that worker running behind a visible Stop button. Stop only this chat's jobs;
+        // the existing store notification cancels their SDK tasks and seals their tool gates.
+        if (core.sessionId && options.helpers?.activeNativeJobs) {
+          for (const id of options.helpers.activeNativeJobs(core.sessionId)) options.helpers.stop(id);
+        }
+        refreshTaskState();
         return;
       case "text.send": {
         const sourceChat = core.sessionId ?? "";

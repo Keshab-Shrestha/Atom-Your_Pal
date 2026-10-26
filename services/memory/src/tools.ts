@@ -111,26 +111,40 @@ export interface MemoryContextOptions {
   limit?: number;
 }
 
+/** Host selection metadata only: no fact text, search query or inferred model use. */
+export interface MemorySelection {
+  total: number;
+  chosen: { id: number; via: "match" | "recent" }[];
+}
+
 /**
  * What ATOM knows that may matter for this request: memories matching its words, then the newest, up to
  * `limit`. Returned as a block for the system prompt, or undefined when nothing is kept.
  */
 export function memoryContext(request: string, options: MemoryContextOptions): string | undefined {
+  return memoryContextSelection(request, options).text;
+}
+
+/** The same selection/rendering as memoryContext, with an additive host receipt. */
+export function memoryContextSelection(request: string, options: MemoryContextOptions): { text?: string; selection: MemorySelection } {
   const { store, limit = 12 } = options;
   const chosen = new Map<number, Memory>();
-  for (const m of store.search(request, limit)) chosen.set(m.id, m);
+  const reasons = new Map<number, "match" | "recent">();
+  for (const m of store.search(request, limit)) { chosen.set(m.id, m); reasons.set(m.id, "match"); }
   for (const m of store.recent(limit)) {
     if (chosen.size >= limit) break;
+    if (!chosen.has(m.id)) reasons.set(m.id, "recent");
     chosen.set(m.id, m);
   }
-  if (chosen.size === 0) return undefined;
   const total = store.count();
+  const selection: MemorySelection = { total, chosen: [...chosen.keys()].sort((a, b) => a - b).map((id) => ({ id, via: reasons.get(id)! })) };
+  if (chosen.size === 0) return { selection };
   const lines = [...chosen.values()].sort((a, b) => a.id - b.id).map(line);
-  return [
+  return { selection, text: [
     "What you know about the user (facts they asked you to keep; use them naturally, do not recite them unprompted):",
     ...lines,
     ...(total > chosen.size ? [`(${total - chosen.size} more kept; use recall to search them.)`] : []),
-  ].join("\n");
+  ].join("\n") };
 }
 
 /** A run of 13 to 19 digits that passes the Luhn check and does not follow a "+" (an international phone number is long but not a card). */

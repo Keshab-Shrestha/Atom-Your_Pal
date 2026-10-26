@@ -193,6 +193,8 @@ export interface ThreadEvent {
   comments: { id: number; text: string; createdAt: string; delivery?: "live" | "after" }[];
   activity: { kind: string; at: string }[];
   report?: Omit<ReportEvent, "type" | "id">;
+  /** ADR-204: host-written metadata, separate from the worker's report. */
+  executionEvidence?: { summary: string; details: string };
   /** Task 3.8: the plan a plan-first run wrote. */
   plan?: { summary: string; steps: string };
   /** Task 3.10: the sub-tasks this task handed off. */
@@ -442,6 +444,9 @@ export interface PlanPortionItem {
   task: string;
   after: number[];
   job?: number;
+  resultJob?: number;
+  repairUnavailable?: boolean;
+  recovery?: import("@atom/helpers").WorkflowRecovery;
   state: "waiting" | "running" | "done" | "failed" | "stopped" | "blocked";
 }
 

@@ -3,6 +3,7 @@ export * from "./tools.ts";
 export * from "./episodes.ts";
 export * from "./chats.ts";
 export * from "./chat-continuity.ts";
+export * from "./recall-receipts.ts";
 export * from "./chat-index.ts";
 export * from "./chat-search.ts";
 export * from "./projects.ts";
