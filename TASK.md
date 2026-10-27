@@ -1,5 +1,9 @@
 # ZENO Task Plan
 
+## Web panels in the native app: decision and contract — 28 October 2026
+
+Phase 0 of [the HTML-to-native plan](docs/html-to-native-plan.md) is done. ADR-211 chooses a hybrid: a native SwiftUI shell and sandboxed web panels for read-only visuals. [The panel contract](docs/web-panel-contract.md) defines the messages, the checks and the Run panel data. No Swift code changed. No tests ran. Next task: Phase 1, the web panel host and its tests.
+
 ## Standalone current UI preview and Git checkpoint — 28 October 2026
 
 Created self-contained `design/current-ui.html` for Dashboard, Board, chat and ATOM skills, with embedded native office/icon artwork, 151 packaged skill descriptions, local preview interactions, light/dark and text scaling. All data is fictional; no runtime/Git/model access. Manual browser wide/compact/theme/catalog inspection and TypeScript/whitespace checks passed; automated suites remain skipped. [Preview scope](docs/current-ui-preview.md). User authorized pushing the accumulated checkpoint and merging to main; unrelated graphify-out remains excluded.
