@@ -1,0 +1,11 @@
+# Current UI as standalone HTML — 28 October 2026
+
+Open [design/current-ui.html](../design/current-ui.html) directly in a browser. It is self-contained: no build, CDN, network dependency, account or ATOM runtime is required. The HTML mirrors the current Dashboard, Studio Board, compact chat and ATOM skill browser. Scheduled and Second brain stay visibly unavailable in this limited preview; Settings changes preview appearance. This is a visual/interaction artifact, not a second application frontend.
+
+The Dashboard follows the supplied reference and current SwiftUI grid: compact metrics, three recorded-data trend charts, local-commit activity, token mix, branch summaries and briefs. The Board includes ATOM's own office artwork from the current isolated native gallery capture. Its image is embedded and presented through an SVG viewport; no private production window or chat data is included. The app icon is from assets/icon/icon-1024.png. The searchable 151-skill names/descriptions come from the pinned ATOM-owned OMH catalog; its included licenses/provenance remain in assets/skills/omh.
+
+All conversations, names, usage and branches are fictional fixtures. Agent edits/availability, draft send, branch expansion, skill search, text size and appearance affect this HTML session only. Push is disabled; Brief me and attachment controls explain that their behavior belongs to the native app. No model, file permission, agent execution, Git action or real chat transmission is performed. Only preview appearance may persist in browser local storage.
+
+Manual browser inspection covered the 1440-point three-column layout, 760-point stacked layout, light/dark Dashboard and Board, chat, catalog search/selection and larger text (20-point heading scaled to 26.15 points). Browser captures are under /tmp/atom-html-review; a shareable sample-data preview is saved in design/current-ui-preview.png. No automated test suite was run. TypeScript and native signature/whitespace checks passed before the Git checkpoint.
+
+The export preserves the native visual hierarchy; HTML uses ordinary browser controls and a static native office image in place of live SwiftUI controls/Canvas. Text and theme controls affect only the preview. Its dates and numbers are a frozen illustrative snapshot, not live account or repository telemetry.

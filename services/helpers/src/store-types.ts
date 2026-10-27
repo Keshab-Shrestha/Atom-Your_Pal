@@ -184,6 +184,8 @@ export interface HelperView {
   /** The soul's name. */
   name: string;
   available: boolean;
+  /** Pause blocks new starts; existing work keeps its real state. */
+  paused?: boolean;
   role: string;
   /** ADR-088: what it may use (fixed in code), and whether Keshab added it (an agent folder). */
   kit: Kit;
@@ -492,6 +494,7 @@ export interface HelperStore {
   setPlanFirst(helper: string, on: boolean): void;
   /** ADR-098: whether a worker's runs get the browser. Throws HelperError for an unknown worker. */
   setBrowser(helper: string, on: boolean): void;
+  setPaused(helper: string, paused: boolean): void;
   /**
    * ADR-098 item 3, for the runner: Keshab interrupted the run. The task goes back to "to do", held until his next
    * note (which resumes its session); when a note already waits, it runs again at once.

@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-27",
+  "scope": "Board agent management and Dashboard",
+  "syntheticCaptures": true,
+  "captureDirectory": "/tmp/atom-management-20261027",
+  "captures": [
+    "44-add-agent-dark.png",
+    "44-add-agent-light.png",
+    "44-agents-dark.png",
+    "44-agents-light.png",
+    "44-board-compact-dark.png",
+    "44-board-compact-light.png",
+    "44-board-dark.png",
+    "44-board-light.png",
+    "44-dashboard-compact-dark.png",
+    "44-dashboard-compact-light.png",
+    "44-dashboard-dark.png",
+    "44-dashboard-large-dark.png",
+    "44-dashboard-large-light.png",
+    "44-dashboard-light.png",
+    "44-edit-agent-dark.png",
+    "44-edit-agent-light.png"
+  ],
+  "finishReviewDisposition": "ship",
+  "suitesRun": false,
+  "providerRequests": 0,
+  "liveChecks": [
+    "Add agent opens form; cancel without creation",
+    "Edit opens existing instructions; no save",
+    "Cedar idle availability Ready-Paused-Ready restored",
+    "Dashboard team link opens full roster"
+  ],
+  "isolatedChecks": [
+    "pause blocks new admission and queued start",
+    "running job state retained",
+    "resume allows queued start",
+    "pause persists across DB reopen",
+    "command requires boolean",
+    "host-bound running tool continues while paused",
+    "unbound, out-of-kit and stopped calls refused"
+  ],
+  "limitations": [
+    "fixture render, not provider task acceptance",
+    "no new create/save lifecycle exercised",
+    "automated regression suites deferred"
+  ]
+}

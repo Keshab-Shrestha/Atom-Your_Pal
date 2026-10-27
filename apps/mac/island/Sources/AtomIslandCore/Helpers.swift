@@ -51,6 +51,7 @@ public struct Helper: Sendable, Equatable, Identifiable {
     public var name: String
     /// False for a worker not ready for jobs yet: shown as "coming soon", its soul still editable.
     public var available: Bool
+    public var paused: Bool
     public var app: String?
     /// Newest first.
     public var jobs: [HelperJob]
@@ -93,10 +94,11 @@ public struct Helper: Sendable, Equatable, Identifiable {
     public init(id: String, name: String, available: Bool, app: String?, jobs: [HelperJob], pinnedModel: String? = nil,
                 role: String = "", soul: HelperSoul? = nil, soulVersion: Int = 1, soulVersions: [SoulVersion] = [],
                 planFirst: Bool = false, routines: [HelperRoutine] = [], grants: [String] = [], skills: [String] = [], proposals: [SoulProposal] = [], kit: String? = nil, custom: Bool = false,
-                browser: Bool = false, codexPinnedModel: String? = nil) {
+                browser: Bool = false, codexPinnedModel: String? = nil, paused: Bool = false) {
         self.id = id
         self.name = name
         self.available = available
+        self.paused = paused
         self.app = app
         self.jobs = jobs
         self.pinnedModel = pinnedModel
@@ -132,7 +134,7 @@ public struct Helper: Sendable, Equatable, Identifiable {
     /// The card's second line: the newest running job's step, or Idle. ADR-095: with several running, "N at work · step".
     public var activity: String {
         let running = jobs.filter { $0.state == .running }
-        guard let newest = running.first else { return "Idle" }
+        guard let newest = running.first else { return paused ? "Paused" : "Idle" }
         let step = newest.step ?? "Working…"
         return running.count > 1 ? "\(running.count) at work · \(step)" : step
     }

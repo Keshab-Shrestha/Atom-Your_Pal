@@ -31,6 +31,7 @@ struct ConversationControls: View {
     @Environment(\.islandSnapshot) private var snapshot
     @State private var details = false
     @State private var access = false
+    @State private var taskResults = false
     private struct BriefSheet: Identifiable {
         let id: String
         let brief: ChatBrief
@@ -38,10 +39,12 @@ struct ConversationControls: View {
     @State private var editingBrief: BriefSheet?
 
     var body: some View {
+        let taskCount = (model.helpers.list?.everyTask ?? []).filter { $0.job.chatId == model.chats?.current && model.chats?.current != nil }.count
         let recoveryCount = model.recovery.attempts.count + model.unconfirmedAnswers.count
         ChatActionsMenu(title: "Chat options", attention: recoveryCount > 0) {
             Button("Find in chat", action: model.openChatFind)
             Divider()
+            Button("Task results (\(taskCount))") { taskResults = true }.disabled(taskCount == 0)
             Button("Saved history", action: model.openSavedHistory).disabled(model.savedChat == nil)
             Button("Chat brief") {
                 if let chat = model.savedChat, let snapshot = model.chatControls.snapshot, snapshot.id == chat.id, let brief = snapshot.brief {
@@ -76,8 +79,20 @@ struct ConversationControls: View {
             }
         }
         .accessibilityValue(recoveryCount > 0 ? "\(recoveryCount) recovery items" : "")
-        .popover(isPresented: $details) { ScrollView { contextDetails.padding(16) }.frame(width: 360).frame(maxHeight: 580) }
+        .popover(isPresented: $details) { AtomScrollView { contextDetails.padding(16) }.frame(width: 360).frame(maxHeight: 580) }
         .popover(isPresented: $access) { ChatAccessContent(model: model) }
+        .sheet(isPresented: $taskResults) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Task results").appFont(.system(size: 17, weight: .semibold))
+                    Spacer()
+                    Button("Done") { taskResults = false }.keyboardShortcut(.cancelAction)
+                }
+                AtomScrollView { ChatTaskResults(model: model, initiallyExpanded: true).id(model.chats?.current ?? "") }
+            }
+            .padding(20).frame(minWidth: 420, idealWidth: 560, minHeight: 360, idealHeight: 560)
+            .themed(theme).environment(\.appTextSize, model.settings.textSize)
+        }
         .sheet(isPresented: Binding(get: { model.recovery.shown }, set: { model.recovery.shown = $0 })) {
             ForegroundRecoveryView(model: model)
         }
@@ -197,7 +212,7 @@ struct SavedChatHistory: View {
             }
             .disabled(model.chatControls.reading != nil)
             if model.chatControls.reading != nil { ProgressView("Loading saved messages…") }
-            ScrollView {
+            AtomScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     ForEach(model.chatControls.history?.page?.messages ?? []) { message in
                         VStack(alignment: .leading, spacing: 6) {

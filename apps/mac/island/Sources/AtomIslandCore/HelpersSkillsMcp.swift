@@ -28,7 +28,7 @@ public struct SkillInfo: Sendable, Equatable, Identifiable {
         self.source = source
     }
 
-    public var sourceTitle: String { source == "zeno" ? "made by ATOM" : "yours" }
+    public var sourceTitle: String { source == "zeno" ? "ATOM library" : source == "hub" ? "Skills hub" : "Claude Code" }
 }
 
 /// ADR-094: Tinker's draft of a new skill from a task, waiting for Keshab's OK (or answered).

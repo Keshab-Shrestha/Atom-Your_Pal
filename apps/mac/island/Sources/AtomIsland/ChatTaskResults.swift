@@ -4,6 +4,12 @@ import AtomIslandCore
 /// Results stay beside the originating conversation. Reads/review reuse the existing task and Git authority.
 struct ChatTaskResults: View {
     let model: IslandModel
+    @State private var expanded: Bool
+
+    init(model: IslandModel, initiallyExpanded: Bool = false) {
+        self.model = model
+        _expanded = State(initialValue: initiallyExpanded)
+    }
     @State private var selected: Int?
     @State private var confirming: GitBranch?
     @Environment(\.theme) private var theme
@@ -15,7 +21,7 @@ struct ChatTaskResults: View {
 
     var body: some View {
         if !tasks.isEmpty {
-            DisclosureGroup("Tasks from this chat · \(tasks.count)") {
+            DisclosureGroup("Tasks from this chat · \(tasks.count)", isExpanded: $expanded) {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Text("Changes stay in their task working copy until you review and commit them.")

@@ -1,4 +1,6 @@
+import AppKit
 import SwiftUI
+import AtomIslandCore
 
 /// ImageRenderer cannot draw AppKit's borderless buttons. Keep their labels and layout in fixtures.
 struct SnapshotBorderlessButtonStyle: PrimitiveButtonStyle {
@@ -38,7 +40,70 @@ struct Scrollable<Content: View>: View {
             }
             .clipped()
         } else {
-            ScrollView { content }.scrollIndicators(.automatic)
+            AtomScrollView {
+                // Match the snapshot layout: SwiftUI's implicit stack adds gaps and centers short labels.
+                VStack(alignment: .leading, spacing: 0) { content }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }.scrollIndicators(.automatic)
+        }
+    }
+}
+
+/// Shared chrome for ATOM-owned lists, sheets, tables and code. Keep native scrolling and accessibility.
+struct AtomScrollView<Content: View>: View {
+    var axes: Axis.Set
+    var showsIndicators: Bool
+    let content: Content
+
+    init(_ axes: Axis.Set = .vertical, showsIndicators: Bool = true, @ViewBuilder content: () -> Content) {
+        self.axes = axes
+        self.showsIndicators = showsIndicators
+        self.content = content()
+    }
+
+    var body: some View {
+        ScrollView(axes, showsIndicators: showsIndicators) {
+            content.background { CompactScrollChrome() }
+        }
+        .contentMargins(.all, 0, for: .scrollContent)
+    }
+}
+
+/// Attach from inside the owned scroll content; never traverse or restyle web/terminal controls.
+private struct CompactScrollChrome: NSViewRepresentable {
+    @Environment(\.theme) private var theme
+    func makeNSView(context: Context) -> Probe { Probe(frame: .zero) }
+    func updateNSView(_ view: Probe, context: Context) {
+        view.dark = theme.isDark
+        view.configure()
+        DispatchQueue.main.async { [weak view] in view?.configure() }
+    }
+
+    final class Probe: NSView {
+        var dark = true
+        private var configuring = false
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            DispatchQueue.main.async { [weak self] in self?.configure() }
+        }
+        override func layout() {
+            super.layout()
+            configure()
+        }
+        func configure() {
+            guard !configuring, let scroll = enclosingScrollView else { return }
+            configuring = true
+            defer { configuring = false }
+            var resized = false
+            if scroll.scrollerStyle != .overlay { scroll.scrollerStyle = .overlay; resized = true }
+            if !scroll.autohidesScrollers { scroll.autohidesScrollers = true }
+            let knob: NSScroller.KnobStyle = dark ? .light : .dark
+            if scroll.scrollerKnobStyle != knob { scroll.scrollerKnobStyle = knob }
+            for scroller in [scroll.verticalScroller, scroll.horizontalScroller].compactMap({ $0 }) where scroller.controlSize != .small {
+                scroller.controlSize = .small
+                resized = true
+            }
+            if resized { scroll.tile() }
         }
     }
 }

@@ -63,6 +63,7 @@ test("a sub-agent's stream becomes Board rows: the job runs, steps, tool calls (
     last_assistant_message: "Three flights under $400. See https://flights.example.com/ktm and https://news.example.org/x.",
   });
   const done = store.get(job.id)!;
+  assert.equal(board.knownJobOfTask?.("agent-7"), job.id, "wake correlation survives completion cleanup");
   assert.equal(done.state, "done");
   const report = store.report(job.id)!;
   assert.equal(report.title, "Cheap flights to Kathmandu");

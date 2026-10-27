@@ -49,6 +49,52 @@ const make = (sdk: SessionSdk, over: Partial<NativeCoreDeps> = {}) =>
   createNativeCore({ claudePath: "/bin/claude", tools: runner, modelFor: () => "claude-sonnet-5-5", sdk, web: true, env: { PATH: "/bin" }, newId: () => "chat-1", ...over });
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+test("stopped task wakes save host counts instead of partial worker prose and catch the provider up on the next turn", { timeout: 3000 }, async () => {
+  let clock = Date.parse("2026-10-27T00:00:00Z");
+  const store = openHelperStore({ path: ":memory:", now: () => new Date(clock) });
+  let release!: () => void;
+  const stopped = new Promise<void>((resolve) => { release = resolve; });
+  let wake!: (text: string) => void;
+  const woken = new Promise<string>((resolve) => { wake = resolve; });
+  const sent: string[] = [], exchanges: Message[][] = [];
+  const sdk: SessionSdk = { ...fakeSdk().sdk, query: ({ prompt, options }) => {
+    const done = (text: string) => ({ type: "result", subtype: "success", is_error: false, result: text, session_id: "stop-counts", usage: {} });
+    async function* run() {
+      yield { type: "system", subtype: "init", apiKeySource: "none", session_id: "stop-counts" };
+      for await (const input of prompt) {
+        sent.push(String((input as Msg).message.content));
+        if (sent.length > 1) { yield done("Continued"); continue; }
+        await (options as any).canUseTool("Agent", { subagent_type: "sid", description: "Cedar", prompt: "Fictional work" }, { toolUseID: "u1" });
+        yield { type: "system", subtype: "task_started", task_id: "a1", tool_use_id: "u1" };
+        yield done("Started");
+        await stopped;
+        yield { type: "system", subtype: "task_notification", task_id: "a1", status: "stopped" };
+        yield done("Only one read completed. Nothing changed.");
+      }
+    }
+    return Object.assign(run(), { stopTask: async () => release(), close() {} });
+  } };
+  const core = make(sdk, { team: { helpers: store, approve: async () => false, worktrees: "/tmp/atom-stop-counts", onWake: (_chat, text) => wake(text) },
+    onExchange: (_chat, turns) => exchanges.push([...turns]),
+    log: (event) => { if (event === "agent.stopped_summary") throw new Error("Diagnostic log unavailable"); } });
+  try {
+    await core.handle({ text: "Sid, do fictional Cedar work", source: "text" });
+    const job = store.list().flatMap((h) => h.jobs)[0]!;
+    for (let i = 0; i < 5; i++) {
+      store.recordToolCall(job.id, { id: `read-${i}`, tool: "Read", input: "fictional", state: "started", at: new Date(clock + i * 10).toISOString() });
+      store.recordToolCall(job.id, { id: `read-${i}`, tool: "Read", input: "", state: "ok", at: new Date(clock + i * 10 + 1).toISOString() });
+    }
+    clock += 100; store.stop(job.id); await core.stopJob(job.id);
+    const text = await woken;
+    assert.match(text, /Read × 5/);
+    assert.doesNotMatch(text, /Only one|Nothing changed/);
+    assert.equal(exchanges.at(-1)!.at(-1)!.content, text);
+    await core.handle({ text: "Continue this chat without restarting work", source: "text" });
+    assert.match(sent[1]!, /Read × 5/);
+    assert.equal(store.get(job.id)?.state, "stopped");
+  } finally { release(); core.reset(); store.close(); }
+});
+
 test("Stop cancels an SDK worker's plan card before a task_started id arrives", async () => {
   const store = openHelperStore({ path: ":memory:" }); store.setPlanFirst("kame", true);
   const bridge = createComputerBridge(); bridge.attach(() => {});

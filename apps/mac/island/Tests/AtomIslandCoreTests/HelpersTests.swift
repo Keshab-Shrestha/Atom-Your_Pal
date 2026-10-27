@@ -799,7 +799,7 @@ struct SkillsThatGrowTests {
         var state = HelpersState()
         state.apply(try decodeEvent(Self.line))
         let list = try #require(state.list)
-        #expect(list.skills.map(\.sourceTitle) == ["yours", "made by ATOM", "yours"], "an older runtime sends no source: Keshab's")
+        #expect(list.skills.map(\.sourceTitle) == ["Claude Code", "ATOM library", "Claude Code"], "an older runtime sends no source: Claude Code")
         #expect(list.skillDrafts.map(\.id) == [2, 1] && list.skillDrafts[0].preview == "1. Start simple.")
         #expect(list.skillEdits.map(\.state) == ["pending", "accepted"] && list.skillEdits[0].before == "2. Two.")
         var older = HelpersState()

@@ -12,6 +12,7 @@ import { createChatWork, type ChatWorkBridge } from "./chat-work.ts";
 // Microphone → Whisper → ATOM Core → LLM Gateway → provider → Kokoro → speaker.
 
 import { createChatTurns, type ChatTurns } from "./chat-turns.ts";
+import { installBundledSkills } from "./bundled-skills.ts";
 import { dirname, join, resolve } from "node:path";
 import type { Core } from "@atom/core";
 import { createComputerBridge, type ComputerBridge } from "./computer-bridge.ts";
@@ -72,7 +73,7 @@ import type { IslandBrain, IslandChats, IslandGit, IslandHelpers, IslandMemory, 
 import { islandHelpers } from "./island-helpers.ts";
 import { createHubCommands } from "./hub-commands.ts";
 import { listCommands, useCommand, userCommandsDir } from "./slash-commands.ts";
-import { SKILLS_PLUGIN, listSkills, prepareSkills, readSkill, readSkillFile, useSkill, userSkillsDir, writeSkillFile } from "./skills.ts";
+import { SKILLS_PLUGIN, listSkills, prepareSkills, readSkill, readSkillPage, readSkillFile, useSkill, userSkillsDir, writeSkillFile } from "./skills.ts";
 import { createUseSkillTool } from "./skill-tool.ts";
 import { runTestCases } from "./test-runs.ts";
 import { createEmbedder } from "./embedder.ts";
@@ -412,6 +413,10 @@ export function createRuntime(
   const agentsDir = join(dirname(resolve(helpersPath === ":memory:" ? "data/x" : helpersPath)), "agents");
   // ADR-094: ATOM's own skills, approved by Keshab, live beside it too: data/skills/<name>/SKILL.md.
   const skillsDir = helpersPath === ":memory:" ? undefined : join(dirname(resolve(helpersPath)), "skills");
+  if (skillsDir) {
+    try { log.info("skills.bundle", installBundledSkills(skillsDir)); }
+    catch (error) { log.error("skills.bundle_unavailable", errorFields(error)); }
+  }
   const checkpointsDir = helpersPath === ":memory:" ? undefined : join(dirname(resolve(helpersPath)), "checkpoints"); // B3.4
   // ADR-113: files attached to a chat are copied here (data/attachments/<chat>); none in tests.
   const attachments = helpersPath === ":memory:" ? undefined : createAttachments({ dir: join(dirname(resolve(helpersPath)), "attachments"), log: { info: (event, fields) => log.info(event, fields as LogFields) } });
@@ -583,6 +588,7 @@ export function createRuntime(
     createUseSkillTool({
       list: () => listSkills(userSkillsDir(), skillsDir, new Set(helpers?.skillHubInstalled().map((i) => i.name) ?? [])),
       read: (name) => readSkill(name, userSkillsDir(), skillsDir),
+      readPage: (name, file, offset) => readSkillPage(name, file, offset, userSkillsDir(), skillsDir),
       onUse: (e) => log.info("skill.used", e),
     }),
   ];

@@ -24,6 +24,17 @@ enum IslandGallery {
             return
         }
 
+        if AtomEnv.read("ATOM_ISLAND_GALLERY_ONLY") == "management" {
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            writeManagement(to: directory)
+            return
+        }
+        if AtomEnv.read("ATOM_ISLAND_GALLERY_ONLY") == "chat" {
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            writeChatDesign(to: directory)
+            return
+        }
+
         let model = IslandModel(settings: IslandSettings(defaults: defaults))
         let lines = [
             #"{"type":"ready","protocol":1,"provider":"claude-plan","model":"claude-sonnet-5-5","microphone":"Mac mini Microphone","voice":true}"#,

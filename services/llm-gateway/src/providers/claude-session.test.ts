@@ -266,6 +266,26 @@ test("N2: a reply Claude Code gives by itself (an agent reported) goes to onUnpr
   s.close();
 });
 
+test("unprompted result metadata uses structured task notifications once and clears foreground-consumed notifications", async () => {
+  const wakes: { text: string; tasks: unknown }[] = [];
+  const { sdk, queries } = fakeSdk(() => [
+    { type: "system", subtype: "task_notification", task_id: "foreground-task", status: "stopped" }, done("own answer"),
+  ]);
+  const session = await openChatSession(options(sdk, { onUnprompted: (text, tasks) => wakes.push({ text, tasks }) }));
+  try {
+    await session.send("one");
+    queries[0]!.inject(done("No notification for this result")); await sleep(5);
+    assert.deepEqual(wakes[0]!.tasks, []);
+    queries[0]!.inject({ type: "system", subtype: "task_notification", task_id: "a", status: "stopped" });
+    queries[0]!.inject({ type: "system", subtype: "task_notification", task_id: "b", status: "completed" });
+    queries[0]!.inject({ type: "system", subtype: "task_notification", task_id: "bad", status: "model-guess" });
+    queries[0]!.inject(done("Only one read completed")); await sleep(5);
+    assert.deepEqual(wakes[1], { text: "Only one read completed", tasks: [{ id: "a", status: "stopped" }, { id: "b", status: "completed" }] });
+    queries[0]!.inject(done("Another result")); await sleep(5);
+    assert.deepEqual(wakes[2]!.tasks, []);
+  } finally { session.close(); }
+});
+
 test("the installed Agent SDK's version is readable, for the session.open log", () => {
   assert.match(sdkVersion(), /^\d+\.\d+\.\d+/);
 });

@@ -69,7 +69,7 @@ private struct PreparedBriefEditor: View {
             }
             Text("Edit and copy manually. Closing discards these edits; the saved generated card stays unchanged. Nothing here sends, executes or changes permissions.")
                 .foregroundStyle(theme.text2.color)
-            ScrollView {
+            AtomScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     SoulField(label: "Title", text: $title, lines: 2)
                     SoulField(label: "Draft or checklist", text: $bodyText, lines: 8)

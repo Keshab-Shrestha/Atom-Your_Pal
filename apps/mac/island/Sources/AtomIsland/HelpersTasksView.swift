@@ -71,14 +71,19 @@ struct BoardPane: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(model.boardView == .floor ? "ATOM Studio" : model.boardView.title)
-                        .appFont(.system(size: 20, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
-                    Text(model.boardView == .floor ? "A shared space for your agents. Open a character to see its work." : "Tasks, decisions and results from your team.")
+                    Text(model.boardView == .floor ? "Your team" : model.boardView.title)
+                        .appFont(.system(size: 26, weight: .semibold)).foregroundStyle(theme.text.color)
+                    Text(model.boardView == .floor ? "Manage your agents and keep work moving." : "Tasks, decisions and results from your team.")
                         .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }
                 Spacer(minLength: 10)
-                QuietButton(title: "Agents", symbol: "person.2") { model.showsAllAgents = true }
+                QuietButton(title: "All agents", symbol: "person.2") { model.showsAllAgents = true }
+                Button { model.navigate { model.helpers.openNewAgent() } } label: {
+                    Label("Add agent", systemImage: "plus").appFont(.system(size: 12, weight: .semibold))
+                }.buttonStyle(.borderedProminent).tint(theme.accent.color).foregroundStyle(theme.onAccent.color)
+                    .disabled(model.helpers.list == nil).accessibilityLabel("Add agent")
             }
+            if let problem = model.helpers.problem { ProblemLine(text: problem) }
             let waiting = BoardAttention(list: model.helpers.list, approvalPending: model.approval.pending != nil).total
             HStack(spacing: 6) {
                 // Five views: full names when the pane is wide enough, symbols and counts when it is not.
@@ -104,7 +109,7 @@ struct BoardPane: View {
                 // ADR-091: the team lives here now (the sidebar lists chats): each opens its page.
                 if model.boardView != .floor { TeamChips(model: model) }
                 // ADR-111: the work plans: a goal, its portions and how far each is.
-                if let plans = model.helpers.list?.plans, !plans.isEmpty {
+                if model.boardView != .floor, let plans = model.helpers.list?.plans, !plans.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Plans").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
                         ForEach(plans.prefix(3)) { plan in PlanCard(model: model, plan: plan) }
@@ -120,11 +125,15 @@ struct BoardPane: View {
                 // ADR-091: the floor keeps its shape and fits the Board's width and the window's height.
                 if model.boardView == .floor {
                     studioStatus
-                    OfficeFloor(model: model).frame(maxHeight: max(220, viewport.size.height - 130)).frame(maxWidth: .infinity)
-                    Text("Workstations show active tasks. The lounge holds available agents. Amber or red signals need your review.")
-                        .appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
-                    DisclosureGroup("Agent directory") { TeamChips(model: model).padding(.top, 8) }
-                        .appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+                    if viewport.size.width >= 840 {
+                        HStack(alignment: .top, spacing: 28) {
+                            studioFloor(height: max(320, viewport.size.height - 100)).frame(maxWidth: .infinity)
+                            AgentManagementPanel(model: model).frame(width: 330)
+                        }
+                    } else {
+                        studioFloor(height: max(320, viewport.size.width * CGFloat(OfficeMap.height) / CGFloat(OfficeMap.width)))
+                        AgentManagementPanel(model: model)
+                    }
                 }
                 if model.helpers.list == nil {
                     LoadingStateView(text: "Loading the Board…", retry: { model.send(.helpersList) })
@@ -704,9 +713,7 @@ private struct TeamChips: View {
             if chips.count < everyone.count {
                 quiet("All agents (\(everyone.count))", symbol: "magnifyingglass", help: "Every agent, by name or role") { model.navigate { model.showsAllAgents = true } }
             }
-            if model.helpers.list != nil {
-                quiet("New agent", symbol: "plus", help: "Add an agent with its own role and soul") { model.navigate { model.helpers.openNewAgent() } }
-            }
+
         }
     }
 
@@ -732,7 +739,7 @@ private struct AllAgentsList: View {
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
 
-    private static let rowHeight: CGFloat = 42
+    private static let rowHeight: CGFloat = 58
     private static let headerHeight: CGFloat = 22
 
     init(model: IslandModel) { self.model = model }
@@ -793,30 +800,13 @@ private struct AllAgentsList: View {
             }
         }
         .padding(14)
-        .frame(width: 380)
+        .frame(width: 440)
         .background(shape.fill(theme.surfaceSolid.color))
         .overlay(shape.strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
-        .shadow(color: .black.opacity(0.25), radius: 18, y: 6)
     }
 
     private func row(_ helper: Helper) -> some View {
-        Button { open(helper) } label: {
-            HStack(spacing: 9) {
-                HelperBadge(helper: helper, size: 24)
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(helper.name).appFont(.system(size: 12.5, weight: .semibold)).foregroundStyle(theme.text.color)
-                    Text(TeamRoster.isWorking(helper) ? "\(helper.roleTitle) · \(helper.activity)" : helper.roleTitle)
-                        .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
-                }
-                .lineLimit(1)
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 4)
-            .frame(height: Self.rowHeight)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help("\(helper.name)'s page")
+        AgentManagementRow(model: model, helper: helper)
     }
 
     private func open(_ helper: Helper) {
@@ -828,6 +818,14 @@ private struct AllAgentsList: View {
 }
 
 extension BoardPane {
+    private func studioFloor(height: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            OfficeFloor(model: model).frame(height: height).frame(maxWidth: .infinity)
+            Text("Working agents sit at their desks. Open a character to review its task.")
+                .appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+        }
+    }
+
     private var studioStatus: some View {
         let attention = BoardAttention(list: model.helpers.list, approvalPending: model.approval.pending != nil)
         return HStack(spacing: 10) {

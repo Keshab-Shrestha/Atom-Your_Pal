@@ -122,7 +122,7 @@ struct ChatModelPicker: View {
             Scrollable { VStack(alignment: .leading, spacing: 2) { modelRows }.padding(6) }
         } else {
             ScrollViewReader { proxy in
-                ScrollView {
+                AtomScrollView {
                     LazyVStack(alignment: .leading, spacing: 2) { modelRows }.padding(6)
                 }
                 .onChange(of: cursor) {

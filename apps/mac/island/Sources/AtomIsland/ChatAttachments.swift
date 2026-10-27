@@ -22,7 +22,7 @@ struct AttachedFilesRow: View {
                 if snapshot {
                     chips // Gallery rendering neither reads attachment bytes nor invokes Quick Look.
                 } else {
-                    ScrollView(.horizontal) { chips }
+                    AtomScrollView(.horizontal) { chips }
                         // Reserve room for users who keep macOS scroll bars permanently visible.
                         .frame(height: files.isEmpty ? 42 : 60)
                         .scrollIndicators(.automatic)

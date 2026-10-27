@@ -389,7 +389,8 @@ struct SidebarChatRow: View {
                 // 2026-10-15: the time is not a second line any more (one line is a shorter row); it is the tip and VoiceOver's.
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.leading, 10).padding(.trailing, 30).padding(.vertical, 8)
+            .padding(.leading, 8).padding(.trailing, hovering && !renaming && !snapshot ? 30 : 8).padding(.vertical, 6)
+            .frame(minHeight: 30)
             .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(current && model.windowPage == .chat ? theme.accent.color.opacity(0.14) : hovering ? theme.fill1.color : .clear))
             .contentShape(Rectangle())

@@ -59,6 +59,9 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 # T3 Code chat design adaptation (MIT): include its notice with the distributed app.
 cp "$root/reference/licenses/t3code-MIT.txt" "$app/Contents/Resources/ThirdParty-T3Code.txt"
 cp "$root/reference/licenses/SwiftTerm-MIT.txt" "$app/Contents/Resources/ThirdParty-SwiftTerm.txt"
+cp "$root/assets/skills/omh/LICENSE" "$app/Contents/Resources/ThirdParty-OhMyHermes.txt"
+mkdir -p "$app/Contents/Resources/skills"
+cp -R "$root/assets/skills/omh" "$app/Contents/Resources/skills/omh"
 cp -R "$here/.build/release/SwiftTerm_SwiftTerm.bundle" "$app/Contents/Resources/"
 cp "$binary" "$app/Contents/MacOS/ATOM"
 # Calendar and Reminders helper (ADR-060). Inside the app so macOS attributes its permission to ATOM.

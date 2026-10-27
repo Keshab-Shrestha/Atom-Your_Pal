@@ -71,7 +71,7 @@ struct HelpersView: View {
         let settingsBack: (() -> Void)? = model.windowPage == .settings && model.settingsPage != nil
             ? { withAnimation(Motion.workspace(reduceMotion)) { model.settingsPage = nil } } : nil
         return WindowTopBar(title: page.title, symbol: page.symbol, compact: true,
-            context: model.windowPage == .chat ? model.chats?.currentProject?.name : model.windowPage == .settings ? "Preferences" : "Workspace",
+            context: model.windowPage == .chat ? model.chats?.currentProject?.name : model.windowPage == .settings ? "Preferences" : (model.windowPage == .agents || model.windowPage == .dashboard) ? nil : "Workspace",
             showSidebar: model.settings.sidebarHidden && (model.windowPage == .chat || model.windowPage == .settings) ? { model.toggleSidebar() } : nil,
             back: model.windowPage == .dashboard ? nil : settingsBack ?? (model.history.canGoBack && !ownBack ? { model.goBack() } : nil)) {
                 if model.windowPage == .chat {
@@ -193,7 +193,7 @@ private struct HelperSidebar: View {
                 if !model.searchQuery.isEmpty { Spacer(minLength: 0) }
             }
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 8)
         .padding(.top, desktopDesign ? 16 : HelpersView.titleBarRoom)
         .padding(.bottom, 10)
         .frame(maxHeight: .infinity, alignment: .top)
@@ -391,16 +391,17 @@ private struct HelperPane: View {
                     }
                     Spacer(minLength: 8)
                     if helper.soul != nil {
-                        QuietButton(title: "Soul", symbol: "sparkles") { model.navigate { model.helpers.openSoul() } }
+                        QuietButton(title: "Edit agent", symbol: "pencil") { model.navigate { model.helpers.openSoul() } }
                             .help("Who \(helper.name) is and how it works")
                     }
+                    AgentAvailabilityMenu(model: model, helper: helper)
                     if helper.custom { RemoveAgentButton(model: model, helper: helper) }
                 }
                 if helper.proposals.contains(where: { $0.state == "pending" || $0.state == "accepted" }) {
                     ProposalsSection(model: model, proposals: helper.proposals, soul: helper.soul)
                 }
                 TestCasesList(model: model, kind: "soul", target: helper.id) // ADR-098 item 8
-                if helper.available {
+                if helper.available || helper.paused {
                     HStack(spacing: 8) {
                         AppPicker(model: model, helper: helper)
                         ModelPicker(model: model, helper: helper, models: model.helpers.list?.models ?? [])
@@ -411,7 +412,10 @@ private struct HelperPane: View {
                     if helper.takesTasks, helper.kit != "think" { BrowserRow(model: model, helper: helper) } // ADR-098
                     if helper.worksInFolders { FilesNote(helper: helper) }
                     VStack(alignment: .leading, spacing: 8) {
-                        TaskField(model: model, helper: helper)
+                        if helper.paused {
+                            Text("Paused for new work. Set availability to Ready to give this agent a task.")
+                                .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
+                        } else { TaskField(model: model, helper: helper) }
                         HStack(spacing: 8) {
                             WaitsForMenu(model: model)
                         }
@@ -951,7 +955,7 @@ private struct ChatsList: View {
     var body: some View {
         let list = model.chats
         Text("Chats").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
-            .accessibilityAddTraits(.isHeader).padding(.horizontal, 10).padding(.top, 8)
+            .accessibilityAddTraits(.isHeader).padding(.horizontal, 8).padding(.top, 4)
         let active = ProjectSidebarScope.activeChats(list?.chats ?? [], projects: list?.projects ?? [], selected: model.sidebarProjectFilter)
         if !active.isEmpty {
             ForEach(showAll ? active : Array(active.prefix(40))) { chat in

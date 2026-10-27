@@ -126,11 +126,17 @@ export interface ChatSessionOptions {
    */
   onModelTotals?: (totals: Record<string, ModelTotal>, meta: { chatId: string; resumed: boolean; first: boolean; background: number }) => void;
   /** A reply Claude Code gave with no turn of ATOM's waiting: it woke itself, e.g. when a background agent finished. */
-  onUnprompted?: (text: string) => void;
+  onUnprompted?: (text: string, tasks?: readonly SessionTaskNotification[]) => void;
   /** Called once when the session has closed (idle, error or `close`). */
   onClose?: (reason: string) => void;
   /** Names and numbers only, never text. */
   log?: (event: string, fields: Record<string, unknown>) => void;
+}
+
+/** Structured SDK notifications associated with a result; never inferred from the model's prose. */
+export interface SessionTaskNotification {
+  id: string;
+  status: "completed" | "failed" | "stopped";
 }
 
 export interface SendOptions {
@@ -263,6 +269,7 @@ export async function openChatSession(o: ChatSessionOptions): Promise<ChatSessio
   let background = 0;
   /** Claude Code runs a turn of its own (a background task woke it). */
   let selfTurn = false;
+  const taskNotifications = new Map<string, SessionTaskNotification>();
   let costSoFar = 0;
   let closed = false;
   let idle: ReturnType<typeof setTimeout> | undefined;
@@ -340,12 +347,14 @@ export async function openChatSession(o: ChatSessionOptions): Promise<ChatSessio
   /** A turn Claude Code ran by itself: its reply goes to `onUnprompted`. */
   const unprompted = (result: Record<string, any>) => {
     selfTurn = false;
+    const tasks = [...taskNotifications.values()];
+    taskNotifications.clear();
     count(result);
     const text = result.subtype === "success" && !result.is_error && typeof result.result === "string" ? withoutSources(result.result.trim()) : "";
     log("session.unprompted", { ok: Boolean(text) });
     if (text) {
       try {
-        o.onUnprompted?.(text);
+        o.onUnprompted?.(text, tasks);
       } catch {
         // the owner's bookkeeping never stops the session
       }
@@ -354,6 +363,8 @@ export async function openChatSession(o: ChatSessionOptions): Promise<ChatSessio
   };
 
   const finish = (t: Turn, result: Record<string, any>) => {
+    // Notifications consumed by a foreground answer must not be attributed to a later self-started result.
+    taskNotifications.clear();
     count(result);
     if (t.cancelled) return end(t, { error: new ProviderError("cancelled", "Request cancelled") });
     if (result.subtype === "error_max_turns") return end(t, { error: new ProviderError("bad_request", "Claude used too many steps on this request and stopped.") });
@@ -389,6 +400,12 @@ export async function openChatSession(o: ChatSessionOptions): Promise<ChatSessio
   void (async () => {
     try {
       for await (const message of q) {
+        if (message.type === "system" && message.subtype === "task_notification"
+          && typeof message.task_id === "string" && message.task_id.length > 0 && message.task_id.length <= 256
+          && ["completed", "failed", "stopped"].includes(message.status)) {
+          if (taskNotifications.size >= 32 && !taskNotifications.has(message.task_id)) taskNotifications.delete(taskNotifications.keys().next().value!);
+          taskNotifications.set(message.task_id, { id: message.task_id, status: message.status });
+        }
         for (const listener of listeners) {
           try {
             listener(message);

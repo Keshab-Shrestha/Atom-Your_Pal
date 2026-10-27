@@ -11,89 +11,116 @@ struct DashboardPane: View {
 
     var body: some View {
         let usage = model.helpers.list?.usage
+        let attention = BoardAttention(list: model.helpers.list, approvalPending: model.approval.pending != nil)
+        GeometryReader { viewport in
         Scrollable {
-            VStack(alignment: .leading, spacing: 22) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Dashboard").appFont(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
-                        Text("Tokens used by ATOM's chat and the team. On the Claude plan they count toward its limits; dollars are list prices for the calls counted here: tokens, Claude Code's own calls, and web searches at one cent each.")
-                            .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
-                    }
-                    Spacer(minLength: 12)
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Overview").appFont(.system(size: 20, weight: .semibold)).foregroundStyle(theme.text.color)
+                    Spacer(minLength: 8)
                     updated
+                    QuietButton(title: "Open Board", symbol: "rectangle.3.group") { openBoard(.floor) }
                 }
-                // Daily brief (upgrades.md C3): the newest brief, and a short list of the earlier ones.
-                if model.dailyBrief.latest != nil || model.dailyBrief.running {
-                    BriefCard(model: model, onlyRecent: false)
+                ViewThatFits(in: .horizontal) {
+                    summaryStrip(usage: usage, attention: attention, columns: 6).frame(minWidth: 1000)
+                    summaryStrip(usage: usage, attention: attention, columns: 3)
                 }
-                if model.dailyBrief.history.count > 1 {
-                    BriefHistory(model: model)
-                }
-                PreparedBriefCards(model: model)
                 if let usage {
-                    // One lead number (today's input + output, with how it compares to a usual day), three smaller ones for
-                    // the week, and the cache counts smallest. Equal cards say nothing is more important than anything else.
-                    HeroTile(value: TokenTotals.short(usage.today.io), label: "Input + output today",
-                             detail: "\(usage.today.runs) run\(usage.today.runs == 1 ? "" : "s") · " + String(format: "$%.2f API-equivalent", usage.today.dollars),
-                             trend: usage.todayTrend?.text)
-                    HStack(spacing: 12) {
-                        TokenTile(value: TokenTotals.short(usage.week.io), label: "Input + output, 7 days", detail: "\(usage.week.runs) runs", medium: true)
-                        TokenTile(value: String(format: "$%.2f", usage.week.dollars), label: "API-equivalent, 7 days", detail: String(format: "$%.2f today", usage.today.dollars), medium: true)
-                        // ADR-098 item 9: how much of the prompt came back from the cache.
-                        TokenTile(value: usage.week.cacheHitText, label: "Cache hits, 7 days", detail: "\(usage.today.cacheHitText) today", medium: true)
-                    }
-                    HStack(spacing: 12) {
-                        TokenTile(value: TokenTotals.short(usage.week.cacheWrite), label: "Cache written, 7 days", detail: "\(TokenTotals.short(usage.today.cacheWrite)) today", small: true)
-                        TokenTile(value: TokenTotals.short(usage.week.cacheRead), label: "Cache read, 7 days", detail: "\(TokenTotals.short(usage.today.cacheRead)) today", small: true)
-                    }
-                    Text(Self.cacheHelp).appFont(.system(size: 11)).foregroundStyle(theme.text3.color).padding(.leading, 4)
+                    DashboardOverviewGrid(model: model, usage: usage, width: viewport.size.width - 40)
                     if usage.chatCacheCold {
-                        Text("Cache went cold: ATOM's last \(Self.coldRuns) chat answers read nothing from the cache, so each one sent its whole prompt again.")
-                            .appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).padding(.leading, 4)
+                        Label("Recent chat turns did not reuse cached input. Details show the recorded counts.", systemImage: "info.circle")
+                            .appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color)
                     }
-                    if !usage.recent.isEmpty {
-                        section("Recent turns") {
-                            RecentHeader()
-                            ForEach(Array(usage.recent.enumerated()), id: \.offset) { index, run in
-                                RowDivider()
-                                RecentRow(run: run)
+                    DisclosureGroup("Recent turns") {
+                        AtomScrollView(.horizontal) {
+                            VStack(spacing: 0) {
+                                RecentHeader()
+                                ForEach(Array(usage.recent.enumerated()), id: \.offset) { _, run in RowDivider(); RecentRow(run: run) }
+                            }.frame(minWidth: 650)
+                        }.padding(.top, 12)
+                    }.appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    DisclosureGroup("Usage details and accounting") {
+                        VStack(alignment: .leading, spacing: 18) {
+                            Text("Tokens used by ATOM's chat and the team. On the Claude plan they count toward its limits; dollars are list prices for the calls counted here: tokens, Claude Code's own calls, and web searches at one cent each.")
+                                .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
+                            if let trend = usage.todayTrend?.text { Text(trend).appFont(.system(size: 12)).foregroundStyle(theme.text2.color) }
+                            HStack(spacing: 24) {
+                                DashboardMetric(value: TokenTotals.short(usage.week.cacheWrite), title: "Cache written, 7 days", detail: "\(TokenTotals.short(usage.today.cacheWrite)) today")
+                                DashboardMetric(value: TokenTotals.short(usage.week.cacheRead), title: "Cache read, 7 days", detail: "\(TokenTotals.short(usage.today.cacheRead)) today")
                             }
-                        }
-                    }
-                    section("Each day") { DayBars(days: usage.days, today: usage.days.last?.day) }
-                    if let plan = model.planUsage, !plan.isEmpty { section("Claude plan") { PlanMeters(plan: plan) } }
-                    section("By worker, 7 days") {
-                        if usage.byWorker.isEmpty { quiet("Nothing used yet.") }
-                        ForEach(Array(usage.byWorker.enumerated()), id: \.offset) { index, worker in
-                            if index > 0 { RowDivider() }
-                            ShareRow(name: worker.name, totals: worker.totals, of: usage.week.total, identifier: false)
-                        }
-                    }
-                    section("By model, 7 days") {
-                        if usage.byModel.isEmpty { quiet("Nothing used yet.") }
-                        ForEach(Array(usage.byModel.enumerated()), id: \.offset) { index, m in
-                            if index > 0 { RowDivider() }
-                            ShareRow(name: m.model, totals: m.totals, of: usage.week.total, identifier: true)
-                        }
-                    }
-                    Text("Cache reads are context read back from Claude's cache; they cost a tenth as much. To use fewer: lower a worker's model on its page, or turn off the large model in the sidebar.")
-                        .appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
+                            Text(Self.cacheHelp).appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+                            if let plan = model.planUsage, !plan.isEmpty { section("Claude plan") { PlanMeters(plan: plan) } }
+                            section("By worker, 7 days") {
+                                if usage.byWorker.isEmpty { quiet("No worker usage recorded yet.") }
+                                ForEach(Array(usage.byWorker.enumerated()), id: \.offset) { index, worker in
+                                    if index > 0 { RowDivider() }
+                                    ShareRow(name: worker.name, totals: worker.totals, of: usage.week.total, identifier: false)
+                                }
+                            }
+                            section("By model, 7 days") {
+                                if usage.byModel.isEmpty { quiet("No model usage recorded yet.") }
+                                ForEach(Array(usage.byModel.enumerated()), id: \.offset) { index, value in
+                                    if index > 0 { RowDivider() }
+                                    ShareRow(name: value.model, totals: value.totals, of: usage.week.total, identifier: true)
+                                }
+                            }
+                        }.padding(.top, 14)
+                    }.appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
                 } else {
-                    LoadingStateView(text: "Loading tokens…", retry: { model.send(.helpersList) })
+                    LoadingStateView(text: "Loading workspace…", retry: { model.send(.helpersList) })
                 }
-                // ADR-091: the branches workers made, like pull requests; Keshab pushes one.
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Git: the team's branches").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
-                    if let problem = model.helpers.problem { ProblemLine(text: problem) }
-                    GitSection(model: model)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, Spacing.panel)
-            .padding(.top, 20)
-            .padding(.bottom, Spacing.panel)
+            }.frame(maxWidth: .infinity, alignment: .leading)
+                .padding(20)
         }
-        .onAppear { if !snapshot { model.loadBrief() } }
+        }.onAppear { if !snapshot { model.loadBrief() } }
+    }
+
+    private func summaryStrip(usage: TokenUsageSummary?, attention: BoardAttention, columns: Int) -> some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: columns), alignment: .leading, spacing: 14) {
+            workLink(value: model.helpers.list == nil ? nil : attention.total, title: "Need review", symbol: "tray", attention: attention.total > 0) { openBoard(.needsYou) }
+            workLink(value: model.helpers.list == nil ? nil : attention.running, title: "Running", symbol: "arrow.triangle.2.circlepath") { openBoard(.columns) }
+            workLink(value: model.helpers.list?.helpers.count, title: "Agents", symbol: "person.2") { openBoard(.floor); model.showsAllAgents = true }
+            summaryValue(usage.map { TokenTotals.short($0.today.io) } ?? "—", title: "Tokens today", symbol: "chart.xyaxis.line")
+            summaryValue(usage.map { String(format: "$%.2f", $0.week.dollars) } ?? "—", title: "API-equivalent · week", symbol: "dollarsign.circle")
+            summaryValue(usage?.week.cacheHitText ?? "—", title: "Cache hits · week", symbol: "arrow.triangle.2.circlepath")
+        }.padding(.horizontal, 16).padding(.vertical, 6)
+            .background(theme.fill2.color.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+    }
+    private func summaryValue(_ value: String, title: String, symbol: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: symbol).appFont(.system(size: 15)).foregroundStyle(theme.text3.color)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(value).appFont(.system(size: 18, weight: .semibold)).monospacedDigit().foregroundStyle(theme.text.color)
+                Text(title).appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)
+            }
+        }.padding(.vertical, 10).frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func usageMetrics(_ usage: TokenUsageSummary, columns: Int) -> some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 24), count: columns), alignment: .leading, spacing: 20) {
+            DashboardMetric(value: TokenTotals.short(usage.today.io), title: "Tokens today", detail: "\(usage.today.runs) runs")
+            DashboardMetric(value: TokenTotals.short(usage.week.io), title: "Tokens this week", detail: "\(usage.week.runs) runs")
+            DashboardMetric(value: String(format: "$%.2f", usage.week.dollars), title: "API-equivalent this week", detail: String(format: "$%.2f today", usage.today.dollars))
+            DashboardMetric(value: usage.week.cacheHitText, title: "Cache hits this week", detail: "\(usage.today.cacheHitText) today")
+        }
+    }
+
+    private func openBoard(_ view: BoardView) {
+        model.navigate { model.windowPage = .agents; model.helpers.selectBoard(); model.boardView = view }
+    }
+
+    private func workLink(value: Int?, title: String, symbol: String, attention: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: symbol).appFont(.system(size: 16)).foregroundStyle(attention ? theme.attention.color : theme.text3.color)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(value.map(String.init) ?? "—").appFont(.system(size: 18, weight: .semibold)).monospacedDigit().foregroundStyle(theme.text.color)
+                    Text(title).appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").appFont(.system(size: 9)).foregroundStyle(theme.text3.color)
+            }.padding(.vertical, 12).contentShape(Rectangle())
+        }.buttonStyle(.plain).disabled(model.helpers.list == nil).accessibilityLabel("\(value.map(String.init) ?? "Loading") \(title). Open Board.")
     }
 
     /// "Updated 12 sec ago": how old the numbers are. A snapshot cannot tick, so it says "just now".
@@ -118,17 +145,29 @@ struct DashboardPane: View {
     static let coldRuns = 3
 
     private func section(_ title: String, @ViewBuilder _ content: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title).appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
-            VStack(alignment: .leading, spacing: 0) { content() }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
-                    .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title).appFont(.system(size: 17, weight: .semibold)).foregroundStyle(theme.text.color)
+            Divider().overlay(theme.separator.color)
+            VStack(alignment: .leading, spacing: 0) { content() }.frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
     private func quiet(_ text: String) -> some View {
         Text(text).appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 16).padding(.vertical, 14)
+    }
+}
+
+private struct DashboardMetric: View {
+    let value: String
+    let title: String
+    let detail: String
+    @Environment(\.theme) private var theme
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(title).appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
+            Text(value).appFont(.system(size: 24, weight: .semibold)).monospacedDigit().foregroundStyle(theme.text.color)
+            Text(detail).appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+        }.frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -151,52 +190,6 @@ private struct TokenTile: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
             .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
-    }
-}
-
-/// Seven bars: input + output solid, cache written and cache read fainter above them; input + output over each.
-private struct DayBars: View {
-    let days: [DayTokens]
-    /// The newest day: the only bar in colour. The rule is one accent for the thing that matters (today).
-    var today: String? = nil
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        let most = max(1, days.map(\.totals.total).max() ?? 1)
-        HStack(alignment: .bottom, spacing: 10) {
-            ForEach(days, id: \.day) { day in
-                VStack(spacing: 6) {
-                    Text(day.totals.total == 0 ? "–" : TokenTotals.short(day.totals.io))
-                        .appFont(theme.appIdentifierFont(.system(size: 10), size: 9.5)).foregroundStyle(theme.text3.color)
-                    let tint = day.day == today ? theme.live.color : theme.text2.color
-                    VStack(spacing: 0) {
-                        Rectangle().fill(tint.opacity(0.28)).frame(height: bar(day.totals.cacheRead, most))
-                        Rectangle().fill(tint.opacity(0.6)).frame(height: bar(day.totals.cacheWrite, most))
-                        Rectangle().fill(tint).frame(height: bar(day.totals.io, most))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
-                    Text(Self.weekday(day.day)).appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)
-                    // ADR-098 item 9: the day's cache hit rate.
-                    Text(day.totals.cacheHitText).appFont(theme.appIdentifierFont(.system(size: 9.5), size: 9)).foregroundStyle(theme.text3.color)
-                }
-                .frame(maxWidth: .infinity)
-            }
-        }
-        .frame(height: 166, alignment: .bottom)
-        .padding(16)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(days.map { "\(Self.weekday($0.day)): \(TokenTotals.short($0.totals.io)) input and output tokens, \($0.totals.cacheHitText) from the cache" }.joined(separator: ", "))
-    }
-
-    private func bar(_ n: Int, _ most: Int) -> CGFloat { n == 0 ? 0 : max(2, CGFloat(n) / CGFloat(most) * 96) }
-
-    static func weekday(_ day: String) -> String {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        guard let date = f.date(from: day) else { return day }
-        f.dateFormat = "EEE"
-        return f.string(from: date)
     }
 }
 
@@ -340,16 +333,19 @@ private struct PlanMeters: View {
 
 /// ADR-091: each `zeno/task-<id>` branch in the repositories Keshab granted: its task, commits and files, whether it is
 /// on the remote, its changes on request, and Push, which asks him to confirm first. Workers never push.
-private struct GitSection: View {
+struct GitSection: View {
     let model: IslandModel
+    let compact: Bool
     /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
     private let confirming = State<GitBranch?>(initialValue: nil)
+    private let showsAll = State(initialValue: false)
     @Environment(\.theme) private var theme
+    @Environment(\.islandSnapshot) private var snapshot
 
-    init(model: IslandModel) { self.model = model }
+    init(model: IslandModel, compact: Bool = false) { self.model = model; self.compact = compact }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text("Local branches · refresh after tasks finish").appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
                 Spacer()
@@ -360,14 +356,34 @@ private struct GitSection: View {
                     Text("No task branches yet. Branches from active repository projects and granted repositories appear here. Subfolder projects use their own Git workspace.")
                         .appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 4)
                 }
-                ForEach(branches) { branch in
-                    GitBranchCard(model: model, branch: branch) { confirming.wrappedValue = branch }
+                if !compact { GitCommitActivity(branches: branches) }
+                let visible = compact && !showsAll.wrappedValue ? Array(branches.prefix(4)) : branches
+                ForEach(visible) { branch in
+                    if compact {
+                        DisclosureGroup {
+                            GitBranchCard(model: model, branch: branch, embedded: true) { confirming.wrappedValue = branch }.padding(.top, 12)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 5) {
+                                Label(branch.repoName, systemImage: "arrow.triangle.branch").appFont(.system(size: 12, weight: .semibold)).foregroundStyle(theme.text.color)
+                                Text(branch.branch).appFont(.system(size: 10.5, design: .monospaced)).foregroundStyle(theme.text2.color).lineLimit(1).truncationMode(.middle).help(branch.branch)
+                                Text(branch.uncommitted ? "Uncommitted work" : branch.pushed == .yes ? "Pushed" : branch.pushed == .changed ? "Changed since push" : "Not pushed")
+                                    .appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)
+                            }
+                        }.foregroundStyle(theme.text2.color)
+                        Divider().overlay(theme.separator.color)
+                    } else {
+                        GitBranchCard(model: model, branch: branch) { confirming.wrappedValue = branch }
+                    }
+                }
+                if compact && branches.count > 4 {
+                    Button(showsAll.wrappedValue ? "Show fewer branches" : "View all \(branches.count) branches") { showsAll.wrappedValue.toggle() }
+                        .buttonStyle(SnapshotBorderlessButtonStyle()).appFont(.system(size: 11.5))
                 }
             } else {
                 Text("Looking for branches…").appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 4)
             }
         }
-        .onAppear { model.sendHelpers(model.helpers.gitCommand(.gitList)) }
+        .onAppear { if !snapshot { model.sendHelpers(model.helpers.gitCommand(.gitList)) } }
         .alert("Push \(confirming.wrappedValue?.branch ?? "")?", isPresented: Binding(get: { confirming.wrappedValue != nil }, set: { if !$0 { confirming.wrappedValue = nil } }), presenting: confirming.wrappedValue) { branch in
             Button("Push") { model.sendHelpers(model.helpers.gitCommand(.gitPush(repo: branch.repo, branch: branch.branch))) }
             Button("Cancel", role: .cancel) {}
@@ -380,89 +396,116 @@ private struct GitSection: View {
 struct GitBranchCard: View {
     let model: IslandModel
     let branch: GitBranch
+    var embedded = false
     let push: () -> Void
     @Environment(\.theme) private var theme
 
     var body: some View {
         let diff = model.helpers.gitDiff.flatMap { $0.repo == branch.repo && $0.branch == branch.branch ? $0 : nil }
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                StatusDot(color: branch.pushed == .yes ? theme.success.color : branch.pushed == .changed ? theme.attention.color : theme.text3.color, size: 6)
-                Text(branch.repoName).appFont(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
-                Text(branch.branch).appFont(theme.appIdentifierFont(.system(size: 11.5), size: 11)).foregroundStyle(theme.idColor(theme.text2))
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "arrow.triangle.branch").appFont(.system(size: 18)).foregroundStyle(theme.text2.color).padding(.top, 3)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(branch.repoName).appFont(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
+                    Text(branch.branch).appFont(.system(size: 12, design: .monospaced)).foregroundStyle(theme.text2.color)
+                        .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                }
                 Spacer(minLength: 8)
-                Text(branch.uncommitted ? "Uncommitted changes" : branch.pushed == .yes ? "Pushed" : branch.pushed == .changed ? "Changed since push" : "Not pushed")
-                    .appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
+                Label(status, systemImage: branch.pushed == .yes && !branch.uncommitted ? "checkmark.circle" : "circle.dashed")
+                    .appFont(.system(size: 11, weight: .medium)).foregroundStyle(branch.pushed == .yes && !branch.uncommitted ? theme.success.color : theme.text2.color)
             }
-            if let title = branch.title { Text("Task \(branch.task): \(title)").appFont(.system(size: 12.5)).foregroundStyle(theme.text2.color).lineLimit(1) }
-            if let tree = branch.worktree {
-                Text("Working copy: \(tree)").appFont(.system(size: 11, design: .monospaced)).foregroundStyle(theme.text3.color).textSelection(.enabled)
+            if let title = branch.title {
+                Text("Task \(branch.task) · \(title)").appFont(.system(size: 13)).foregroundStyle(theme.text.color).fixedSize(horizontal: false, vertical: true)
             }
             if branch.uncommitted {
-                Text("Kept uncommitted for your review. Commit explicitly in Terminal before pushing. This review does not apply the task copy to the original project. New untracked file contents are not included in this diff until staged.")
-                    .appFont(.system(size: 11.5)).foregroundStyle(theme.attention.color)
-            }
-            if branch.baseSource != "unavailable" {
-                HStack(spacing: 6) {
-                    Text("\(branch.commits.count >= 50 ? "50+" : String(branch.commits.count)) commit\(branch.commits.count == 1 ? "" : "s") · \(branch.files.count >= 200 ? "200+" : String(branch.files.count)) file\(branch.files.count == 1 ? "" : "s")")
-                    Text("+\(branch.added)").foregroundStyle(theme.success.color)
-                    Text("−\(branch.removed)").foregroundStyle(theme.problem.color)
-                }
-                .appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color)
+                Label("Uncommitted work · review and commit explicitly before pushing.", systemImage: "info.circle")
+                    .appFont(.system(size: 11.5)).foregroundStyle(theme.attention.color).fixedSize(horizontal: false, vertical: true)
             }
             if let warning = branch.baseWarning {
-                Text(warning).appFont(.system(size: 11)).foregroundStyle(theme.attention.color)
+                Text(warning).appFont(.system(size: 11.5)).foregroundStyle(theme.attention.color).fixedSize(horizontal: false, vertical: true)
             } else {
-                Text("\(branch.baseSource == "saved" ? "Saved start" : "Estimated base"): \(branch.base)\(branch.baseSHA.map { " · " + String($0.prefix(8)) } ?? "")")
-                    .appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color).textSelection(.enabled)
-                if let behind = branch.behind {
-                    Text("\(behind) behind \(branch.base) · local refs")
-                        .appFont(.system(size: 11)).foregroundStyle(behind > 0 ? theme.attention.color : theme.text3.color)
+                HStack(spacing: 7) {
+                    Image(systemName: "point.topleft.down.to.point.bottomright.curvepath").foregroundStyle(theme.text3.color)
+                    Text("\(branch.baseSource == "saved" ? "Saved start" : "Estimated base"): \(branch.base)\(branch.baseSHA.map { " · " + String($0.prefix(8)) } ?? "")")
+                        .textSelection(.enabled)
+                }.appFont(.system(size: 11, design: .monospaced)).foregroundStyle(theme.text2.color)
+                if let behind = branch.behind, behind > 0 {
+                    Text("\(behind) behind \(branch.base) · local refs").appFont(.system(size: 11)).foregroundStyle(theme.attention.color)
                 }
             }
-            VStack(alignment: .leading, spacing: 3) {
-                ForEach(Array(branch.commits.prefix(4).enumerated()), id: \.offset) { _, commit in
-                    HStack(spacing: 8) {
-                        Text(commit.sha).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text3))
-                        Text(commit.subject).appFont(.system(size: 12)).foregroundStyle(theme.text.color).lineLimit(1)
+            if !branch.commits.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(branch.commits.prefix(4).enumerated()), id: \.offset) { index, commit in
+                        HStack(alignment: .top, spacing: 10) {
+                            VStack(spacing: 0) {
+                                Circle().stroke(theme.live.color, lineWidth: 1.5).frame(width: 8, height: 8).padding(.top, 4)
+                                Rectangle().fill(theme.separator.color).frame(width: 1).frame(maxHeight: .infinity)
+                            }.frame(width: 16)
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(commit.subject).appFont(.system(size: 12)).foregroundStyle(theme.text.color).fixedSize(horizontal: false, vertical: true)
+                                HStack(spacing: 8) {
+                                    Text(String(commit.sha.prefix(8))).appFont(.system(size: 10.5, design: .monospaced))
+                                    if let at = commit.at { Text(at.formatted(date: .abbreviated, time: .shortened)).appFont(.system(size: 10.5)) }
+                                }.foregroundStyle(theme.text3.color)
+                            }.padding(.bottom, index == min(3, branch.commits.count - 1) ? 0 : 14)
+                        }.fixedSize(horizontal: false, vertical: true)
+                    }
+                    if branch.commits.count > 4 {
+                        Text("\(branch.commits.count - 4) more recorded commits").appFont(.system(size: 11)).foregroundStyle(theme.text2.color).padding(.leading, 26).padding(.top, 10)
                     }
                 }
-                if branch.commits.count > 4 { Text("and \(branch.commits.count - 4) more").appFont(.system(size: 11)).foregroundStyle(theme.text3.color) }
-                ForEach(Array(branch.files.prefix(6).enumerated()), id: \.offset) { _, file in
-                    HStack(spacing: 8) {
-                        Image(systemName: "doc").appFont(.system(size: 10)).foregroundStyle(theme.text3.color)
-                        Text(file.path).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text2.color).lineLimit(1).truncationMode(.middle)
-                        Spacer(minLength: 4)
-                        if let a = file.added, let r = file.removed {
-                            Text("+\(a)").foregroundStyle(theme.success.color)
-                            Text("−\(r)").foregroundStyle(theme.problem.color)
-                        } else {
-                            Text("binary").foregroundStyle(theme.text3.color)
-                        }
-                    }
-                    .appFont(theme.appIdentifierFont(.system(size: 10.5), size: 10))
-                }
-                if branch.files.count > 6 { Text("and \(branch.files.count - 6) more files").appFont(.system(size: 11)).foregroundStyle(theme.text3.color) }
             }
-            .padding(.top, 2)
+            DisclosureGroup {
+                VStack(alignment: .leading, spacing: 9) {
+                    if let tree = branch.worktree {
+                        Text("Working copy: \(tree)").appFont(.system(size: 11, design: .monospaced)).foregroundStyle(theme.text2.color).textSelection(.enabled)
+                    }
+                    if branch.uncommitted {
+                        Text("This review does not apply the task copy to the original project. New untracked file contents are not included in the diff until staged.")
+                            .appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+                    }
+                    ForEach(Array(branch.files.enumerated()), id: \.offset) { _, file in
+                        HStack(spacing: 8) {
+                            Image(systemName: "doc").foregroundStyle(theme.text3.color)
+                            Text(file.path).lineLimit(1).truncationMode(.middle).help(file.path)
+                            Spacer(minLength: 4)
+                            if let a = file.added, let r = file.removed {
+                                Text("+\(a)").foregroundStyle(theme.success.color)
+                                Text("−\(r)").foregroundStyle(theme.problem.color)
+                            } else { Text("binary").foregroundStyle(theme.text3.color) }
+                        }.appFont(.system(size: 11, design: .monospaced)).foregroundStyle(theme.text2.color)
+                    }
+                }.padding(.top, 10)
+            } label: {
+                HStack(spacing: 6) {
+                    Text("\(branch.files.count >= 200 ? "200+" : String(branch.files.count)) changed files")
+                    if branch.baseSource != "unavailable" {
+                        Text("+\(branch.added)").foregroundStyle(theme.success.color)
+                        Text("−\(branch.removed)").foregroundStyle(theme.problem.color)
+                    }
+                }.appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+            }
+            Divider().overlay(theme.separator.color)
             HStack(spacing: 8) {
                 QuietButton(title: diff == nil ? "Show changes" : "Hide changes", symbol: "chevron.left.forwardslash.chevron.right") {
                     if diff == nil { model.sendHelpers(model.helpers.gitCommand(.gitDiff(repo: branch.repo, branch: branch.branch))) } else { model.helpers.gitDiff = nil }
-                }
-                .disabled(branch.baseSource == "unavailable")
-                QuietButton(title: "Push…", symbol: "arrow.up.circle") { push() }
-                    .disabled(!branch.canPush)
-                    .opacity(branch.canPush ? 1 : 0.5)
-                    .help(!branch.pushAllowed ? "Push is unavailable for this project’s current access." : branch.remote == nil ? "This repository has no remote named origin." : branch.pushed == .yes ? "Already on the remote." : "Push this branch to origin")
-                Spacer()
-                if let remote = branch.remote { Text(remote).appFont(theme.appIdentifierFont(.system(size: 10.5), size: 10)).foregroundStyle(theme.text3.color).lineLimit(1).truncationMode(.middle) }
+                }.disabled(branch.baseSource == "unavailable")
+                QuietButton(title: "Push…", symbol: "arrow.up.circle", action: push)
+                    .disabled(!branch.canPush).opacity(branch.canPush ? 1 : 0.5)
+                    .help(!branch.pushAllowed ? "Push is unavailable for this project's current access." : branch.remote == nil ? "This repository has no remote named origin." : branch.pushed == .yes ? "Already on the remote." : "Push this branch to origin")
+                Spacer(minLength: 0)
+            }
+            if let remote = branch.remote {
+                Text(remote).appFont(.system(size: 10.5, design: .monospaced)).foregroundStyle(theme.text3.color)
+                    .lineLimit(1).truncationMode(.middle).help(remote)
             }
             if let diff { DiffText(diff: diff) }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
-            .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
+        }.padding(embedded ? 0 : 16).frame(maxWidth: .infinity, alignment: .leading)
+            .background { if !embedded { RoundedRectangle(cornerRadius: theme.radiusCard).strokeBorder(theme.separator.color, lineWidth: 1) } }
+    }
+
+    private var status: String {
+        branch.uncommitted ? "Uncommitted" : branch.pushed == .yes ? "Pushed" : branch.pushed == .changed ? "Changed since push" : "Not pushed"
     }
 }
 

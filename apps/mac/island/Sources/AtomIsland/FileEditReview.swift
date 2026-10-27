@@ -36,7 +36,7 @@ struct FileEditReviewCard: View {
                 Text("Removed text is crossed out. Added text is green.")
                     .appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
             }
-            ScrollView([.horizontal, .vertical]) {
+            AtomScrollView([.horizontal, .vertical]) {
                 Group {
                     if mode == "changes" {
                         if let pieces { InlineDiffText(pieces: pieces) }

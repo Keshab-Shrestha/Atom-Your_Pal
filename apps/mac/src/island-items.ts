@@ -493,6 +493,7 @@ export interface HelperItem {
   /** The soul's name. */
   name: string;
   available: boolean;
+  paused?: boolean;
   role: string;
   /** ADR-088: what it may use (fixed in code), and whether Keshab added it. */
   kit: "research" | "folders" | "think";

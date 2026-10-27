@@ -60,7 +60,7 @@ These host checks do not establish actual provider hook working directories, nat
 
 ## Remaining acceptance
 
-[27 October Claude follow-up](omh-claude-file-acceptance-2026-10-27.md) now covers actual isolated edit/readback, policy refusal, mismatch and Stop before collection. Codex and the narrower collection/workspace races below remain pending; the follow-up also records an open stopped-summary count discrepancy.
+[27 October Claude follow-up](omh-claude-file-acceptance-2026-10-27.md) now covers actual isolated edit/readback, policy refusal, mismatch and Stop before collection. Codex and the narrower collection/workspace races below remain pending; the follow-up records a stopped-summary count discrepancy, subsequently [corrected and live-verified](stopped-task-summaries.md).
 
 - Actual Claude and Codex project workers with host file predicates, policy refusal, changed workspace and Stop during readback; Codex inspection receipts across dirty/clean revisions.
 - Real explicit retry plus fresh native repair approval/decline/stale review, and restored dependent report handoff. Repair never transfers or merges worktree files.

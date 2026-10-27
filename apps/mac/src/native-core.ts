@@ -21,6 +21,7 @@ import {
 import { join } from "node:path";
 import { budgetContext, CHAT_CONTEXT_BYTES, type ContextPart, type HelperStore, type HelperView } from "@atom/helpers";
 import { selectWorkflow, workflowRouteContext } from "@atom/helpers";
+import { stoppedTaskSummary } from "./stopped-task-summary.ts";
 import { RECALL_SOURCES, type FilePermissions, type MemorySelection, type RecallEvent, type RecallPayload } from "@atom/memory";
 import type { FileApproval, FileEditReview } from "./computer-bridge.ts";
 import { denyRead } from "./folder-run.ts";
@@ -119,7 +120,7 @@ const WEB_TOOLS = ["WebSearch", "WebFetch"];
 
 /** Phase N2: the chat's sub-agents, their Board rows and their safety. */
 export interface NativeTeamDeps {
-  helpers: TeamScope["helpers"] & BoardStore & Pick<HelperStore, "mcpServers"> & Partial<Pick<HelperStore, "guardPreviewEdit" | "recordTaskInspection" | "recordTaskVerification">> & PlanStore;
+  helpers: TeamScope["helpers"] & BoardStore & Pick<HelperStore, "mcpServers"> & Partial<Pick<HelperStore, "guardPreviewEdit" | "recordTaskInspection" | "recordTaskVerification" | "toolCalls">> & PlanStore;
   approve(request: { summary: string; reason: string; reasonMax?: number }, signal?: AbortSignal): Promise<boolean>;
   approveFile?(request: { summary: string; reason: string }, signal?: AbortSignal): Promise<FileApproval>;
   approveFileEdit?(request: FileEditReview & { summary: string }, signal?: AbortSignal): Promise<boolean>;
@@ -401,7 +402,22 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
             },
           }
         : {}),
-      ...(team ? { onUnprompted: (text: string) => woke(chat, text, () => handle) } : {}),
+      ...(team ? { onUnprompted: (text: string, tasks = []) => {
+        let summary: string | undefined;
+        try {
+          summary = stoppedTaskSummary(team.helpers, chat, tasks.map((task) => ({ job: board?.knownJobOfTask?.(task.id), stopped: task.status === "stopped" })));
+        } catch {
+          if (tasks.some((task) => task.status === "stopped")) summary = "A background task reported a stop. Its recorded activity could not be confirmed. Review task history and existing changes before choosing Retry.";
+        }
+        if (summary && entry) {
+          // The provider retained its own partial-note summary. Deliver the host correction on the next
+          // ordinary turn as catch-up context; never make an extra model request or rewrite old history.
+          entry.missed = [...(entry.missed ?? []), { role: "assistant", content: summary }];
+          try { deps.log?.("agent.stopped_summary", { chatId: chat, updates: tasks.length }); }
+          catch { /* Diagnostics must not discard the corrected notice. */ }
+        }
+        woke(chat, summary ?? text, () => handle);
+      } } : {}),
       ...(files ? { cwd: files.cwd } : {}),
       ...(resume ? { resume } : {}),
       ...(deps.env ? { env: deps.env } : {}),

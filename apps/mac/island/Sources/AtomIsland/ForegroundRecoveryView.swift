@@ -18,7 +18,7 @@ struct ForegroundRecoveryView: View {
                 .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
             if let notice = model.recovery.notice { Text(notice).appFont(.system(size: 12)).foregroundStyle(theme.attention.color).textSelection(.enabled) }
             if model.recovery.syncPending || model.recovery.reading != nil { ProgressView("Checking saved records…") }
-            ScrollView {
+            AtomScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     ForEach(model.unconfirmedAnswers) { answer in
                         VStack(alignment: .leading, spacing: 6) {

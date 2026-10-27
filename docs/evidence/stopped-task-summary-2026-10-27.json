@@ -1,0 +1,36 @@
+{
+  "dateJapan": "2026-10-27",
+  "scope": "Actual Claude Stop and host-notice regression; fictional task only",
+  "job": {
+    "id": 48,
+    "state": "stopped",
+    "chat_id": "7b5b6d49-376b-4b58-90a9-9139d5676d75"
+  },
+  "attempt": {
+    "id": "cb5af2d7-2706-4385-b526-b2d5284e0c49",
+    "state": "stopped",
+    "started_at": "2026-10-26T16:57:12.652Z",
+    "ended_at": "2026-10-26T16:57:22.045Z"
+  },
+  "calls": [
+    {
+      "tool": "Read",
+      "state": "ok",
+      "started_at": "2026-10-26T16:57:15.443Z",
+      "ended_at": "2026-10-26T16:57:15.633Z"
+    },
+    {
+      "tool": "Read",
+      "state": "ok",
+      "started_at": "2026-10-26T16:57:17.666Z",
+      "ended_at": "2026-10-26T16:57:17.698Z"
+    },
+    {
+      "tool": "Read",
+      "state": "ok",
+      "started_at": "2026-10-26T16:57:19.999Z",
+      "ended_at": "2026-10-26T16:57:20.042Z"
+    }
+  ],
+  "activeWorkers": 0
+}

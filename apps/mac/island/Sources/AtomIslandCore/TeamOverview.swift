@@ -185,7 +185,7 @@ public struct OfficePlan: Sendable, Equatable {
     }
 
     public init(list: HelpersList, now: Date = Date()) {
-        let team = list.helpers.filter { $0.available || !$0.jobs.isEmpty }
+        let team = list.helpers.filter { $0.available || $0.paused || !$0.jobs.isEmpty }
         let everyone = team.enumerated().map { index, h in Self.seat(h, index: index, now: now) }
         (seats, moreAtWork, moreIdle) = Self.arrange(team.enumerated().map { index, h in
             Unit(seat: everyone[index], working: TeamRoster.isWorking(h), startedAt: TeamRoster.startedAt(h), lastActive: TeamRoster.lastActive(h))
@@ -270,6 +270,7 @@ public struct OfficePlan: Sendable, Equatable {
             seat.taskId = failed.id
             seat.flag = .failed
         }
+        if h.paused && seat.taskId == nil { seat.bubble = "Paused" }
         return seat
     }
 }

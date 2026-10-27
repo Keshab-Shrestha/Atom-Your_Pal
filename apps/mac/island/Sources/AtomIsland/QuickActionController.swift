@@ -186,7 +186,7 @@ struct QuickActionView: View {
                 }
                 if !note.wrappedValue.isEmpty { Text(note.wrappedValue).appFont(.system(size: 11.5)).foregroundStyle(theme.problem.color) }
             case (.text, .card(let words)):
-                ScrollView { Text(words).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }
+                AtomScrollView { Text(words).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }
                     .frame(maxHeight: 300)
                 HStack(spacing: 8) {
                     QuietButton(title: "Back", symbol: "chevron.left") { phase.wrappedValue = .choosing }

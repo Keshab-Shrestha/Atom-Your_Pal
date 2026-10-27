@@ -574,7 +574,7 @@ private struct Fields {
                grants: (h["grants"] as? [Any])?.compactMap { $0 as? String } ?? [],
                skills: (h["skills"] as? [Any])?.compactMap { $0 as? String } ?? [],
                proposals: Self.proposals(h["proposals"]), kit: h["kit"] as? String, custom: Self.flag(h["custom"]),
-               browser: Self.flag(h["browser"]), codexPinnedModel: codexPinned as? String)
+               browser: Self.flag(h["browser"]), codexPinnedModel: codexPinned as? String, paused: Self.flag(h["paused"]))
         }
     }
 

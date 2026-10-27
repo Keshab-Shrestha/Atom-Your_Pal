@@ -16,7 +16,8 @@ extension IslandGallery {
             model.settings.theme = theme
             model.status.apply(.running(pid: 1))
             if let event = try? decodeEvent(#"{"type":"ready","protocol":1,"provider":"codex","model":"gpt-6-luna","microphone":"","voice":false}"#) { model.apply(event) }
-            if let event = try? decodeEvent(#"{"type":"chats","current":"cedar","chats":[{"id":"cedar","title":"Cedar launch plan","updatedAt":"2026-10-19T00:00:00Z","messages":4}]}"#) { model.apply(event) }
+            if let event = try? decodeEvent(#"{"type":"info","provider":"codex","model":"gpt-6-luna","providers":[{"id":"codex","name":"Codex","available":true,"models":[{"id":"gpt-6-luna","name":"GPT-6 Luna"}]}]}"#) { model.apply(event) }
+            if let event = try? decodeEvent(#"{"type":"chats","current":"cedar","access":"checked","reasoning":{"provider":"codex","model":"gpt-6-luna","levels":["low","medium","high"],"default":"low","selected":"medium","effective":"medium"},"chats":[{"id":"cedar","title":"Cedar launch plan","updatedAt":"2026-10-19T00:00:00Z","messages":4}]}"#) { model.apply(event) }
             if let event = try? decodeEvent(#"{"type":"state","state":"idle"}"#) { model.apply(event); model.status.apply(event) }
             if !empty {
                 model.conversation.replay([
@@ -27,6 +28,17 @@ extension IslandGallery {
                 ])
             }
             save(HelpersView(model: model).frame(width: width, height: 820).environment(\.islandSnapshot, true), name: name, to: directory)
+            if !empty {
+                save(HelpersView(model: model).frame(width: 959, height: 820).environment(\.islandSnapshot, true),
+                     name: name + "-everyday", to: directory)
+                model.settings.textSize = .extraLarge
+                save(HelpersView(model: model).frame(width: 760, height: 820).environment(\.islandSnapshot, true),
+                     name: name + "-large-narrow", to: directory)
+                model.settings.textSize = .standard
+                save(Composer(model: model, initialDraft: String(repeating: "A longer fictional Cedar draft to review before sending.\n", count: 6))
+                    .padding(20).frame(width: 620).environment(\.islandSnapshot, true).themed(ChatAppearance.palette(theme: theme)),
+                     name: name + "-draft", to: directory)
+            }
             if !empty {
                 model.windowPage = .settings
                 model.settingsPage = .appearance

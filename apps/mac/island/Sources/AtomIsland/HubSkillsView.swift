@@ -107,7 +107,7 @@ private struct SkillHubCard: View {
                     .foregroundStyle(flag.severity == .warn ? theme.problem.color : theme.text3.color)
                     .accessibilityLabel("\(flag.severity == .warn ? "Warning" : "Note"), \(flag.kind): \(flag.excerpt)")
             }
-            ScrollView {
+            AtomScrollView {
                 Text(pending.text).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text2.color)
                     .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding(8)
             }

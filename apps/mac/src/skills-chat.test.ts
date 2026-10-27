@@ -60,6 +60,8 @@ test("use_skill lists the skills, reads one by name, and says what is missing", 
   const none = createUseSkillTool({ list: () => [], read: () => undefined });
   assert.equal(await none.run({}), "The user has no skills yet.");
   const many = createUseSkillTool({ list: () => Array.from({ length: 60 }, (_, i) => ({ name: `s${i}`, description: "", source: "yours" as const })), read: () => undefined });
-  assert.equal(String(await many.run({})).split("\n").length, SKILLS_LISTED);
+  assert.equal(String(await many.run({})).split("\n").length, SKILLS_LISTED + 1);
+  assert.match(String(await many.run({})), /Next offset: 40/);
+  assert.match(String(await many.run({ offset: 40 })), /Showing 41–60 of 60/);
   done();
 });

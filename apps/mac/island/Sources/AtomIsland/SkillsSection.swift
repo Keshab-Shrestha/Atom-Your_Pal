@@ -44,6 +44,8 @@ struct SkillsSection: View {
                 EmptyStateView(title: "No skills yet",
                                detail: "Your skills come from ~/.claude/skills. ATOM's come from tasks you rate good, and you approve each one here.")
             } else {
+                Text("ATOM library: \(skills.filter { $0.source == "zeno" }.count) · Claude Code: \(skills.filter { $0.source == "yours" }.count) · Hub: \(skills.filter { $0.source == "hub" }.count)")
+                    .appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
                 picker
                 if let name = selected.wrappedValue, let skill = skills.first(where: { $0.name == name }) { detail(skill) }
             }
@@ -56,13 +58,12 @@ struct SkillsSection: View {
     /// One dropdown for any number of skills: yours first, then ATOM's. macOS scrolls a long menu.
     private var picker: some View {
         Menu {
-            let yours = skills.filter { $0.source == "yours" }, others = skills.filter { $0.source != "yours" }
-            if !yours.isEmpty {
-                Section("Yours") { ForEach(yours) { item in choice(item) } }
-            }
-            if !others.isEmpty {
-                Section("Made by ATOM") { ForEach(others) { item in choice(item) } }
-            }
+            let own = skills.filter { $0.source == "zeno" }
+            let yours = skills.filter { $0.source == "yours" }
+            let hub = skills.filter { $0.source == "hub" }
+            if !own.isEmpty { Section("ATOM library (\(own.count))") { ForEach(own) { item in choice(item) } } }
+            if !yours.isEmpty { Section("Claude Code (\(yours.count))") { ForEach(yours) { item in choice(item) } } }
+            if !hub.isEmpty { Section("Skills hub (\(hub.count))") { ForEach(hub) { item in choice(item) } } }
         } label: {
             HStack(spacing: 8) {
                 Text(selected.wrappedValue ?? "Choose a skill (\(skills.count))")

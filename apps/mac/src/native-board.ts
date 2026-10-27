@@ -22,6 +22,8 @@ export interface BoardRecorder {
   jobOfAgent(agentId: string, agentType?: string): number | undefined;
   /** Claude Code's task id of a job of this chat, while it runs. */
   taskOf(job: number): string | undefined;
+  /** Completed tasks remain resolvable for their structured SDK wake notification; never an execution lookup. */
+  knownJobOfTask?(task: string): number | undefined;
   /** Jobs of this chat that still run. */
   running(): number[];
   /** The provider session was lost: its unfinished jobs need review, with cleanup only once. */
@@ -63,6 +65,7 @@ export function boardRecorder(
   const byCall = new Map<string, { job: number; description: string }>(); // Agent tool_use_id
   const taskOfJob = new Map<number, string>();
   const jobOfTask = new Map<string, number>();
+  const knownTasks = new Map<string, number>();
   const jobOfAgentId = new Map<string, number>();
   const countedMessages = new Set<string>(); // assistant message ids whose usage is already recorded
   const metered = new Set<number>(); // jobs whose usage came per message: their AgentOutput is not counted again
@@ -185,6 +188,8 @@ export function boardRecorder(
       if (!call) return;
       taskOfJob.set(call.job, m.task_id);
       jobOfTask.set(m.task_id, call.job);
+      knownTasks.set(m.task_id, call.job);
+      if (knownTasks.size > 256) knownTasks.delete(knownTasks.keys().next().value!);
       safe(() => helpers.linkNativeTask(call.job, m.task_id));
     } else if (m.subtype === "task_progress" && typeof m.task_id === "string") {
       const job = jobOfTask.get(m.task_id);
@@ -284,6 +289,7 @@ export function boardRecorder(
     },
     jobOfAgent,
     taskOf: (job) => taskOfJob.get(job),
+    knownJobOfTask: (task) => knownTasks.get(task),
     running: () => [...byCall.values()].map((c) => c.job).filter((j) => !ended.has(j)),
     interrupted: () => { for (const call of byCall.values()) end(call.job, { interrupted: true }); },
   };

@@ -811,6 +811,12 @@ export function runIsland(options: IslandOptions): IslandSession {
           helpers.createAgent({ name: command.name, role: command.role, kit: command.kit, personality: command.personality, howItWorks: command.howItWorks, rules: command.rules }),
         );
         return;
+      case "agent.pause":
+        changeHelpers(command.type, (helpers) => {
+          if (!helpers.setPaused) throw new Error("Agent availability is unavailable in this runtime.");
+          helpers.setPaused(command.id, command.paused);
+        });
+        return;
       case "agent.remove":
         changeHelpers(command.type, (helpers) => helpers.removeAgent(command.id));
         return;

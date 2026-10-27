@@ -163,6 +163,14 @@ export function nativeGate(scope: NativeScope): NativeGate {
     return controller;
   };
   const active = (job: number | undefined) => job === undefined || (team?.helpers.get(job)?.state === "running" && !jobStops.get(job)?.signal.aborted);
+  // Pause governs admission, not the permissions of an already-running, host-bound attempt.
+  const runningMember = (type: string, job: number | undefined) => {
+    const member = team?.helpers.list().find((h) => h.id === type);
+    if (!member) return undefined;
+    const saved = job !== undefined ? team?.helpers.get(job) : undefined;
+    const continuing = saved?.helper === type && saved.state === "running" && active(job);
+    return nativeMembers([{ ...member, available: member.available || Boolean(member.paused && continuing) }])[0];
+  };
   const cancelled = () => deny("This task has ended. No further tool calls or approvals are allowed; start a new attempt explicitly.");
   // Race cancellation even if an approval adapter ignores its signal. Check state before returning a choice so a
   // late Allow for chat cannot reach folderCheck's grant write after Stop.
@@ -200,7 +208,10 @@ export function nativeGate(scope: NativeScope): NativeGate {
     const admissionSignal = scope.accessSignal?.();
     if (admissionSignal?.aborted) return cancelled();
     const type = typeof input.subagent_type === "string" ? input.subagent_type : "general-purpose";
-    const member = nativeMembers(team.helpers.list()).find((m) => m.id === type);
+    const members = team.helpers.list();
+    const paused = members.find((m) => m.id === type && m.paused);
+    if (paused) return deny(`${paused.name} is paused. Set it to Ready before starting new work.`);
+    const member = nativeMembers(members).find((m) => m.id === type);
     if (!member) return deny(`"${type.slice(0, 40)}" is not one of your agents. Pick one by its description, or make one with create_agent.`);
     // ADR-111: a portion of the chat's work plan. Code checks the order and writes the prompt: its stored task, the goal
     // and the reports it waited for. The main agent's own prompt text is not used.
@@ -305,10 +316,10 @@ export function nativeGate(scope: NativeScope): NativeGate {
   const subDecide = async (name: string, input: Record<string, unknown>, agentId: string, agentType: string, cwd: string | undefined, hostReadbackJob?: number): Promise<Verdict> => {
     if (name === `mcp__${TOOL_SERVER}__ask_user`) return deny("Question cards belong to the foreground chat. Report the clarification needed to the main agent.");
     if (!team) return deny("There are no agents in this chat.");
-    const member = nativeMembers(team.helpers.list()).find((m) => m.id === agentType);
-    if (!member) return deny("This agent is not one of ATOM's.");
     const job = hostReadbackJob ?? team.board.jobOfAgent(agentId, agentType);
     if (!active(job)) return cancelled();
+    const member = runningMember(agentType, job);
+    if (!member) return deny("This agent is not one of ATOM's active workers.");
     if (hostReadbackJob !== undefined && name !== "Read") return deny("Host readback permits only the declared file Read check.");
     if (job !== undefined && checkingFiles.has(job) && hostReadbackJob === undefined) return deny("The worker returned. Host file readback is in progress; no new worker actions are allowed.");
     const captured = job !== undefined ? fileReadbacks.get(job) : undefined;
@@ -534,7 +545,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
         const signal = AbortSignal.any([completionSignal, stopFor(job).signal, AbortSignal.timeout(3000)]);
         const allowed = () => !signal.aborted && active(job) && fileReadbacks.get(job) === saved && !saved.invalid
           && (!team.projectCurrent || team.projectCurrent()) && scope.access?.isCurrent?.(signal) !== false
-          && nativeMembers(team.helpers.list()).some((member) => member.id === saved.helper && member.kit === "folders")
+          && runningMember(saved.helper, job)?.kit === "folders"
           && team.helpers.taskEvidence?.(job)?.attempt === saved.attempt;
         try {
           if (!allowed()) return;

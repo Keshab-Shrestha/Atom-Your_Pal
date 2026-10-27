@@ -167,6 +167,7 @@ public enum IslandCommand: Sendable, Equatable {
     /// ADR-088: add an agent (its soul.md), or remove one Keshab added.
     case agentCreate(name: String, role: String, kit: String, soul: HelperSoul)
     case agentRemove(id: String)
+    case agentPause(id: String, paused: Bool)
     case grantRemove(helper: String, path: String)
     case jobDelete(id: Int)
     /// ADR-083: pin a helper to a model (`""` lets Laya choose again); allow or forbid the large model for jobs.
@@ -309,6 +310,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .mcpTest: "mcp.test"
         case .agentCreate: "agent.create"
         case .agentRemove: "agent.remove"
+        case .agentPause: "agent.pause"
         case .grantRemove: "grant.remove"
         case .jobDelete: "job.delete"
         case .helperPin: "helper.pin"
@@ -515,6 +517,9 @@ public enum IslandCommand: Sendable, Equatable {
             if let enabled { fields["enabled"] = enabled }
             if let trusted { fields["trusted"] = trusted }
             if let workers { fields["workers"] = workers }
+        case .agentPause(let id, let paused):
+            fields["id"] = id
+            fields["paused"] = paused
         case .agentRemove(let id):
             fields["id"] = id
         case .proposalAccept(let id), .proposalReject(let id), .proposalUndo(let id), .jobOpen(let id), .jobRetry(let id), .mcpRemove(let id), .mcpTest(let id),

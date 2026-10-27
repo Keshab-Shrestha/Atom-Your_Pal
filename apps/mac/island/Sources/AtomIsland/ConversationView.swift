@@ -85,7 +85,9 @@ struct Composer: View {
                             .accessibilityLabel(notice)
                     } else if snapshot {
                         // `ImageRenderer` cannot draw a text field: show the placeholder as it would appear.
-                        Text(placeholder).appFont(.system(size: 14)).foregroundStyle(theme.text3.color).lineLimit(1)
+                        Text(draft.wrappedValue.isEmpty ? placeholder : draft.wrappedValue)
+                            .appFont(.system(size: 14)).foregroundStyle(draft.wrappedValue.isEmpty ? theme.text3.color : theme.text.color)
+                            .lineLimit(ComposerLines.range)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     } else {
                         TextField(placeholder, text: draft.projectedValue, prompt: Text(placeholder).foregroundColor(theme.text3.color), axis: .vertical)
@@ -106,48 +108,24 @@ struct Composer: View {
                 .frame(minHeight: 22, alignment: .topLeading)
                 if readOnly == nil {
                     ViewThatFits(in: .horizontal) {
-                        HStack(spacing: 12) {
-                            if snapshot {
-                                Text("Default model").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
-                                Image(systemName: "chevron.down").appFont(.system(size: 9)).foregroundStyle(theme.text3.color)
-                            } else {
+                        HStack(spacing: 10) {
+                            composerTools
+                            composerSettings
+                            Spacer(minLength: 4)
+                            sendControls
+                        }
+                        // Very narrow panes and larger text keep every control reachable.
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 10) {
                                 ChatModelMenu(model: model)
                                 ChatReasoningMenu(model: model)
+                                Spacer(minLength: 0)
+                            }
+                            HStack(spacing: 10) {
+                                composerTools
                                 ChatAccessMenu(model: model)
-                                SkillsMenu(skills: model.helpers.list?.skills ?? []) { name in
-                                    draft.wrappedValue = ComposerDraft.applying(skill: name, to: draft.wrappedValue)
-                                }
-                            }
-                            Spacer(minLength: 4)
-                            if snapshot {
-                                Image(systemName: "paperclip").foregroundStyle(theme.text3.color)
-                            } else {
-                                AttachButton { attached.wrappedValue.add($0) }
-                            }
-                            if answering {
-                                StopReplyButton { model.stopReply() }
-                            }
-                            if !answering || !empty {
-                                ComposerButton(empty: empty, listening: model.status.kind == .listening, hint: talkHint, queueing: model.queue.running, action: send)
-                            }
-                        }
-                        if !snapshot {
-                            VStack(spacing: 10) {
-                                HStack(spacing: 10) {
-                                    ChatModelMenu(model: model)
-                                    ChatReasoningMenu(model: model)
-                                    SkillsMenu(skills: model.helpers.list?.skills ?? []) { name in
-                                        draft.wrappedValue = ComposerDraft.applying(skill: name, to: draft.wrappedValue)
-                                    }
-                                    Spacer(minLength: 0)
-                                }
-                                HStack(spacing: 10) {
-                                    ChatAccessMenu(model: model)
-                                    Spacer(minLength: 0)
-                                    AttachButton { attached.wrappedValue.add($0) }
-                                    if answering { StopReplyButton { model.stopReply() } }
-                                    if !answering || !empty { ComposerButton(empty: empty, listening: model.status.kind == .listening, hint: talkHint, queueing: model.queue.running, action: send) }
-                                }
+                                Spacer(minLength: 4)
+                                sendControls
                             }
                         }
                     }
@@ -180,19 +158,40 @@ struct Composer: View {
         .background {
             if !snapshot { WindowProbe { paste.wrappedValue.window = $0 } }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(composerShape.fill(theme.fill2.color))
-        .overlay(composerShape.strokeBorder(focused ? theme.accent.color.opacity(0.7) : theme.border.color, lineWidth: 1))
+        .overlay(composerShape.strokeBorder(focused ? theme.accent.color.opacity(0.35) : theme.border.color, lineWidth: 1))
         // Dropping files on the composer attaches them.
         .modifier(ComposerDropTarget(files: attached))
+    }
+
+    private var composerSettings: some View {
+        HStack(spacing: 10) {
+            ChatModelMenu(model: model)
+            ChatReasoningMenu(model: model)
+            ChatAccessMenu(model: model)
+        }
+    }
+
+    private var composerTools: some View {
+        ComposerToolsMenu(skills: model.helpers.list?.skills ?? [],
+            attach: { attached.wrappedValue.add(AttachButton.chooseFiles()) },
+            choose: { draft.wrappedValue = ComposerDraft.applying(skill: $0, to: draft.wrappedValue) })
+    }
+
+    @ViewBuilder private var sendControls: some View {
+        if answering { StopReplyButton { model.stopReply() } }
+        if !answering || !empty {
+            ComposerButton(empty: empty, listening: model.status.kind == .listening, hint: talkHint, queueing: model.queue.running, action: send)
+        }
     }
 
     @ViewBuilder private var queueControls: some View {
         if !model.queue.messages.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Queued (\(model.queue.messages.count))").appFont(.system(size: 11, weight: .semibold)).foregroundStyle(theme.text2.color)
-                ScrollView(.vertical, showsIndicators: true) {
+                AtomScrollView(.vertical, showsIndicators: true) {
                     VStack(spacing: 4) {
                         ForEach(Array(model.queue.messages.enumerated()), id: \.element.id) { index, message in
                             QueuedRow(message: message, position: index + 1, canEdit: model.composerEmpty, canSend: !model.queue.awaitingStart,
@@ -214,7 +213,7 @@ struct Composer: View {
                     .appFont(.system(size: 11, weight: .semibold)).foregroundStyle(theme.text2.color)
                 Text("Some input may have reached ATOM. Refresh Recovery and check saved history before retrying.")
                     .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
-                ScrollView(.vertical, showsIndicators: true) {
+                AtomScrollView(.vertical, showsIndicators: true) {
                     VStack(spacing: 4) {
                         ForEach(Array(model.heldInputs.enumerated()), id: \.element.id) { index, message in
                             QueuedRow(message: message, position: index + 1, held: true,
@@ -244,7 +243,7 @@ struct Composer: View {
 
     private var talkHint: String? { model.settings.shortcut(for: .talk).map { "Hold \($0.display) to talk" } }
     private var placeholder: String {
-        "Ask anything, @mention files, or / for skills"
+        "Message ATOM…"
     }
 
     /// Nothing to send: no words, files or notes.
@@ -468,39 +467,50 @@ private struct AttachButton: View {
     }
 }
 
-/// "/": the user's skills. Choosing one puts "/name " in front of the words; ATOM then follows that skill for the message.
-private struct SkillsMenu: View {
+/// Keep optional inputs one step away, rather than competing with the conversation.
+private struct ComposerToolsMenu: View {
     let skills: [SkillInfo]
+    let attach: () -> Void
     let choose: (String) -> Void
     @Environment(\.theme) private var theme
 
+    @Environment(\.islandSnapshot) private var snapshot
+
     var body: some View {
-        Menu {
-            if skills.isEmpty {
-                Text("No skills yet. Add one in ~/.claude/skills.")
-            } else {
-                ForEach(skills, id: \.name) { skill in
-                    // The name only: a long description made the menu as wide as the window. It is the hover tip.
-                    Button {
-                        choose(skill.name)
-                    } label: {
-                        Text(skill.name)
+        Group {
+            if snapshot { label } else {
+                Menu {
+                    Button(action: attach) { Label("Attach files…", systemImage: "paperclip") }
+                    Menu("Skills") {
+                        if skills.isEmpty { Text("No skills available yet.") }
+                        let own = skills.filter { $0.source == "zeno" }
+                        let yours = skills.filter { $0.source == "yours" }
+                        let hub = skills.filter { $0.source == "hub" }
+                        if !own.isEmpty { Section("ATOM library (\(own.count))") { skillChoices(own) } }
+                        if !yours.isEmpty { Section("Claude Code (\(yours.count))") { skillChoices(yours) } }
+                        if !hub.isEmpty { Section("Skills hub (\(hub.count))") { skillChoices(hub) } }
                     }
-                    .help(skill.description)
-                }
+                    Divider()
+                    Text("Drop files, @mention a file, or type / for skills.")
+                } label: { label }
+                .menuStyle(.borderlessButton).menuIndicator(.hidden)
             }
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: "sparkles").appFont(.system(size: 10.5, weight: .medium))
-                Text("Skills").appFont(.system(size: 11.5))
-            }
-            .foregroundStyle(theme.text2.color)
-            .padding(.horizontal, 8).frame(height: 28).contentShape(Rectangle())
-        }
-        .menuStyle(.button).buttonStyle(.plain).fixedSize()
-        .help("Use one of your skills for this message. You can also type /skill-name.")
-        .accessibilityLabel("Skills")
+        }.fixedSize()
+        .accessibilityLabel("Add files or skills")
+        .help("Attach files or use a skill")
     }
+    private func skillChoices(_ items: [SkillInfo]) -> some View {
+        ForEach(items, id: \.name) { skill in
+            Button(skill.name) { choose(skill.name) }.help(skill.description)
+        }
+    }
+
+    private var label: some View {
+        Image(systemName: "plus").appFont(.system(size: 13, weight: .medium))
+            .foregroundStyle(theme.text2.color)
+            .frame(width: 28, height: 30).contentShape(Rectangle())
+    }
+
 }
 
 /// One FIFO or held entry. Actions address its stable id; only the live head offers Send next now.
@@ -683,8 +693,10 @@ struct ConversationTab: View {
             RememberRows(model: model) // upgrades.md C2: facts the notes noticed, kept only on Remember
             Composer(model: model)
         }
+        .frame(maxWidth: 880)
+        .frame(maxWidth: .infinity)
         .padding(.horizontal, Spacing.conversation)
-        .padding(.top, 8)
+        .padding(.top, 6)
         .padding(.bottom, 12)
     }
 
@@ -710,8 +722,9 @@ struct ConversationTab: View {
                                          project: model.chats?.currentProject, findMatch: match?.turnID == turn.id ? match : nil,
                                          computerStep: model.conversation.isLatest(turn) ? model.status.currentStep : nil).id(turn.id)
                             }
-                            ChatTaskResults(model: model).id("task-results-" + (model.chats?.current ?? ""))
                         }
+                        .frame(maxWidth: 880)
+                        .frame(maxWidth: .infinity)
                         .padding(.horizontal, Spacing.conversation)
                         .padding(.vertical, 12)
                     }
@@ -790,7 +803,7 @@ struct TurnView: View {
                             .foregroundStyle(theme.text.color)
                             .lineSpacing(3)
                             .padding(10)
-                            .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).fill(theme.accent.color.opacity(theme.isDark ? 0.14 : 0.08)))
+                            .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).fill(theme.text.color.opacity(theme.isDark ? 0.07 : 0.045)))
                             .textSelection(.enabled)
                             .contextMenu { userActions(collapsed: collapsed) }
                             .overlay(alignment: .topLeading) {
@@ -809,7 +822,10 @@ struct TurnView: View {
                 }
             }
             VStack(alignment: .leading, spacing: 6) {
-                if let work = turn.work { ChatWorkView(work: work, step: computerStep) }
+                if let work = turn.work,
+                   work.state != "completed" || !work.calls.isEmpty || work.omitted > 0 || !work.questions.isEmpty {
+                    ChatWorkView(work: work, step: computerStep)
+                }
                 switch turn.outcome {
                 case .inProgress where turn.reply == nil:
                     ThinkingDots().padding(.vertical, 4)
@@ -950,7 +966,7 @@ private struct ReplyText: View {
                 .textSelection(.enabled)
         }
         .appFont(.system(size: 14))
-        .lineSpacing(5)
+        .lineSpacing(3)
         .fixedSize(horizontal: false, vertical: true)
         .animation(Motion.glow(reduceMotion), value: latest)
     }

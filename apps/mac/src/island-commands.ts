@@ -124,6 +124,7 @@ export type IslandCommand =
   | { type: "mcp.test"; id: number }
   | { type: "agent.create"; name: string; role: string; kit: "research" | "folders" | "think"; personality: string; howItWorks: string; rules: string }
   | { type: "agent.remove"; id: string }
+  | { type: "agent.pause"; id: string; paused: boolean }
   | { type: "proposal.accept"; id: number }
   | { type: "proposal.reject"; id: number }
   | { type: "proposal.undo"; id: number }
@@ -257,6 +258,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "mcp.test",
   "agent.create",
   "agent.remove",
+  "agent.pause",
   "proposal.accept",
   "proposal.reject",
   "proposal.undo",
@@ -446,6 +448,11 @@ export function parseCommand(line: string): ParsedLine {
     const kit = text("kit");
     if (kit !== "research" && kit !== "folders" && kit !== "think") return { error: 'agent.create needs "kit": "research", "folders" or "think".' };
     return { command: { type, name: text("name")!, role: text("role")!, kit, personality: text("personality")!, howItWorks: text("howItWorks") ?? "", rules: text("rules") ?? "" } };
+  }
+  if (type === "agent.pause") {
+    const { id, paused } = value as { id?: unknown; paused?: unknown };
+    if (typeof id !== "string" || !id || typeof paused !== "boolean") return { error: 'agent.pause needs an "id" and boolean "paused".' };
+    return { command: { type, id, paused } };
   }
   if (type === "agent.remove") {
     const { id } = value as { id?: unknown };

@@ -144,6 +144,7 @@ export function islandHelpers(
     rejectPlan: (id) => store.rejectPlan(id),
     setPlanFirst: (helper, on) => store.setPlanFirst(helper, on),
     setBrowser: (helper, on) => store.setBrowser(helper, on),
+    setPaused: (helper, paused) => store.setPaused(helper, paused),
     addRoutine: (input) => void store.addRoutine(input.helper, input.task, scheduleOf(input), startOf(input), input.notifyTelegram, input.webhook),
     updateRoutine: (id, input) => void store.updateRoutine(id, input.helper, input.task, scheduleOf(input), startOf(input), input.notifyTelegram, input.webhook),
     removeRoutine: (id) => store.removeRoutine(id),

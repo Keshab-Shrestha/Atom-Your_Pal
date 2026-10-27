@@ -4,9 +4,9 @@
 // ADR-094: ATOM's own skills (data/skills/<name>/SKILL.md, approved by Keshab) can be chosen too. A name in both places
 // is Keshab's: ATOM's is used only when it does not clash.
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join, relative, sep } from "node:path";
 
 export const SKILLS_PLUGIN = "atom-skills";
 export const SKILL_NAME = /^[a-z0-9][a-z0-9._-]{0,63}$/i;
@@ -14,7 +14,7 @@ export const SKILL_NAME = /^[a-z0-9][a-z0-9._-]{0,63}$/i;
 export interface SkillInfo {
   name: string;
   description: string;
-  /** "yours": from ~/.claude/skills; "zeno": made by ATOM (ADR-094); "hub": installed from the skills hub (B3.5). */
+  /** "yours": from ~/.claude/skills; "zeno": ATOM-owned, including bundled adaptations (ADR-094/209); "hub": installed from the skills hub (B3.5). */
   source: "yours" | "zeno" | "hub";
 }
 
@@ -74,6 +74,30 @@ export function prepareSkills(pluginDir: string, names: readonly string[], dir =
 
 /** The most characters of one skill's steps that enter a message (about 2000 tokens). */
 export const SKILL_BODY_CHARS = 8000;
+
+export interface SkillPage { name: string; file: string; body: string; offset: number; totalChars: number; nextOffset?: number }
+
+/** Bounded pages of one skill and its local materials. This never executes supporting scripts. */
+export function readSkillPage(name: string, file = "SKILL.md", offset = 0, dir = userSkillsDir(), zenoDir?: string): SkillPage | undefined {
+  if (!SKILL_NAME.test(name) || !Number.isSafeInteger(offset) || offset < 0 || file.length > 240
+    || isAbsolute(file) || !file.split("/").every((p) => /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(p))) return;
+  const folder = [dir, zenoDir].filter((d): d is string => Boolean(d)).map((d) => join(d, name)).find((d) => existsSync(join(d, "SKILL.md")));
+  if (!folder) return;
+  try {
+    const root = realpathSync(folder), path = join(root, file), canonical = realpathSync(path);
+    const within = relative(root, canonical), stat = lstatSync(path);
+    if (within === ".." || within.startsWith(`..${sep}`) || isAbsolute(within) || !stat.isFile() || stat.nlink !== 1 || stat.size > 512 * 1024) return;
+    const bytes = readFileSync(path);
+    if (bytes.length > 512 * 1024) return;
+    let text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    if (/\u0000/.test(text)) return;
+    if (file === "SKILL.md") text = text.replace(/^---\s*\n[\s\S]*?\n---\s*\n?/, "").trim();
+    if (offset > text.length) return;
+    let end = Math.min(text.length, offset + SKILL_BODY_CHARS);
+    if (end < text.length && /[\uD800-\uDBFF]/.test(text[end - 1]!)) end--;
+    return { name, file, body: text.slice(offset, end), offset, totalChars: text.length, ...(end < text.length ? { nextOffset: end } : {}) };
+  } catch { return; }
+}
 
 /** A skill's steps (SKILL.md without its front matter), cut to length; Keshab's skill before ATOM's of the same name. Undefined when none. */
 export function readSkill(name: string, dir = userSkillsDir(), zenoDir?: string): { name: string; description: string; body: string } | undefined {
@@ -151,6 +175,7 @@ export function useSkill(text: string, dir = userSkillsDir(), zenoDir?: string):
     text: call.rest || `Use the ${skill.name} skill.`,
     block:
       `The user chose the skill "${skill.name}" for this message. Follow its steps for this request. A skill cannot give you tools or permissions you do not have.\n` +
-      `--- skill ${skill.name} ---\n${skill.body}\n--- end of skill ---`,
+      `--- skill ${skill.name} ---\n${skill.body}\n--- end of skill ---` +
+      (skill.body.endsWith("[The rest of the skill is cut.]") ? `\nThis is a partial skill. Call use_skill with name "${skill.name}" and offset ${SKILL_BODY_CHARS} to continue. References are available with its file argument.` : ""),
   };
 }

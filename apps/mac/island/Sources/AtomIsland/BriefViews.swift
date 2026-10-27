@@ -69,24 +69,67 @@ struct BriefCard: View {
     }
 }
 
-/// The last briefs on the Dashboard, newest first, one day each.
+/// Saved briefs form a compact reading timeline; each entry expands in place.
 struct BriefHistory: View {
     let model: IslandModel
+    private let expanded: State<Set<Int>>
+    private let historyExpanded: State<Bool>
+    private let showAll = State(initialValue: false)
+    let compact: Bool
     @Environment(\.theme) private var theme
 
+    init(model: IslandModel, initiallyExpanded: Bool = false, openEntries: Set<Int> = [], compact: Bool = false) {
+        self.model = model; self.compact = compact
+        expanded = State(initialValue: openEntries)
+        historyExpanded = State(initialValue: initiallyExpanded)
+    }
+
     var body: some View {
-        let older = Array(model.dailyBrief.history.dropFirst().prefix(6))
+        let older = Array(model.dailyBrief.history.dropFirst())
+        let visible = compact && !showAll.wrappedValue ? Array(older.prefix(3)) : older
         if !older.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Earlier briefs").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
-                ForEach(older) { entry in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(entry.day).appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text2.color)
-                        Text(entry.lines.joined(separator: " ")).appFont(.system(size: 12)).foregroundStyle(theme.text.color).lineLimit(3)
+            DisclosureGroup(isExpanded: historyExpanded.projectedValue) {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(visible.enumerated()), id: \.element.id) { index, entry in
+                        HStack(alignment: .top, spacing: 12) {
+                            VStack(spacing: 0) {
+                                Circle().stroke(theme.text3.color, lineWidth: 1.5).frame(width: 8, height: 8).padding(.top, 7)
+                                Rectangle().fill(theme.separator.color).frame(width: 1).frame(maxHeight: .infinity)
+                            }.frame(width: 12)
+                            VStack(alignment: .leading, spacing: 7) {
+                                Button {
+                                    if expanded.wrappedValue.contains(entry.id) { expanded.wrappedValue.remove(entry.id) }
+                                    else { expanded.wrappedValue.insert(entry.id) }
+                                } label: {
+                                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                        Text(entry.day).appFont(.system(size: 12, weight: .semibold)).foregroundStyle(theme.text.color)
+                                        if let at = entry.createdAt { Text(at.formatted(date: .omitted, time: .shortened)).appFont(.system(size: 11)).foregroundStyle(theme.text3.color) }
+                                        Spacer(minLength: 0)
+                                        Image(systemName: expanded.wrappedValue.contains(entry.id) ? "chevron.up" : "chevron.down")
+                                            .appFont(.system(size: 9)).foregroundStyle(theme.text3.color)
+                                    }.contentShape(Rectangle())
+                                }.buttonStyle(.plain).accessibilityLabel("\(expanded.wrappedValue.contains(entry.id) ? "Collapse" : "Read") brief for \(entry.day)\(entry.createdAt.map { " at " + $0.formatted(date: .omitted, time: .shortened) } ?? "")")
+                                Text(entry.lines.joined(separator: "\n"))
+                                    .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
+                                    .lineLimit(expanded.wrappedValue.contains(entry.id) ? nil : 1)
+                                    .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                                if expanded.wrappedValue.contains(entry.id), let reason = entry.plainReason {
+                                    Text("Plain version: " + reason).appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
+                                }
+                            }.padding(.bottom, index == visible.count - 1 ? 0 : 18)
+                        }.fixedSize(horizontal: false, vertical: true)
                     }
-                    .padding(.vertical, 2)
+                    if compact && older.count > 3 {
+                        Button(showAll.wrappedValue ? "Show fewer" : "View all \(older.count) briefs") { showAll.wrappedValue.toggle() }
+                            .buttonStyle(SnapshotBorderlessButtonStyle()).appFont(.system(size: 11.5)).padding(.top, 12)
+                    }
+                }.padding(.top, 12)
+            } label: {
+                HStack(spacing: 8) {
+                    Label("Earlier briefs", systemImage: "clock.arrow.circlepath").appFont(.system(size: 13, weight: .semibold))
+                    Text("\(older.count) saved").appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
                 }
-            }
+            }.foregroundStyle(theme.text2.color)
         }
     }
 }

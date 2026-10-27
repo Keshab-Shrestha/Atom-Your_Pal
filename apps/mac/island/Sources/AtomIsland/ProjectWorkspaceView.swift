@@ -333,6 +333,6 @@ struct WorkspaceTextScroll<Content: View>: View {
     @Environment(\.islandSnapshot) private var snapshot
     var body: some View {
         if snapshot { Scrollable { content } }
-        else { ScrollView([.horizontal, .vertical]) { content }.defaultScrollAnchor(.topLeading) }
+        else { AtomScrollView([.horizontal, .vertical]) { content }.defaultScrollAnchor(.topLeading) }
     }
 }

@@ -245,6 +245,7 @@ export interface IslandHelpers {
   setPlanFirst(helper: string, on: boolean): void;
   /** ADR-098: whether a worker's runs get the browser. Throws, with words for the user, for an unknown worker. */
   setBrowser(helper: string, on: boolean): void;
+  setPaused?(helper: string, paused: boolean): void;
   /** ADR-088: add an agent (its folder and soul.md) or remove one Keshab added. Throw with words for the user. */
   createAgent(input: { name: string; role: string; kit: "research" | "folders" | "think"; personality: string; howItWorks: string; rules: string }): void;
   removeAgent(id: string): void;

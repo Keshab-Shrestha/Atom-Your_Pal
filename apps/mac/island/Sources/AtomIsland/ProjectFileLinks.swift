@@ -12,7 +12,7 @@ struct ProjectFileLinks: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             if !files.wrappedValue.isEmpty {
-                ScrollView(.horizontal) {
+                AtomScrollView(.horizontal) {
                     HStack(spacing: 8) {
                         ForEach(files.wrappedValue) { file in
                             Button {

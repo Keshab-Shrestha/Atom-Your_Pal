@@ -207,6 +207,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const setNativeTask = db.prepare("UPDATE jobs SET sdk_task_id = ? WHERE id = ?");
   const planFirstOf = (helper: HelperId) => (settingOf.get(`planFirst:${helper}`) as { value: string } | undefined)?.value === "true";
   // ADR-098: whether an agent's runs get the browser (default off).
+  const pausedOf = (helper: string) => (settingOf.get(`paused:${helper}`) as { value: string } | undefined)?.value === "true";
   const browserOf = (helper: HelperId) => (settingOf.get(`browser:${helper}`) as { value: string } | undefined)?.value === "true";
   const goalRow = db.prepare("SELECT * FROM goals WHERE id = ?");
   const goalEndedAt = db.prepare("SELECT ended_at FROM goals WHERE id = ?");
@@ -294,6 +295,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     const known = mustHelper(helper);
     // Task 3.13: Tinker takes no tasks of its own: it reviews the tasks Keshab rates as not good.
     if (known.role === "improver") throw new HelperError(`${current(known.id).name} only reviews tasks you rate as not good.`);
+    if (pausedOf(known.id)) throw new HelperError(`${current(known.id).name} is paused. Set it to Ready before starting new work.`);
     if (!(known.available as boolean)) throw new HelperError(`${current(known.id).name} is not ready yet.`);
     return known;
   }
@@ -532,7 +534,8 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         return {
           id: h.id,
           name: current(h.id).name,
-          available: h.available,
+          available: h.available && !pausedOf(h.id),
+          paused: pausedOf(h.id),
           role: h.role,
           kit: h.kit,
           custom: h.custom,
@@ -617,6 +620,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         dropCodexPin.run(id);
         dropSouls.run(id);
         dropRoutines.run(id);
+        db.prepare("DELETE FROM helper_settings WHERE key = ?").run(`paused:${id}`);
       });
       for (const server of mcp.list()) if (server.workers.includes(id)) mcp.flags(server.id, server.enabled, server.trusted, server.workers.filter((w) => w !== id));
       emit({ action: "agent", helper: id, added: false });
@@ -677,6 +681,13 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     setPlanFirst(helper, on) {
       const known = mustHelper(helper);
       putSetting.run(`planFirst:${known.id}`, String(on));
+      emit({ action: "settings" });
+    },
+
+    setPaused(helper, paused) {
+      const known = mustHelper(helper);
+      if (typeof paused !== "boolean") throw new HelperError("Agent availability needs a boolean paused value.");
+      putSetting.run(`paused:${known.id}`, String(paused));
       emit({ action: "settings" });
     },
 
@@ -1001,6 +1012,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
 
     start(id) {
       const job = mustGet(id);
+      if (pausedOf(job.helper)) throw new HelperError(`${current(job.helper).name} is paused. Set it to Ready before starting new work.`);
       move(job.state, "running"); // refuses anything but a queued task, with the usual words
       if (job.waitingFor.length) throw new HelperError(`Task ${id} still waits for ${job.waitingFor.join(", ")}.`);
       // The claim itself: only one caller can move it from queued.
