@@ -64,6 +64,17 @@ struct HelpersView: View {
         .environment(\.appTextSize, model.settings.textSize)
     }
 
+    /// The small line above a chat's title: project, Pinned, model (the HTML preview's header chips).
+    private var chatMetaLine: String? {
+        let list = model.chats
+        let pinned = list?.chats.first { $0.id == list?.current }?.pinned ?? false
+        // The same name the composer's model button shows.
+        let name = model.modelInfo.map { info in
+            list?.currentModel.map { info.modelName(provider: list?.currentProvider ?? info.provider, model: $0) } ?? info.currentModelName
+        }
+        return ChatHeaderMeta.line(project: list?.currentProject?.name, pinned: pinned, model: name)
+    }
+
     private var topBar: some View {
         let page = Self.page(model)
         let ownBack = model.windowPage == .agents && (model.helpers.isCreatingAgent || model.helpers.openJobId != nil
@@ -71,7 +82,7 @@ struct HelpersView: View {
         let settingsBack: (() -> Void)? = model.windowPage == .settings && model.settingsPage != nil
             ? { withAnimation(Motion.workspace(reduceMotion)) { model.settingsPage = nil } } : nil
         return WindowTopBar(title: page.title, symbol: page.symbol, compact: true,
-            context: model.windowPage == .chat ? model.chats?.currentProject?.name : model.windowPage == .settings ? SettingsHome.groupTitle(of: model.settingsPage) : (model.windowPage == .agents || model.windowPage == .dashboard) ? nil : "Workspace",
+            context: model.windowPage == .chat ? chatMetaLine : model.windowPage == .settings ? SettingsHome.groupTitle(of: model.settingsPage) : (model.windowPage == .agents || model.windowPage == .dashboard) ? nil : "Workspace",
             showSidebar: model.settings.sidebarHidden && (model.windowPage == .chat || model.windowPage == .settings) ? { model.toggleSidebar() } : nil,
             back: model.windowPage == .dashboard ? nil : settingsBack ?? (model.history.canGoBack && !ownBack ? { model.goBack() } : nil)) {
                 if model.windowPage == .chat {
