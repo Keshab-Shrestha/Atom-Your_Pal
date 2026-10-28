@@ -307,6 +307,12 @@ input,textarea,select{font-size:16px}.preview-bar select{font-size:14px}
 .composer{margin-top:var(--s3);padding:var(--s2)}
 .ch-head .ctl{flex-wrap:wrap}
 }
+/* Dashboard: usage details and accounting, the second view of the Recent turns panel */
+.usage-body{display:grid;gap:var(--s2);align-content:start}.usage-body h3{margin:var(--s2) 0 0;font-size:calc(12px * var(--text-scale,1));font-weight:600;color:var(--muted)}.usage-body .note{margin:0;font-size:calc(12px * var(--text-scale,1));color:var(--quiet)}
+.acct{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s2);margin:0}.acct dt{font-size:calc(12px * var(--text-scale,1));color:var(--muted)}.acct dd{margin:0;font-size:calc(16px * var(--text-scale,1));font-weight:600;font-variant-numeric:tabular-nums}
+.uses{display:grid;gap:var(--s2);margin:0;padding:0;list-style:none}.uses li{display:grid;grid-template-columns:minmax(0,9.5em) minmax(0,1fr) auto;gap:var(--s2);align-items:center;font-size:calc(12px * var(--text-scale,1))}.uses .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.uses .mono{font-family:ui-monospace,"SF Mono",Consolas,monospace}.uses .bar{height:8px;border-radius:5px;background:var(--fill);overflow:hidden;display:flex}.uses .bar i{display:block;height:100%}.uses .tot{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}.uses .tot b{color:var(--text);font-weight:600}
+.dcol .grow-panel>.usage-body{flex:1;min-height:0;overflow:auto;scrollbar-width:thin}
+@media(max-width:900px){.dcol .grow-panel>.usage-body{flex:none;overflow:visible}}
 @media(min-width:1700px){.dashboard-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 280px}.chart{height:105px}}
 @media(max-width:1200px){.dashboard-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-grid>.brief-column{grid-column:1/-1;grid-template-columns:repeat(2,minmax(0,1fr))}.metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.board-layout{grid-template-columns:minmax(0,1fr) 300px}.mix{gap:12px}}
 @media(max-width:800px){.dashboard-grid{grid-template-columns:1fr}.dashboard-grid>.brief-column{grid-column:auto;grid-template-columns:1fr}.board-layout{grid-template-columns:1fr}.office{max-height:none;min-height:0}.chat-sidebar{display:none}.skill-layout{grid-template-columns:1fr}.skill-list{max-height:240px}.preview-bar .secondary{display:none}.scroll{padding:14px}.board-tabs{flex-wrap:wrap}}
@@ -1072,6 +1078,23 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-cs="ny-sel
 /* Chat: slim header, and the demo states live in Tweaks */
 (()=>{const demo=document.querySelector('details.demo'),tw=document.getElementById('tweaks');if(!demo||!tw)return;demo.querySelector('summary').textContent='Chat demo states';tw.append(demo);new MutationObserver(()=>{if(demo.parentNode!==tw)tw.append(demo)}).observe(tw,{childList:true})})();
 (()=>{const b=$('#m-chats'),d=$('#chat-list-drawer');const set=o=>{d.classList.toggle('m-open',o);b.setAttribute('aria-expanded',o)};b.onclick=()=>set(!d.classList.contains('m-open'));document.addEventListener('click',e=>{if(!d.classList.contains('m-open')||e.target.closest('#m-chats'))return;if(e.target.closest('[data-ch=pick],.rail button')||!e.target.closest('#chat-list-drawer'))set(false)});const ph=matchMedia('(max-width:600px)'),ins=$('#ch-inspector'),closeIns=()=>{if(ph.matches&&ins&&!ins.hidden)$('[data-ch=insp]').click()};document.addEventListener('click',e=>{if(!e.target.closest('#ch-inspector,[data-ch=insp],[data-ch=itab]'))closeIns()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){set(false);closeIns()}})})();
+/* Dashboard: usage details and accounting as a second view of the Recent turns panel (sample numbers) */
+(()=>{const panel=[...document.querySelectorAll('#dashboard .panel')].find(p=>p.querySelector('.turns'));if(!panel)return;
+const head=panel.querySelector('header'),list=panel.querySelector('.turns'),legend=panel.querySelector('.tlegend');
+const rows=(data,color)=>data.map(([n,t,p,mono])=>`<li><span class="nm${mono?' mono':''}" title="${n}">${n}</span><span class="bar" aria-hidden="true"><i style="width:${p}%;background:${color}"></i></span><span class="tot"><b>${t}</b> · ${p}%</span></li>`).join('');
+const meter=([n,p])=>`<div class="meter"><span>${n}</span><i><b style="width:${p}%"></b></i><span>${p}%</span></div>`;
+const body=document.createElement('div');body.className='usage-body';body.hidden=true;body.id='usage-details';
+body.innerHTML=`<p class="note">Dollars are an API-equivalent at list prices, not a charge. Sample numbers.</p>
+<dl class="acct"><div><dt>API-equivalent</dt><dd>$3.10</dd></div><div><dt>Cache written</dt><dd>290K</dd></div><div><dt>Cache read</dt><dd>1.4M</dd></div></dl>
+<h3>Claude plan</h3>${meter(['5-hour',38])}${meter(['Weekly',21])}
+<h3>By model · 7 days</h3><ul class="uses" role="list">${rows([['claude-sonnet-5-5','1.1M',63,1],['gpt-6-luna','380K',22,1],['claude-haiku-5-5','240K',15,1]],'var(--blue)')}</ul>
+<h3>By worker · 7 days</h3><ul class="uses" role="list">${rows([['Cedar','890K',52],['Sid','410K',24],['Quill','260K',15],['Kame','150K',9]],'var(--accent2)')}</ul>`;
+legend.after(body);
+const views=[['Recent turns','Last 6 · input and output tokens'],['Usage details','Last 7 days · accounting']];
+head.className='row between';
+head.innerHTML=`<div><h2>${views[0][0]}</h2><small>${views[0][1]}</small></div><div class="seg" role="tablist" aria-label="Recent turns view"><button role="tab" aria-selected="true" aria-checked="true" aria-controls="usage-details" data-uv="0">Turns</button><button role="tab" aria-selected="false" aria-checked="false" aria-controls="usage-details" data-uv="1">Usage</button></div>`;
+head.addEventListener('click',e=>{const b=e.target.closest('[data-uv]');if(!b)return;const k=+b.dataset.uv;head.querySelector('h2').textContent=views[k][0];head.querySelector('small').textContent=views[k][1];list.hidden=k===1;legend.hidden=k===1;body.hidden=k===0;head.querySelectorAll('[data-uv]').forEach((x,i)=>{x.setAttribute('aria-selected',i===k);x.setAttribute('aria-checked',i===k)})});
+})();
 page(location.hash.slice(1)||'dashboard');
 </script>
 </body></html>
