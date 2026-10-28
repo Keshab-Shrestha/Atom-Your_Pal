@@ -116,6 +116,13 @@ struct WebPanelHostTests {
         #expect(light.tokens["--bg"] != dark.tokens["--bg"])
     }
 
+    @Test func aPaneGroundReplacesTheWindowGround() {
+        let own = RGBA(hex: 0x102030)
+        let t = WebPanelTheme(palette: AppTheme.daylight.palette, textScale: 1, reduceMotion: false, background: own)
+        #expect(t.tokens["--bg"] == "rgb(16 32 48)")
+        #expect(t.tokens["--bg"] != theme().tokens["--bg"])
+    }
+
     @Test func theTextScaleStaysBetween0_8And2() {
         #expect(theme(scale: 0.1).textScale == 0.8)
         #expect(theme(scale: 1.2).textScale == 1.2)

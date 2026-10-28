@@ -15,7 +15,7 @@ Use HTML in a web view for read-only visuals that change often.
 - The preview is one file of 3.5 MB. It holds fictional data and a simulated chat engine.
 - `docs/current-ui-preview.md` says the preview is not a second application frontend. This plan changes that rule for read-only panels only.
 - The native app already has Dashboard, Board, Needs you, Scheduled, Brain, Plugins and Settings.
-- The preview adds items that the native app does not have. A search found no native "Pipeline" view, no "Rewind" and no split-view panel resizing.
+- The preview adds items that the native app does not have. A search found no native "Pipeline" view and no "Rewind". The workspace pane already has a resizable divider (`ChatWorkspaceLayout.swift`).
 - `apps/ios` is empty. No phone app exists. The preview phone layout has no native target yet.
 
 ## Decision needed
@@ -68,7 +68,9 @@ Status: built on 28 October 2026. Core tests and a headless web view check pass.
 
 ### Phase 2 — First panel: Run panel
 
-- Show the Run panel in the chat details view. It is read-only.
+Status: built on 28 October 2026 as the Run surface of the workspace pane. Checks inside the built app are open.
+
+- Show the Run panel as a workspace surface. It is read-only.
 - Map real events to the panel data. Use tasks, evidence and usage events that exist now.
 - Show "not available" for lanes and pipeline steps. The runtime sends no such events yet. Add them in a later phase.
 - Remove the simulated engine from the panel code.
@@ -81,7 +83,6 @@ These ports touch other files than Phase 1 and 2. They can run in parallel.
 - Needs you inbox: filters and selection in `NeedsYouView.swift`.
 - Chat list: project filter, pinned items and hover actions.
 - Settings: compare the preview groups with the 13 native pages. Change only the differences.
-- Resizable panels in the chat workspace (`ChatWorkspaceLayout.swift`).
 
 ### Phase 4 — Close out
 

@@ -1,0 +1,25 @@
+/* The Run panel (ADR-211). Colours and text size come from the app; the defaults show before the first message. */
+:root {
+  --bg: #fff; --panel: #f5f5f7; --text: #1d1d1f; --muted: #515154; --quiet: #6e6e73;
+  --line: #d2d2d7; --fill: #ececf0; --accent: #5b50e6; --accent-text: #5b50e6; --green: #137536; --text-scale: 1;
+}
+html { background: var(--bg); color: var(--text); font: calc(13px * var(--text-scale)) / 1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; }
+body { margin: 0; padding: 0 2px 16px; }
+h1 { margin: 0; font-size: calc(18px * var(--text-scale)); font-weight: 600; }
+h2 { margin: 20px 0 8px; font-size: calc(12px * var(--text-scale)); font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+p { margin: 4px 0; }
+#status { color: var(--muted); font-variant-numeric: tabular-nums; }
+#empty, .note, #omitted { color: var(--quiet); }
+ol, ul { margin: 0; padding: 0; list-style: none; }
+li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: baseline; gap: 4px 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+li:first-child { border-top: 0; }
+.tool { font: calc(12px * var(--text-scale)) ui-monospace, "SF Mono", Menlo, monospace; overflow-wrap: anywhere; }
+.chip { font-size: calc(12px * var(--text-scale)); padding: 1px 8px; border-radius: 10px; background: var(--fill); color: var(--text); white-space: nowrap; }
+.chip.running { color: var(--accent-text); }
+.chip.ok { color: var(--green); }
+.chip.error { font-weight: 600; }
+.time { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; min-width: 4.5em; }
+.prompt { grid-column: 1 / -1; }
+#unavailable li { grid-template-columns: minmax(0, 1fr) auto; }
+[hidden] { display: none !important; }

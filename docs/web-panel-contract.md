@@ -111,11 +111,13 @@ The Run panel shows one chat turn. The data comes from `ChatWorkSnapshot` (`Chat
 
 ### Intents
 
-| name | args | Host action |
-|---|---|---|
-| `selectCall` | `{ "id": "string" }` | Highlight that call in the native chat. No other effect. |
+The Run panel has no intents in the first release. The allowlist is empty, so the host drops every `intent` message from it.
 
-Add an intent only by a new ADR or an ADR update.
+Reserved for later: `selectCall` with `{ "id": "string" }`. It will highlight that call in the native chat. It needs native highlight support first. Add an intent only by a new ADR or an ADR update.
+
+### Where it shows
+
+The Run panel is the Run surface in the workspace pane, beside Files, Changes, Git, Browser and Terminal. It works in any chat. It shows the latest turn of the open chat.
 
 ## Page rules
 

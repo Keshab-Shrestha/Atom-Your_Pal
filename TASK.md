@@ -1,5 +1,9 @@
 # ZENO Task Plan
 
+## Run panel (Phase 2) — 28 October 2026
+
+Added the Run surface to the workspace pane. It shows the tool calls, questions and state of the latest turn through the bundled Run panel (`apps/mac/island/Web/run/`). Pipeline, lanes and evidence show "Not available" because the runtime does not report them. The panel has no intents yet. A headless web view check passed: script text stays inert, stale data is ignored, reset works. 40 workspace and web panel tests pass. Not done: a check inside the built app, VoiceOver, and larger text. Next task: decide whether to add runtime events for pipeline and lanes, or a native highlight for `selectCall`.
+
 ## Web panel host (Phase 1) — 28 October 2026
 
 Added the web panel host from [the plan](docs/html-to-native-plan.md). `AtomIslandCore` has the message parser, the navigation policy, the theme tokens and the Run panel payload builder (19 new tests pass). `AtomIsland` has `WebPanelView`, a locked web view. A probe panel in `apps/mac/island/Web/probe/` shows in Settings, Design. A headless web view check passed: the page loads under its CSP, the bridge works, bad tokens and network calls are refused, and later navigation is cancelled. Not done: a check inside the built app, VoiceOver, and larger text. The full test run has 9 failures in `SetupTests` and `ThemeTests`. Those tests are in code this change does not touch. Next task: Phase 2, the Run panel.

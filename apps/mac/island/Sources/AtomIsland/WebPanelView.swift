@@ -20,6 +20,8 @@ struct WebPanelView: View {
     var data: WebPanelData?
     /// Change this to tell the page to start over (a different chat or task).
     var resetKey = ""
+    /// The ground the page sits on, when it is not the window's.
+    var background: RGBA?
     var onResize: (CGFloat) -> Void = { _ in }
     var onIntent: (String, [String: String]) -> Void = { _, _ in }
 
@@ -32,8 +34,8 @@ struct WebPanelView: View {
         if !snapshot, let entry = Self.entry(for: panel) {
             WebPanelRepresentable(
                 entry: entry, panel: panel, allowedIntents: allowedIntents,
-                theme: WebPanelTheme(palette: theme, textScale: textSize.scale, reduceMotion: reduceMotion),
-                background: theme.surfaceSolid.nsColor, data: data, resetKey: resetKey, onResize: onResize, onIntent: onIntent
+                theme: WebPanelTheme(palette: theme, textScale: textSize.scale, reduceMotion: reduceMotion, background: background),
+                background: (background ?? theme.surfaceSolid).nsColor, data: data, resetKey: resetKey, onResize: onResize, onIntent: onIntent
             )
             .accessibilityLabel(label)
         } else {

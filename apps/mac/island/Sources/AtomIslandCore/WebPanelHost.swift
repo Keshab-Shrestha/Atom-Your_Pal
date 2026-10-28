@@ -11,8 +11,9 @@ public struct WebPanelTheme: Equatable, Sendable {
     public let textScale: Double
     public let reduceMotion: Bool
 
-    public init(palette: ThemePalette, textScale: CGFloat, reduceMotion: Bool) {
-        let base = palette.surfaceSolid
+    /// `background` is the ground the page sits on, when it is not the window's (a workspace pane has its own).
+    public init(palette: ThemePalette, textScale: CGFloat, reduceMotion: Bool, background: RGBA? = nil) {
+        let base = background?.over(palette.surfaceSolid) ?? palette.surfaceSolid
         func css(_ colour: RGBA) -> String {
             let solid = colour.over(base)
             func channel(_ value: Double) -> Int { min(255, max(0, Int((value * 255).rounded()))) }
