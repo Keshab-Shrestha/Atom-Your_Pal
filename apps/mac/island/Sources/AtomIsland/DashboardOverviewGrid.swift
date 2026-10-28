@@ -30,15 +30,8 @@ struct DashboardOverviewGrid: View {
 
     private var trends: some View {
         VStack(spacing: 14) {
-            DashboardPanel("Tokens", detail: "Input + output · 7 days") {
-                DashboardTrend(days: usage.days, metric: .tokens, color: theme.live.color)
-            }
-            DashboardPanel("Cache reuse", detail: "Cached input · 7 days") {
-                DashboardTrend(days: usage.days, metric: .cache, color: theme.success.color)
-            }
-            DashboardPanel("Runs", detail: "Recorded calls · 7 days") {
-                DashboardTrend(days: usage.days, metric: .runs, color: theme.live.color)
-            }
+            DashboardTrendsPanel(usage: usage)
+            if !usage.recent.isEmpty { DashboardRecentTurns(runs: usage.recent) }
         }
     }
 
@@ -60,7 +53,9 @@ struct DashboardOverviewGrid: View {
             }
             DashboardPanel("Team branches") {
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
-                GitSection(model: model, compact: true)
+                // A fixed height with its own scroll, so a long list does not push the other panels down (from the HTML preview).
+                if width >= 760 { Scrollable { GitSection(model: model, compact: true) }.frame(height: 320) }
+                else { GitSection(model: model, compact: true) }
             }
         }
     }
@@ -137,7 +132,7 @@ private struct DashboardBriefSummary: View {
     }
 }
 
-private struct DashboardTrend: View {
+struct DashboardTrend: View {
     enum Metric { case tokens, cache, runs }
     let days: [DayTokens]
     let metric: Metric
@@ -187,5 +182,86 @@ private struct DashboardTrend: View {
                 }.appFont(.system(size: 10)).foregroundStyle(theme.text2.color)
             }
         }
+    }
+}
+
+/// One chart at a time, chosen by tabs (from the HTML preview), in place of three stacked ones.
+private struct DashboardTrendsPanel: View {
+    let usage: TokenUsageSummary
+    @State private var kind = DashboardTrendKind.tokens
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        DashboardPanel("Trends", detail: kind.detail) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 2) {
+                    ForEach(DashboardTrendKind.allCases, id: \.self) { option in
+                        Button { kind = option } label: {
+                            Text(option.title).appFont(.system(size: 11.5, weight: kind == option ? .medium : .regular))
+                                .foregroundStyle(kind == option ? theme.text.color : theme.text2.color)
+                                .padding(.horizontal, 10).padding(.vertical, 4)
+                                .background(kind == option ? (theme.isDark ? theme.fill1.color : Color.white) : .clear, in: RoundedRectangle(cornerRadius: 6))
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(option.title)
+                        .accessibilityAddTraits(kind == option ? .isSelected : [])
+                    }
+                }
+                .padding(2).background(theme.fill3.color, in: RoundedRectangle(cornerRadius: 8))
+                DashboardTrend(days: usage.days, metric: metric, color: kind == .cacheReuse ? theme.success.color : theme.live.color)
+            }
+        }
+    }
+
+    private var metric: DashboardTrend.Metric {
+        switch kind { case .tokens: .tokens; case .cacheReuse: .cache; case .runs: .runs }
+    }
+}
+
+/// The last turns as bars split into input and output, each with its cache share (from the HTML preview). The table with
+/// every column stays below as "Recent turns".
+private struct DashboardRecentTurns: View {
+    let runs: [RecentTokens]
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let bars = RecentTurnBar.bars(runs)
+        DashboardPanel("Recent turns", detail: "Last \(bars.count) · input and output tokens") {
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(Array(bars.enumerated()), id: \.offset) { _, bar in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(bar.model).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2)).lineLimit(1)
+                            Spacer(minLength: 4)
+                            Text(bar.tokensText).appFont(.system(size: 12, weight: .semibold)).monospacedDigit().foregroundStyle(theme.text.color)
+                            Text(bar.cachedText).appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1)
+                        }
+                        GeometryReader { proxy in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(theme.fill3.color)
+                                HStack(spacing: 0) {
+                                    Rectangle().fill(theme.live.color).frame(width: proxy.size.width * bar.inputShare)
+                                    Rectangle().fill(theme.accent.color).frame(width: proxy.size.width * bar.outputShare)
+                                }.clipShape(Capsule())
+                            }
+                        }.frame(height: 6).accessibilityHidden(true)
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(bar.kindTitle) on \(bar.model): \(bar.tokensText) tokens, \(bar.cachedText)")
+                }
+                HStack(spacing: 12) {
+                    legend("Input", theme.live.color)
+                    legend("Output", theme.accent.color)
+                }.padding(.top, 2)
+            }
+        }
+    }
+
+    private func legend(_ title: String, _ color: Color) -> some View {
+        HStack(spacing: 5) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text(title).appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)
+        }.accessibilityHidden(true)
     }
 }
