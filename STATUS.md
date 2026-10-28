@@ -1,5 +1,9 @@
 # ZENO Project Status
 
+## Native Needs you filters (Phase 3, second item) — 28 October 2026
+
+The Needs you page in the app has filter chips from the HTML preview: All, Approvals, Plans, Suggestions, Held and Failed, each with a count. A filter only chooses what shows. The cards and their Approve, Reject, Allow and Retry buttons are unchanged, and the counts always show everything that waits. `NeedsYouFilter` in `AtomIslandCore` holds the grouping and the counts (5 new tests pass). Gallery captures show the chips in light and dark. Not done from the HTML design: the two-pane list and detail layout, and the inbox sort. Not checked in the running app. Next task: the chat list.
+
 ## Native Token mix redesign (Phase 3, first item) — 28 October 2026
 
 The Dashboard Token mix in the app now follows the HTML preview. The ring is 112 points. Each legend row shows the kind, its count, its share and a thin share bar. `TokenTotals.sharePercent` formats the share ("1.5%", "17%", "<0.1%"). Three new tests pass. A sample fixture in the gallery renders light and dark, and the real Dashboard capture looks right. Not checked in the running app. Next task: the Needs you inbox.

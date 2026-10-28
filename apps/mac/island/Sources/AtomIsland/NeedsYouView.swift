@@ -8,12 +8,18 @@ struct NeedsYouPane: View {
     /// Inside the Board (the Board's header already names the page): no big title and less room above.
     var embedded = false
     @Environment(\.theme) private var theme
+    /// Chooses what shows. It never answers anything or changes what waits (the HTML preview's chips).
+    @State private var filter = NeedsYouFilter.all
 
     var body: some View {
         // Failed tasks have their own section below ("Failed"); listing them here too showed each one twice.
-        let items = (model.helpers.list.map(NeedsYouItem.all(in:)) ?? []).filter { $0.kind != .failed }
+        let waiting = (model.helpers.list.map(NeedsYouItem.all(in:)) ?? []).filter { $0.kind != .failed }
+        let items = waiting.filter { filter.matches($0.kind) }
         // Failed tasks wait for Keshab too (ADR-116): they sit under the things to answer.
-        let failed = model.helpers.list.map(TeamIssues.all(in:)) ?? []
+        let everyFailed = model.helpers.list.map(TeamIssues.all(in:)) ?? []
+        let failed = filter.showsFailed ? everyFailed : []
+        let nothingWaits = waiting.isEmpty && everyFailed.isEmpty && model.approval.pending == nil
+        let counts = NeedsYouFilter.counts(items: waiting, failed: everyFailed.count, hasApproval: model.approval.pending != nil)
         Scrollable {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -21,7 +27,14 @@ struct NeedsYouPane: View {
                     Text("What waits for your answer, and tasks that failed. Nothing here is done without you.").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
-                if let request = model.approval.pending {
+                if !nothingWaits {
+                    FlowLayout(spacing: 6) {
+                        ForEach(NeedsYouFilter.allCases, id: \.self) { option in
+                            NeedsYouChip(title: option.title, count: counts[option] ?? 0, selected: filter == option) { filter = option }
+                        }
+                    }
+                }
+                if filter.showsApproval, let request = model.approval.pending {
                     if let review = request.fileReview {
                         FileEditReviewCard(model: model, request: request, review: review)
                             .id(request.id)
@@ -42,9 +55,12 @@ struct NeedsYouPane: View {
                 if model.helpers.list == nil && model.approval.pending == nil {
                     // Not heard from ATOM yet: that is not the same as "nothing waits".
                     LoadingStateView(text: "Loading what waits for you…", retry: { model.send(.helpersList) })
-                } else if items.isEmpty && failed.isEmpty && model.approval.pending == nil {
+                } else if nothingWaits {
                     EmptyStateView(title: "Nothing waits for you",
                                    detail: "When an agent needs a plan approved, a command allowed or a skill accepted, or a task fails, it shows here. Nothing is done without you.")
+                } else if items.isEmpty && failed.isEmpty && !(filter.showsApproval && model.approval.pending != nil) {
+                    Text("Nothing under \(filter.title). Choose All to see everything that waits.")
+                        .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }
                 ForEach(items) { item in row(item) }
                 if !failed.isEmpty {
@@ -164,5 +180,32 @@ struct FailedTaskCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
             .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
+    }
+}
+
+/// One filter chip of the Needs you page: its name and how many things are in it.
+private struct NeedsYouChip: View {
+    let title: String
+    let count: Int
+    let selected: Bool
+    let action: () -> Void
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Text(title)
+                Text("\(count)").monospacedDigit().foregroundStyle(theme.text3.color)
+            }
+            .appFont(.system(size: 12, weight: selected ? .medium : .regular))
+            .foregroundStyle(selected ? theme.text.color : theme.text2.color)
+            .padding(.horizontal, 10).padding(.vertical, 5)
+            .background(selected ? theme.fill2.color : .clear, in: Capsule())
+            .overlay(Capsule().strokeBorder(theme.separator.color, lineWidth: selected ? 0 : 0.6))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title), \(count)")
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
