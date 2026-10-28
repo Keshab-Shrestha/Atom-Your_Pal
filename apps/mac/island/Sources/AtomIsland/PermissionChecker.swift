@@ -15,7 +15,7 @@ final class PermissionChecker {
     @ObservationIgnored private var timer: Timer?
     @ObservationIgnored private var automationCheck: Task<Void, Never>?
 
-    /// How often the checklist is re-read while Settings → General is open.
+    /// How often the checklist is re-read while Settings → Privacy is open.
     static let pollInterval = 1.5
 
     /// The first-launch card stays until these are granted. False until the first read, so it does not flash.

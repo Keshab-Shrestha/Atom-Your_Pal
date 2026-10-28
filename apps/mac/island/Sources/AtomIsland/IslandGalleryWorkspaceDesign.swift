@@ -50,6 +50,14 @@ extension IslandGallery {
         save(HelpersView(model: model).frame(width: 1100, height: 900).environment(\.islandSnapshot, true), name: "43-workspace-appearance", to: directory)
         model.settingsPage = .general
         save(HelpersView(model: model).frame(width: 1100, height: 900).environment(\.islandSnapshot, true), name: "43-workspace-general", to: directory)
+        model.settingsPage = .computer
+        save(HelpersView(model: model).frame(width: 1100, height: 900).environment(\.islandSnapshot, true), name: "43-workspace-computer", to: directory)
+        model.settingsPage = .notifications
+        save(HelpersView(model: model).frame(width: 1100, height: 900).environment(\.islandSnapshot, true), name: "43-workspace-notifications", to: directory)
+        model.settingsPage = .connections
+        save(HelpersView(model: model).frame(width: 1100, height: 900).environment(\.islandSnapshot, true), name: "43-workspace-connections", to: directory)
+        model.settingsPage = .privacy
+        save(HelpersView(model: model).frame(width: 1100, height: 900).environment(\.islandSnapshot, true), name: "43-workspace-privacy", to: directory)
         model.windowPage = .dashboard
         save(HelpersView(model: model).frame(width: 1440, height: 900).environment(\.islandSnapshot, true), name: "43-workspace-dashboard-wide", to: directory)
         model.windowPage = .scheduled

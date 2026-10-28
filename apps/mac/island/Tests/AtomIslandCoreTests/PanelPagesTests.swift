@@ -13,6 +13,33 @@ import Testing
         #expect(SettingsHome.groups.allSatisfy { !$0.isEmpty })
     }
 
+    /// General was one long page; its cards now sit under the page that names their purpose (from the HTML preview).
+    @Test func generalIsSplitByPurpose() {
+        #expect(SettingsPage.computer.rawValue == "Computer")
+        #expect(SettingsPage.notifications.rawValue == "Notifications")
+        #expect(SettingsPage.connections.rawValue == "Connections")
+        #expect(SettingsPage.privacy.rawValue == "Privacy")
+    }
+
+    @Test func theSidebarListsEveryPageOnceInPurposeGroups() {
+        let pages = SettingsHome.sidebar.flatMap(\.pages)
+        #expect(Set(pages) == Set(SettingsPage.allCases.filter { $0 != .design }))
+        #expect(pages.count == SettingsPage.allCases.count - 1, "no page twice")
+        #expect(SettingsHome.sidebar.map(\.title) == ["Preferences", "Companion", "Access", "Help"])
+        #expect(SettingsHome.sidebar[0].pages == [.general, .appearance, .model, .computer, .notifications, .shortcuts])
+        #expect(SettingsHome.sidebar[2].pages == [.connections, .privacy])
+    }
+
+    /// The page header names the sidebar group the page sits in; Overview and the hidden design page say "Preferences".
+    @Test func theHeaderNamesThePagesGroup() {
+        #expect(SettingsHome.groupTitle(of: .privacy) == "Access")
+        #expect(SettingsHome.groupTitle(of: .dictation) == "Companion")
+        #expect(SettingsHome.groupTitle(of: .computer) == "Preferences")
+        #expect(SettingsHome.groupTitle(of: .examples) == "Help")
+        #expect(SettingsHome.groupTitle(of: nil) == "Preferences")
+        #expect(SettingsHome.groupTitle(of: .design) == "Preferences")
+    }
+
     /// Rows use monochrome outline glyphs, never the old filled, coloured tiles.
     @Test func pageGlyphsAreOutlines() {
         #expect(SettingsPage.allCases.allSatisfy { !$0.symbol.isEmpty && !$0.symbol.hasSuffix(".fill") })

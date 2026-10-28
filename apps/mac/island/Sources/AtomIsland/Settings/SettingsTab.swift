@@ -73,6 +73,14 @@ struct SettingsTab: View {
             let on = [s.speakReports, s.speakUpdates, s.speechChime, s.soundsEnabled, s.notificationSounds].filter { $0 }.count
             return on == 5 ? "All on" : on == 0 ? "Quiet" : "\(on) of 5 on"
         case .general: return model.loginItem.enabled ? "Opens at login" : ""
+        case .computer: return model.computerOn ? "On" : "Off"
+        case .notifications:
+            let on = AppNotice.Kind.allCases.filter { s.notifies($0) }.count
+            return on == AppNotice.Kind.allCases.count ? "All on" : on == 0 ? "Off" : "\(on) of \(AppNotice.Kind.allCases.count) on"
+        case .connections: return s.localApi ? "Local API on" : "Local API off"
+        case .privacy:
+            let waiting = model.permissions.visibleRows.filter { model.permissions.states[$0] != .granted }.count
+            return waiting == 0 ? "All allowed" : "\(waiting) needs attention"
         }
     }
 
@@ -87,6 +95,10 @@ struct SettingsTab: View {
         case .pal: PalSection(model: model)
         case .sounds: SoundsSection(model: model)
         case .general: GeneralSection(model: model)
+        case .computer: ComputerSection(model: model)
+        case .notifications: NotificationsSection(model: model)
+        case .connections: ConnectionsSection(model: model)
+        case .privacy: PrivacySection(model: model)
         }
     }
 }

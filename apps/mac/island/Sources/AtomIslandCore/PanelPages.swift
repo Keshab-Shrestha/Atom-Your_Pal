@@ -19,6 +19,11 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Sendable {
     case pal = "ATOM"
     case sounds = "Sounds"
     case general = "General"
+    /// General was one long page; its cards now sit under the page that names their purpose.
+    case computer = "Computer"
+    case notifications = "Notifications"
+    case connections = "Connections"
+    case privacy = "Privacy"
     public var id: String { rawValue }
 
     /// A monochrome glyph for the page's row (outline symbols, drawn in secondary text: no coloured tiles).
@@ -33,6 +38,10 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Sendable {
         case .pal: "face.smiling"
         case .sounds: "speaker.wave.2"
         case .general: "gearshape"
+        case .computer: "desktopcomputer"
+        case .notifications: "bell"
+        case .connections: "link"
+        case .privacy: "lock.shield"
         }
     }
 }
@@ -41,9 +50,20 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Sendable {
 /// "Change model" opens it, next to the model it names.
 public enum SettingsHome {
     public static let groups: [[SettingsPage]] = [
-        [.examples, .shortcuts, .dictation],
-        [.appearance, .pal, .sounds, .general], // Developer-only design previews stay in the gallery.
+        [.examples, .shortcuts, .dictation, .notifications],
+        [.appearance, .pal, .sounds, .general, .computer, .connections, .privacy], // Developer-only design previews stay in the gallery.
     ]
+    /// The window's Settings sidebar: every page once, grouped by purpose. Design previews stay in the gallery.
+    public static let sidebar: [(title: String, pages: [SettingsPage])] = [
+        ("Preferences", [.general, .appearance, .model, .computer, .notifications, .shortcuts]),
+        ("Companion", [.dictation, .sounds, .pal]),
+        ("Access", [.connections, .privacy]),
+        ("Help", [.examples]),
+    ]
+    /// The sidebar group a page sits in, for the page header. Overview (nil) and the hidden design page say "Preferences".
+    public static func groupTitle(of page: SettingsPage?) -> String {
+        sidebar.first { group in page.map(group.pages.contains) ?? false }?.title ?? "Preferences"
+    }
     /// The page the now card's "Change model" opens.
     public static let changeModel = SettingsPage.model
 }

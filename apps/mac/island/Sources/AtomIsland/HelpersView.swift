@@ -71,7 +71,7 @@ struct HelpersView: View {
         let settingsBack: (() -> Void)? = model.windowPage == .settings && model.settingsPage != nil
             ? { withAnimation(Motion.workspace(reduceMotion)) { model.settingsPage = nil } } : nil
         return WindowTopBar(title: page.title, symbol: page.symbol, compact: true,
-            context: model.windowPage == .chat ? model.chats?.currentProject?.name : model.windowPage == .settings ? "Preferences" : (model.windowPage == .agents || model.windowPage == .dashboard) ? nil : "Workspace",
+            context: model.windowPage == .chat ? model.chats?.currentProject?.name : model.windowPage == .settings ? SettingsHome.groupTitle(of: model.settingsPage) : (model.windowPage == .agents || model.windowPage == .dashboard) ? nil : "Workspace",
             showSidebar: model.settings.sidebarHidden && (model.windowPage == .chat || model.windowPage == .settings) ? { model.toggleSidebar() } : nil,
             back: model.windowPage == .dashboard ? nil : settingsBack ?? (model.history.canGoBack && !ownBack ? { model.goBack() } : nil)) {
                 if model.windowPage == .chat {

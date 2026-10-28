@@ -92,7 +92,7 @@ struct FailureCard: View {
     }
 }
 
-/// Settings → General → Permissions: every row, its state, when ATOM uses it, and one button.
+/// Settings → Privacy → Permissions: every row, its state, when ATOM uses it, and one button.
 struct PermissionsCard: View {
     let model: IslandModel
 

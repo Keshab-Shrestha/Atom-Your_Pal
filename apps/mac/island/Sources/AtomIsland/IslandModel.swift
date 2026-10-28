@@ -88,7 +88,7 @@ final class IslandModel {
     }
     /// ADR-098: ATOM's Telegram bot is set up in .env (from the runtime's `ready`).
     var telegramConnected = false
-    /// ADR-054: computer control is on in the running runtime (from `ready`). The switch in Settings → General shows it.
+    /// ADR-054: computer control is on in the running runtime (from `ready`). The switch in Settings → Computer shows it.
     var computerOn = false
     /// The runtime is restarting to apply the switch.
     var computerRestarting = false
@@ -431,7 +431,7 @@ final class IslandModel {
     /// Restarts the runtime with computer control on or off (set by main.swift).
     @ObservationIgnored var applyComputer: (Bool) -> Void = { _ in }
 
-    /// ADR-054: the switch in Settings → General. The choice is saved; the runtime restarts to apply it, because ATOM's tools
+    /// ADR-054: the switch in Settings → Computer. The choice is saved; the runtime restarts to apply it, because ATOM's tools
     /// are made once at start and computer control is not among them when it is off.
     func setComputer(_ on: Bool) {
         guard on != computerOn || settings.computerOverride != on else { return }

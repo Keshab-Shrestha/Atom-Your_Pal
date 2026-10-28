@@ -49,7 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        // ADR-054: the user's choice from Settings → General wins over ATOM_COMPUTER in .env; with no choice, .env decides.
+        // ADR-054: the user's choice from Settings → Computer wins over ATOM_COMPUTER in .env; with no choice, .env decides.
         if let choice = UserDefaults.standard.object(forKey: IslandSettings.computerOverrideKey) as? Bool {
             launch.environment["ATOM_COMPUTER"] = choice ? "1" : "0"
         }

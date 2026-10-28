@@ -9,11 +9,7 @@ struct SettingsSidebar: View {
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
 
-    private let groups: [(String, [IslandModel.SettingsPage])] = [
-        ("Preferences", [.general, .appearance, .model, .shortcuts]),
-        ("Companion", [.dictation, .sounds, .pal]),
-        ("Help", [.examples])
-    ]
+    private let groups: [(String, [IslandModel.SettingsPage])] = SettingsHome.sidebar.map { ($0.title, $0.pages) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {

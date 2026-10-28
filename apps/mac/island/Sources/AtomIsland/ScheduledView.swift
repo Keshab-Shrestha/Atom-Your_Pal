@@ -195,12 +195,12 @@ private struct ScheduleFormCard: View {
             }
             // ADR-098: each result goes to Keshab's phone.
             HStack(spacing: 8) {
-                Text(model.telegramConnected ? "Send result to Telegram" : "Send result to Telegram (set up Telegram in Settings → General)")
+                Text(model.telegramConnected ? "Send result to Telegram" : "Send result to Telegram (set up Telegram in Settings → Notifications)")
                     .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 Spacer(minLength: 8)
                 ThemedSwitch(isOn: value.draft.notifyTelegram, set: { draft.wrappedValue.notifyTelegram = $0 }, label: "Send result to Telegram")
             }
-            // ADR-098 item 5: another tool may start it through the local API (Settings → General → Local API).
+            // ADR-098 item 5: another tool may start it through the local API (Settings → Connections → Local API).
             HStack(spacing: 8) {
                 Text(value.draft.webhook ? value.id.map { "Can be started by webhook: POST /v1/hooks/\($0)" } ?? "Can be started by webhook" : "Can be started by webhook")
                     .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
