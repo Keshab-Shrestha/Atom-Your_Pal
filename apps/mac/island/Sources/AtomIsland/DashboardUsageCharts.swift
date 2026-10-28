@@ -61,7 +61,7 @@ struct DashboardTokenMix: View {
 }
 
 /// A thin bar for a kind's share of the total. A share that exists is never drawn thinner than 3 points.
-private struct ShareBar: View {
+struct ShareBar: View {
     let fraction: Double
     let color: Color
     @Environment(\.theme) private var theme

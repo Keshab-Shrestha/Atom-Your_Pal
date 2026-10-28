@@ -68,6 +68,18 @@ extension IslandGallery {
                 DashboardTokenMix(usage: TokenUsageSummary(today: TokenTotals(), week: TokenTotals(input: 9_000, output: 17_600, cacheRead: 1_400_000, cacheWrite: 290_000)))
             }.padding(24).frame(width: 420, height: 260, alignment: .topLeading)
                 .background(palette.surfaceSolid.color).themed(palette).environment(\.islandSnapshot, true), name: "45-usage-sample-" + name, to: directory)
+            let week = TokenTotals(input: 19_000, output: 7_600, cacheRead: 1_400_000, cacheWrite: 290_000, dollars: 3.1, runs: 41)
+            let detailed = TokenUsageSummary(today: TokenTotals(), week: week,
+                byWorker: [WorkerTokens(helper: "cedar", name: "Cedar", totals: TokenTotals(input: 700_000, output: 190_000)),
+                           WorkerTokens(helper: "sid", name: "Sid", totals: TokenTotals(input: 380_000, output: 30_000)),
+                           WorkerTokens(helper: "quill", name: "Quill", totals: TokenTotals(input: 240_000, output: 20_000)),
+                           WorkerTokens(helper: "kame", name: "Kame", totals: TokenTotals(input: 140_000, output: 10_000))],
+                byModel: [ModelTokens(model: "claude-sonnet-5-5", totals: TokenTotals(input: 1_000_000, output: 100_000)),
+                          ModelTokens(model: "gpt-6-luna", totals: TokenTotals(input: 340_000, output: 40_000)),
+                          ModelTokens(model: "claude-haiku-5-5", totals: TokenTotals(input: 220_000, output: 20_000))])
+            save(DashboardRecentTurns(usage: detailed, plan: PlanUsage(fiveHour: 0.38, sevenDay: 0.21), mode: .usage)
+                .padding(24).frame(width: 420, height: 640, alignment: .topLeading)
+                .background(palette.surfaceSolid.color).themed(palette).environment(\.islandSnapshot, true), name: "45-usage-details-" + name, to: directory)
             model.settings.textSize = .extraLarge
             capture("44-dashboard-large-" + name, width: 760, height: 1000)
             model.windowPage = .agents; model.helpers.selectBoard(); model.settings.textSize = .standard

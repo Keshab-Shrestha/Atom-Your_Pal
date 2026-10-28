@@ -300,8 +300,10 @@ private struct ShareRow: View {
 }
 
 /// The Claude plan's five-hour and seven-day use.
-private struct PlanMeters: View {
+struct PlanMeters: View {
     let plan: PlanUsage
+    /// The page's own card pads it; the Dashboard's Usage view sits inside a panel that already does.
+    var padded = true
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -309,7 +311,7 @@ private struct PlanMeters: View {
             if let five = plan.fiveHour { meter("Five hours", five) }
             if let week = plan.sevenDay { meter("Seven days", week) }
         }
-        .padding(16)
+        .padding(padded ? 16 : 0)
     }
 
     private func meter(_ label: String, _ used: Double) -> some View {

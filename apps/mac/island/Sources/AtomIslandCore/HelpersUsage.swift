@@ -58,11 +58,17 @@ public struct WorkerTokens: Sendable, Equatable {
     public var helper: String?
     public var name: String
     public var totals: TokenTotals
+
+    public init(helper: String?, name: String, totals: TokenTotals) {
+        self.helper = helper; self.name = name; self.totals = totals
+    }
 }
 
 public struct ModelTokens: Sendable, Equatable {
     public var model: String
     public var totals: TokenTotals
+
+    public init(model: String, totals: TokenTotals) { self.model = model; self.totals = totals }
 }
 
 /// Token cost, job 4: one recent call, for the Dashboard's list of turns.
