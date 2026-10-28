@@ -1,5 +1,9 @@
 # ZENO Project Status
 
+## Web panel host (Phase 1) — 28 October 2026
+
+Added the web panel host from [the plan](docs/html-to-native-plan.md). `AtomIslandCore` has the message parser, the navigation policy, the theme tokens and the Run panel payload builder (19 new tests pass). `AtomIsland` has `WebPanelView`, a locked web view. A probe panel in `apps/mac/island/Web/probe/` shows in Settings, Design. A headless web view check passed: the page loads under its CSP, the bridge works, bad tokens and network calls are refused, and later navigation is cancelled. Not done: a check inside the built app, VoiceOver, and larger text. The full test run has 9 failures in `SetupTests` and `ThemeTests`. Those tests are in code this change does not touch. Next task: Phase 2, the Run panel.
+
 ## Web panels in the native app: decision and contract — 28 October 2026
 
 Phase 0 of [the HTML-to-native plan](docs/html-to-native-plan.md) is done. ADR-211 chooses a hybrid: a native SwiftUI shell and sandboxed web panels for read-only visuals. [The panel contract](docs/web-panel-contract.md) defines the messages, the checks and the Run panel data. No Swift code changed. No tests ran. Next task: Phase 1, the web panel host and its tests.

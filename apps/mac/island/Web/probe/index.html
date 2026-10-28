@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'">
+<meta name="color-scheme" content="light dark">
+<title>Web panel probe</title>
+<link rel="stylesheet" href="probe.css">
+</head>
+<body>
+<main id="probe" aria-label="Web panel probe">
+  <h1>Web panel probe</h1>
+  <p id="summary">Waiting for the app…</p>
+  <ul id="tokens" aria-label="Colour tokens"></ul>
+  <p><button id="send" type="button">Send the selectCall intent</button></p>
+  <p>Data revision: <span id="revision">none</span></p>
+  <pre id="data">No data yet.</pre>
+</main>
+<script src="probe.js"></script>
+</body>
+</html>

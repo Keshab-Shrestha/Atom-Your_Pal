@@ -24,7 +24,7 @@ If an action is needed, the panel asks for an **intent**. The host decides.
 
 ## Files
 
-- Each panel lives in `apps/mac/island/Sources/AtomIsland/Resources/web/<panel>/`.
+- Each panel lives in `apps/mac/island/Web/<panel>/`. The build copies it to `Resources/web/<panel>/` in the app.
 - The entry file is `index.html`. Styles and scripts are separate files in the same folder.
 - A panel file never contains base64 images.
 - The host loads the page with `loadFileURL(_:allowingReadAccessTo:)`. The access folder is the panel folder only.
@@ -102,6 +102,8 @@ The Run panel shows one chat turn. The data comes from `ChatWorkSnapshot` (`Chat
 - `state`, and each call and question `state`, is a string. The panel shows an unknown value as neutral text.
 - `ms` is a number or `null`.
 - `calls` has at most 200 items. `omitted` counts the rest.
+- `questions` has at most 50 items.
+- If the payload is too large, the host drops calls from the end and adds them to `omitted`.
 - Each string is at most 500 characters. The host truncates it.
 - The payload is at most 256 KiB.
 - The host leaves out the question `answer` and `error` fields. They can hold user text.

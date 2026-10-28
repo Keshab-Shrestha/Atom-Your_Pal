@@ -60,9 +60,11 @@ Status: done on 28 October 2026. Option A is chosen. See ADR-211 and [the panel 
 - Add `WebPanelPolicy` in `AtomIslandCore`. It holds the navigation rules and the intent parser.
 - Put the page files in a SwiftPM resource folder. Update `build-app.sh` to copy them.
 - Send the theme from `Theme.swift` to the page as CSS variables. Send the text scale too.
-- Add a fixture to the native gallery.
+- Add a probe panel to Settings, Design. The native gallery cannot render a web view, so it is not used.
 - Test the policy and the parser with `pnpm island:test`.
 - Check light, dark and larger text. Check VoiceOver.
+
+Status: built on 28 October 2026. Core tests and a headless web view check pass. Checks inside the built app, VoiceOver and larger text are open.
 
 ### Phase 2 — First panel: Run panel
 

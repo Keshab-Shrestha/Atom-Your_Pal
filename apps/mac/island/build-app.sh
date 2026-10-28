@@ -63,6 +63,8 @@ cp "$root/assets/skills/omh/LICENSE" "$app/Contents/Resources/ThirdParty-OhMyHer
 mkdir -p "$app/Contents/Resources/skills"
 cp -R "$root/assets/skills/omh" "$app/Contents/Resources/skills/omh"
 cp -R "$here/.build/release/SwiftTerm_SwiftTerm.bundle" "$app/Contents/Resources/"
+# Web panels (ADR-211): apps/mac/island/Web/<panel>/ -> Resources/web/<panel>/. Bundled files only; no network.
+cp -R "$here/Web" "$app/Contents/Resources/web"
 cp "$binary" "$app/Contents/MacOS/ATOM"
 # Calendar and Reminders helper (ADR-060). Inside the app so macOS attributes its permission to ATOM.
 helper="$here/.build/release/AtomCalendar"

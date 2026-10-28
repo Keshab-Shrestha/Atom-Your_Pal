@@ -66,6 +66,8 @@ private struct DesignShowcase: View {
     @State private var switchOn = true
     @State private var choice: DesignShowcaseMode = .showcase
     @State private var menuChoice: AppTheme = .void
+    @State private var probeHeight: CGFloat = 220
+    @State private var probeIntent = "none yet"
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.wells) {
@@ -154,6 +156,20 @@ private struct DesignShowcase: View {
                         detail: "A long title and a full-sentence detail wrap onto more lines; they are never cut short.") {
                         ThemedSwitch(isOn: false, set: { _ in }, label: "Long row")
                     }
+                }
+            }
+
+            ShowcaseGroup("Web panel") {
+                caption("A bundled page in a locked web view (ADR-211). It shows the colours, text size and sample data that ATOM sends, and can ask for one intent.")
+                stateWell("Probe panel — sample data") {
+                    WebPanelView(
+                        panel: "probe", label: "Web panel probe", allowedIntents: ["selectCall"],
+                        data: WebPanelData(revision: 1, payload: ["state": "working", "calls": [["id": "call_1", "tool": "read_file", "state": "done"]]]),
+                        onResize: { probeHeight = min(max($0, 120), 480) },
+                        onIntent: { name, args in probeIntent = "\(name) \(args["id"] ?? "")" }
+                    )
+                    .frame(height: probeHeight)
+                    Text("Last intent: \(probeIntent)").appFont(theme.appIdentifierFont(.caption2, size: 11)).foregroundStyle(theme.text3.color)
                 }
             }
         }
