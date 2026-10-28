@@ -14,7 +14,7 @@ extension IslandModel {
     }
     var workspaceTerminalAvailable: Bool { workspaceAvailable && ProjectFileNavigation.root(chats?.currentProject) != nil }
     func workspaceSurfaceAvailable(_ surface: WorkspaceSurface) -> Bool {
-        surface == .browser || surface == .run || workspaceAvailable
+        surface == .browser || surface == .run || surface == .details || workspaceAvailable
     }
     func requestWorkspace(_ action: WorkspaceRequest.Action, path: String = "", job: Int? = nil, token: String? = nil, section: String? = nil) {
         guard workspaceAvailable, let chat = chats?.current, let project = chats?.currentProjectId else { workspace.clear(); return }
@@ -38,7 +38,7 @@ extension IslandModel {
         loadWorkspaceIfNeeded()
     }
     func loadWorkspaceIfNeeded() {
-        guard workspace.tab != "browser", workspace.tab != "terminal", workspace.tab != "run" else { return }
+        guard workspace.tab != "browser", workspace.tab != "terminal", workspace.tab != "run", workspace.tab != "details" else { return }
         if workspace.shown, workspaceAvailable, workspace.response?.action == .undo {
             workspace.selectedChange = nil
             requestWorkspace(.changes)
@@ -50,7 +50,7 @@ extension IslandModel {
     }
     func refreshWorkspace() {
         guard WorkspaceSurface(rawValue: workspace.tab) != nil else { return }
-        if workspace.tab == "terminal" || workspace.tab == "run" { return }
+        if workspace.tab == "terminal" || workspace.tab == "run" || workspace.tab == "details" { return }
         if workspace.tab == "browser" { workspaceBrowser.reload() }
         else if workspace.tab == "git" { requestWorkspace(.git) }
         else if workspace.tab == "changes" { requestWorkspace(.changes) }

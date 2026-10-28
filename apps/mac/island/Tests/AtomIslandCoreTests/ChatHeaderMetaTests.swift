@@ -9,6 +9,12 @@ struct ChatHeaderMetaTests {
         #expect(ChatHeaderMeta.line(project: "Haat", pinned: false, model: "Claude Sonnet 5.5") == "Haat · Claude Sonnet 5.5")
     }
 
+    @Test func theContextShareComesLastWhenKnown() {
+        #expect(ChatHeaderMeta.line(project: "Haat", pinned: true, model: "Claude Sonnet 5.5", context: "1%") == "Haat · Pinned · Claude Sonnet 5.5 · 1% context")
+        #expect(ChatHeaderMeta.line(project: nil, pinned: false, model: nil, context: "<1%") == "<1% context")
+        #expect(ChatHeaderMeta.line(project: nil, pinned: false, model: "Claude", context: nil) == "Claude")
+    }
+
     @Test func leavesOutWhatIsMissing() {
         #expect(ChatHeaderMeta.line(project: nil, pinned: false, model: "Claude Haiku 5.5") == "Claude Haiku 5.5")
         #expect(ChatHeaderMeta.line(project: nil, pinned: true, model: nil) == "Pinned")

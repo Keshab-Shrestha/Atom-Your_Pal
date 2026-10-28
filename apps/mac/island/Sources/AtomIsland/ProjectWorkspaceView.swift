@@ -21,7 +21,7 @@ struct ProjectWorkspaceView: View {
             header
             if model.workspace.tab == "home" {
                 surfaceChooser
-            } else if model.workspaceAvailable || model.workspace.tab == "browser" || model.workspace.tab == "run" {
+            } else if model.workspaceAvailable || model.workspace.tab == "browser" || model.workspace.tab == "run" || model.workspace.tab == "details" {
                 surfaceSelector
                 if model.workspace.tab == "browser" {
                     WorkspaceBrowserView(session: model.workspaceBrowser)
@@ -29,6 +29,8 @@ struct ProjectWorkspaceView: View {
                     WorkspaceTerminalView(model: model)
                 } else if model.workspace.tab == "run" {
                     RunSurfaceView(model: model)
+                } else if model.workspace.tab == "details" {
+                    ChatDetailsSurface(model: model)
                 } else {
                 if let message = model.workspace.notice {
                     Text(verbatim: message).appFont(.system(size: 11)).foregroundStyle(theme.text2.color).textSelection(.enabled)
@@ -88,7 +90,7 @@ struct ProjectWorkspaceView: View {
                     .appFont(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(1)
             }
             Spacer(minLength: 4)
-            if model.workspace.tab != "browser" && model.workspace.tab != "terminal" && model.workspace.tab != "run" {
+            if model.workspace.tab != "browser" && model.workspace.tab != "terminal" && model.workspace.tab != "run" && model.workspace.tab != "details" {
             Button { selected = nil; model.refreshWorkspace() } label: { Image(systemName: "arrow.clockwise") }
                 .help("Refresh workspace").accessibilityLabel("Refresh workspace")
                 .disabled(model.workspace.pending != nil || !model.workspaceAvailable || model.workspace.tab == "home" || model.workspace.tab == "browser")
@@ -153,7 +155,7 @@ struct ProjectWorkspaceView: View {
                     .accessibilityLabel("Open workspace " + surface.title)
             }
             if !model.workspaceAvailable {
-                Text("Files, Changes, Git and Terminal need an active project chat. Browser and Run work beside any chat.")
+                Text("Files, Changes, Git and Terminal need an active project chat. Browser, Run and Details work beside any chat.")
                     .appFont(.system(size: 12)).foregroundStyle(theme.text2.color).padding(.top, 8)
             }
             Spacer(minLength: 16)

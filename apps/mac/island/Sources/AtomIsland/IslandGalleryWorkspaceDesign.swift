@@ -38,6 +38,16 @@ extension IslandGallery {
             save(HelpersView(model: model).frame(width: 1440, height: 900).environment(\.islandSnapshot, true),
                  name: "43-workspace-\(theme.rawValue)", to: directory)
         }
+        // The Details surface: the runtime's inspection of the saved chat, with fictional values.
+        let inspection = #"{"action":"inspect","id":"cedar","request":"gallery","ok":true,"brief":{"text":"Cedar launch on Thursday. Owner: Mira. Keep the audience, release date and owner together.","version":1},"recall":{"summary":"Used two remembered facts for the latest request.","details":"Prefers short summaries. Likes plain words.","at":"2026-10-28 09:14"},"continuity":{"enabled":false,"version":1,"status":"Automatic summaries are off for this chat.","summary":null},"info":{"messages":12,"archiveBytes":9000,"replayBytes":30000,"replayBudget":120000,"omitted":0,"access":{"provider":"codex","hostTools":true,"project":true,"fileGrants":2,"computer":false,"web":false}}}"#
+        model.chatControls.snapshot = try? JSONDecoder().decode(ChatControlResponse.self, from: Data(inspection.utf8))
+        model.workspace.tab = "details"
+        for theme in [AppTheme.sapphire, .cobalt] {
+            model.settings.theme = theme; model.workspace.shown = true
+            save(HelpersView(model: model).frame(width: 1440, height: 900).environment(\.islandSnapshot, true),
+                 name: "43-workspace-details-\(theme.rawValue)", to: directory)
+        }
+        model.workspace.tab = "files"
         model.settings.theme = .sapphire; model.workspace.shown = false
         save(HelpersView(model: model).frame(width: 1440, height: 900).environment(\.islandSnapshot, true), name: "43-workspace-chat-wide", to: directory)
         save(HelpersView(model: model).frame(width: 760, height: 640).environment(\.islandSnapshot, true), name: "43-workspace-compact", to: directory)

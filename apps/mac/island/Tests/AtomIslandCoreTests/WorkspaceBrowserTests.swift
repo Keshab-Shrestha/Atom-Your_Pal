@@ -28,6 +28,6 @@ struct WorkspaceBrowserTests {
         var workspace = ProjectWorkspaceState()
         let selected = workspace.select(.browser); #expect(selected); #expect(workspace.tab == "browser")
         workspace.clear(); #expect(workspace.response == nil); #expect(workspace.pending == nil)
-        #expect(WorkspaceSurface.allCases.map(\.rawValue) == ["files", "changes", "git", "browser", "terminal", "run"])
+        #expect(WorkspaceSurface.allCases.map(\.rawValue) == ["files", "changes", "git", "browser", "terminal", "run", "details"])
     }
 }

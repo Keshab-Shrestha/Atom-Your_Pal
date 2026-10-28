@@ -72,7 +72,9 @@ struct HelpersView: View {
         let name = model.modelInfo.map { info in
             list?.currentModel.map { info.modelName(provider: list?.currentProvider ?? info.provider, model: $0) } ?? info.currentModelName
         }
-        return ChatHeaderMeta.line(project: list?.currentProject?.name, pinned: pinned, model: name)
+        let inspected = model.chatControls.snapshot.flatMap { $0.id == model.savedChat?.id ? $0.info : nil }
+        return ChatHeaderMeta.line(project: list?.currentProject?.name, pinned: pinned, model: name,
+                                   context: inspected.map { ChatDetailsFacts(info: $0).percentText })
     }
 
     private var topBar: some View {
