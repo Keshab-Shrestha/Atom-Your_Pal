@@ -64,6 +64,10 @@ extension IslandGallery {
                 DashboardTokenMix(usage: TokenUsageSummary(today: TokenTotals(), week: TokenTotals()))
             }.padding(24).frame(width: 760, height: 640, alignment: .topLeading)
                 .background(palette.surfaceSolid.color).themed(palette).environment(\.islandSnapshot, true), name: "45-usage-empty-" + name, to: directory)
+            save(DashboardPanel("Token mix", detail: "Last 7 days · includes cache") {
+                DashboardTokenMix(usage: TokenUsageSummary(today: TokenTotals(), week: TokenTotals(input: 9_000, output: 17_600, cacheRead: 1_400_000, cacheWrite: 290_000)))
+            }.padding(24).frame(width: 420, height: 260, alignment: .topLeading)
+                .background(palette.surfaceSolid.color).themed(palette).environment(\.islandSnapshot, true), name: "45-usage-sample-" + name, to: directory)
             model.settings.textSize = .extraLarge
             capture("44-dashboard-large-" + name, width: 760, height: 1000)
             model.windowPage = .agents; model.helpers.selectBoard(); model.settings.textSize = .standard

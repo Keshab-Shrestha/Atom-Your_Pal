@@ -29,6 +29,14 @@ public struct TokenTotals: Sendable, Equatable {
     /// "73%", or "–" without any prompt tokens.
     public var cacheHitText: String { cacheHitRate.map { String(format: "%.0f%%", $0 * 100) } ?? "–" }
 
+    /// A kind's share of the total for the Token mix: "1.6%" under 10%, "17%" above, "<0.1%" for a tiny part, "0%" for none.
+    public static func sharePercent(_ part: Int, of total: Int) -> String {
+        guard part > 0, total > 0 else { return "0%" }
+        let percent = Double(part) / Double(total) * 100
+        if percent < 0.05 { return "<0.1%" }
+        return percent < 9.95 ? String(format: "%.1f%%", percent) : String(format: "%.0f%%", percent)
+    }
+
     /// 850, 12.4K, 3.1M.
     public static func short(_ n: Int) -> String {
         switch n {

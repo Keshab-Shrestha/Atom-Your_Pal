@@ -1,5 +1,9 @@
 # ZENO Task Plan
 
+## Native Token mix redesign (Phase 3, first item) — 28 October 2026
+
+The Dashboard Token mix in the app now follows the HTML preview. The ring is 112 points. Each legend row shows the kind, its count, its share and a thin share bar. `TokenTotals.sharePercent` formats the share ("1.5%", "17%", "<0.1%"). Three new tests pass. A sample fixture in the gallery renders light and dark, and the real Dashboard capture looks right. Not checked in the running app. Next task: the Needs you inbox.
+
 ## Run panel (Phase 2) — 28 October 2026
 
 Added the Run surface to the workspace pane. It shows the tool calls, questions and state of the latest turn through the bundled Run panel (`apps/mac/island/Web/run/`). Pipeline, lanes and evidence show "Not available" because the runtime does not report them. The panel has no intents yet. A headless web view check passed: script text stays inert, stale data is ignored, reset works. 40 workspace and web panel tests pass. Not done: a check inside the built app, VoiceOver, and larger text. Next task: decide whether to add runtime events for pipeline and lanes, or a native highlight for `selectCall`.
