@@ -1,0 +1,14 @@
+packages:
+  - apps/*
+  - services/*
+  - packages/*
+# Dependency install scripts are denied unless needed. None of these is:
+# - @google/genai: no-op scripts for consumers
+# - protobufjs: only prints version warnings
+# - onnxruntime-node: only downloads Linux CUDA binaries; macOS arm64 binaries ship in the package
+# - sharp: prebuilt binaries ship via @img/sharp-* packages; the script only verifies them
+allowBuilds:
+  '@google/genai': false
+  onnxruntime-node: false
+  protobufjs: false
+  sharp: false

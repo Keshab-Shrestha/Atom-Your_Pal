@@ -1,0 +1,344 @@
+{
+  "scope": "Actual Claude/native acceptance; fictional Cedar project only; no test-runner or whole-task certification",
+  "chat": "7b5b6d49-376b-4b58-90a9-9139d5676d75",
+  "dateJapan": "2026-10-27",
+  "tasks": [
+    {
+      "job": {
+        "id": 43,
+        "state": "done",
+        "model": "claude-opus-5-5"
+      },
+      "attempt": {
+        "id": "cc5e4cc2-3898-43a3-b57d-f05874ad5d44",
+        "state": "reported",
+        "started_at": "2026-10-26T16:35:58.391Z",
+        "ended_at": "2026-10-26T16:36:06.496Z"
+      },
+      "verification": {
+        "id": "4c9efc04-a9a7-4b98-917a-bccaa2aacf04",
+        "attempt": "cc5e4cc2-3898-43a3-b57d-f05874ad5d44",
+        "manifestDigest": "46dea302cc1dfd1dac14f9bcf5509d2b7d34bdb05bc9ba4f0886c8a386f2f1b0",
+        "workspaceDigest": "2a007be1ad9fa94ed5b91e9b2ee505eb493615eec945a2b518ce58ab3341faa5",
+        "checks": [
+          {
+            "n": 1,
+            "state": "matched",
+            "reason": "literal_present",
+            "snapshot": "d229a26189f8d66b96d35bef11e43d7bb0d4140f894f5691be03bd978a2332fe"
+          },
+          {
+            "n": 2,
+            "state": "matched",
+            "reason": "digest_matches",
+            "snapshot": "105d951ccd8441ada5620ff99ec509cfeb8b3bd160464dd3bcbc3eee3e5cdef7"
+          }
+        ],
+        "schema": "atom.task-verification/v1",
+        "kind": "host-file-predicates",
+        "at": "2026-10-26T16:36:06.492Z"
+      },
+      "tools": [
+        {
+          "tool": "Read",
+          "state": "ok",
+          "started_at": "2026-10-26T16:36:00.384Z",
+          "ended_at": "2026-10-26T16:36:00.425Z"
+        },
+        {
+          "tool": "Read",
+          "state": "ok",
+          "started_at": "2026-10-26T16:36:00.677Z",
+          "ended_at": "2026-10-26T16:36:00.728Z"
+        },
+        {
+          "tool": "Edit",
+          "state": "ok",
+          "started_at": "2026-10-26T16:36:02.861Z",
+          "ended_at": "2026-10-26T16:36:02.904Z"
+        }
+      ],
+      "git": {
+        "head": "c1d4b5afdc2c42407f4af57b049c2a6266229e9f",
+        "status": "M fruit.mjs"
+      },
+      "fileHashes": {
+        "fruit.mjs": "d229a26189f8d66b96d35bef11e43d7bb0d4140f894f5691be03bd978a2332fe",
+        "fruit.test.mjs": "105d951ccd8441ada5620ff99ec509cfeb8b3bd160464dd3bcbc3eee3e5cdef7"
+      }
+    },
+    {
+      "job": {
+        "id": 44,
+        "state": "done",
+        "model": "claude-sonnet-5-5"
+      },
+      "attempt": {
+        "id": "53e53424-f6cf-4e1c-90d5-35f714d86937",
+        "state": "reported",
+        "started_at": "2026-10-26T16:37:42.599Z",
+        "ended_at": "2026-10-26T16:37:48.910Z"
+      },
+      "verification": {
+        "id": "4a5b8d66-2c3e-43ef-82f3-7aff7023d32e",
+        "attempt": "53e53424-f6cf-4e1c-90d5-35f714d86937",
+        "manifestDigest": "d1bcc3ca3ccc7400be3a5d154693692a4a9fecb20c6742c98230c4bf490620b8",
+        "workspaceDigest": "bdc8935c64e4ba35f194eda9a8bf980841b8ed14df6bf195e5e8fc85192c8cf0",
+        "checks": [
+          {
+            "n": 1,
+            "state": "matched",
+            "reason": "literal_present",
+            "snapshot": "682fa871c0f9fdcbbef731bee3bc1e63725534baba84e52258e110b650fd5d5d"
+          },
+          {
+            "n": 2,
+            "state": "unavailable",
+            "reason": "policy_refused"
+          }
+        ],
+        "schema": "atom.task-verification/v1",
+        "kind": "host-file-predicates",
+        "at": "2026-10-26T16:37:48.908Z"
+      },
+      "tools": [
+        {
+          "tool": "Read",
+          "state": "ok",
+          "started_at": "2026-10-26T16:37:44.341Z",
+          "ended_at": "2026-10-26T16:37:44.413Z"
+        }
+      ],
+      "git": {
+        "head": "c1d4b5afdc2c42407f4af57b049c2a6266229e9f",
+        "status": ""
+      },
+      "fileHashes": {
+        "fruit.mjs": "682fa871c0f9fdcbbef731bee3bc1e63725534baba84e52258e110b650fd5d5d",
+        "fruit.test.mjs": "105d951ccd8441ada5620ff99ec509cfeb8b3bd160464dd3bcbc3eee3e5cdef7"
+      }
+    },
+    {
+      "job": {
+        "id": 45,
+        "state": "done",
+        "model": "claude-opus-5-5"
+      },
+      "attempt": {
+        "id": "329378f3-1b3c-4482-88da-b6ef23c7b485",
+        "state": "reported",
+        "started_at": "2026-10-26T16:38:57.121Z",
+        "ended_at": "2026-10-26T16:39:22.330Z"
+      },
+      "verification": {
+        "id": "edc2c85d-54f1-435e-9602-22f75e7b2ab6",
+        "attempt": "329378f3-1b3c-4482-88da-b6ef23c7b485",
+        "manifestDigest": "46dea302cc1dfd1dac14f9bcf5509d2b7d34bdb05bc9ba4f0886c8a386f2f1b0",
+        "workspaceDigest": "2378f8d3029561b886356d0a7d6e06a8227deb1fc002281198ffe003584fee29",
+        "checks": [
+          {
+            "n": 1,
+            "state": "matched",
+            "reason": "literal_present",
+            "snapshot": "d229a26189f8d66b96d35bef11e43d7bb0d4140f894f5691be03bd978a2332fe"
+          },
+          {
+            "n": 2,
+            "state": "matched",
+            "reason": "digest_matches",
+            "snapshot": "105d951ccd8441ada5620ff99ec509cfeb8b3bd160464dd3bcbc3eee3e5cdef7"
+          }
+        ],
+        "schema": "atom.task-verification/v1",
+        "kind": "host-file-predicates",
+        "at": "2026-10-26T16:39:22.327Z"
+      },
+      "tools": [
+        {
+          "tool": "Read",
+          "state": "ok",
+          "started_at": "2026-10-26T16:38:59.153Z",
+          "ended_at": "2026-10-26T16:38:59.200Z"
+        },
+        {
+          "tool": "Read",
+          "state": "ok",
+          "started_at": "2026-10-26T16:39:01.036Z",
+          "ended_at": "2026-10-26T16:39:01.095Z"
+        },
+        {
+          "tool": "Read",
+          "state": "ok",
+          "started_at": "2026-10-26T16:39:02.864Z",
+          "ended_at": "2026-10-26T16:39:02.916Z"
+        },
+        {
+          "tool": "Read",
+          "state": "ok",
+          "started_at": "2026-10-26T16:39:04.579Z",
+          "ended_at": "2026-10-26T16:39:04.634Z"
+        },
+        {
+          "tool": "Read",
+          "state": "ok",
+          "started_at": "2026-10-26T16:39:06.393Z",
+          "ended_at": "2026-10-26T16:39:06.454Z"
+        },
+        {
+          "tool": "Read",
+          "state": "ok",
+          "started_at": "2026-10-26T16:39:08.215Z",
+          "ended_at": "2026-10-26T16:39:08.274Z"
+        },
+        {
+          "tool": "Read",
+          "state": "ok",
+          "started_at": "2026-10-26T16:39:10.277Z",
+          "ended_at": "2026-10-26T16:39:10.359Z"
+        },
+        {
+          "tool": "Read",
+          "state": "ok",
+          "started_at": "2026-10-26T16:39:12.021Z",
+          "ended_at": "2026-10-26T16:39:12.057Z"
+        },
+        {
+          "tool": "Read",
+          "state": "ok",
+          "started_at": "2026-10-26T16:39:13.867Z",
+          "ended_at": "2026-10-26T16:39:13.906Z"
+        },
+        {
+          "tool": "Read",
+          "state": "ok",
+          "started_at": "2026-10-26T16:39:15.745Z",
+          "ended_at": "2026-10-26T16:39:15.792Z"
+        },
+        {
+          "tool": "Edit",
+          "state": "ok",
+          "started_at": "2026-10-26T16:39:17.905Z",
+          "ended_at": "2026-10-26T16:39:17.984Z"
+        }
+      ],
+      "git": {
+        "head": "c1d4b5afdc2c42407f4af57b049c2a6266229e9f",
+        "status": "M fruit.mjs"
+      },
+      "fileHashes": {
+        "fruit.mjs": "d229a26189f8d66b96d35bef11e43d7bb0d4140f894f5691be03bd978a2332fe",
+        "fruit.test.mjs": "105d951ccd8441ada5620ff99ec509cfeb8b3bd160464dd3bcbc3eee3e5cdef7"
+      }
+    },
+    {
+      "job": {
+        "id": 46,
+        "state": "stopped",
+        "model": "claude-opus-5-5"
+      },
+      "attempt": {
+        "id": "a848576e-307d-4b4a-ba7f-b976f25e42ad",
+        "state": "stopped",
+        "started_at": "2026-10-26T16:39:55.962Z",
+        "ended_at": "2026-10-26T16:40:06.438Z"
+      },
+      "verification": null,
+      "tools": [
+        {
+          "tool": "Read",
+          "state": "ok",
+          "started_at": "2026-10-26T16:39:58.417Z",
+          "ended_at": "2026-10-26T16:39:58.477Z"
+        },
+        {
+          "tool": "Read",
+          "state": "ok",
+          "started_at": "2026-10-26T16:40:00.243Z",
+          "ended_at": "2026-10-26T16:40:00.282Z"
+        },
+        {
+          "tool": "Read",
+          "state": "ok",
+          "started_at": "2026-10-26T16:40:01.969Z",
+          "ended_at": "2026-10-26T16:40:02.005Z"
+        },
+        {
+          "tool": "Read",
+          "state": "ok",
+          "started_at": "2026-10-26T16:40:03.697Z",
+          "ended_at": "2026-10-26T16:40:03.736Z"
+        },
+        {
+          "tool": "Read",
+          "state": "ok",
+          "started_at": "2026-10-26T16:40:05.673Z",
+          "ended_at": "2026-10-26T16:40:05.722Z"
+        }
+      ],
+      "git": {
+        "head": "c1d4b5afdc2c42407f4af57b049c2a6266229e9f",
+        "status": ""
+      },
+      "fileHashes": {
+        "fruit.mjs": "682fa871c0f9fdcbbef731bee3bc1e63725534baba84e52258e110b650fd5d5d",
+        "fruit.test.mjs": "105d951ccd8441ada5620ff99ec509cfeb8b3bd160464dd3bcbc3eee3e5cdef7"
+      }
+    },
+    {
+      "job": {
+        "id": 47,
+        "state": "done",
+        "model": "claude-sonnet-5-5"
+      },
+      "attempt": {
+        "id": "7bad4535-978e-4d74-acb9-fb1ed06d020d",
+        "state": "reported",
+        "started_at": "2026-10-26T16:41:07.413Z",
+        "ended_at": "2026-10-26T16:41:12.553Z"
+      },
+      "verification": {
+        "id": "34c3f8b9-78c0-4a14-b5a9-897a398b639c",
+        "attempt": "7bad4535-978e-4d74-acb9-fb1ed06d020d",
+        "manifestDigest": "cf3f2e5a78e8c1a46907154a2bfbeafb786bd918c2a0bbe15c0b9402368c0384",
+        "workspaceDigest": "0193166bcf4348df286e95ce13dc2d403ad7b58092e9dca584de7f1c2661fe11",
+        "checks": [
+          {
+            "n": 1,
+            "state": "not-matched",
+            "reason": "literal_missing",
+            "snapshot": "682fa871c0f9fdcbbef731bee3bc1e63725534baba84e52258e110b650fd5d5d"
+          }
+        ],
+        "schema": "atom.task-verification/v1",
+        "kind": "host-file-predicates",
+        "at": "2026-10-26T16:41:12.550Z"
+      },
+      "tools": [
+        {
+          "tool": "Read",
+          "state": "ok",
+          "started_at": "2026-10-26T16:41:09.688Z",
+          "ended_at": "2026-10-26T16:41:09.744Z"
+        }
+      ],
+      "git": {
+        "head": "c1d4b5afdc2c42407f4af57b049c2a6266229e9f",
+        "status": ""
+      },
+      "fileHashes": {
+        "fruit.mjs": "682fa871c0f9fdcbbef731bee3bc1e63725534baba84e52258e110b650fd5d5d",
+        "fruit.test.mjs": "105d951ccd8441ada5620ff99ec509cfeb8b3bd160464dd3bcbc3eee3e5cdef7"
+      }
+    }
+  ],
+  "activeWorkers": 0,
+  "continuingFileGrants": 0,
+  "source": {
+    "head": "c1d4b5afdc2c42407f4af57b049c2a6266229e9f",
+    "status": "",
+    "fileHashes": {
+      "fruit.mjs": "682fa871c0f9fdcbbef731bee3bc1e63725534baba84e52258e110b650fd5d5d",
+      "fruit.test.mjs": "105d951ccd8441ada5620ff99ec509cfeb8b3bd160464dd3bcbc3eee3e5cdef7"
+    }
+  }
+}

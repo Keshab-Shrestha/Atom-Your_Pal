@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-27",
+  "scope": "Reference-led Dashboard and scalable Board",
+  "reference": "user-supplied codex-clipboard-bc2b8108-d6cf-421f-9db8-7e6eb56a25c5.png",
+  "captureDirectory": "/tmp/atom-dashboard-reference-20261027",
+  "syntheticFixtureCaptures": true,
+  "targetedCaptureCount": 16,
+  "build": "passed, signed release",
+  "strictSignature": "passed",
+  "whitespace": "passed",
+  "review": {
+    "initial": "fix",
+    "verdict": "ship for scored fixes",
+    "resolved": [
+      "dark empty chart visibility",
+      "initial branch density",
+      "brief time in accessibility names"
+    ]
+  },
+  "live": [
+    "maximized Board grows",
+    "branch details preserve Show changes and guarded Push",
+    "earlier brief expands and collapses in place",
+    "View all14 and Show fewer branches",
+    "Dashboard restored to top"
+  ],
+  "suitesRun": false,
+  "modelCalls": 0,
+  "pushes": 0,
+  "commits": 0,
+  "limits": [
+    "Git visualization is a local commit snapshot, not push history",
+    "automated regression and exhaustive VoiceOver coverage deferred"
+  ]
+}

@@ -1,0 +1,2525 @@
+{
+  "schema": "atom.bundled-skills/v1",
+  "repo": "https://github.com/rlaope/oh-my-hermes",
+  "revision": "171ccfa698fd94b6ec23a8940f9658556b430351",
+  "skills": [
+    {
+      "name": "dag-ulw",
+      "upstreamEntrySha256": "2921dd8771b83632b371706d95075e199f6d65c39d40bbcc2bb11110c9353561",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "a3b0f1625caf0e5a71a4cd1c5f161317ab69e4074f6cf6ee8152dfbf1bd32917"
+        },
+        {
+          "path": "references/run-loop.md",
+          "sha256": "da8af0cc894c9c3a82268c421b21b62b7c2f59c93df39a04daa4a4fdbc3d498f"
+        }
+      ]
+    },
+    {
+      "name": "omh-accessibility-audit",
+      "upstreamEntrySha256": "4bd84710577e70c133451ff57c630b13bcc8a986fd76ae1bfc63be9b8b0027f9",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "aab74d08b2727e156decfdbf6c50937343b17f5b3b9f2a32aece46a11a4c6ca0"
+        },
+        {
+          "path": "references/a11y-rules.md",
+          "sha256": "cd7e0404576923cfd3bcec9e055b1de7a78f3fc55971fd033598aac1043e4469"
+        }
+      ]
+    },
+    {
+      "name": "omh-achievements",
+      "upstreamEntrySha256": "fccb5bfa1be3568f7f6406a28c5ff591084469d5e81f38fa73a80f5369c6e7b6",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "d44f431ddc208a0031a458b7fb1ae05f91894d93b909f28a684f9fbe1bf94a48"
+        }
+      ]
+    },
+    {
+      "name": "omh-adversarial-consensus",
+      "upstreamEntrySha256": "4fe8a1d3d5fee038e7e34c9a32df1512872a27491f9faa73b3c18af212389cc1",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "38d303f4c3222a9f9f10d253cb4ba9d408acc71f805be46526973aa64378f3d8"
+        },
+        {
+          "path": "references/consensus-protocol.md",
+          "sha256": "e2337062d98214abc440d3909d7c076db284c817dc45c9b67a292003a6b51a89"
+        }
+      ]
+    },
+    {
+      "name": "omh-agent-board",
+      "upstreamEntrySha256": "6058590dc16221d0111c9c135c75f1813472ba53b9826357718994d82f75fb01",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "54051a4f103bf07aef6f72f36be45c7db9d7bd6f80bf31709ca93480a22da7ff"
+        }
+      ]
+    },
+    {
+      "name": "omh-agent-debug",
+      "upstreamEntrySha256": "b055c71407359b811432f3092cfe393a88489e2dbdfdace76fa01b6eb73f9764",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "abd8abcf61c76194ad39de4cb83f9e03ec6cc6c79b5eaa8f40b95b83ac11a555"
+        },
+        {
+          "path": "references/session-forensics.md",
+          "sha256": "1939a38a8e75e141eb7fd2ffcce8349f11f7ebcd1e678b85bf461be62b33195d"
+        }
+      ]
+    },
+    {
+      "name": "omh-agent-evaluation",
+      "upstreamEntrySha256": "e31c03567372df256849bb0c86fd91168548bcaff57b2f59b13577176f84a2f8",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "2f30043939144f70d569c78772f69e983a7dd82b93c023f09063a723ff7b9b1d"
+        },
+        {
+          "path": "references/self-evaluation-loops.md",
+          "sha256": "9ec52b0a0ffb20856a0548b09ad9e920d3efeb8c792fd50047b2d8798e8fe9d3"
+        }
+      ]
+    },
+    {
+      "name": "omh-agent-instructions",
+      "upstreamEntrySha256": "a73d98c7c4f065290bcdc22ac98975bec8b5a7b6045aee97bd4f84af4cb6e42f",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "237e26c242a306a3f8fa94c19fd4d74d58a94f9afad54bc7d27811a16565ba78"
+        },
+        {
+          "path": "references/instruction-file-method.md",
+          "sha256": "135882a420601481ccfd3e5ad91c2337b47d34512342699ad615aa3934845757"
+        }
+      ]
+    },
+    {
+      "name": "omh-agent-ops-review",
+      "upstreamEntrySha256": "60c7b5a73fb917225d080d3895f18cf3eed4ffc92e3ed5511c5d5a6c82019b1a",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "0c0e8135f386892fe9ed6b24e16e19705a4899ddb535e93f8f3b6b5465175868"
+        },
+        {
+          "path": "references/instrumentation-ladder.md",
+          "sha256": "d9dab70027ab489a122df7e5814e9580e6bc1cc1899fa70da680ef54bfd65291"
+        }
+      ]
+    },
+    {
+      "name": "omh-ai-job-search",
+      "upstreamEntrySha256": "2847e647110755232297cba237ed4c39a20e1613fd6e3973196ad001324088a5",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "7b42b6cebbe80fe8571cb1ea9d85ea634a0734cb2c2d5c3fde1f35ac26ded149"
+        },
+        {
+          "path": "references/execution-and-qa.md",
+          "sha256": "12221e314f9d45aa1ef6efd3ce702d1e94f57a9f0f84122faa153b89fb555d70"
+        },
+        {
+          "path": "references/fit-and-drafting.md",
+          "sha256": "006d8c3d0704c29b372ae7c7cffb574c6799fa6b83d7f65f8caad28b358ce493"
+        },
+        {
+          "path": "references/full-contract.md",
+          "sha256": "a29326284fa50bc6e1822f406a3ab2d1910f74f6bfb4f3a2842e74020f958743"
+        },
+        {
+          "path": "references/interview-and-outcomes.md",
+          "sha256": "963ec6613fa1e415b02bc33286a927592e7eb044daaa016890dab9ca371d8f4b"
+        },
+        {
+          "path": "references/procedure.md",
+          "sha256": "3388e91aa0d783fd86b7b06f52983c0ef6b9cb03d9256d3ef38a26a9dfbef4cb"
+        },
+        {
+          "path": "references/profile-and-discovery.md",
+          "sha256": "482f79ef0b2a9afc506378fadef69e7ad43277f7f976c414486037a192a47006"
+        },
+        {
+          "path": "toolkit/LICENSE.upstream",
+          "sha256": "accbf0accb87b7b905dd7ee0c7013075f0453637acf354ddae6fc0e4d8282e8e"
+        },
+        {
+          "path": "toolkit/README.md",
+          "sha256": "72bf64a190cefe089455d2fd44e0586c56b642b7f8b6765e69ff51fbb2a2e22c"
+        },
+        {
+          "path": "toolkit/examples/synthetic-captures.json",
+          "sha256": "34a730f3487d32d5acba6148ac13604751835466bd36660f713407f7d3c18aa3"
+        },
+        {
+          "path": "toolkit/scripts/job_state.py",
+          "sha256": "dc4344420ec9f4b4c1c3582b5ec0dcf58dc241ce7d3648f1926cec7d94dc0e4b"
+        },
+        {
+          "path": "toolkit/upstream-manifest.json",
+          "sha256": "c68a628b0fdf353605d47217618660972da8b9034a8c203ec7464609aea72fba"
+        }
+      ]
+    },
+    {
+      "name": "omh-ai-slop-cleaner",
+      "upstreamEntrySha256": "13b942540963d4cce39094932bf7e91ff822f1cfd2cbf4f178ed1c090f4ad800",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "0699943089badbdf68b6892d640a8cef96560417eee6103455a6864752bb69b1"
+        },
+        {
+          "path": "references/cleanup-passes.md",
+          "sha256": "2265e33fb7ea2acf1b2d23b20dbbba8ead04c155e0314f7a69e8b4825aa61ffd"
+        },
+        {
+          "path": "references/prose-lexicon.md",
+          "sha256": "efd209984c3e5823995484dd5b6e38e3161a059db9e841b4599dbbd330417ee5"
+        },
+        {
+          "path": "references/ui-review-checklist.md",
+          "sha256": "143cb3b83d903ede4919ce473773aa51364007969211a5bc57a70b5e48baa7bb"
+        }
+      ]
+    },
+    {
+      "name": "omh-app-debugging",
+      "upstreamEntrySha256": "296490771112629df0a6cb9fbf360a6f132feb731fdf21e1ae0de1e5d1197dd9",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "940d19c07286de02d5213d9b7cc2e2cdfc6c32085bca04ce0e13ac92356e5e21"
+        },
+        {
+          "path": "references/debugging-skill-composition.md",
+          "sha256": "7b68c85fb900e18ec0e5246b92978332c9962d49c2cde8331b768d8a6a903b91"
+        },
+        {
+          "path": "references/hypothesis-and-race-method.md",
+          "sha256": "3d61312d18e805790bff73efc372b51799bddf26fd59001e4bf2efcc30c89b07"
+        }
+      ]
+    },
+    {
+      "name": "omh-apple-design",
+      "upstreamEntrySha256": "456420d1708758caf9405baf52b384dc0dce2cbc581bb3cf480a793e89392610",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "ae77ec8a6bc985f90c0e97f32d3cb40137db50fe82bfb2ce51a36bae475a0c59"
+        },
+        {
+          "path": "references/materials-and-accessibility.md",
+          "sha256": "09588fbd807e527ed354fc317fc0fc3c654006878da42eb59461e45fb1ad9c26"
+        },
+        {
+          "path": "references/platform-foundations.md",
+          "sha256": "4984a8f9f3eb0b1876be5b4f4bc024b002c8738be53ccaa1dc29467d3aaeffa0"
+        },
+        {
+          "path": "references/product-visual-production.md",
+          "sha256": "835383a0c276a0e5150a9a7ba633bcb798d265eb5fcd96ab082dc5c513ccf5cd"
+        },
+        {
+          "path": "references/review-playbook.md",
+          "sha256": "c021e7c05152b68d746dcea05942fd0215630551a2a419fb9fa6a809f0b6f604"
+        },
+        {
+          "path": "references/web-production-libraries.md",
+          "sha256": "81ac6fd49dc78ea629cc949d9d0aed99eea969629d3606866882988f5ec5e99e"
+        }
+      ]
+    },
+    {
+      "name": "omh-application-threat-model",
+      "upstreamEntrySha256": "a5e7a82b63b74feff753e957d1423a3a9e3be12ae6245fbfe8e7c2ea1ffbd98a",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "fd9d20717b35d57f783c263f40310c3c2b1d170db53150183dbd57e4113c7a05"
+        },
+        {
+          "path": "references/threat-model-method.md",
+          "sha256": "ed3819fecf9c8d7208a49fbbebc5863dcc9df009a663e0d012431bc3296e5e8e"
+        }
+      ]
+    },
+    {
+      "name": "omh-apps",
+      "upstreamEntrySha256": "2c8ec4dac2f8cc0accf3f8b348468d2eb7bce8ca1d075c3099bdbfd809976e69",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "a62578cb12f38a38d2f4194281392b78dac0d2ff19a888f634d570d6b7a35a07"
+        }
+      ]
+    },
+    {
+      "name": "omh-ask",
+      "upstreamEntrySha256": "3ce39dcabe7ced2a2cd1c9599a1d711c05ff17d3ad4955c3598788e30388dd1a",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "d11d8d5262dc72a3b921bd0ef0ecc894ee4db068419cf7ceaaf59c27fb47ab73"
+        },
+        {
+          "path": "references/cli-advisors.md",
+          "sha256": "6280876a573319b05988443f7441fdf7349265d788b4b56a2b9fb065e8a5f5a9"
+        }
+      ]
+    },
+    {
+      "name": "omh-automation-blueprint",
+      "upstreamEntrySha256": "3a3681cf28a4e8adcb0d1c57756bb4934435952e9fb99b367dd8e074369ae397",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "58eabf5922e90bb6472dac519bd0afb971ce5ea42680eb8c39306f154bdb9c7b"
+        },
+        {
+          "path": "references/recurring-surface-choice.md",
+          "sha256": "f665fba80759bd41f5f79fecfc1fc6b261186725937c824030446ed88d5ad530"
+        }
+      ]
+    },
+    {
+      "name": "omh-award-bar-score",
+      "upstreamEntrySha256": "9a11afa30b834f4fcc3b42d3bf6e2d7d94e275506740b1752f8a802d2bf78bac",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "5774bd1cbe2b2aa3c18bb18c1f273b7b15bfd8db7defd6d653e8c36248b7afa6"
+        },
+        {
+          "path": "references/award-judging-model.md",
+          "sha256": "3eb04c94402da5efaa2d3bc18bb66acd1121b234a8b82a47a878c5d01725be50"
+        }
+      ]
+    },
+    {
+      "name": "omh-backend",
+      "upstreamEntrySha256": "1522c679e6f245c34dfa750822beb2c2f7ce0e3a0fafef7ec4eb6174bf39018b",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "7dd4a4d351109cfe0aed9bbc8e05326bfd1579e432022ac606c331f347b3aa7b"
+        },
+        {
+          "path": "references/consumer-impact.md",
+          "sha256": "843ec98391847e3de4e28057ab4aeb95d24a4d8e593b1c812e630723a4f006b9"
+        },
+        {
+          "path": "references/schema-migration.md",
+          "sha256": "e20aebd284f51d18962e28959b2e35702c9662e4d3d13fb1854c60f1279a6054"
+        },
+        {
+          "path": "references/service-contract.md",
+          "sha256": "25d8cc97c4629504df5a392d66cc9ba1595d9246b1760b0ff0cb4cd4a1398e30"
+        }
+      ]
+    },
+    {
+      "name": "omh-biomedical-evidence",
+      "upstreamEntrySha256": "11d9454584e31cefd01f67554fb6dffd502e277cdfcaec26c0641e58c892d931",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "ce80a1a897c3ca1d52192f107367aa163d57128c1ff8bc428fcc535a15fa9757"
+        },
+        {
+          "path": "references/execution-and-qa.md",
+          "sha256": "1b8a4f0f391ac4de5593067b184707b588dc7d704512e25a0daa7415ba1b4889"
+        },
+        {
+          "path": "references/full-contract.md",
+          "sha256": "b6598926b839afae3b0024c869bbb7428f2f280c28b765527ac3bfbce68b7447"
+        },
+        {
+          "path": "references/procedure.md",
+          "sha256": "47c222651bb8c523eeb0179d44d2fdbf50f7e0356352e06e93e2642c0df8a7be"
+        },
+        {
+          "path": "toolkit/README.md",
+          "sha256": "52e74efc55e258cf4f559e3791a2676a93ba42930bdf98e0bf90d340dac1522a"
+        },
+        {
+          "path": "toolkit/scripts/reconcile.py",
+          "sha256": "59bcd5b2d81b86f2016f3c1394119d6cc45761f4cd7d674c639733a53c4e086e"
+        },
+        {
+          "path": "toolkit/upstream-manifest.json",
+          "sha256": "39f37334dfeee05ca4665ca59a63057e2edf91e23745457d908176297f6fd70d"
+        }
+      ]
+    },
+    {
+      "name": "omh-browser",
+      "upstreamEntrySha256": "1ab76be2258e4c6bb4bc2232bf781bd09b89445911c0003c5209db7fa3a22523",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "5e41f65a238881c74544f7a4d8f0b8fdd2a2cb7ec9ff4cdf6a363ce9d856b518"
+        }
+      ]
+    },
+    {
+      "name": "omh-build-failure-triage",
+      "upstreamEntrySha256": "28dc386832ebfc8d60c8beceb8f66b3c5de8dacbec0b016081713f693c44475c",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "9fe49967c62e702bd2bf7a77638078991d9723766f4747561e84b01b6754a683"
+        }
+      ]
+    },
+    {
+      "name": "omh-buzz",
+      "upstreamEntrySha256": "b75dc6e4d25ecc00279d1ed77fd6106d83d08da6ee920c9e36c17812cebdae70",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "bb3038e21fe7bdc54035422f0ef04825c7d986c7673f18e7897d53c8c73b1887"
+        },
+        {
+          "path": "references/media.md",
+          "sha256": "1ff204a5b3af778a3ceac191fee9c50ee3c75f0b121a25a0e77ff2558522698c"
+        },
+        {
+          "path": "references/self-host.md",
+          "sha256": "d506e144000563805d1cf14daedfccab5a36520fd7dc8469aaf13bf79627df58"
+        },
+        {
+          "path": "references/setup.md",
+          "sha256": "8e9df8bf368176a94c09f032a2f05acc667b6b5e05fc1456319e3a6fe05a6aaf"
+        }
+      ]
+    },
+    {
+      "name": "omh-cancel",
+      "upstreamEntrySha256": "438423acba1605db225c7393c39f0d536b47ac1772befc4c71bfb178f45c84b0",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "1088eba1123f37ae170a20e975aeebbd8aa0c116e65902277b38aef7eadccc61"
+        }
+      ]
+    },
+    {
+      "name": "omh-capability-toggle",
+      "upstreamEntrySha256": "f214e05ae97a435d55cb2ddbc6d944065302f266c1f62406ae30ce279eee49be",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "0259da66501cbcdee8249f2df3688b84c686946b2b4b46e4d2d4188f8e66a0a8"
+        }
+      ]
+    },
+    {
+      "name": "omh-code-review",
+      "upstreamEntrySha256": "11e95d3648e16197c1abc3cf0b681a2e68bf540373d85154a9e8decef940a365",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "04019aa88796964cd0f0c367480efa03fec1577cd4813e91d6bcfefd84e06eee"
+        },
+        {
+          "path": "references/architecture-delta.md",
+          "sha256": "4a1c87aec27d08394151a8da5a4c484c2362ac48eb7967249d4a44d80708e750"
+        },
+        {
+          "path": "references/finding-validation.md",
+          "sha256": "d43218c06453750bf5a6a718c1ca0455745459669c7f8c9df146a7b704c549a6"
+        },
+        {
+          "path": "references/native-review-contract.md",
+          "sha256": "97bf0b379451f5a6c7ffc56b60b284fe310355c4fd3443e5261a790bab88049f"
+        },
+        {
+          "path": "references/review-dispatch.md",
+          "sha256": "933220153e137148f10ac9f82454ff2a56ff125f3562478a42ebfe27d640553e"
+        },
+        {
+          "path": "references/review-lenses.md",
+          "sha256": "cfac781003d8250fc0015e7f0d6b85adc2be2ef590cbf0a42e2f4303ed878e9f"
+        },
+        {
+          "path": "references/review-response.md",
+          "sha256": "9da4fc0d81fb7c7d26ecf6fbcf17f8ee95fc76bfba8a31f70cf689ee296682db"
+        },
+        {
+          "path": "references/risk-selection.md",
+          "sha256": "059e9adcebf495d6e28f8ae7923e5fcd5726baad8d21daf03e2e5d4363a1d9b5"
+        },
+        {
+          "path": "references/smell-baseline.md",
+          "sha256": "079cde2fc27b01f3fc98af7abed909c0507c37004dbdc1bc59461c1daf979df2"
+        }
+      ]
+    },
+    {
+      "name": "omh-codebase-onboarding",
+      "upstreamEntrySha256": "68ebb7365de79309dd9bcab605e1df4252d97ec480a33ece1ba67fccc7e55c64",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "9379a609300da491b308e1f5fca9108b7d899e4c0e78a14036464556265ff9c8"
+        }
+      ]
+    },
+    {
+      "name": "omh-codebase-uml",
+      "upstreamEntrySha256": "61fba4c7eac0212157aa2ecdba817fa0e3e6ae701dc3e3d21aa626e20ebfea31",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "ac160501c71f5c76980958cefab29e2e1249f0a389b16427d23fc21fbff70404"
+        }
+      ]
+    },
+    {
+      "name": "omh-codegraph-refresh",
+      "upstreamEntrySha256": "c75f474e6de03a8e34b7160e8d389b6b966bcbda1844666db163b76055b3c859",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "8c8a014c94ca6c5c2df989e0a5768f16ebb61fd5c62e858d42f378eedd596328"
+        }
+      ]
+    },
+    {
+      "name": "omh-commit-pr-authoring",
+      "upstreamEntrySha256": "0982a5493e93492ff0cd113fb37fc482b748f5843ed2277c69166ece33aa6136",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "73669b699da81d170e960f32cd1cb4286a45152859216796105362459205c9a5"
+        },
+        {
+          "path": "references/commit-and-pr-conventions.md",
+          "sha256": "6b5a93c64771ade87705a0efef89cd6a951cc3c509de99e7c10984f672657d27"
+        }
+      ]
+    },
+    {
+      "name": "omh-content-operator",
+      "upstreamEntrySha256": "0bf18b0de2b75ce6f05a4e0faec1dbbed849e86d9de0a9e4fc6408c626375e66",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "44349f743bb2a2723da1d606b7c0e85e214e73ebd6b6250745ab0ebc0ebb8a85"
+        }
+      ]
+    },
+    {
+      "name": "omh-context-budget-review",
+      "upstreamEntrySha256": "23e9dace9dc1ef663c726f3bc6ca8a94397a55dc4138c609879ac3a36865567a",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "ef893cda87211933cf47721011217260b880dd062d20e9e9b90dd019be6bc07a"
+        },
+        {
+          "path": "references/cache-placement.md",
+          "sha256": "bdac27120964aa692bd9b47f107fc9f19105d87f362e787e41c217d7a38d7590"
+        },
+        {
+          "path": "references/route-capacity.md",
+          "sha256": "66d6f07e2b40366aeb462bca3652212c2dea95e7cb0f0ecd17b0cbe84cba3584"
+        }
+      ]
+    },
+    {
+      "name": "omh-cto-loop",
+      "upstreamEntrySha256": "2f4393f015d6e952b26d089b106fcb3fca03f72b163a58e5ad1b2ed56fcbf608",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "b336633434e0b7dceab22f9c25f3dd104cfe4638e935a098c8147da3f90ca125"
+        }
+      ]
+    },
+    {
+      "name": "omh-curriculum-design",
+      "upstreamEntrySha256": "f413b3cb9e0a4ec54e4716b4eaeeab1a94b43308a13209ac62f581870a178400",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "4575d7bf9d0952ef74715863135ffa88568b8e3a6e820a82b0134521441c90e1"
+        },
+        {
+          "path": "references/procedure.md",
+          "sha256": "5078d35c8cd9cae8257fd14fa8ab7466bff5287500f160787633ec2930d1da1b"
+        }
+      ]
+    },
+    {
+      "name": "omh-data-analysis",
+      "upstreamEntrySha256": "378262fdb3a902c306f6e896c03bbf167ea9e98718e9d7a9303e03b281450ab4",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "16205026047540772d9f4397aced9acfd0f35b232c18aa690420deba4957b0eb"
+        }
+      ]
+    },
+    {
+      "name": "omh-data-pipelines",
+      "upstreamEntrySha256": "062483bf6646943225fec970e48693148eae12765823e5562bc60e8fdc3eb1b4",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "d8522530ea62f5fb3defdc33ccd064e10ef1ab1cb11cc77aa7efd2f87ea27aac"
+        },
+        {
+          "path": "references/pipeline-method.md",
+          "sha256": "9f2dea6059c664a0c1ab4d989545825d3ecc567d22816af00975e79670ef36f0"
+        }
+      ]
+    },
+    {
+      "name": "omh-data-share-review",
+      "upstreamEntrySha256": "13d9e10e7f3af11ea28865f752d4e4741e9b43b9d131108e46dee03d17900189",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "35bd4e60bcf5196c03fc10a8e4156dbe7ed53a1704b581fc2a79a0228af49425"
+        },
+        {
+          "path": "references/data-share-method.md",
+          "sha256": "bf7840d9464b63ea72f0c6e4efeafb56007c4ee2a4df33f2974608661e226709"
+        }
+      ]
+    },
+    {
+      "name": "omh-decide",
+      "upstreamEntrySha256": "63326b5b9a1c549ccdcd63c20cf4da7cf53493c79f35f304a7e8e9f46d5baa7c",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "4f6b47b42cb424907381cbb33617e07c500192d7ae5164fb80c00e77933a36e7"
+        },
+        {
+          "path": "references/capacity-planning.md",
+          "sha256": "5f017b357b0bfb37279918098b9992c3c793ac8ad4056969bf3e2c0e6d5bb9ae"
+        },
+        {
+          "path": "references/decision-records.md",
+          "sha256": "4da873d3351a8d7ab96d44860c62d7d18130147abb7aa390078eee6dbe2d4d2d"
+        }
+      ]
+    },
+    {
+      "name": "omh-decision-prototype",
+      "upstreamEntrySha256": "783b1eb6ad51efa1bbe4a6310e51f1a7d002cafcf5f72ffed605fab46da9c916",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "1206fc7fae04b979f4abb30cd96afb4ac48fe6d7ad0a3fa54a274734f54bec36"
+        },
+        {
+          "path": "references/full-contract.md",
+          "sha256": "521d7db2d0afc5beaded5dff097dc2a5b8356da38629c8a4f22d771bf7ec3834"
+        },
+        {
+          "path": "references/procedure.md",
+          "sha256": "53334fb4c76acb18a49272bd9dfab9317c0f9d3eb812b7ef9e87550d99762e88"
+        },
+        {
+          "path": "references/spike-composition.md",
+          "sha256": "96f8944673dcdd1ecfbdd569642fd8a32e6c7927ef3d88379def04858c8a72f4"
+        }
+      ]
+    },
+    {
+      "name": "omh-decision-recall",
+      "upstreamEntrySha256": "abebc4d97276781e92efcc143ca0f1f91bd28a4427751e78645ea371ec7c4786",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "13985681e21d9255f923739409df7def674d0a1947350535004110cb908a0ad0"
+        }
+      ]
+    },
+    {
+      "name": "omh-deliverable-package",
+      "upstreamEntrySha256": "e699b80763e6bb81e774d5b803e812697beac0fc2caac46808ac9e7d742263cc",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "f03b5fb7cdc41147db7d9c401b5743da4b6272d627b2f6d6ce909ea35ef7a878"
+        }
+      ]
+    },
+    {
+      "name": "omh-deploy-and-monitor",
+      "upstreamEntrySha256": "15f179dd849bc14c19ebe7b2ea6d4607df87497d25afab70f6a0ce1c927b1cf1",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "93d55275a7db172ce3d2f8afb15ef7bd1c3e012c9c7ade1191d1b2a3af1d7cb5"
+        }
+      ]
+    },
+    {
+      "name": "omh-design-orchestration",
+      "upstreamEntrySha256": "f67e175fe1285e6afd2d28246d2ba0178e497221d434223bf9f36fe71fa4f547",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "f1bec950188a6b89a8ff988f45358e16cabcecb4a06acf60eeb3adb4a2dff1c9"
+        }
+      ]
+    },
+    {
+      "name": "omh-design-quality-gate",
+      "upstreamEntrySha256": "a97ae0a272c1721e8327b59582413a9e768372e4653c4e21b24696e867af6f31",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "2a5aabe27441fc33801fd005eb0ab7bd1c488d2a5333e15644e32b17202f0bfa"
+        },
+        {
+          "path": "references/design-critique-rubric.md",
+          "sha256": "7b7bde56a390431bd46b1b1d3965723521c722f461d12bdc993407a54595e9ae"
+        }
+      ]
+    },
+    {
+      "name": "omh-docs",
+      "upstreamEntrySha256": "cb45a422bfa6b1d4d43e7ecf217593dbe12716e9c07eb246cf80f40f596cde51",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "ee5e16727b94a3825d327911ec3a986ee85e3881eb9de446647fcb7fbcd7eb0a"
+        },
+        {
+          "path": "references/capability-map.md",
+          "sha256": "937a010b722a4f58fb50d2f3e48c3e406bc83808d9ce15d43b3c484643619805"
+        },
+        {
+          "path": "references/long-term-memory.md",
+          "sha256": "27f65430ce3965f36758bf307d8e1f11fb124cfd2eea23b3cd474757c5d30a6e"
+        },
+        {
+          "path": "references/model-routing-and-local-state.md",
+          "sha256": "efc933b3af26b339d478fb3a6cc8fcde93df60987c448e7468af36ec4986079c"
+        },
+        {
+          "path": "references/product-and-sources.md",
+          "sha256": "5b7117efb31d33cf78d3456f394ecc865c26a6612302aade6eff2327f279971a"
+        }
+      ]
+    },
+    {
+      "name": "omh-doctor",
+      "upstreamEntrySha256": "cb61aa48f56b7fd6982d1ca33c60a3f6862d77dcda260adde6973f42c374e611",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "01aeeecad835ab71ad9e5a14add5f6ed9d226c482238071a1224a7eb081f90d2"
+        }
+      ]
+    },
+    {
+      "name": "omh-executor-runtime-readiness",
+      "upstreamEntrySha256": "e265b97e4190f4bbb8f80dc64365ca21f1decd1559ad30de3798f20896169355",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "a79ebd68b50446a2a9fbadc789e9ef20e4b5a378d4499c4b251859518eb3b535"
+        }
+      ]
+    },
+    {
+      "name": "omh-external-connector-readiness",
+      "upstreamEntrySha256": "6e91adf45eceef833c7ad13c885f378b215eeba5458444437fabbef9b0244ddf",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "f2d3e6a734f20675cacd33e20fef5d540b754d18a6152b23534448b674296c07"
+        },
+        {
+          "path": "references/memory-provider-trial.md",
+          "sha256": "b6eda7efc3307d8bd6540bec47b2564f3e565da5ad8133bd998b2ebcabdf29a3"
+        }
+      ]
+    },
+    {
+      "name": "omh-failure-signal-audit",
+      "upstreamEntrySha256": "fd15397273683b97ba517b53d66678d09b27d5468bf816e15f47b707b7cd6539",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "3548a19cf1c0c24ebdf14155e911dfa760e9411f31ab0d9230d53abfa433c8cb"
+        }
+      ]
+    },
+    {
+      "name": "omh-feedback-triage",
+      "upstreamEntrySha256": "ba3656f7321ac34b86c0e39c3767f79b581c9f427a57e6fed4ff9980193d6c1b",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "054bfc191d43874fdfdd5deb37f5ac119ae66b79386134269a04df19cf9a4b9a"
+        }
+      ]
+    },
+    {
+      "name": "omh-files",
+      "upstreamEntrySha256": "eab1e5976e8dfef7beb60fd20cb2f117740bd3e9a0f9fdc06fb07a03e12a7cc6",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "d03873821e433b2887c26d64203522ca15ade3ced4639c8f380276610a34ed8d"
+        }
+      ]
+    },
+    {
+      "name": "omh-finance-analysis",
+      "upstreamEntrySha256": "feade7bf5c7e0e3bb40c3be1d3d3a3c4c47351a5352817b1a3ffeb3a721de6e4",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "690b424284326b2c665af1a9b066ce772ba6ed3b817f76b8d7eb391cc6874e04"
+        },
+        {
+          "path": "references/procedure.md",
+          "sha256": "0fd8b3ad528d10aebd971c26375de9775e95429d3dbdc3a6f2ee5cc063a9c79c"
+        }
+      ]
+    },
+    {
+      "name": "omh-frontend",
+      "upstreamEntrySha256": "c5a87a6e35f1571ca7a27c089c640ccb5225ac673561e0fae78961a0707fddea",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "07ff057f1482da31fe3d28bc033eb7119f06bb49783ff4b26c967e16b4bd7dcf"
+        },
+        {
+          "path": "references/chart-styling.md",
+          "sha256": "aaaa79f8c52fd7e1b7daaa3a1142df79116eadfb7bb5653da5b0af0cbf0aecc3"
+        },
+        {
+          "path": "references/component-registry-adoption.md",
+          "sha256": "8ec6284a7ad4e25e41f662474c85f280bed69869194c53509a22e23f3a3bc96e"
+        },
+        {
+          "path": "references/design-system-contract.md",
+          "sha256": "551c4de7c97d31e1733af48a7ecfc6e9b4492c1be2fe35be65e8d24103f80dcd"
+        },
+        {
+          "path": "references/reference-token-extraction.md",
+          "sha256": "b36dedde2f859f83a95563cddab06f4002ce8c0a2c3b4ef64abc8a954c1e12bf"
+        },
+        {
+          "path": "references/screenshot-loop.md",
+          "sha256": "ddaaf841a154130222c98945d070f4a8b157a564ef59a3f960a3e48e01113e09"
+        },
+        {
+          "path": "references/scroll-motion-libraries.md",
+          "sha256": "605393baaed428e2adab937fdbc1ab3e5db20a6592039d948a2447da80ceb245"
+        },
+        {
+          "path": "references/taste-foundations.md",
+          "sha256": "e582a6a8b6921f307f19835210c8d927811320a4c80c040956d4a50af5e7c45e"
+        },
+        {
+          "path": "references/tui-craft.md",
+          "sha256": "792b2dda6278a2e4a7a713d60aba09844362fd0376ae24f8ff10f4af8e3d1937"
+        },
+        {
+          "path": "references/web-vitals-budgets.md",
+          "sha256": "7905f7913ff835eb84e7b9bd88059d52d7ede370312f2e24df8cb7ebf407a29b"
+        }
+      ]
+    },
+    {
+      "name": "omh-frontend-refactor",
+      "upstreamEntrySha256": "c84f8626c07b4a9791afb647cb0548ac58e81acd6c60cb86d0d0656279691bd9",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "6a7f2bc6dcff7ff08ebff8073c49f6e0cd2072a875f4e6dbdffdfbe66c86c230"
+        },
+        {
+          "path": "references/refactor-passes.md",
+          "sha256": "ce187b2323fda67fb536249193b4cc0bab1f04024986c8313bb7a4c5fd87e54f"
+        },
+        {
+          "path": "references/state-discipline.md",
+          "sha256": "04084cfd8d849f9e0b468d8a30fecc58f8c37ca5d5585afeb1e3bce95719faa4"
+        }
+      ]
+    },
+    {
+      "name": "omh-gateway-intent-card",
+      "upstreamEntrySha256": "950f74b90542231af28a0e09f65854823e82e7cf157b40ec8d9ba7b01a4e31fe",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "cdcb7c3ec6f088d19c1d18e788a206f21198c15473a0998bca354f6be7d676ac"
+        }
+      ]
+    },
+    {
+      "name": "omh-geospatial-analysis",
+      "upstreamEntrySha256": "69a7ed792888a1c3dd2052e8eef1bd85c93fce6879289a04df4fad221d466380",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "e4785e15257befcfefef5655d7c00a0801c9a6384af658e3f0e579f0ace979db"
+        },
+        {
+          "path": "references/execution-and-qa.md",
+          "sha256": "1ae6ce16a2e345aa9db9d68c4890bcc284adb01e309a373792d318f7b29b6851"
+        },
+        {
+          "path": "references/full-contract.md",
+          "sha256": "9e02018adf935a514f2abb153100fe58996123b28c03c8e012d2e52659bdb0b4"
+        },
+        {
+          "path": "references/procedure.md",
+          "sha256": "4a261ff11c226224d09bef4a4f563efdf840c456d7aef696ae0eb18f27cf1cff"
+        },
+        {
+          "path": "toolkit/LICENSE.upstream",
+          "sha256": "06c0ad9b886804a5efc1ee32e73570066103f540e242f7b6f97e4ac5f98912d9"
+        },
+        {
+          "path": "toolkit/README.md",
+          "sha256": "fe1530ee6bf2c7534deec126bc83b91cac3c31d340dae7820382938c2120fae3"
+        },
+        {
+          "path": "toolkit/examples/input.json",
+          "sha256": "2fcda5f6bc3d34ac0c4df7ae75d7c62d1ebb0597833cf326ff89141a7234b492"
+        },
+        {
+          "path": "toolkit/examples/overlay.json",
+          "sha256": "fb712b2ca917bb0ec9431c6dd76b9660113fb48f65b6ca78c17af3a9cb841bd8"
+        },
+        {
+          "path": "toolkit/scripts/analyze.py",
+          "sha256": "0212918ae577876d61577f206ccdddc6b19e13a35f2c6deadb0f9776e1839ef4"
+        },
+        {
+          "path": "toolkit/upstream-manifest.json",
+          "sha256": "51a8384c2153760b1cc8b255e40f0f42725eefc11b1196911eb96492391b0d79"
+        }
+      ]
+    },
+    {
+      "name": "omh-git-workflow",
+      "upstreamEntrySha256": "1a90b8857303af3f14d27968a18b33c752d9af1bae035a9d05d5968155639a9a",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "30ea443f9512b0e512ccaafa4ca838ab7e8f6d5d833adc1d50f21651af988e7f"
+        },
+        {
+          "path": "references/git-repair-method.md",
+          "sha256": "7c5b14e1d8972467fc7a59e84bbd7c200106e983d7ef277d147ddb5792b7980e"
+        }
+      ]
+    },
+    {
+      "name": "omh-github-event-ops",
+      "upstreamEntrySha256": "3a592d2fb36b42e3b26c847d86a29c2168a71d0c231d917491865a13509927ec",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "6e5641c4885a7e3c9fb1ced1737da848fd7b5d3057e8edf4710807063302afd9"
+        }
+      ]
+    },
+    {
+      "name": "omh-github-issue-intake",
+      "upstreamEntrySha256": "67f201c4f5feb5f626e57dab47fc5701f3d099e771bb61c0b166dce75e3ea6e1",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "579fc5042d9959e8bd8fe09f3ac78b41459d5cc0058b33b8fb22ffd798fd9d82"
+        }
+      ]
+    },
+    {
+      "name": "omh-harness-session-inventory",
+      "upstreamEntrySha256": "6c722077c393774f0e3daee304bacde0a95ad9d456e5460f003bb4ef553928e5",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "3fed8650b9c3caf0dc47ebbb8e63ec709f34ab36097e2888e59284c65d1aed88"
+        }
+      ]
+    },
+    {
+      "name": "omh-iac-change",
+      "upstreamEntrySha256": "21e7cf5957c54820d7366e9ad66f77fcbc0e19388ed6cdb6253988c778ea7ac9",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "921317fa3a5af7ceb8d4169b937c61cfc045d31568a49179c5dc85a3d14a3689"
+        },
+        {
+          "path": "references/iac-change-method.md",
+          "sha256": "25c75f8974c19cd74028d093a703facb0c66f7b199ca1dc16e937d93b5dbdb5a"
+        }
+      ]
+    },
+    {
+      "name": "omh-idea-to-deploy",
+      "upstreamEntrySha256": "94e62a694368613a47b1f2fb4d8e839bcc360840218bb71155b413a77b42de08",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "13a7661aadd6a5f48c90a4d9d733b99852ba211c390e66747d1bab320f311ef6"
+        },
+        {
+          "path": "references/project-bootstrap.md",
+          "sha256": "dc9a474dfc063984b84ae5d1a5d28a9ba1f0bb2b77292245b703b20b0fbe27e7"
+        }
+      ]
+    },
+    {
+      "name": "omh-image-cards",
+      "upstreamEntrySha256": "e97589911aeea17292bb63bc6aecb8b40403f72b00a725b934bf988d9dff4e3e",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "9ee7395acef44c9892e0175f5c2b66b2311188f1ffdae1e84394dedd5d6d3d30"
+        }
+      ]
+    },
+    {
+      "name": "omh-inference-serving",
+      "upstreamEntrySha256": "741455b46bddc1fde42f1a61441521064061a48099d1a03e6968346e5db4741e",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "d64a140860e2b74d31f119f330d6608bb3856da64e3304766d1fddabf6aa6dc2"
+        },
+        {
+          "path": "references/serving-bench.md",
+          "sha256": "31f452f33561faf2cd90edd1cf30f33bc74c14bc13c81d77a087db5392d56aa0"
+        },
+        {
+          "path": "references/serving-runbooks.md",
+          "sha256": "da5b5950a621d7eedc5333721de4d23651439d06bdd2d9e9661461d1bef9ac5e"
+        }
+      ]
+    },
+    {
+      "name": "omh-instinct-ledger",
+      "upstreamEntrySha256": "704b99981ad3502e72e2287bafd0c408a7eb68a1679f08e03f6d898ec15b40ad",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "b0e219539ccdf3694253a175ce7ce80542600c51811bd988c104cc304091e5ba"
+        }
+      ]
+    },
+    {
+      "name": "omh-internal-audit",
+      "upstreamEntrySha256": "0ee90ca93c75b002ef45426572b631668e573f0f719ba66616a9741d5762db40",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "53e177f2261f654e530d741882d5058d174aedef7d92bca91dfedc0cc981a58f"
+        },
+        {
+          "path": "references/control-audit-method.md",
+          "sha256": "2b651418c2a5bdfbd659ebbff7c08e3670443e198e76ddd9d215d5cee821deaa"
+        }
+      ]
+    },
+    {
+      "name": "omh-jev-action-check",
+      "upstreamEntrySha256": "c1ea317ab55f497ddf4738218a33710cf1cadeeb07d3e5665617a4466e780c94",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "e9049e796c86f4a86807e28fc66b6b2063d73b573cc97e3de676bc4f5138c7f2"
+        },
+        {
+          "path": "references/full-contract.md",
+          "sha256": "5bec5fbc7235eb41d65ef4c28ede42a5da71f1215644e3d5ac8c8f87813369ad"
+        },
+        {
+          "path": "references/preset.md",
+          "sha256": "92c6f11c0a72e70975ac73c7c1d4b32ca5a7be7979bbec7b9b7493a3dbf07620"
+        }
+      ]
+    },
+    {
+      "name": "omh-jev-ask",
+      "upstreamEntrySha256": "fe6f80c39576c02b295fbbe65342a2e158926d0da38c84430d356e7ebf1b8ca6",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "3b882b5a61d23cec9a75db3c9f7a72e8a5a3cb05575b88aac52249e012e0482a"
+        },
+        {
+          "path": "references/full-contract.md",
+          "sha256": "22b098664cd5c2d00f02e51fbfd56cad464bf03b19035e8a2bea16144a9bfac2"
+        }
+      ]
+    },
+    {
+      "name": "omh-jev-done-check",
+      "upstreamEntrySha256": "49f9c66459d2c9c744438c3dfb55ceeac9fb66c2f87b7cb1ac71e22b3e9b762c",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "0c7ac8107f0e17aec2b4a29d6b367aca026e52dc558dbd09b051ed5421002af9"
+        },
+        {
+          "path": "references/full-contract.md",
+          "sha256": "a8eca31ed7cb3ee2660b8517748bc6a7d610387a0e6faba9d6a40e2393fd76d3"
+        },
+        {
+          "path": "references/preset.md",
+          "sha256": "1fdd01ff4230ab0d6e232078e41dcf0855d7e8d6f6a549b6444c47c72c05257d"
+        }
+      ]
+    },
+    {
+      "name": "omh-jev-failure-triage",
+      "upstreamEntrySha256": "bd574e82dc97fa51a4b59d65b6650c78f855fe53713c1338843579aa234b9b5c",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "853afe0bb219072d4f5af8844e64d175f84d6dd8626e08d568ce46465f295c54"
+        },
+        {
+          "path": "references/full-contract.md",
+          "sha256": "c12aeb7278f49dc26e4f2fb5f49aed32734e84de3b0bc7452fe498d60768c5a3"
+        },
+        {
+          "path": "references/preset.md",
+          "sha256": "51810af9bf24aa026d34e8fab88d4aa20381606abbea1143282da2ca9193bc26"
+        }
+      ]
+    },
+    {
+      "name": "omh-jev-review-gate",
+      "upstreamEntrySha256": "3a4dd05f09c1870d99a860a85155d9a273ebf388c2f060c9cf97de5cb66386bd",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "3ea15a7a3b47c894b47c04cb37d2b62bc60c98ce119ce723c2b5c8f961521fc1"
+        },
+        {
+          "path": "references/full-contract.md",
+          "sha256": "f6de21d834393edf21a674c8443607ecac91f44d16c03ef388737c75f6278666"
+        },
+        {
+          "path": "references/preset.md",
+          "sha256": "f89138726d8db4c252a1557552a9151e7203ddfde582c88d80ca5b31771d6941"
+        }
+      ]
+    },
+    {
+      "name": "omh-jev-route",
+      "upstreamEntrySha256": "aa5767b537d897029a7e501a30e84039f92a70ffdc96148191a1521e279ec6d4",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "79066cbf439d4ed6422f9f9b7a4396b3b5790590f926417416956e5e39c13c6a"
+        },
+        {
+          "path": "references/full-contract.md",
+          "sha256": "a2e13be1fde37d71e3e4e2496ea825990bd9930fed041fcc3f3c79b6602b55b3"
+        }
+      ]
+    },
+    {
+      "name": "omh-jit-learn",
+      "upstreamEntrySha256": "f010c532410c85cc31bc0c7b2f5bd7a30212baacaba869f712bedef0c5d04b46",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "770ddfca601fbfe98a200b605ce296ea7618e8783e6f85244495cfc9d13b773d"
+        }
+      ]
+    },
+    {
+      "name": "omh-legal-compliance-review",
+      "upstreamEntrySha256": "26b620783b248421d7828f4fe8c23f3461049aef6b753c3223fa99fc0c24a217",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "cdff4dfc6b0b695aa964c7d52192e3fbefd48043a2eb062b00ee4d8692fa5a89"
+        },
+        {
+          "path": "references/negotiation-preparation.md",
+          "sha256": "a0952b301dc12976606e979590da1f01c9b71d4cd5892f6b2f453536b2e4b4c1"
+        },
+        {
+          "path": "references/procedure.md",
+          "sha256": "670f501f3136c0f5456b82149ca24153f1b38d5151f539a9b1ab0df30e2f0b58"
+        }
+      ]
+    },
+    {
+      "name": "omh-lifecycle-growth",
+      "upstreamEntrySha256": "fb4d65b8a29917f7c323d15c0a506a45cf21129e786e81b999d52a8259c5743c",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "9679f26daecf9269f433503e9a6aebcc27df5e1cc3153467fc3f7ffe3232fe9a"
+        },
+        {
+          "path": "references/full-contract.md",
+          "sha256": "01c853c7c336a284519f735a5d5db099d968982b2ac8600be75dede349a9d9b4"
+        },
+        {
+          "path": "references/procedure.md",
+          "sha256": "7a26968cd2e4d46a536fe28d93dd7adc2f89c01ca59ab042d5d6ff205b5762de"
+        }
+      ]
+    },
+    {
+      "name": "omh-live-incident-response",
+      "upstreamEntrySha256": "82c88195f312daaa227f536821bc3ef5dcde19217a82324ec29b764c4819098b",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "965c84eccf369958ceb7fdda9eb7f090c17471dd9b2583599fb5b828113b6ac9"
+        },
+        {
+          "path": "references/incident-command-method.md",
+          "sha256": "8d5ad3bb15d401cf45300ec3d7df126072fcd20bee40e3bc702bd35027b754b7"
+        }
+      ]
+    },
+    {
+      "name": "omh-live-info",
+      "upstreamEntrySha256": "249ef8bd5e6ad43c173fb1a72797477c8027007204bc17be538360db24fefd66",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "2bbee27c07d66eb8a68474747dacb31a7ed3e7629af5e21aa7491e1eef09f98f"
+        }
+      ]
+    },
+    {
+      "name": "omh-llm-app-dev",
+      "upstreamEntrySha256": "c20503cac1b1e0da2bab343b49ce0718ade14f6b19b9abe38f3cf9e726c937c0",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "4a8381e2c85b88765ca1907d217a4dd621d3566c8348f868247c948626883fb9"
+        },
+        {
+          "path": "references/build-rails.md",
+          "sha256": "35db50a4960ced98fa2ee556e59c5a439188e8b47bebef5073efa9264d8fe149"
+        },
+        {
+          "path": "references/eval-harness.md",
+          "sha256": "959130e28abaabea53cf9ed6fe46268ce27372333d2a6d28b6f0e02928ac2cbd"
+        },
+        {
+          "path": "references/public-board.md",
+          "sha256": "e69b890be7da4d91ce612722b180b229821db714bd72aa28a55db013364e7cca"
+        },
+        {
+          "path": "references/stateful-contracts.md",
+          "sha256": "7bda4e79b8c60f406d3a4e7ea9d3e4f7c69d6ee80a23416678be678d6dd95816"
+        }
+      ]
+    },
+    {
+      "name": "omh-localization-review",
+      "upstreamEntrySha256": "49a6a9f0cb5f60e3f5a1e0b1b414d7967fcc4d75deb9a84175112bde6a5088b7",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "881d7418926b9cd2d1b5184df37f314db70f48d7ebfe9dcb5b0f3869d2364dd0"
+        }
+      ]
+    },
+    {
+      "name": "omh-long-document-reading",
+      "upstreamEntrySha256": "1d753328f89245ce727d340b8fda95ae986f8ccf8a9ed144deebe057f0b1a8bb",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "b788ea057ffc9357127f4b5f34090f9cf66ee6da6c920b38a9834315f3e52a04"
+        },
+        {
+          "path": "references/hermes-pdf-limits.md",
+          "sha256": "ab88c0c5dcac3ca6a83d5573cad96a0838133dcb7e629f48c55327b36d9664d2"
+        }
+      ]
+    },
+    {
+      "name": "omh-market-research",
+      "upstreamEntrySha256": "dd500c2189f261de5b0f357d6376268efeeb1ccb1722ae18c1e474039d39ae30",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "e9f5acc5669a14435957082ee41fdaed47d16bce9984f04e4d330d44ba07b18d"
+        },
+        {
+          "path": "references/competitive-pricing.md",
+          "sha256": "b711c6509e14cc949ecf16390356eb3ee9afc91a43d40638d182fbe7661108b0"
+        },
+        {
+          "path": "references/customer-evidence.md",
+          "sha256": "8da581b0b92b6abc38d08b5f808afa5a5f85b3c440e6657fb3328e2e14a9eec7"
+        },
+        {
+          "path": "references/findings-template.md",
+          "sha256": "d5ba16727921be3ffef82a4972c02b9375dce85da5460cf3f92815c2c4938af7"
+        },
+        {
+          "path": "references/full-contract.md",
+          "sha256": "7cda9472e70efc4640485e60db1f023448e01f5b8cacc0d44634c4609d48b4e6"
+        },
+        {
+          "path": "references/market-sizing.md",
+          "sha256": "8acd024122a219bf6650e626f8f1ffec60ecf40d85608d9feaae9057246a176b"
+        },
+        {
+          "path": "references/procedure.md",
+          "sha256": "eaf76576a5a7b4d8c19eef79de68400cddda36e1a3302bf12cbe57ca100ee2eb"
+        }
+      ]
+    },
+    {
+      "name": "omh-materials-package",
+      "upstreamEntrySha256": "021c8ece1e8f3bbb136cd798b458d5e48d213b00f4681ddad9d0ce43762d4c88",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "e0f68624247fc5ef06ae35c053a8ad17fa6bf09dad32599a9af6617e51c9dff3"
+        }
+      ]
+    },
+    {
+      "name": "omh-media-input",
+      "upstreamEntrySha256": "23f3560ce6cf8491e47d342ef2becd734fc38eb36f3eed406a8d2880c3ec57a4",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "a4692a777c457f49b2283412a97e23649b0ea3ace37ea25ed0501289b107e438"
+        }
+      ]
+    },
+    {
+      "name": "omh-meeting-brief",
+      "upstreamEntrySha256": "f8f23840b7e663377ea31928afe82235593e4599c462d4f5776de1bde85b9a0d",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "a840b58e22fe698aaec7f9fadf34edb12fde4b95dc3760007104d19fd83d1215"
+        }
+      ]
+    },
+    {
+      "name": "omh-memory-new",
+      "upstreamEntrySha256": "d5b4fff7d2555a0875130832d69bc08bd0e9d4a50640bb95cda54ef2f92e0274",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "1ac1883521696feebcc09ca5041d3ddcffb643f909a19b8b61d5f991ee70d8c3"
+        }
+      ]
+    },
+    {
+      "name": "omh-memory-sync",
+      "upstreamEntrySha256": "1bce90d7adaadc8ea86992a8b54e5ad982c6f5203c23807bb101b2fed4cfa075",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "dd50629156dad62628a911f226797c1c961c2d2abaa8959e21b2c8fb0538d1ff"
+        },
+        {
+          "path": "references/source-recovery.md",
+          "sha256": "d1fc1e52a87ee1f631290e661483f0910b4a76332d11d6ee8bfcf0a742c3e41b"
+        }
+      ]
+    },
+    {
+      "name": "omh-meta-router",
+      "upstreamEntrySha256": "62b7fb202710575e7fd6a80d891569c6f536dffc6889f9e519d8c7c3355423e9",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "0bbe2f20c6bc1500fd948dac21ab39b7f8b39597c8ab5d0cd98348cbb91c4975"
+        }
+      ]
+    },
+    {
+      "name": "omh-mobile-release",
+      "upstreamEntrySha256": "220bd834526ecbaa610bb020a536fb90bafdf26a287595eee129175f3a1d1d6e",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "a16be9077ca60818e6fdd80ec951d7d8e1cd42ee0c9dea426a81dde5a53c724a"
+        },
+        {
+          "path": "references/mobile-release-method.md",
+          "sha256": "c28b6bec1569b8971c42b412e054daa8d9efa23a4fad698cd72ce2acc349de82"
+        }
+      ]
+    },
+    {
+      "name": "omh-model-finetuning",
+      "upstreamEntrySha256": "5f205ba3e38c66b6232509b1dc7bfff3afb0b39ff304e909e44abe08f52d86bd",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "204de1fe1d47b94b699559433f71d9d838f7283aabe59fd25c4580099e224144"
+        },
+        {
+          "path": "references/finetuning-method.md",
+          "sha256": "10a677fdc07303b3b2b3b0d7759f9b5956e9f00fac94ccad0bac9bdef3d8d797"
+        }
+      ]
+    },
+    {
+      "name": "omh-model-optimization",
+      "upstreamEntrySha256": "414fe18bbdc246290a9f5f7baceafae0ecb10000467aa6710ef0610cb842c039",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "a2523d49f152cb38db399620d775225b012c5f3c819d7dce9ab2203741c243b4"
+        }
+      ]
+    },
+    {
+      "name": "omh-model-setup",
+      "upstreamEntrySha256": "f93abbbb1b8a25bebd3f2247b6f85529c8ae9c81e9da28f232ff49a61aa51eeb",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "9e8662cf52df6260c1176b88aec9bfed34edf13694b999d2aa25d88c2d6641d7"
+        }
+      ]
+    },
+    {
+      "name": "omh-molecular-docking",
+      "upstreamEntrySha256": "ceea1a81817a8a393a0d4b7b0698fc9329f377c04df347ebfe6afc72a9cbaaec",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "c2e79afc60cfa10b9b3be94f20d4c23b5448d9f2ac6eb46822afe85f1fcc3eec"
+        },
+        {
+          "path": "references/execution-and-qa.md",
+          "sha256": "c45cafd1629d4f85d29914ba59e77309ef2970d33fbacede238e6a466619e31b"
+        },
+        {
+          "path": "references/full-contract.md",
+          "sha256": "ce31d5799c6f8580d25b113496262ac463c73d2072262c251be76f7f1e6903d3"
+        },
+        {
+          "path": "references/procedure.md",
+          "sha256": "23a54c0963172a50467c7a4ca9d7f61fcb03b13c936087b1c09779c1c1771f38"
+        },
+        {
+          "path": "toolkit/NOTICE.md",
+          "sha256": "d11a59bb58a384ce4f2f70d0295107b98e8773e124b4b0e83b69fa8d609cbb26"
+        },
+        {
+          "path": "toolkit/README.md",
+          "sha256": "8741e1fc2c16c0d3dbb690b9669af84c4e04f177ad9248ae3cfe867b160ab71e"
+        },
+        {
+          "path": "toolkit/examples/settings.json",
+          "sha256": "bc82519f57c91e9fb97f69029b2be1f54be5003700348aa074e9aacfe9c46cc5"
+        },
+        {
+          "path": "toolkit/scripts/dock.py",
+          "sha256": "e27d15c921543849de47023bf21417efa73d94620d54cb158378fab998c65f41"
+        },
+        {
+          "path": "toolkit/upstream-manifest.json",
+          "sha256": "3fc34932681e4f696c33072b3fb2b826cdc8b5d996131eb492a68e9250b4adff"
+        }
+      ]
+    },
+    {
+      "name": "omh-morning-brief",
+      "upstreamEntrySha256": "72e2eff2a53119ca674e31fba8d31c8f0fb62f8ab3e88f46dcfe41303c3e567e",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "121d41c7ce953ccbb95486114dcecca8122682f031c2d79f1b47e1e448d6a70d"
+        }
+      ]
+    },
+    {
+      "name": "omh-native-debugging",
+      "upstreamEntrySha256": "6da76c2d2f648f7209029673aae4a4bda1afb2a15dc6dfa02e20ea74d275981a",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "10fafc47846bca6357f15c4f7680f548b6944e58d462a8e3f4b2d4b18b957735"
+        },
+        {
+          "path": "references/native-debug-loop.md",
+          "sha256": "3ce0f29395b8a1c71074ce2808d6d2497bef1ccbecbba179b74950055435430d"
+        }
+      ]
+    },
+    {
+      "name": "omh-operating-rhythm",
+      "upstreamEntrySha256": "b30a7500889a9e00ea78f02091d6cd83c8c59402dbfe9e4cfed24fa935e1f23d",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "c51f3c6500d2dfae785e84c103a0bf0ca0517b32f9dcee60f15f1af126ef7ca8"
+        }
+      ]
+    },
+    {
+      "name": "omh-ops-observability-card",
+      "upstreamEntrySha256": "17c70826f02087484c63d969951c3fd542b0f96c66e12f7bd5f9b12481a1dbbc",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "6316217327574e65d14f6fa78cd741fa1dd2514ffc3942db4e8a0ae2d1ca1811"
+        }
+      ]
+    },
+    {
+      "name": "omh-ops-review",
+      "upstreamEntrySha256": "0bffb20b27b905e6fbc9b88c02f8bc0754c2cb8944697a2e8c41109bea51f6d2",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "99677729da95d08eff9080cca115cb0fa2214f1857e61338cf1739ff23f61351"
+        }
+      ]
+    },
+    {
+      "name": "omh-paper-learning",
+      "upstreamEntrySha256": "30d885be60f0d65f5d58d3206426746db63091fd2c299408033e260ed3f0a9e0",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "9c37cb0b54a985f7761c3734efbb934251550760dceec03794d59010b2cb47bf"
+        }
+      ]
+    },
+    {
+      "name": "omh-parallel-tools",
+      "upstreamEntrySha256": "a82b3b4ef42a5eb386b330801302b908d33d559e93d3ee61875aff9ddca497b2",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "60061b0adb62f52603fae9dabd88ed067d39838e8dc029e5639236f286f32d29"
+        }
+      ]
+    },
+    {
+      "name": "omh-people-ops",
+      "upstreamEntrySha256": "8c1e9e6f07faccbd8799f8afdf1323d0af1a38bb85ed3ff0bd8b8c8931cd5b64",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "2755de01e78b5b6c2d60dc2a4caf121c96b166a704fb1b7bfa56054d82bbc644"
+        }
+      ]
+    },
+    {
+      "name": "omh-physical-device-readiness",
+      "upstreamEntrySha256": "d0b5a5c77339c9c8fc9dcdd3c80d296003153b520e15ee1d2b166980d62c67fd",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "1b8aec3992685ebfb67cfaace72c54dbd5ed1876e8ad7c908cc7190d9b86b257"
+        }
+      ]
+    },
+    {
+      "name": "omh-plan",
+      "upstreamEntrySha256": "86f56b572952374098f5f3d5069ce82c89bb3dadab97449626fae1a77feb75ed",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "600daf7cb1b593d101166d400166735d743de75883d0ead9bf68365b64b45449"
+        },
+        {
+          "path": "references/hermes-plan-mode.md",
+          "sha256": "8dbd588559d0f5d25a5800c8b58ac7f3a3d5fe8139b945d9fac751c615bcbee1"
+        },
+        {
+          "path": "references/project-constitution.md",
+          "sha256": "577991e718cf3e1d62ce93704d4a734f7e058a3d516b0722c636cc8cf7a519da"
+        }
+      ]
+    },
+    {
+      "name": "omh-product-brief",
+      "upstreamEntrySha256": "fea2c26323091249ab1d9769b56701db1308a7b94a5ce19819f95044ab6cf2ae",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "445ae331ca7ac9b6ab5fffc9f778c79dbbc5b925851faedb3cc7226b12d1fe67"
+        }
+      ]
+    },
+    {
+      "name": "omh-product-discovery-validation",
+      "upstreamEntrySha256": "e0e5fdf791e4b7df2a28055f192586ebe30a3db7fa5e7286af0cebfe48d50b1e",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "b06a438d9b68a9e41777e691e396174d4dbde085efe8450688ed7b981ffe6dc3"
+        },
+        {
+          "path": "references/full-contract.md",
+          "sha256": "81726189063cb0e9600333acbff1dc00c5792779dc25ea687d7f361b3253b79c"
+        },
+        {
+          "path": "references/procedure.md",
+          "sha256": "c4b545ab2472299450aa8279f3d15a64afbfada6e14314f083d3f905aa52a19a"
+        }
+      ]
+    },
+    {
+      "name": "omh-production-audit",
+      "upstreamEntrySha256": "d303fbf035984e87c9b861267f71b4f36a361db9540a1977060f6c1514f93591",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "588d4b2207b0b26db1a07eea012de6dcf713287b0d3595402171b2fa2fa0d3ff"
+        }
+      ]
+    },
+    {
+      "name": "omh-prompt-import-readiness",
+      "upstreamEntrySha256": "3374cf5600afb30e3262bf64e6cc080e4061450987e87c4f19a2195ee31eccf5",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "3a189a31781711397ed966ac42dd6acfc9ce9793c4ee5dce3acb647d6d0ebff5"
+        }
+      ]
+    },
+    {
+      "name": "omh-provider-profile-posture",
+      "upstreamEntrySha256": "f883952369e0c17d3d7e7ffbc0da6aa95f358d93b317d869e4308e18ced2edf3",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "ff4e3da8dd538da8dc12b5e111121560cc15e39cc31ff196bf588399e77e8ded"
+        }
+      ]
+    },
+    {
+      "name": "omh-refactor-plan",
+      "upstreamEntrySha256": "a003fd2b1df689f791963439ff8eb083ce2345f0389cb3893854bd0126085475",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "34b9b4d66b398a7b56e4739f5f1010fe5f7813b8db7d4ad41ca11f038b28d30f"
+        },
+        {
+          "path": "references/dependency-upgrade.md",
+          "sha256": "97e9b74b117a66171386a0015a0ad60954def8dcf59b1d6c180037919c61bfbf"
+        },
+        {
+          "path": "references/refactor-phases.md",
+          "sha256": "492cfcd81b1b44ffb54bcb16b6dc319549a7ee868d95b21176fa9cc0fa06f035"
+        }
+      ]
+    },
+    {
+      "name": "omh-relational-db",
+      "upstreamEntrySha256": "4d3bc608c5687a175ff8d67334847d95c82525d64cfb7dc3d9c7714c29db5439",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "b45630ccd73618dfe59276c6315c067be1359fa7178314101cc1fa94723dcee0"
+        },
+        {
+          "path": "references/engine-lock-tables.md",
+          "sha256": "c5a495fec865b028c18882f3a4102d491610945edd23a109fac49b8f914fb6b4"
+        }
+      ]
+    },
+    {
+      "name": "omh-release-cut",
+      "upstreamEntrySha256": "181dd8557bb49f80a818437b0cd5c9135d020ed163353c753ffecd3f5e67f863",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "74c81de276e770d919420d3c697d8f8fbc166e2c6fbdbce1eede587cbb1a600d"
+        },
+        {
+          "path": "references/release-and-rollback-method.md",
+          "sha256": "e97a49d65d6b943fa5bbacc4f8083fcd94e52d864cea97301c9b945180e57cc9"
+        }
+      ]
+    },
+    {
+      "name": "omh-reliability-review",
+      "upstreamEntrySha256": "65be43f7555aa366240aaac1f4e511de51dd642a4eb14801e88bd4334521260a",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "eb3c5434522691a8bfb5e14a1eda4a6ae53416700330bee4d2120ae92a2bc323"
+        }
+      ]
+    },
+    {
+      "name": "omh-report-package",
+      "upstreamEntrySha256": "b5380a265e95588f9ab227ad402d23c5be59c8b562cd011ffe9d50adc74beb59",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "1a8bf838d9fd1d2929967d07dcf57c056cb69657671ea261630e3b07041436ba"
+        }
+      ]
+    },
+    {
+      "name": "omh-research-brief",
+      "upstreamEntrySha256": "ee66dd9566c0df3cf7d961d4c01ec6439efea423123becea30464a0a1cb0adb9",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "9776cdb6a582df279b877bff4dea2e6a9aa307e05decf3cfc39b4219a25c8a19"
+        }
+      ]
+    },
+    {
+      "name": "omh-research-department",
+      "upstreamEntrySha256": "83e08bc4383bc0792fadd5fb5317e75b55cf7efdbe03adfe4ee874e8481feaf4",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "362d2d1231742800873b1f61b588430aae78886524a2304896f20ee45600dd66"
+        }
+      ]
+    },
+    {
+      "name": "omh-routing",
+      "upstreamEntrySha256": "25b193edddb7f695fbafa4da27f1728a6913aa60f09c38f8717798eee54ad058",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "c84af53bb6d86faf4ce26796db7292dc7ce2ce8548908c16b803f77d85aa124a"
+        },
+        {
+          "path": "references/catalog-index.md",
+          "sha256": "8a50681e90c47af6bbf9936271b27fcd80dfe674934ef7cf2d104b543cc10687"
+        },
+        {
+          "path": "references/coding-handoff-progress-reporting.md",
+          "sha256": "cf94a7b2323fbac781a547eb2a943badc251f5b7f0c354e108da8235454de935"
+        },
+        {
+          "path": "references/evidence-boundaries.md",
+          "sha256": "c6e78af8780252fc4e51375db53d6654c7b706f287380ffb1596fbc2b8ad867f"
+        },
+        {
+          "path": "references/harness-registry.md",
+          "sha256": "c0a607fb1f22d01b8156fd20c9dc37afff1b98f9a08d1e156a18e719a954ca58"
+        },
+        {
+          "path": "references/jev-rail.md",
+          "sha256": "f9a0ab1a4f0f3e1de411cd3b3312500a9565fbb0a9d1fd1a020c738315ba859e"
+        },
+        {
+          "path": "references/operator-maintenance.md",
+          "sha256": "fc3b2b011885f3c1bdb0307241e88f557c2f4e37e9518ac56ee972b034dc39b2"
+        },
+        {
+          "path": "references/skill-common-rail.md",
+          "sha256": "01f62f414d6cb253733c04503a153449b90e4fda06b4aa264d45c69ee14975f1"
+        },
+        {
+          "path": "references/structural-code-search.md",
+          "sha256": "cbfa8b5985a0fb4fe4b02a45121aa88f61772c9a28b5f67f330ea6677031f05e"
+        },
+        {
+          "path": "references/workflow-artifacts.md",
+          "sha256": "515e25ae5b3a2bb54e099590cb59975e7bc5fe49e1458f4e94ac3be0b8990116"
+        },
+        {
+          "path": "references/workflow-registry.md",
+          "sha256": "7c61f253e6819c81622b645acd259c65355b20a927fbd0750f4fbda4bb89abad"
+        },
+        {
+          "path": "references/wrapper-routing.md",
+          "sha256": "6000c582baee76d55361e66ed5c34ae0a5a77ec76579e0621e54be11e3dbd6bf"
+        }
+      ]
+    },
+    {
+      "name": "omh-rules-distill",
+      "upstreamEntrySha256": "76480b39b4e9a2da8a0e852482f76d412ed680322ea7336dcc3631f0ed722742",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "ead6ff4760536da6f9a33b70a7edcc939576a3ea4971a3b7b809997a22d60bb4"
+        }
+      ]
+    },
+    {
+      "name": "omh-run-efficiency",
+      "upstreamEntrySha256": "4d974d5c9034266f0286202c48049e0da0d4225e0003ebffeca28fb863b164a6",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "8e0403769d286e72cba708ba40bb0766e83c9ecaedb18cab7e72fccb17ca8d07"
+        }
+      ]
+    },
+    {
+      "name": "omh-running-work-board",
+      "upstreamEntrySha256": "7e8c6010356a37d57466f11a250d7f63b466d0220fb40c1651d4d82a30c93a60",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "31064bd05d2f82f40f1865fafc50a94e79c432ed855b1906f29f18fdd0083f12"
+        }
+      ]
+    },
+    {
+      "name": "omh-rust",
+      "upstreamEntrySha256": "c2bd170714922dd6219d383325bfaaa291d7c116a52f7c05ddc880e986818d9d",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "8bd5a827a44a996097a4a7ac3387bf3111ae87ce0802d2d133cc2fb22377eb12"
+        },
+        {
+          "path": "references/rust-discipline.md",
+          "sha256": "7d9b5005213715f4712dac2371fa63699b8ba963e843f360d75789d576c12844"
+        },
+        {
+          "path": "references/ub-escalation.md",
+          "sha256": "b39328707a4c3e1cf1d152603f0840255d68db3cfda714d6c33d853ebb087768"
+        }
+      ]
+    },
+    {
+      "name": "omh-sales-development",
+      "upstreamEntrySha256": "36b0333b426fec682a031d061e79d4a53985dc939efc12db000397f3b2122800",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "3cc56ffd83260d5126caf79ce0e37bcbfd6c110025137c2119360825513a1547"
+        },
+        {
+          "path": "references/procedure.md",
+          "sha256": "0ed747dc7a21bee8931023e4f7d78f65a7a9845ccf40cd6b754eeecc2a6aea70"
+        }
+      ]
+    },
+    {
+      "name": "omh-sales-pipeline-review",
+      "upstreamEntrySha256": "34b141589f7d41b94a42af417cc21cd221d91fd3b6964cd0aea2fd9eae64c50b",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "8bb6bbc16496355271ba52eeb505bb4a7f31364cadc5259278a87d49d74794f8"
+        },
+        {
+          "path": "references/full-contract.md",
+          "sha256": "fad4a5f255d979237461358217f7ef4b1093f69728c037e2083b455c285457a8"
+        },
+        {
+          "path": "references/procedure.md",
+          "sha256": "ae092ea4d9363da82d23620f33a2f83e8a3dd42f4a8d69fd08b92cb2989fa138"
+        }
+      ]
+    },
+    {
+      "name": "omh-security-event-response",
+      "upstreamEntrySha256": "84ab96e27a842600cf0bf2eba0d5fa5bf1382abcc6d4ef0460252c3cb12de401",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "53a9a21366021882316c401c2f0beef0584231aca033f1ffb03ab058dcd5aa8f"
+        },
+        {
+          "path": "references/event-containment-order.md",
+          "sha256": "2ea0a28b9d22cb0fa3016617e3d52253bb30d82d30c4931437c60f6706213090"
+        }
+      ]
+    },
+    {
+      "name": "omh-security-safety-review",
+      "upstreamEntrySha256": "fe1134c3aeff37bacfeaaeaa258f0175cbafed55f1a6c83b9943adc5b694d6ed",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "74e48dd2a7d08ee4f12d6dbea49d1869a436d93397aaa0da95d9f75e138df490"
+        },
+        {
+          "path": "references/credential-rotation.md",
+          "sha256": "2a4e1cacc2c10141a1aaff437353150696c397f5fec0b41536eb5d946ebff065"
+        }
+      ]
+    },
+    {
+      "name": "omh-show-reel",
+      "upstreamEntrySha256": "d724c0ccc062fb27be2e42f3ee2840749ed5341cab36fb292da1476d9ed7e059",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "b78d0ecbf0cccd09790a44e3c3e00c8f7bf4361c4b1a964087d4ef913b8897ef"
+        },
+        {
+          "path": "references/art-direction.md",
+          "sha256": "29d28aa85cb4a8f720efec6eede1258e6402647a30ec3b5c84057cd5f3b8948e"
+        },
+        {
+          "path": "references/assets-and-rights.md",
+          "sha256": "102fd2f6cee563a9bc03aaf7be302120564acf47705cf688af4e5a5b77bec3b7"
+        },
+        {
+          "path": "references/audio-production.md",
+          "sha256": "efbc0c1af04243e9070cf20e1bcbf2af9d700c95b3873e77024971f7719d71b6"
+        },
+        {
+          "path": "references/brief-and-locales.md",
+          "sha256": "f64de4a3c72810d7ad781f7ac7419068c01c060a254c4ee0ad574806cca99712"
+        },
+        {
+          "path": "references/craft-audio.md",
+          "sha256": "04dd5e44fbe11594d35145961fcb44b83112dd763392f6e63b28a5c7ee181f07"
+        },
+        {
+          "path": "references/craft-brief.md",
+          "sha256": "01314c971bafa1469ff06726346aab025352075ade947c7ba56bbb73107f5dc2"
+        },
+        {
+          "path": "references/craft-design.md",
+          "sha256": "3111f4f97d95be7d3019e21a08050236f59b1f843bb7acb6d8830039a4e14008"
+        },
+        {
+          "path": "references/craft-engine.md",
+          "sha256": "5f5fd73173f3a5f175f4909621f3473d1cfe0d70df801f02e5494235f70d1e05"
+        },
+        {
+          "path": "references/craft-images.md",
+          "sha256": "9eeae5ef572a03222b75f305109ce83317c74db2db8503201a9b77a0706d15a6"
+        },
+        {
+          "path": "references/craft-qa.md",
+          "sha256": "63ae66050e23217c4fabca1750b705ce83ae93d42be299f0f16a23f93598b4a8"
+        },
+        {
+          "path": "references/craft-story.md",
+          "sha256": "1f980e37c6bfd7004a229eedc118915a48c196deedfe49a621e15e8f7e874a14"
+        },
+        {
+          "path": "references/craft-techniques-2.md",
+          "sha256": "46daabad33a4867d49133c46c91bb027395707b05d7216e6bb323114c42017ab"
+        },
+        {
+          "path": "references/craft-techniques.md",
+          "sha256": "81c54219eb3dbb182808210805feb41f4120ad4144e29f123d24aa4d92b60e5d"
+        },
+        {
+          "path": "references/craft-workflow.md",
+          "sha256": "a2b809f73e727abebb3d52c8f389904038a0c37706781694b0d459bc034e5234"
+        },
+        {
+          "path": "references/full-contract.md",
+          "sha256": "42e2d684930ce8bdbec7df596abcfaad0c87abd151bfd08809486918538294de"
+        },
+        {
+          "path": "references/motion-techniques.md",
+          "sha256": "e3cb56be216d8131427a4a33ed29214408c71a2f46383ae6267ca70c00b990b0"
+        },
+        {
+          "path": "references/procedure.md",
+          "sha256": "5afc671b7950eabf20663b179b6c50864ce7dc50447c93ad530634a549fc42f7"
+        },
+        {
+          "path": "references/render-qa-delivery.md",
+          "sha256": "ac68c1732fe659680a4949165004188f1f111aae39dcdc97c01476695d19744d"
+        },
+        {
+          "path": "references/renderer-adapter.md",
+          "sha256": "d7d006ecd31a38d3a9599a7ec6c5b24c345d14e42bd1d91d61613c00c2e92505"
+        },
+        {
+          "path": "references/source-package.md",
+          "sha256": "4f108fc7a75cb9af197b88421ebc5c9558df27c7b4bf0924f03cce7a880d519b"
+        },
+        {
+          "path": "references/storyboard-and-evidence.md",
+          "sha256": "7d3a315555b883559a05cf4ed3fae3d3385d6bfe4df62a8d677c921facb7bdd5"
+        },
+        {
+          "path": "toolkit/LICENSE.upstream",
+          "sha256": "d20cf1fae030dacd0a5775ca23e0d3e4a4abf677e1a6f0f8ef34603cc20d7f53"
+        },
+        {
+          "path": "toolkit/README.md",
+          "sha256": "ea4b359f18d7ea3d3fd6819439c6b4f139611f7bf33a7ae339a1da575464d94b"
+        },
+        {
+          "path": "toolkit/assets/engine/engine.js",
+          "sha256": "cf01ec5ca06450d8444c05c576a1fb63b9a2c78b725e1f02d4ca3dbe605cd88d"
+        },
+        {
+          "path": "toolkit/assets/engine/fx.js",
+          "sha256": "822075b41fb8d22dc89393e5a2010f1476b95b45b35d2f30dec92c41f057ca08"
+        },
+        {
+          "path": "toolkit/assets/engine/index.html",
+          "sha256": "d13322aa5c0931d4f61d7cfb6ea5b697900c01122a2c6ea3902404d505546a36"
+        },
+        {
+          "path": "toolkit/assets/engine/scenes.js",
+          "sha256": "e09a9691fb968f49218f82ff9eb52d515b115f2f639ad35eb18cf11c38cb78c7"
+        },
+        {
+          "path": "toolkit/assets/sfx_presets.json",
+          "sha256": "4d6459d9728bfb52a1499bcd3b0f51d3989d98e723f8fbe263557ad9d23355d2"
+        },
+        {
+          "path": "toolkit/examples/README.md",
+          "sha256": "a8fb7bd0a8795df85f1dbcd34c69e0711c07d383480e042266c9e1c2e4be21a4"
+        },
+        {
+          "path": "toolkit/examples/music-spec.json",
+          "sha256": "13084461d074139a8e28989308a7759af74ce2631cdd66ae1b5741c18e898f11"
+        },
+        {
+          "path": "toolkit/examples/timing.json",
+          "sha256": "54075d121ebda403c9be6a9a67f346dcfe693596573ca9bfe30a79818da0d5b9"
+        },
+        {
+          "path": "toolkit/scripts/codex_ref_image.sh",
+          "sha256": "5256d3f1a5d345c9df3f72aa453f8e66a6bb9874f9f62475f284bde6f04becec"
+        },
+        {
+          "path": "toolkit/scripts/contact_sheet.py",
+          "sha256": "9464cbfe7de1296c053f7893ef90305bc1fdf32498123f18322e9851977c4533"
+        },
+        {
+          "path": "toolkit/scripts/eleven.py",
+          "sha256": "85c27191aef2d08135a665d14e0330f30842bbd90d6e1bd89110cd68b8313de7"
+        },
+        {
+          "path": "toolkit/scripts/finish.py",
+          "sha256": "e5a2ace0345754485773375bdc785b67b6fdef4859cff4a8204bf9a88fcdd48e"
+        },
+        {
+          "path": "toolkit/scripts/font-coverage.mjs",
+          "sha256": "e804c3f6144259720356fde91e7b6c40f2168a839ea0aa95f46f955f85586b7e"
+        },
+        {
+          "path": "toolkit/scripts/mix.py",
+          "sha256": "dcfc3f01d9ceda45bfa41f53073144985673093cefaefcbf638cdacd199e3643"
+        },
+        {
+          "path": "toolkit/scripts/motion_check.py",
+          "sha256": "828956f1469cea52ec368bcdb1cdb11e97b035b226194b435831fda62dfaf61f"
+        },
+        {
+          "path": "toolkit/scripts/music_tools.py",
+          "sha256": "f1e6a54ac66e264920a2933964cdd06ff708d464053dfb4b8d33f5f540899c9e"
+        },
+        {
+          "path": "toolkit/scripts/narrate.py",
+          "sha256": "22124b3f1124c6cbfaede7d8884f4d2e46d60bb19de7eef8242246bb88111916"
+        },
+        {
+          "path": "toolkit/scripts/new_project.py",
+          "sha256": "63f326fdb4502bc555ab4878f6d3bea898b374b06d6637b3bdb271cba3ff4eee"
+        },
+        {
+          "path": "toolkit/scripts/preflight.py",
+          "sha256": "195670f4fc7d9652b04213422c79b6c52ebc282f20bae419f9d0e2b9056d9aa8"
+        },
+        {
+          "path": "toolkit/scripts/prep_images.py",
+          "sha256": "8a5f4edadb37f5b5bf6bc79c87634b535b98d06eb4549c5171b9d1518720ff03"
+        },
+        {
+          "path": "toolkit/scripts/qa_check.py",
+          "sha256": "f8fd7935a5a0cfec1833439b0097ba2633179a44d50a8a7813a3bcb8a97c752a"
+        },
+        {
+          "path": "toolkit/scripts/render.mjs",
+          "sha256": "e90a5e6de48291295825964c8f7ea757289cd8b400fe244be0724f729a9696e4"
+        },
+        {
+          "path": "toolkit/scripts/synth_music.py",
+          "sha256": "4b277e282d2324ad256a75c79db823781b2611e5d02731eac34921260a0f2929"
+        },
+        {
+          "path": "toolkit/scripts/timeline.py",
+          "sha256": "511bbd685c1965f807369516eff97e080963c8951cf03fd4880eb79a60a5cfaa"
+        },
+        {
+          "path": "toolkit/scripts/tools/cutout.swift",
+          "sha256": "7050d5764aa724691c9982c51dc73fc10cc0b70483c9df77092614b195bda837"
+        },
+        {
+          "path": "toolkit/upstream-manifest.json",
+          "sha256": "4268bf7746490ae36abe0f045139fc91ee78be84d60d022359c9457a4d75ce66"
+        }
+      ]
+    },
+    {
+      "name": "omh-skill",
+      "upstreamEntrySha256": "0377320aecffeea5bc0be7aa74a4e8612ce532c0ac35b98b749273c4b7a5678d",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "ebb58b09c4f90d56d80588278d4556eda6cc13dd4e3b5e68e5727760d97ff266"
+        }
+      ]
+    },
+    {
+      "name": "omh-skill-health",
+      "upstreamEntrySha256": "ace6b127ac2c8c353cadc53e21e774cb3efded1e5d7a41a71ac300b773757251",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "bbf3eb150677b742b89d6abb2d1f5ba878f0f41973ce75cb015aaca75bd702f8"
+        }
+      ]
+    },
+    {
+      "name": "omh-skill-scout",
+      "upstreamEntrySha256": "0cd7bbb9fb92dbaacc5124dabdb66c25c195132614e09b31512cd0783d8a0a19",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "b50aac36ac2039ca18664611cce8d469a795bc563278119f78c09ca22e94bca5"
+        }
+      ]
+    },
+    {
+      "name": "omh-source-finder",
+      "upstreamEntrySha256": "30380886cedbe70eed4f9be45b14cf670e262531afe705a60d7c0e2d4e3890b1",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "b4e1fca7081b1a96b2d22a3362ca7ee604817da0e4e6875756a3adaba7fe7393"
+        },
+        {
+          "path": "references/search-examples.md",
+          "sha256": "2dd2c4cb91f0388a3fcf5ba6fb13094bbc6234edab6dce28ac036334d3718821"
+        },
+        {
+          "path": "references/search-fields.md",
+          "sha256": "a237da3fc2ab1db91f86056bd53e95e860e130255d4461888607d7f4295e526f"
+        },
+        {
+          "path": "references/search-method.md",
+          "sha256": "1280b6c6a72bb4bc2c1428001f2c58ca3cf01b25fc83a1b0f95795c934c0cc4e"
+        }
+      ]
+    },
+    {
+      "name": "omh-spend-gate",
+      "upstreamEntrySha256": "9cb2a74b68b913e9da6605869697b2cc740f203e8faf5a532ea41137e1430956",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "21d591d5f3a6c45c792235ce7b82a604fa618f0a33cf5253d6eea57f7017ccdb"
+        },
+        {
+          "path": "references/spend-rails.md",
+          "sha256": "c542dd6e71697631bb0ed1c647b8ab9748e62e3fcbf355c20eff1c75b3207488"
+        }
+      ]
+    },
+    {
+      "name": "omh-support-operations",
+      "upstreamEntrySha256": "5574bd14ca68add914397c2f2379d768c6373901da6c3cfe95ae071fa7711e03",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "7a056cc6168ae00e4bc0fd8f18b2420e1acdef525f39c5fe880d5a80245d0da9"
+        }
+      ]
+    },
+    {
+      "name": "omh-tech-debt-audit",
+      "upstreamEntrySha256": "79c237a640ea7e204b8490fac8d75aeaa8e658e368b91ecb6d2e608b5c64f11b",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "481dc26961925d7499f233f32b9014c5518f4175d9b15be4292903e42665926d"
+        },
+        {
+          "path": "references/debt-dimensions.md",
+          "sha256": "7d0d601c1fc8897f0ce433dfa2ae44c2a5c9dd69ded28d7775cb6adbdd2afb75"
+        }
+      ]
+    },
+    {
+      "name": "omh-terminal",
+      "upstreamEntrySha256": "460d6510eef64c2683a8ea083dc624ad2f3ecbb9a2f6f1316e1def5ec2d95559",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "cc459d66e4c7e2889930e99aa840e825e00ce8a8503b212d34970cf11c2b38ed"
+        }
+      ]
+    },
+    {
+      "name": "omh-todo-checklist",
+      "upstreamEntrySha256": "c2f843f026441e588a949c95433ea1bd8e0d467e921a2afc4ab016d02b98865d",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "b86c3e463c2c54c30bf0288040ff16eeb74edafdffe3bd33270abc35d3f39d47"
+        },
+        {
+          "path": "references/checklist-discipline.md",
+          "sha256": "cdf797fce8b4327cbc70afb437ea11224976bc3c92f4e5d3d903cb074b6602b1"
+        },
+        {
+          "path": "references/closing-a-story.md",
+          "sha256": "30c8d027cb8b36cc6de7f2b9ec7783008ed64ea87773f598c44d549646edfa37"
+        },
+        {
+          "path": "references/requirements-quality-checklist.md",
+          "sha256": "1afa33299e670698534923585725297e365d5f96773a29d11b137954bbfa8ffb"
+        }
+      ]
+    },
+    {
+      "name": "omh-toolbelt-readiness",
+      "upstreamEntrySha256": "01ed5fdbd68ac4891cd4e6864a85d022bbe330fbad421322676b223d848330b8",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "7cbbb796af27ec413bc06b602606fc872c9d1c54cb56d0a133fc989b13d1c68d"
+        }
+      ]
+    },
+    {
+      "name": "omh-verification-gate",
+      "upstreamEntrySha256": "af1df778d7370587d9c5feea4bbd9aeba6409331a075e2007caae6f088e28ccd",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "3fcdc6983ffcaa6aeb6f38ec535b684b7e34c8eab3c748a720d93b975ece913d"
+        },
+        {
+          "path": "references/adaptation-quality.md",
+          "sha256": "915196719a6e60148853a9437521c168f777553dbb324fb7951a173defdf9ede"
+        },
+        {
+          "path": "references/generated-artifact-provenance.md",
+          "sha256": "91a818c86eb8311e39f7e1e0f1dca2bed5066551acff83a656aeb78e947f2fad"
+        },
+        {
+          "path": "references/requirement-coverage-map.md",
+          "sha256": "91b86c41bdee5e4336c92a15875f8691fb929e75377b3c18187d6bc8eb184a19"
+        }
+      ]
+    },
+    {
+      "name": "omh-visual-qa",
+      "upstreamEntrySha256": "10ff9c4c9b560dd5770e00cc138956456fc5366343e78690e5a958243154717d",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "27c2beec017c6b2fe4288e6a3192703db81102f31ef0abe400e64f64d9a53eee"
+        },
+        {
+          "path": "references/visual-verdict-contract.md",
+          "sha256": "7c803a3997dc58be0a4b88f2d7aa081cc5cac49a227d0cc19437cd1aad420759"
+        }
+      ]
+    },
+    {
+      "name": "omh-voice-input",
+      "upstreamEntrySha256": "09c35eb8beb4fc476abd201e2677df14a158d7b5fee313400dc98bdfc88d47bc",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "120f7b3e96beca3e3b6baf10b474286ef13fbc2de8115b96bb956e309e81fe8a"
+        }
+      ]
+    },
+    {
+      "name": "omh-web-research",
+      "upstreamEntrySha256": "c8c93ba392f2a77441aa3b8dbd524599abb434608bc111e158024a954bac36c3",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "75c8279ba79fae446ac8ae10f3d532b959e58b1e912352380a7deb9c9981e8a1"
+        },
+        {
+          "path": "references/search-examples.md",
+          "sha256": "2dd2c4cb91f0388a3fcf5ba6fb13094bbc6234edab6dce28ac036334d3718821"
+        },
+        {
+          "path": "references/search-fields.md",
+          "sha256": "a237da3fc2ab1db91f86056bd53e95e860e130255d4461888607d7f4295e526f"
+        },
+        {
+          "path": "references/search-method.md",
+          "sha256": "1280b6c6a72bb4bc2c1428001f2c58ca3cf01b25fc83a1b0f95795c934c0cc4e"
+        }
+      ]
+    },
+    {
+      "name": "omh-websearch-setup",
+      "upstreamEntrySha256": "5c80d807b06144ec1e02456238a23c76421de913ba9fd5305a8f5cd81dba74c6",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "af01422cdf48898c37c6ce185532de59844ceba72f4a33ed2de9e5abe46f5eb0"
+        }
+      ]
+    },
+    {
+      "name": "omh-wiki",
+      "upstreamEntrySha256": "a3bf944e74f2753a8a67b4f5fd9855711174de4a2ca2892394a6fed172d5aa96",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "0c64c7ec0637e12a63a9b7ac9696455dca3d3bcf9cf7a8745c190c5101873a68"
+        },
+        {
+          "path": "references/handover-artifacts.md",
+          "sha256": "0b96461151fa683a1ff36f6e5608c10c2374a3973416bced951caae3303403aa"
+        },
+        {
+          "path": "references/wiki-blueprint.md",
+          "sha256": "2ff6894489712962ea86e135462c8bdc74039bb2587566d5abec0201c8828c9d"
+        },
+        {
+          "path": "references/wiki-ecosystem.md",
+          "sha256": "db94cbb2819652c59873655e7bda0017a1815a03d93d984ea8f07d3b2a788d59"
+        },
+        {
+          "path": "references/wiki-operations.md",
+          "sha256": "656b7873c4d9ad4458244bb376d4808dac9af7a520c35b6f22b58cbbe8434528"
+        },
+        {
+          "path": "references/wiki-patterns.md",
+          "sha256": "f13fd0b06dde204c10458cabb5d76b1f21351f7b641a73336eb82342d33ff16e"
+        }
+      ]
+    },
+    {
+      "name": "omh-workflow-learning",
+      "upstreamEntrySha256": "ac21ca622b7eb022c272fc714b64694ffba91d79ae196a1e3cf0743b3293f889",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "2ed9cb16bc9dce3f69ea61b24152e24474bc2ed5434d23841d88b7d39c06b18d"
+        }
+      ]
+    },
+    {
+      "name": "omh-workspace-audit",
+      "upstreamEntrySha256": "c172b0c4fb22d775969dc22307939aa259c0f3b7824087172b1829a0170df128",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "cff3b1e3c5a25e91a5d042c22403dfff690c84e8e2528ddbb7a1c59a1dfa1fb1"
+        }
+      ]
+    },
+    {
+      "name": "ulw-context",
+      "upstreamEntrySha256": "7b591650c426ab874f6b7094861243f96fc36668a22c4f5edea0d8c238af684b",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "a0500a6fa6c1e4178a17f0060aa66e1aef43da81281a46bf29bd6319266cb6dd"
+        },
+        {
+          "path": "references/decision-frontier.md",
+          "sha256": "122978a41c0a003f8b7a879b00c9ecc2417e75d5fbb787f24ecb3477403a67df"
+        },
+        {
+          "path": "references/project-terms.md",
+          "sha256": "0b6baee554fc8fa813d9b4b86aab55a9858441d2c3b2d90ef0d037a8f12afd45"
+        }
+      ]
+    },
+    {
+      "name": "ulw-interview",
+      "upstreamEntrySha256": "260d60537cfff5276930d336741aa2a8e3ed7180b50400078071da394e52ae1e",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "e1103a518e5a72cabf6325a72f8ee588ab4cbf78a091e6064bfdca5ba54beca9"
+        },
+        {
+          "path": "references/ambiguity-taxonomy.md",
+          "sha256": "af4b13bcfe583b138e9b1de47a851e40e227ce30b0404fcb10bfa16abe297d3a"
+        }
+      ]
+    },
+    {
+      "name": "ulw-loop",
+      "upstreamEntrySha256": "dbfddeb5be4d323528fad5b26706ab22a3e9441cb1665c0ee99d3c9f776d16bd",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "89b5b612b2175be0427180cb7e0ff0910003d61f13f2ad9209c3b1ad281fdbfa"
+        },
+        {
+          "path": "references/board-iteration.md",
+          "sha256": "124fe4bc68f076086fbcc02664939c4894b05390358acd1fe3c342b85a7c4cd3"
+        },
+        {
+          "path": "references/goal-constraint-discipline.md",
+          "sha256": "e9755a82604a6b9d363716b6bf33bc980406ea40bce813d763eda9703e1a093f"
+        },
+        {
+          "path": "references/loop-design-review.md",
+          "sha256": "c56c960fae8793b2f7932703a824a1baeef9e8cdfaa4cea679da1e4b4735ed9c"
+        },
+        {
+          "path": "references/measured-loop-discipline.md",
+          "sha256": "857c7918fd278e8fca1d420c57e9ab4b6e337e44f039dcc6eb5e14ae5204b4fb"
+        }
+      ]
+    },
+    {
+      "name": "ulw-maestro",
+      "upstreamEntrySha256": "7943279088988ca9431638db81f8e17bcafea0209c86b0fdb73d171c82fa853b",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "f9599d7e3318726184da672dda37b0cb620e8c7820cae0202f801358db9c14e6"
+        },
+        {
+          "path": "references/executor-prompt-composition.md",
+          "sha256": "a158cdee670fb80e853a6b1a143673aabe721e72d17e4c2edb8ad010270e50fe"
+        }
+      ]
+    },
+    {
+      "name": "ulw-perf",
+      "upstreamEntrySha256": "97ae6903261750650126ae1b05fef90809a078ee783e44804e3b85b8c7cc45a0",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "d5847494ad34a3169795692b2d01712667a577e93c1518c8cf73dece18dd4d88"
+        }
+      ]
+    },
+    {
+      "name": "ulw-plan",
+      "upstreamEntrySha256": "b11e356be374f43c17638bbd2d2486387735334018136bd8272679e855cc1a04",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "b48c718bd4ad1d4e3158d419eab1cf37749677449104d617747cef2a5186ee21"
+        }
+      ]
+    },
+    {
+      "name": "ulw-qa",
+      "upstreamEntrySha256": "6b33a1136eacae985ce472c0953b40351b977fa169428d65ff8df5d8b81b2978",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "f7c457029d47c5f40c58cf61a9f705e03a0cb930ba581f3b42a078d206e51d1d"
+        },
+        {
+          "path": "references/board-fanin.md",
+          "sha256": "c8685cf459a4766774bc49f8b767d80f73d3a1ef190d90d3258219cef9a9e346"
+        },
+        {
+          "path": "references/manual-test-guide.md",
+          "sha256": "82d167aac027d6c9324356eabf0c4d8b3f37eec6a14d5d8912ff4980ef840b1b"
+        }
+      ]
+    },
+    {
+      "name": "ulw-research",
+      "upstreamEntrySha256": "e5ab2e3f88865ef9060118f72b133445768c205c9581f0c9988d0a8b5ea56028",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "5dc4ac9a0862f1fe52a16c6dd7336734e17c99f5a68799cf73cdc7174732cf2b"
+        },
+        {
+          "path": "references/briefing-format.md",
+          "sha256": "32c2fc92b8ff37877b623d30f79697a015c7be139121f60bac9de82f6bedfdcc"
+        },
+        {
+          "path": "references/evidence-records.md",
+          "sha256": "0cfeb3c0fcc99cc78d0d8e8a14fae833f97ac48bbef29b20f8cbe94fedc9aa11"
+        },
+        {
+          "path": "references/search-examples.md",
+          "sha256": "2dd2c4cb91f0388a3fcf5ba6fb13094bbc6234edab6dce28ac036334d3718821"
+        },
+        {
+          "path": "references/search-fields.md",
+          "sha256": "a237da3fc2ab1db91f86056bd53e95e860e130255d4461888607d7f4295e526f"
+        },
+        {
+          "path": "references/search-method.md",
+          "sha256": "1280b6c6a72bb4bc2c1428001f2c58ca3cf01b25fc83a1b0f95795c934c0cc4e"
+        }
+      ]
+    },
+    {
+      "name": "ulw-work",
+      "upstreamEntrySha256": "182e3dcd5acdc5379d03872fe03862050261b8aaff99971deded4ab48fe9266b",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "29186d9448feed1cf9ef0586fcdeb32a257ac9c0fb46305e1e35af462e77a059"
+        },
+        {
+          "path": "references/campaign-orchestrator.md",
+          "sha256": "7e5bb9361929a1d5695ce4d7baff4e8c2ba0e756512f74c3dbeedbfa4e3595fd"
+        },
+        {
+          "path": "references/dependency-topology.md",
+          "sha256": "e841b92c0027f28bf5dd141c25a9d2a4ffdfb977aa165b4684287695320fda48"
+        },
+        {
+          "path": "references/execution-rulings.md",
+          "sha256": "f9be5c9e2b3469387ee2ca9728eaa30dc33a29c4aa152a37cb261b08b7d321b4"
+        },
+        {
+          "path": "references/file-ownership-manifest.md",
+          "sha256": "326db419e5d94009b099cda0b50ac448f4cfceac126ee35b4a3b17fe13f5310a"
+        },
+        {
+          "path": "references/kanban-lane.md",
+          "sha256": "1e8c982b58f12ace88aa2244b449ba89e3b57cff999e79802472c5accfa2ef49"
+        },
+        {
+          "path": "references/native-delegation.md",
+          "sha256": "04129e21e059d4e1871cb01c27874358fca5083b46fc791b0e331b58515ba13b"
+        },
+        {
+          "path": "references/tdd-red-green.md",
+          "sha256": "39b9ee336617fadd45622e6b3304aff36fb4dcc53a805e828a5e242610a3ba25"
+        },
+        {
+          "path": "references/team-lane.md",
+          "sha256": "9c6258885f7726b65eef73735051e449ba13c899df846da16df1a33bd8777bf9"
+        }
+      ]
+    }
+  ]
+}

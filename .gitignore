@@ -1,32 +1,53 @@
-node_modules/
-dist/
-*.log
+node_modules
+.bun
+.turbo
 .DS_Store
-
-# Downloaded model files (large, reproducible)
-models/
-
-# Secrets: never commit
+*.log
+*.tsbuildinfo
+apps/*/dist
+apps/*/dist-exe
+infra/*/dist
+.astro
+packages/*/dist
 .env
-.env.*
+.env.local
+build/
+.logs/
+release/
+release-mock/
+.t3
+.idea/
+apps/web/.playwright
+apps/web/playwright-report
+apps/web/src/components/__screenshots__
+.vitest-*
+__screenshots__/
+.tanstack
+squashfs-root/
+.vercel
+.gstack/
+.plans/
+/audits/
+dist-electron/
+.electron-runtime/
+.showcase/
+apps/mobile/.showcase/
+apps/mobile/.generated/
+apps/mobile/.android-cache/
+/.generated/
+artifacts/app-store/screenshots/
+artifacts/mobile-e2e/
+artifacts/mobile-behavior/
+.github/pr-assets/
+native/**/target/
+node_modules/
+.alchemy/
+*.log
+.env*
 !.env.example
 
-# Runtime logs
-logs/
+# pnpm content-addressable store; never belongs in the repo.
+.pnpm-store/
 
-# Swift build output (ZENO Island)
-.build/
-apps/mac/island/build/
-
-# ZENO Island settings (written by the runtime on model.set)
-config/island.json
-config/local-backup.json
-config/local-backup.json.*.tmp
-
-# Design mockup renders (regenerate from the HTML / the island gallery)
-sketches/**/*.png
-sketches/review/
-sketches/**/tmp/
-
-# ZENO memory (ADR-058): personal, local only
-data/
+# Isolated ATOM fork client state
+.atom-t3/

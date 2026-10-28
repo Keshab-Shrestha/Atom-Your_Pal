@@ -1,0 +1,58 @@
+# Runs on every push and pull request: typecheck, the TypeScript tests (this includes the no-model smoke test, which starts a real runtime in a
+# temp folder), and the Swift tests. The live smoke test (`pnpm test:live`) uses a signed-in Claude plan, so it is NOT run here.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typescript:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+
+  swift:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh apps/mac/island/test.sh
+
+  # The visual check: the app draws every window with sample data to PNG files with no screen, and each reference shot in tests/ui-golden is compared
+  # by pixel (more than 1% changed pixels fails). The images are kept as an artifact so a failure can be looked at. Blocking since 2026-10-16, after it
+  # passed on two pushes in a row. After a change to the look that you meant, run `UPDATE=1 sh scripts/ui-check.sh` locally and commit the new shots.
+  visual:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: sh apps/mac/island/build-app.sh
+      - run: LIVE=0 GALLERY_DIR="$RUNNER_TEMP/gallery" sh scripts/ui-check.sh
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-gallery
+          path: ${{ runner.temp }}/gallery
+          if-no-files-found: ignore
+

@@ -1,0 +1,32 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+
+# Downloaded model files (large, reproducible)
+models/
+
+# Secrets: never commit
+.env
+.env.*
+!.env.example
+
+# Runtime logs
+logs/
+
+# Swift build output (ZENO Island)
+.build/
+apps/mac/island/build/
+
+# ZENO Island settings (written by the runtime on model.set)
+config/island.json
+config/local-backup.json
+config/local-backup.json.*.tmp
+
+# Design mockup renders (regenerate from the HTML / the island gallery)
+sketches/**/*.png
+sketches/review/
+sketches/**/tmp/
+
+# ZENO memory (ADR-058): personal, local only
+data/

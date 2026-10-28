@@ -1,0 +1,246 @@
+import SwiftUI
+import AtomIslandCore
+
+// MARK: - Right: a soul (Task 3.3)
+
+/// The chosen worker's soul as a form: name, personality, how it works, rules, lessons. Save makes a new version; the
+/// Versions menu makes an older one current again (itself a new version, so it can be undone).
+struct SoulPane: View {
+    let model: IslandModel
+    let helper: Helper
+    /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
+    private let draft: State<HelperSoul>
+    @Environment(\.theme) private var theme
+
+    init(model: IslandModel, helper: Helper, soul: HelperSoul) {
+        self.model = model
+        self.helper = helper
+        draft = State(initialValue: soul)
+    }
+
+    var body: some View {
+        let changed = draft.wrappedValue.trimmed != helper.soul
+        Scrollable {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 8) {
+                    QuietButton(title: helper.available ? "Jobs" : helper.name, symbol: "chevron.left") { model.navigateUp { model.helpers.closeSoul() } }
+                    Spacer(minLength: 8)
+                    VersionsMenu(model: model, helper: helper)
+                    SaveButton(enabled: changed, saved: model.savedField == "soul" && model.helpers.problem == nil, commandS: true, label: "Save soul") { save() }
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("\(helper.name)'s soul").appFont(theme.isFlat ? .system(size: 24, weight: .regular, design: .serif) : .system(size: 20, weight: .semibold, design: .rounded))
+                        .foregroundStyle(theme.text.color)
+                    Text("Given to \(helper.name) as instructions for every job. Its tools and limits are set by its role\(helper.roleTitle.isEmpty ? "" : " (\(helper.roleTitle))"), not here.")
+                        .appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
+                }
+                if let problem = model.helpers.problem { ProblemLine(text: problem) }
+                SoulField(label: "Name", text: binding(\.name), lines: 1, submit: save)
+                SoulField(label: "Personality", text: binding(\.personality), lines: 2)
+                SoulField(label: "How it works", text: binding(\.howItWorks), lines: 3)
+                SoulField(label: "Rules", text: binding(\.rules), lines: 3)
+                SoulField(label: "Lessons learned", text: binding(\.lessons), lines: 3)
+            }
+            .frame(maxWidth: 560, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Spacing.panel + 4)
+            .padding(.top, 30)
+            .padding(.bottom, Spacing.panel)
+        }
+        .tracksEdits(model, "soul", changed)
+    }
+
+    private func save() {
+        guard let command = model.helpers.saveSoul(draft.wrappedValue) else { return }
+        model.send(command)
+        model.showSaved("soul")
+    }
+
+    private func binding(_ key: WritableKeyPath<HelperSoul, String>) -> Binding<String> {
+        Binding(get: { draft.wrappedValue[keyPath: key] }, set: { draft.wrappedValue[keyPath: key] = $0 })
+    }
+}
+
+/// Shared text field: wraps and grows with the draft, with no character counter or clipping.
+struct SoulField: View {
+    let label: String
+    let text: Binding<String>
+    let lines: Int
+    var submit: (() -> Void)? = nil
+    var monospaced = false
+    @FocusState private var focused: Bool
+    @Environment(\.theme) private var theme
+    @Environment(\.islandSnapshot) private var snapshot
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label).appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text2.color)
+            Group {
+                if snapshot {
+                    Text(text.wrappedValue.isEmpty ? " " : text.wrappedValue)
+                        .frame(maxWidth: .infinity, minHeight: CGFloat(lines) * 19, alignment: .topLeading)
+                } else if lines == 1 {
+                    TextField(label, text: text).textFieldStyle(.plain).focused($focused).onSubmit { submit?() }
+                } else {
+                    TextField("", text: text, axis: .vertical)
+                        .textFieldStyle(.plain).lineLimit(lines...max(lines, 16))
+                        .fixedSize(horizontal: false, vertical: true).focused($focused)
+                }
+            }
+            .appFont(.system(size: 13, design: monospaced ? .monospaced : .default))
+            .foregroundStyle(theme.text.color)
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(theme.fill1.color, in: RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(focused ? theme.accent.color : theme.border.color, lineWidth: focused ? 1.5 : 1))
+            .accessibilityLabel(label)
+        }
+    }
+}
+
+/// "Versions": the listed versions, newest first, each with when it was saved; picking an older one restores it.
+private struct VersionsMenu: View {
+    let model: IslandModel
+    let helper: Helper
+
+    var body: some View {
+        Menu {
+            ForEach(helper.soulVersions) { version in
+                Button { model.sendHelpers(model.helpers.restoreSoul(version.version)) } label: {
+                    let title = Self.title(version)
+                    if version.version == helper.soulVersion { Label(title, systemImage: "checkmark") } else { Text("Restore \(title)") }
+                }
+                .disabled(version.version == helper.soulVersion)
+            }
+        } label: {
+            PillMenuLabel(label: "Version", value: "\(helper.soulVersion)")
+        }
+        .menuStyle(.button).buttonStyle(.plain).fixedSize()
+        .disabled(helper.soulVersions.count < 2)
+        .help("Restore an earlier version of \(helper.name)'s soul")
+        .accessibilityLabel("\(helper.name)'s soul versions")
+    }
+
+    static func title(_ version: SoulVersion) -> String {
+        guard let date = version.createdAt else { return "version \(version.version)" }
+        return "version \(version.version), \(date.formatted(date: .abbreviated, time: .shortened))"
+    }
+}
+
+/// Save (ADR-096: shared by every field the window keeps): lit only when there is a change to save; just after a
+/// save it shows "Saved" for a moment.
+struct SaveButton: View {
+    var title = "Save"
+    let enabled: Bool
+    var saved = false
+    /// ⌘S: only one Save on a page may have it.
+    var commandS = false
+    var label = "Save"
+    let action: () -> Void
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        if saved && !enabled {
+            SavedMark()
+        } else {
+            Button(action: action) {
+                Text(title)
+                    .appFont(.system(size: 11.5, weight: .semibold))
+                    .foregroundStyle(enabled ? (theme.isGhost ? theme.text.color : theme.onAccent.color) : theme.text3.color)
+                    .padding(.horizontal, 14)
+                    .frame(height: 26)
+                    .background(ControlFill(RoundedRectangle(cornerRadius: theme.isGhost ? theme.radiusControl : 13, style: .continuous),
+                                            fill: enabled ? AnyShapeStyle(theme.accentFill) : AnyShapeStyle(theme.fill2.color), hovering: enabled))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!enabled)
+            .keyboardShortcut(commandS ? KeyboardShortcut("s", modifiers: .command) : nil)
+            .accessibilityLabel(label)
+        }
+    }
+}
+
+/// ADR-096: the short "Saved" check after a save.
+struct SavedMark: View {
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        Label("Saved", systemImage: "checkmark")
+            .appFont(.system(size: 11.5, weight: .medium))
+            .foregroundStyle(theme.statusDots ? theme.success.color : theme.text2.color)
+            .frame(height: 26)
+            .transition(.opacity)
+    }
+}
+
+extension View {
+    /// ADR-096: tells the window this field has a change not saved, so leaving the page asks first.
+    func tracksEdits(_ model: IslandModel, _ field: String, _ edited: Bool) -> some View {
+        onChange(of: edited, initial: true) { _, now in model.markEdited(field, now) }
+            .onDisappear { model.markEdited(field, false) }
+    }
+}
+
+/// ADR-088: a new agent of Keshab's own: a name, a role in his words, what it may use (a kit, fixed in code) and its
+/// soul. ATOM writes it as data/agents/<name>/soul.md, which he can also edit in any editor.
+struct NewAgentPane: View {
+    let model: IslandModel
+    /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
+    private let draft = State(initialValue: HelperSoul(name: "", personality: "", howItWorks: "", rules: "", lessons: ""))
+    private let role = State(initialValue: "")
+    private let kit = State(initialValue: "research")
+    @Environment(\.theme) private var theme
+
+    init(model: IslandModel) { self.model = model }
+
+    var body: some View {
+        let soul = draft.wrappedValue.trimmed
+        let typed = !(soul.name + soul.personality + soul.howItWorks + soul.rules).isEmpty
+            || !role.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        Scrollable {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 8) {
+                    QuietButton(title: "Cancel", symbol: "chevron.left") { model.navigateUp { model.helpers.closeNewAgent() } }
+                    Spacer(minLength: 8)
+                    SaveButton(title: "Create", enabled: typed, commandS: true, label: "Create agent", action: create)
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("New agent").appFont(theme.isFlat ? .system(size: 24, weight: .regular, design: .serif) : .system(size: 20, weight: .semibold, design: .rounded))
+                        .foregroundStyle(theme.text.color)
+                    Text("Saved as data/agents/<name>/soul.md, which you can also edit in any editor. What it may use is its kit, set here and checked in code; its soul cannot add tools.")
+                        .appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
+                }
+                if let problem = model.helpers.problem { ProblemLine(text: problem) }
+                SoulField(label: "Name", text: draft.projectedValue.name, lines: 1, submit: create)
+                SoulField(label: "Role (in your words, such as travel planner)", text: role.projectedValue, lines: 1, submit: create)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("What it may use").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+                    Menu {
+                        ForEach(["research", "folders", "think"], id: \.self) { option in
+                            Button { kit.wrappedValue = option } label: {
+                                if option == kit.wrappedValue { Label(Helper.kitTitle(option), systemImage: "checkmark") } else { Text(Helper.kitTitle(option)) }
+                            }
+                        }
+                    } label: {
+                        PillMenuLabel(label: "Kit", value: Helper.kitTitle(kit.wrappedValue), identifier: false)
+                    }
+                    .menuStyle(.button).buttonStyle(.plain).fixedSize()
+                }
+                SoulField(label: "Personality", text: draft.projectedValue.personality, lines: 3)
+                SoulField(label: "How it works", text: draft.projectedValue.howItWorks, lines: 4)
+                SoulField(label: "Rules", text: draft.projectedValue.rules, lines: 3)
+            }
+            .frame(maxWidth: 560, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Spacing.panel + 4)
+            .padding(.top, 30)
+            .padding(.bottom, Spacing.panel)
+        }
+        .tracksEdits(model, "new-agent", typed)
+    }
+
+    private func create() {
+        model.sendHelpers(model.helpers.createAgent(role: role.wrappedValue, kit: kit.wrappedValue, soul: draft.wrappedValue))
+    }
+}
