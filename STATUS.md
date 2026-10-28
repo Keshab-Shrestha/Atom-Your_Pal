@@ -1,5 +1,9 @@
 # ZENO Project Status
 
+## Reasoning summary event: decision and contract — 28 October 2026
+
+ADR-212 and [the contract](docs/chat-reasoning-summary.md) define a bounded reasoning summary: an optional `thinking` field on the `chat.work` event, one line per Claude `thinking` block, ephemeral and plain text. The installed Claude Agent SDK 0.3.296 supports `display: 'summarized'`. Not checked: what each model returns, and Codex (no binary here). No code changed. No tests ran. Next task: R1, a measured check of what the SDK returns, which needs real model calls and your approval for each.
+
 ## Native Needs you filters (Phase 3, second item) — 28 October 2026
 
 The Needs you page in the app has filter chips from the HTML preview: All, Approvals, Plans, Suggestions, Held and Failed, each with a count. A filter only chooses what shows. The cards and their Approve, Reject, Allow and Retry buttons are unchanged, and the counts always show everything that waits. `NeedsYouFilter` in `AtomIslandCore` holds the grouping and the counts (5 new tests pass). Gallery captures show the chips in light and dark. Not done from the HTML design: the two-pane list and detail layout, and the inbox sort. Not checked in the running app. Next task: the chat list.
