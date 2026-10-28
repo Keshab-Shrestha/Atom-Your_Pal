@@ -6,7 +6,7 @@ export const APP_HTML = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>ATOM</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -54,16 +54,16 @@ export const APP_CSS = `:root{--bg:#f6f6f8;--card:#fff;--line:#d8dbe3;--text:#2b
 @media (prefers-color-scheme:dark){:root{--bg:#121218;--card:#1b1b24;--line:#2d2d3a;--text:#e8e8f0;--mute:#9a9aab;--accent:#8b83ff;--bad:#ff7b6b}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 -apple-system,system-ui,sans-serif}
-main{max-width:640px;margin:0 auto;padding:16px}
+main{max-width:640px;margin:0 auto;padding:16px max(16px,env(safe-area-inset-right)) calc(76px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
 header{display:flex;align-items:center;justify-content:space-between}
 h1{font-size:22px;margin:8px 0}
 h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin:24px 0 8px}
 section>div,.card{display:grid;gap:8px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px}
 .card p{margin:0;white-space:pre-wrap;word-break:break-word}
 .row{display:flex;gap:8px;flex-wrap:wrap}
 .mute{color:var(--mute);font-size:14px}
-.state{font-size:12px;font-weight:600;color:var(--mute)}
+.state{justify-self:start;font-size:12px;font-weight:600;color:var(--mute);padding:1px 10px;border-radius:999px;background:var(--bg)}
 .state.failed{color:var(--bad)}
 .state.running{color:var(--accent)}
 button{font:inherit;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text)}
@@ -74,16 +74,18 @@ label{display:block;color:var(--mute);font-size:14px}
 #note{min-height:1.4em;color:var(--mute);margin:4px 0}
 #note.bad{color:var(--bad)}
 .report{white-space:pre-wrap;word-break:break-word;font-size:15px;border-top:1px solid var(--line);padding-top:8px;margin:0}
-nav{display:flex;gap:8px;margin:8px 0}
-nav button{flex:1}
-nav button.on{background:var(--accent);border-color:var(--accent);color:#fff}
-#log{display:flex;flex-direction:column;gap:8px;min-height:40vh;padding:8px 0}
-.msg{max-width:85%;padding:10px 12px;border-radius:16px;white-space:pre-wrap;word-break:break-word;border:1px solid var(--line);background:var(--card)}
+nav{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:100%;max-width:640px;display:flex;gap:4px;padding:6px 12px calc(6px + env(safe-area-inset-bottom));background:var(--bg);background:color-mix(in srgb,var(--bg) 86%,transparent);-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);border-top:1px solid var(--line);z-index:5}
+nav button{flex:1;min-height:48px;border:0;background:none;color:var(--mute);font-weight:500;border-radius:12px}
+nav button.on{background:var(--card);color:var(--accent);box-shadow:0 0 0 1px var(--line)}
+@media (prefers-reduced-transparency:reduce){nav{background:var(--bg);-webkit-backdrop-filter:none;backdrop-filter:none}}
+#chatTab{display:flex;flex-direction:column;min-height:calc(100vh - 170px - env(safe-area-inset-bottom));min-height:calc(100dvh - 170px - env(safe-area-inset-bottom))}
+#log{display:flex;flex-direction:column;flex:1;gap:8px;min-height:40vh;padding:8px 0}
+.msg{max-width:85%;padding:10px 14px;border-radius:18px;white-space:pre-wrap;word-break:break-word;border:1px solid var(--line);background:var(--card)}
 .msg.me{align-self:flex-end;background:var(--accent);border-color:var(--accent);color:#fff}
 .msg.wait{color:var(--mute)}
 .msg.bad{color:var(--bad)}
-#say{position:sticky;bottom:0;background:var(--bg);padding:8px 0;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
-#say textarea{margin:0;resize:none}
+#say{position:sticky;bottom:calc(60px + env(safe-area-inset-bottom));background:var(--bg);padding:8px 0;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+#say textarea{margin:0;resize:none;border-radius:18px;padding:10px 14px}
 button.link{background:none;border:none;color:var(--mute);min-height:36px;padding:0;text-decoration:underline}
 [hidden]{display:none!important}
 `;
