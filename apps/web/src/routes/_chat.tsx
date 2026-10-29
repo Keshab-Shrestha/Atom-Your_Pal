@@ -1,3 +1,4 @@
+import { ArkComputerActivity } from "../components/ark/ArkComputer";
 import { scopedThreadKey } from "@t3tools/client-runtime/environment";
 import { Outlet, createFileRoute, redirect, useMatches } from "@tanstack/react-router";
 import { useState } from "react";
@@ -41,6 +42,7 @@ function ChatRouteLayout() {
         <Outlet />
       )}
       {modalOpen ? <Outlet /> : null}
+      {!modalOpen ? <ArkComputerActivity /> : null}
     </>
   );
 }

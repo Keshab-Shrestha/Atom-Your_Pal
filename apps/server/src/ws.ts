@@ -1,3 +1,6 @@
+import * as ArkComputer from "./ark/ArkComputer.ts";
+import * as ArkDrafts from "./ark/ArkDrafts.ts";
+import * as ArkFeatures from "./ark/ArkFeatures.ts";
 import { OrchestrationDispatchCommandError } from "@t3tools/contracts";
 import * as Context from "effect/Context";
 import * as Crypto from "effect/Crypto";
@@ -1265,6 +1268,9 @@ export const layerWsRpc = (
       const commandOutputHub = yield* CommandOutputHub.CommandOutputHub;
       const providerSessionManager = yield* ProviderSessionManager.ProviderSessionManagerV2;
       const scheduledTasks = yield* ScheduledTasks.ScheduledTaskService;
+      const arkComputer = yield* ArkComputer.ArkComputer;
+      const arkFeatures = yield* ArkFeatures.ArkFeatures;
+      const arkDrafts = yield* ArkDrafts.ArkDrafts;
       const secretRequests = yield* SecretRequests.SecretRequests;
       const guestShares = yield* GuestShareService.GuestShareService;
       const pullRequests = yield* PullRequestService.PullRequestService;
@@ -2521,6 +2527,22 @@ export const layerWsRpc = (
           processResourceMonitor.readHistory(input),
         [WS_METHODS.serverGetResourceTelemetryHistory]: (input) =>
           resourceTelemetry.readHistory(input),
+        [WS_METHODS.arkSubscribeComputer]: () => arkComputer.changes,
+        [WS_METHODS.arkConfigureComputer]: (input) => arkComputer.configure(input),
+        [WS_METHODS.arkAnswerComputer]: (input) => arkComputer.answer(input),
+        [WS_METHODS.arkStopComputer]: (input) => arkComputer.stop(input.request),
+        [WS_METHODS.arkSubscribeFeatures]: (_input) => arkFeatures.changes,
+        [WS_METHODS.arkSetAgentPaused]: (input) => arkFeatures.setAgentPaused(input),
+        [WS_METHODS.arkMutate]: (input) => arkFeatures.mutate(input),
+        [WS_METHODS.arkSource]: (input) => arkFeatures.source(input),
+        [WS_METHODS.arkGetSources]: () => arkFeatures.source({ action: "get" }),
+        [WS_METHODS.arkAgentAccess]: (input) => arkFeatures.agentAccess(input),
+        [WS_METHODS.arkVoice]: (input) => arkFeatures.voice(input),
+        [WS_METHODS.arkVoiceCancel]: (input) => arkFeatures.cancelVoice(input.requestId),
+        [WS_METHODS.arkDraftLookup]: (input) => arkDrafts.lookup(input.query),
+        [WS_METHODS.arkDraftGenerate]: (input) => arkDrafts.generate(input),
+        [WS_METHODS.arkDraftCancel]: (input) => arkDrafts.cancel(input.requestId),
+        [WS_METHODS.arkReadKnowledge]: (input) => arkFeatures.readKnowledge(input),
         [WS_METHODS.serverGetUsageSummary]: (input) => usage.readSummary(input),
         [WS_METHODS.serverRefreshUsageRates]: (_input) => usage.refreshRates,
         [WS_METHODS.serverRetryResourceTelemetry]: (_input) => resourceTelemetry.retry,

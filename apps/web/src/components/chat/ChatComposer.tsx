@@ -1,3 +1,4 @@
+import { ArkDictation } from "../ark/ArkDictation";
 import { useComposerTypingGuard } from "./useComposerTypingGuard";
 import { insertAttachmentReferencesForDraft } from "./composerAttachmentReferences";
 import { DESKTOP_PASTE_AS_TEXT_EVENT } from "../../lib/desktopPasteAsText";
@@ -617,6 +618,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   } = props;
   const primaryEnvironmentId = usePrimaryEnvironmentId();
   const composerDraftTargetKey = composerTargetKey(composerDraftTarget);
+  const [dictationEpoch, setDictationEpoch] = useState(0);
   const {
     heldRequestIds,
     onDraftChange: onTypingGuardDraftChange,
@@ -2163,6 +2165,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     });
     setComposerSubmissionError(submission.validationMessage);
     if (!submission.didDispatch) return;
+    setDictationEpoch((epoch) => epoch + 1);
     onTypingGuardSend();
     if (shouldBlurMobileComposerOnSubmit()) {
       blurMobileComposerAfterSend();
@@ -3776,6 +3779,14 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                   }
                   className="flex shrink-0 flex-nowrap items-center justify-end gap-2"
                 >
+                  <ArkDictation
+                    key={`${composerDraftTargetKey}:${dictationEpoch}`}
+                    environmentId={environmentId}
+                    disabled={!canOperateThread || projectSelectionRequired}
+                    insert={(text) =>
+                      insertComposerTextAtEndStable(text, { ensureLeadingBoundary: true })
+                    }
+                  />
                   {composerAttachButton}
                   <ComposerFooterPrimaryActions
                     compact={isComposerResting || isComposerPrimaryActionsCompact}

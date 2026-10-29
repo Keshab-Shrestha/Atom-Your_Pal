@@ -1,3 +1,6 @@
+import * as ArkComputer from "./ark/ArkComputer.ts";
+import * as ArkDrafts from "./ark/ArkDrafts.ts";
+import * as ArkFeatures from "./ark/ArkFeatures.ts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
 import {
@@ -532,6 +535,9 @@ const layerUnusedConfigRpcServices = Layer.mergeAll(
   Layer.mock(ThreadSearch.ThreadSearch)({}),
   Layer.mock(UsageService.UsageService)({}),
   Layer.mock(VcsProvisioningService.VcsProvisioningService)({}),
+  Layer.mock(ArkFeatures.ArkFeatures)({}),
+  Layer.mock(ArkDrafts.ArkDrafts)({}),
+  Layer.mock(ArkComputer.ArkComputer)({}),
   Layer.mock(VcsStatusBroadcaster.VcsStatusBroadcaster)({}),
   Layer.mock(WorkspaceEntries.WorkspaceEntries)({}),
   Layer.mock(WorkspaceFileSystem.WorkspaceFileSystem)({}),

@@ -1210,7 +1210,7 @@ function OpenCommandPaletteDialog(props: {
       value: "action:triage",
       searchTerms: ["triage", "bug", "issue", "report", "broken", "debug", "help", "support"],
       title: "Triage an issue",
-      description: "An agent investigates a T3 Code problem and helps file an issue",
+      description: "An agent investigates a ARK problem and helps file an issue",
       icon: <BugIcon className={ITEM_ICON_CLASS} />,
       run: () => startTriage(triageEnvironmentId),
     });
@@ -1492,6 +1492,27 @@ function OpenCommandPaletteDialog(props: {
       },
     });
   }
+
+  actionItems.push({
+    kind: "action",
+    value: "action:ark-workspace",
+    searchTerms: [
+      "ark",
+      "workspace",
+      "agents",
+      "board",
+      "memory",
+      "notes",
+      "sources",
+      "skills",
+      "briefs",
+    ],
+    title: "Open ARK workspace",
+    icon: <MonitorIcon className={ITEM_ICON_CLASS} />,
+    run: async () => {
+      await navigate({ to: "/ark" });
+    },
+  });
 
   actionItems.push({
     kind: "action",

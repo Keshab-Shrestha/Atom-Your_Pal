@@ -173,6 +173,8 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
+  apps/ark: {}
+
   apps/mac:
     dependencies:
       '@atom/contracts':
@@ -211,21 +213,6 @@ importers:
       kokoro-js:
         specifier: ^1.2.1
         version: 1.2.1
-
-  apps/t3-agent:
-    dependencies:
-      '@atom/contracts':
-        specifier: workspace:*
-        version: link:../../packages/contracts
-      '@atom/core':
-        specifier: workspace:*
-        version: link:../../services/core
-      '@atom/llm-gateway':
-        specifier: workspace:*
-        version: link:../../services/llm-gateway
-      '@atom/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
 
   packages/contracts: {}
 

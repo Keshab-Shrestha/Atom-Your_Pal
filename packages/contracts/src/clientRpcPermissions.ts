@@ -2,6 +2,7 @@ import * as Schema from "effect/Schema";
 import { GitPreparePullRequestThreadInput, GitRunStackedActionInput } from "./git.ts";
 import {
   AuthAccessWriteScope,
+  AuthFilesystemReadScope,
   AuthOrchestrationOperateScope,
   AuthOrchestrationReadScope,
   AuthPreviewOperateScope,
@@ -11,10 +12,24 @@ import {
   type AuthEnvironmentScope,
 } from "./auth.ts";
 import { ORCHESTRATION_V2_WS_METHODS } from "./orchestrationV2.ts";
+import { ArkAgentAccessInput } from "./ark.ts";
 import { WS_METHODS } from "./rpc.ts";
 
 /** Incremental client enforcement; the server still authorizes every request. */
 export const CLIENT_GUARDED_RPC_SCOPES = {
+  [WS_METHODS.arkSetAgentPaused]: AuthOrchestrationOperateScope,
+  [WS_METHODS.arkMutate]: AuthOrchestrationOperateScope,
+  [WS_METHODS.arkSource]: AuthFilesystemReadScope,
+  [WS_METHODS.arkReadKnowledge]: AuthOrchestrationReadScope,
+  [WS_METHODS.arkConfigureComputer]: AuthSettingsWriteScope,
+  [WS_METHODS.arkAnswerComputer]: AuthOrchestrationOperateScope,
+  [WS_METHODS.arkStopComputer]: AuthOrchestrationOperateScope,
+  [WS_METHODS.arkAgentAccess]: AuthAccessWriteScope,
+  [WS_METHODS.arkVoice]: AuthOrchestrationOperateScope,
+  [WS_METHODS.arkVoiceCancel]: AuthOrchestrationOperateScope,
+  [WS_METHODS.arkDraftLookup]: AuthOrchestrationReadScope,
+  [WS_METHODS.arkDraftGenerate]: AuthOrchestrationOperateScope,
+  [WS_METHODS.arkDraftCancel]: AuthOrchestrationOperateScope,
   [WS_METHODS.previewClose]: AuthPreviewOperateScope,
   // Stopping a server signals its processes, as closing a terminal does.
   [WS_METHODS.previewStopLocalServer]: AuthTerminalOperateScope,
@@ -68,6 +83,7 @@ export const CLIENT_GUARDED_RPC_SCOPES = {
 } as const;
 export type ClientGuardedRpcTag = keyof typeof CLIENT_GUARDED_RPC_SCOPES;
 
+const decodeAgentAccess = Schema.decodeUnknownSync(ArkAgentAccessInput);
 const decodePrepareThread = Schema.decodeUnknownSync(GitPreparePullRequestThreadInput);
 const decodeStackedAction = Schema.decodeUnknownSync(GitRunStackedActionInput);
 
@@ -75,6 +91,14 @@ export function clientRpcRequiredScopes(
   method: string,
   input: unknown,
 ): readonly AuthEnvironmentScope[] {
+  if (method === WS_METHODS.arkAgentAccess && input !== undefined) {
+    const payload = decodeAgentAccess(input);
+    return payload.action === "revoke"
+      ? [AuthAccessWriteScope]
+      : [AuthAccessWriteScope, AuthFilesystemReadScope];
+  }
+  if (method === WS_METHODS.arkSource)
+    return [AuthFilesystemReadScope, AuthOrchestrationOperateScope];
   if (method === WS_METHODS.gitPreparePullRequestThread && input !== undefined) {
     const payload = decodePrepareThread(input);
     if (payload.mode === "worktree" && payload.threadId !== undefined)

@@ -1235,6 +1235,72 @@ export function createServerEnvironmentAtoms<R, E>(
       label: "environment-data:provider:install-remove",
       tag: WS_METHODS.providerInstallRemove,
     }),
+    arkReadKnowledge: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:ark:read-knowledge",
+      tag: WS_METHODS.arkReadKnowledge,
+    }),
+    arkSource: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:ark:source",
+      tag: WS_METHODS.arkSource,
+    }),
+    arkSourceState: createEnvironmentRpcQueryAtomFamily(runtime, {
+      label: "environment-data:ark:source-state",
+      tag: WS_METHODS.arkGetSources,
+      staleTimeMs: 0,
+      idleTtlMs: 0,
+    }),
+    arkAgentAccess: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:ark:agent-access",
+      tag: WS_METHODS.arkAgentAccess,
+    }),
+    arkVoice: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:ark:voice",
+      tag: WS_METHODS.arkVoice,
+    }),
+    arkVoiceCancel: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:ark:voice-cancel",
+      tag: WS_METHODS.arkVoiceCancel,
+    }),
+    arkDraftLookup: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:ark:draft-lookup",
+      tag: WS_METHODS.arkDraftLookup,
+    }),
+    arkDraftGenerate: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:ark:draft-generate",
+      tag: WS_METHODS.arkDraftGenerate,
+    }),
+    arkDraftCancel: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:ark:draft-cancel",
+      tag: WS_METHODS.arkDraftCancel,
+    }),
+    arkMutate: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:ark:mutate",
+      tag: WS_METHODS.arkMutate,
+    }),
+    arkSetAgentPaused: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:ark:set-agent-paused",
+      tag: WS_METHODS.arkSetAgentPaused,
+    }),
+    arkComputer: createEnvironmentRpcSubscriptionAtomFamily(runtime, {
+      label: "environment-data:ark:computer",
+      tag: WS_METHODS.arkSubscribeComputer,
+    }),
+    arkConfigureComputer: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:ark:configure-computer",
+      tag: WS_METHODS.arkConfigureComputer,
+    }),
+    arkAnswerComputer: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:ark:answer-computer",
+      tag: WS_METHODS.arkAnswerComputer,
+    }),
+    arkStopComputer: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:ark:stop-computer",
+      tag: WS_METHODS.arkStopComputer,
+    }),
+    arkFeatures: createEnvironmentRpcSubscriptionAtomFamily(runtime, {
+      label: "environment-data:ark:features",
+      tag: WS_METHODS.arkSubscribeFeatures,
+    }),
     traceDiagnostics: createEnvironmentRpcQueryAtomFamily(runtime, {
       label: "environment-data:server:trace-diagnostics",
       tag: WS_METHODS.serverGetTraceDiagnostics,

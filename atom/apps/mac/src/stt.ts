@@ -1,4 +1,4 @@
-import { execFile as nodeExecFile } from "node:child_process";
+import { ChildProcess, execFile as nodeExecFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -8,7 +8,7 @@ import type { AudioClip } from "./audio.ts";
 /** Speech-to-text boundary. The rest of ATOM depends on this, not on Whisper. */
 export interface SpeechToText {
   /** Returns the transcribed text, or "" if no speech was recognized. */
-  transcribe(clip: AudioClip): Promise<string>;
+  transcribe(clip: AudioClip, signal?: AbortSignal): Promise<string>;
 }
 
 export class SttError extends Error {
@@ -21,7 +21,7 @@ export class SttError extends Error {
 type ExecFile = (
   command: string,
   args: string[],
-  options: { timeout: number; maxBuffer: number },
+  options: { timeout: number; maxBuffer: number; signal?: AbortSignal },
   callback: (error: (Error & { code?: string | number; killed?: boolean }) | null, stdout: string, stderr: string) => void,
 ) => unknown;
 
@@ -54,7 +54,8 @@ export function createWhisperStt(options: WhisperOptions): SpeechToText {
   } = options;
 
   return {
-    async transcribe(clip) {
+    async transcribe(clip, signal) {
+      signal?.throwIfAborted();
       if (!fileExists(modelPath)) {
         const name = basename(modelPath);
         throw new SttError(
@@ -68,15 +69,17 @@ export function createWhisperStt(options: WhisperOptions): SpeechToText {
 
       const dir = await mkdtemp(join(tmpdir(), "atom-stt-"));
       const wavPath = join(dir, "input.wav");
+      let reaped = Promise.resolve();
       try {
         await writeFile(wavPath, toWav(clip));
         const stdout = await new Promise<string>((resolve, reject) => {
-          execFile(
+          const child = execFile(
             command,
             ["-m", modelPath, "-f", wavPath, "-l", language, "-nt", "-np", ...promptArgs(vocabulary)],
-            { timeout: timeoutMs, maxBuffer: 10 * 1024 * 1024 },
+            { timeout: timeoutMs, maxBuffer: 10 * 1024 * 1024, ...(signal ? { signal } : {}) },
             (error, out, stderr) => {
               if (!error) return resolve(out);
+              if (signal?.aborted) return reject(new SttError("Transcription stopped."));
               if (error.code === "ENOENT") {
                 return reject(new SttError(`${command} not found. Install it with: brew install whisper-cpp`));
               }
@@ -85,9 +88,17 @@ export function createWhisperStt(options: WhisperOptions): SpeechToText {
               reject(new SttError(`Transcription failed (exit code ${error.code}). ${detail}`));
             },
           );
+          if (child instanceof ChildProcess) reaped = new Promise<void>((resolve) => {
+            let forceTimer: ReturnType<typeof setTimeout> | undefined;
+            const forceStop = () => { forceTimer = setTimeout(() => child.kill("SIGKILL"), 2000); forceTimer.unref(); };
+            signal?.addEventListener("abort", forceStop, { once: true });
+            if (signal?.aborted) forceStop();
+            child.once("close", () => { clearTimeout(forceTimer); signal?.removeEventListener("abort", forceStop); resolve(); });
+          });
         });
         return cleanTranscript(stdout);
       } finally {
+        await reaped;
         await rm(dir, { recursive: true, force: true });
       }
     },

@@ -1,3 +1,7 @@
+import * as ArkComputer from "../ark/ArkComputer.ts";
+import * as ServerEnvironment from "../environment/ServerEnvironment.ts";
+import { ArkToolkit, ArkComputerToolkit, ArkComputerTool } from "./toolkits/ark/tools.ts";
+import * as ArkHandlers from "./toolkits/ark/handlers.ts";
 import * as Cause from "effect/Cause";
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
@@ -14,6 +18,8 @@ import type * as Types from "effect/Types";
 import { AiError, McpProtocol, McpSchema, McpServer, Tool, Toolkit } from "effect/ai";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import {
+  ArkFeatureError,
+  ArkComputerResult,
   OrchestratorMcpFailure,
   PreviewAutomationError,
   ProviderInteractionMode,
@@ -103,7 +109,7 @@ const unauthorized = (input: {
   return HttpServerResponse.jsonUnsafe(
     {
       error: "invalid_mcp_credential",
-      message: "A valid T3 Code MCP credential is required.",
+      message: "A valid ARK MCP credential is required.",
     },
     {
       status: 401,
@@ -749,6 +755,71 @@ const registerImageTool = Effect.fn("McpHttpServer.registerImageTool")(function*
   });
 });
 
+const decodeArkComputerResult = Schema.decodeUnknownEffect(ArkComputerResult);
+const isArkFeatureError = Schema.is(ArkFeatureError);
+
+const registerArkComputer = Effect.fn("McpHttpServer.registerArkComputer")(function* () {
+  const server = yield* McpServer.McpServer;
+  const computer = yield* ArkComputer.ArkComputer;
+  const threads = yield* ThreadManagementService.ThreadManagementService;
+  const environment = yield* ServerEnvironment.ServerEnvironment;
+  const built = yield* decodeAsAdvertised(ArkComputerToolkit);
+  const tool = ArkComputerTool;
+  yield* server.addTool({
+    tool: new McpSchema.Tool({
+      name: tool.name,
+      description: Tool.getDescription(tool),
+      inputSchema: advertisedJsonSchema(tool),
+      annotations: {
+        title: "Use computer",
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: true,
+      },
+    }),
+    annotations: tool.annotations,
+    handle: (payload) =>
+      Effect.withFiber((fiber) => {
+        const invocation = Context.getUnsafe(
+          fiber.context,
+          McpInvocationContext.McpInvocationContext,
+        );
+        return built.handle("ark_computer", payload).pipe(
+          Stream.unwrap,
+          Stream.run(Sink.last()),
+          Effect.flatMap(Effect.fromOption),
+          Effect.flatMap(({ encodedResult }) => decodeArkComputerResult(encodedResult)),
+          Effect.provideService(ArkComputer.ArkComputer, computer),
+          Effect.provideService(ThreadManagementService.ThreadManagementService, threads),
+          Effect.provideService(ServerEnvironment.ServerEnvironment, environment),
+          Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
+          Effect.matchCauseEffect({
+            onFailure: imageToolFailure("ark_computer", "computer", (error: unknown) =>
+              isArkFeatureError(error) || isOrchestratorMcpFailure(error)
+                ? error.message.slice(0, 2000)
+                : "Computer use could not finish. Do not replay input automatically; check its status and observe the window.",
+            ),
+            onSuccess: (result) =>
+              Effect.succeed(
+                new McpSchema.CallToolResult({
+                  isError: false,
+                  structuredContent: { text: result.text, imageCount: result.images.length },
+                  content: [
+                    { type: "text", text: result.text },
+                    ...result.images.map((image) => ({
+                      type: "image" as const,
+                      data: new Uint8Array(Buffer.from(image.data, "base64")),
+                      mimeType: image.mimeType,
+                    })),
+                  ],
+                }),
+              ),
+          }),
+        );
+      }),
+  });
+});
+
 const registerDeviceScreenshot = Effect.fn("McpHttpServer.registerDeviceScreenshot")(function* () {
   const devices = yield* DeviceService.DeviceService;
   const threads = yield* ThreadManagementService.ThreadManagementService;
@@ -1132,7 +1203,7 @@ export const layerDeviceToolkit = Layer.mergeAll(
 );
 
 export const layerMcpTransport = McpServer.layerHttp({
-  name: "T3 Code",
+  name: "ARK",
   version: packageJson.version,
   path: "/mcp",
   protocols: [McpProtocol.v2025_06_18],
@@ -1141,6 +1212,8 @@ export const layerMcpTransport = McpServer.layerHttp({
 
 /** Every tool the T3 MCP server advertises. AgentContextBudget.test.ts measures this set. */
 export const layerTools = Layer.mergeAll(
+  toolkitRegistration(ArkToolkit, ArkHandlers.layer),
+  imageToolRegistration(registerArkComputer(), ArkHandlers.layerComputer),
   layerPreviewToolkit,
   layerOrchestratorToolkit,
   layerThreadToolkit,

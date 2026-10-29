@@ -51,3 +51,6 @@ node_modules/
 
 # Isolated ATOM fork client state
 .atom-t3/
+
+# ARK development state
+.ark/

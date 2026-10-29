@@ -12,6 +12,23 @@ becomes an attachment when inserting it would exceed the message limit. On a
 hardware keyboard, use `Cmd+Shift+V` on Apple devices or `Ctrl+Shift+V` elsewhere
 to keep a large paste editable in the composer instead.
 
+## Dictation and read-aloud
+
+On ARK web and desktop, choose the microphone beside the composer, allow microphone
+access on this device, then choose **Finish dictation**. Audio is transcribed by local
+Whisper on this chat's connected environment. The text is added to your unsent draft;
+you can review and edit it before sending. Cancel discards the recording. Each recording
+can last up to one minute; switching chats stops it. Remote web dictation requires HTTPS.
+
+Choose **Read reply aloud** beside a completed response to hear it on this device.
+Pause or stop using the same controls. If the browser blocks automatic playback,
+press Play once the voice is prepared. Switching away stops playback.
+
+The connected environment must have its Whisper and Kokoro models installed. ARK does
+not download them or send audio to a cloud speech service automatically. A missing
+model shows a setup error without changing your draft or chat. These controls are not
+yet available in the mobile client.
+
 ## Formatting
 
 The composer writes Markdown and shows it styled as you type. Markers such as
@@ -360,3 +377,15 @@ including filenames or folders containing `#` or `?`.
 
 On mobile, select a PDF attachment or link to open it. iOS uses the native viewer;
 Android opens a compatible installed file viewer.
+
+## ARK agent profiles
+
+Open **Workspace → Board → Access** to review an agent profile's tool kit, folders
+and launch blockers. For a Folders profile, enter the full path on the connected
+environment and preview it. Confirm the resolved location before granting access.
+Remove access to revoke a folder without deleting its files. Older or replaced
+folders need a fresh review; reloading access shows their current state.
+
+Profiles cannot launch tasks yet: provider enforcement is still being connected.
+Ready indicates availability, and assigned skills guide work; neither enables
+extra tools or overrides folder restrictions. Ordinary chat remains available.

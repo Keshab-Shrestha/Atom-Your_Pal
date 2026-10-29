@@ -54,10 +54,8 @@
     "release:smoke": "node scripts/release-smoke.ts",
     "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/*/dist apps/*/dist-electron packages/*/dist .vite-plus apps/*/.vite-plus packages/*/.vite-plus",
     "sync:repos": "node scripts/sync-reference-repos.ts",
-    "atom:setup": "node atom/apps/t3-agent/dev.ts --setup-only",
-    "atom:backend": "node atom/apps/t3-agent/dev.ts --backend-only",
-    "atom:dev": "node atom/apps/t3-agent/dev.ts",
-    "atom:desktop": "node atom/apps/t3-agent/dev.ts --desktop"
+    "ark:setup": "node atom/apps/ark/dev.ts --setup-only",
+    "ark:dev": "node atom/apps/ark/dev.ts"
   },
   "devDependencies": {
     "@coderabbitai/config": "1.1.0",

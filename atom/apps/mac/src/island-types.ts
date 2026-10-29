@@ -22,6 +22,12 @@ import type { ApiServer } from "./api-server.ts";
 import { type CoreLike, type VoiceLoopEvents, type VoiceLoopOptions } from "./voice-loop.ts";
 
 export interface IslandOptions {
+  arkAgentAccess?: ReturnType<typeof import("./ark-agent-access.ts").createArkAgentAccess>;
+  arkVoice?: ReturnType<typeof import("./ark-voice.ts").createArkVoice>;
+  arkComputer?: ReturnType<typeof import("./ark-computer.ts").createArkComputer>;
+  arkKnowledge?: { read(input: import("./ark-knowledge.ts").ArkKnowledgeQuery): unknown };
+  /** Feature-only hosts do not need to load a speech model at startup. */
+  warmVoice?: boolean;
   localBackup?: ReturnType<typeof import("./local-backup.ts").createLocalBackup>;
   sourceAnalysis?: Pick<ReturnType<typeof import("./source-analysis.ts").createSourceAnalysis>, "handle" | "interrupt">;
   /** Commands from the island, one JSON object per line. */
@@ -123,6 +129,7 @@ export interface IslandBrain {
 }
 
 export interface IslandMemory {
+  search?(query: string, limit?: number): MemoryItem[];
   list(): MemoryItem[];
   count(): number;
   forget(id: number): boolean;

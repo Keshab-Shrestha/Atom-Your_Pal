@@ -1,3 +1,8 @@
+import { homedir } from "node:os";
+import { createArkAgentAccess } from "./ark-agent-access.ts";
+import { createArkVoice } from "./ark-voice.ts";
+import { createArkComputer } from "./ark-computer.ts";
+import { readArkKnowledge } from "./ark-knowledge.ts";
 import { capturePreparationNotes } from "./preparation-notes.ts";
 import { FULL_ACCESS_CONFIRMATION } from "./chat-access.ts";
 import { runChatControl } from "./chat-controls.ts";
@@ -118,6 +123,10 @@ const POINT_BOX = 20;
 const WEB_SEARCH: Capability = { title: "Search the web", examples: ["What's in the news today?", "Who won the match last night?"] };
 
 export interface Runtime {
+  arkAgentAccess?: ReturnType<typeof createArkAgentAccess>;
+  arkKnowledge: NonNullable<IslandOptions["arkKnowledge"]>;
+  arkVoice?: ReturnType<typeof createArkVoice>;
+  arkComputer?: ReturnType<typeof createArkComputer>;
   islandLocalBackup?: IslandOptions["localBackup"];
   islandSourceAnalysis?: IslandOptions["sourceAnalysis"];
   config: Config;
@@ -188,10 +197,12 @@ export interface Runtime {
   /** ADR-108: writes the notes that wait for a quiet chat. Called when the app quits; may take a few seconds. */
   flushNotes(): Promise<void>;
   /** Shutdown: stops running helper jobs (they are marked failed at the next start) and Laya's server. */
-  close(): void;
+  close(): void | Promise<void>;
 }
 
 export interface RuntimeOptions {
+  /** ARK owns task execution and schedules; this process provides feature storage only. */
+  externalOrchestration?: boolean;
   /** Every provider key in .env, so the model can be switched to any of them. Default: the configured one only. */
   keys?: ProviderKeys;
   /** Where a model switch is saved (config/island.json). */
@@ -212,6 +223,7 @@ export function createRuntime(
     language: config.stt.language,
     vocabulary: config.stt.vocabulary,
   });
+  const arkVoice = options.externalOrchestration ? createArkVoice(stt, { voice: config.tts.voice, dtype: config.tts.dtype }) : undefined;
   const computer = createComputerBridge({
     onDecisionWarm: () => { if (decisions.warmComputer) decisions.warmComputer(); else decisions.warm(); },
     onCursorError: () => log.warn("computer.cursor_failed", {}),
@@ -266,6 +278,7 @@ export function createRuntime(
       log,
     });
   const islandMemory: IslandMemory | undefined = memory && {
+    search: (query, limit = 20) => memory.search(query, limit).map((m) => ({ id: m.id, text: m.text, createdAt: m.createdAt.toISOString(), source: m.source })),
     list: () => memory.recent(DEFAULT_MAX_MEMORIES).map((m) => ({ id: m.id, text: m.text, createdAt: m.createdAt.toISOString(), source: m.source })),
     count: () => memory.count(),
     forget: (id) => memory.remove(id),
@@ -413,6 +426,12 @@ export function createRuntime(
   const agentsDir = join(dirname(resolve(helpersPath === ":memory:" ? "data/x" : helpersPath)), "agents");
   // ADR-094: ATOM's own skills, approved by Keshab, live beside it too: data/skills/<name>/SKILL.md.
   const skillsDir = helpersPath === ":memory:" ? undefined : join(dirname(resolve(helpersPath)), "skills");
+  const librarySkills = () => {
+    const hub = new Set(helpers?.skillHubInstalled().map((item) => item.name) ?? []);
+    if (!options.externalOrchestration) return listSkills(userSkillsDir(), skillsDir, hub);
+    const owned = skillsDir ? listSkills(skillsDir).map((skill) => ({ ...skill, source: hub.has(skill.name) ? "hub" as const : "zeno" as const })) : [];
+    return [...owned, ...listSkills(userSkillsDir())].sort((a, b) => a.name.localeCompare(b.name));
+  };
   if (skillsDir) {
     try { log.info("skills.bundle", installBundledSkills(skillsDir)); }
     catch (error) { log.error("skills.bundle_unavailable", errorFields(error)); }
@@ -480,6 +499,7 @@ export function createRuntime(
   // ADR-080: the screenshot the model was given this turn, so the reply's [POINT:…] marker can be checked against it.
   // ADR-083/200: shared local worker-tier/optional computer-plan classifier; no automatic downloads.
   const decisions = createLayaEngine({ log });
+  const arkComputer = options.externalOrchestration ? createArkComputer(decisions) : undefined;
   const computerOn = readEnv(process.env, "ATOM_COMPUTER") === "1";
   let lastShot: ScreenShot | undefined;
   const cua = computerOn ? createCuaTransport({ onTiming: (timing) => log.info("computer.transport", { ...timing }) }) : undefined;
@@ -488,7 +508,7 @@ export function createRuntime(
   // The tools ATOM can use. Built before the model because "Claude (my plan)" runs the tool loop itself and
   // needs them; the other providers get them from the Core.
   const tools = [
-    // Task 3.16: only with Keshab's own Paperclip on this Mac. Approvals are answered only after his OK on the card.
+  // Task 3.16: only with Keshab's own Paperclip on this Mac. Approvals are answered only after his OK on the card.
     ...(paperclip
       ? createPaperclipTools({ ...paperclip, confirm: (request) => computer.approve(request), onChange: paperclipChanged, onCall: (e) => log.info("paperclip.call", e) })
       : []),
@@ -586,7 +606,7 @@ export function createRuntime(
       : []),
     // ADR-113: the model reads one of Keshab's skills by name; he can also pick one in the composer (`/name`).
     createUseSkillTool({
-      list: () => listSkills(userSkillsDir(), skillsDir, new Set(helpers?.skillHubInstalled().map((i) => i.name) ?? [])),
+      list: librarySkills,
       read: (name) => readSkill(name, userSkillsDir(), skillsDir),
       readPage: (name, file, offset) => readSkillPage(name, file, offset, userSkillsDir(), skillsDir),
       onUse: (e) => log.info("skill.used", e),
@@ -956,14 +976,14 @@ export function createRuntime(
   };
   // ADR-110 N5: Tinker's tasks have no chat; they keep a small runner of their own (tinker-runner.ts).
   const tinker: TinkerRunner | undefined =
-    helpers &&
+    helpers && !options.externalOrchestration ?
     startTinkerRunner({
       store: helpers,
       run: createTinkerRun({ helpers, settings, keys, decisions, planModels, reportUsage, log, runTests: (kind, id, signal, tinkerJob) => runTests(kind, id, signal, tinkerJob) }),
       onRun: (e) => log.info("job.run", e),
-    });
+    }) : undefined;
   // Task 3.16: the Paperclip tasks ATOM handed over are looked at every minute; a finished one is said once.
-  if (paperclip) {
+  if (paperclip && !options.externalOrchestration) {
     const look = () =>
       void checkIssues(paperclip.client, paperclip.tracker)
         .then((lines) => {
@@ -984,7 +1004,7 @@ export function createRuntime(
   const telegramChat = readEnv(process.env, "ATOM_TELEGRAM_CHAT_ID")?.trim();
   const telegramUser = readEnv(process.env, "ATOM_TELEGRAM_USER_ID")?.trim(); // the one person obeyed in a group; a private chat needs none
   let telegram: TelegramBot | undefined;
-  if (telegramToken && telegramChat && readEnv(process.env, "ATOM_VOICE_ONLY") !== "1") {
+  if (!options.externalOrchestration && telegramToken && telegramChat && readEnv(process.env, "ATOM_VOICE_ONLY") !== "1") {
     const telegramCore = makeCore(true);
     telegramCore.resume(TELEGRAM_CHAT, memory?.chats.messages(TELEGRAM_CHAT) ?? []);
     telegram = startTelegramBot({
@@ -1002,7 +1022,7 @@ export function createRuntime(
   // ADR-110 (N3): a routine (due, or started by webhook) is a main-agent turn in its own chat, after the Telegram bot
   // exists (its flag sends the result there).
   const nativeStart =
-    helpers
+    helpers && !options.externalOrchestration
       ? routineStarter({
           core: makeCore(true),
           messages: (chatId) => memory?.chats.messages(chatId) ?? [],
@@ -1021,7 +1041,7 @@ export function createRuntime(
     onChange: (listener: () => void) => { taskActivityListeners.add(listener); return () => void taskActivityListeners.delete(listener); },
   };
   const startTask =
-    helpers
+    helpers && !options.externalOrchestration
       ? taskStarter({ core: makeCore(true), name: (helper) => helpers.list().find((h) => h.id === helper && h.available)?.name, failed: (line) => goalLineListeners.forEach((listener) => listener(line)), activity: (active) => { taskActive = active; for (const listener of taskActivityListeners) listener(); }, retryPending: (id) => { const job = helpers.get(id); return job?.state === "queued" && job.retryOf !== undefined; }, retrySettled: (id, reason) => helpers.failQueuedRetry(id, reason ?? "The retry turn ended without starting its worker. Review this attempt before trying again."), log })
       : undefined;
   retryTask = helpers && startTask ? nativeRetryStarter({ store: helpers, start: startTask }) : undefined;
@@ -1033,7 +1053,7 @@ export function createRuntime(
     ...(memory ? { messages: (chat: string) => memory.chats.messages(chat) } : {}),
   });
   const api: ApiServer | undefined =
-    readEnv(process.env, "ATOM_VOICE_ONLY") === "1"
+    options.externalOrchestration || readEnv(process.env, "ATOM_VOICE_ONLY") === "1"
       ? undefined
       : createApiServer({
           log,
@@ -1153,7 +1173,7 @@ export function createRuntime(
     });
   if (dailyBrief && briefStore) {
     briefStore.onChange(() => briefListeners.forEach((listener) => listener()));
-    setInterval(() => { void dailyBrief.tick(); void sourceAnalysis?.tick(); }, SCHEDULER_TICK_MS).unref();
+    if (!options.externalOrchestration) setInterval(() => { void dailyBrief.tick(); void sourceAnalysis?.tick(); }, SCHEDULER_TICK_MS).unref();
   }
   /** "Brief me" now (the window's button, or the voice tool): one run at a time. */
   const runBriefNow = async () => {
@@ -1162,8 +1182,13 @@ export function createRuntime(
   };
   briefNow = dailyBrief ? runBriefNow : undefined;
   // The helpers as the window lists them, for the search (agents, routines, skills).
-  const searchHelpers = helpers ? islandHelpers(helpers, installedApps, planModels, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name))), undefined, codexWorkerModels) : undefined;
+  const searchHelpers = helpers ? islandHelpers(helpers, installedApps, planModels, librarySkills, undefined, codexWorkerModels) : undefined;
+  const arkAgentAccess = options.externalOrchestration && searchHelpers ? createArkAgentAccess({ helpers: searchHelpers, home: homedir(), ...(helpersPath === ":memory:" ? {} : { file: join(dirname(resolve(helpersPath)), "ark-agent-folders.json") }) }) : undefined;
   return {
+    ...(arkAgentAccess ? { arkAgentAccess } : {}),
+    ...(arkVoice ? { arkVoice } : {}),
+    ...(arkComputer ? { arkComputer } : {}),
+    arkKnowledge: { read: (input) => readArkKnowledge(input, { ...(arkAgentAccess ? { agentPolicy: arkAgentAccess.policy } : {}), ...(islandMemory ? { memory: islandMemory } : {}), ...(brainWiring ? { brain: brainWiring.island } : {}), ...(skillsDir ? { skillsDir } : {}) }) },
     config,
     log,
     chatTurns,
@@ -1279,7 +1304,7 @@ export function createRuntime(
     islandSlashCommands: { list: () => listCommands(userCommandsDir()) },
     islandSkillFiles: { read: (name) => readSkillFile(name, userSkillsDir(), skillsDir), write: (name, text) => writeSkillFile(name, text, userSkillsDir(), skillsDir) },
     ...(helpers ? { islandHelpers: warmOnOpen(withPaperclip(paperclip, paperclipListeners, {
-            ...islandHelpers(helpers, installedApps, planModels, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name))), undefined, codexWorkerModels),
+            ...islandHelpers(helpers, installedApps, planModels, librarySkills, undefined, codexWorkerModels),
             hub: createHubCommands({ store: helpers, log }), // B3.5
             // ADR-110 N5: no legacy runner starts a queued task, so the page's task field and Retry hand it to the main agent.
             addJob: (helper: string, task: string) => {
@@ -1299,7 +1324,7 @@ export function createRuntime(
               helpers.recordMcpTest(id, outcome);
               log.info("mcp.test", { server: id, ok: "tools" in outcome, tools: "tools" in outcome ? outcome.tools.length : 0 });
             },
-          }), decisions) } : {}),
+          }), options.externalOrchestration ? { warm() {} } : decisions) } : {}),
     screen,
     onTimer(listener) {
       timerListeners.add(listener);
@@ -1336,7 +1361,7 @@ export function createRuntime(
       telegram?.stop();
       api?.stop();
       tinker?.close();
-      void decisions.close();
+      return Promise.all([arkVoice?.close(), arkComputer?.close(), cua?.close(), decisions.close()]).then(() => undefined);
     },
     record: (handlers) => startRecording(config.audio, handlers),
     async micName() {

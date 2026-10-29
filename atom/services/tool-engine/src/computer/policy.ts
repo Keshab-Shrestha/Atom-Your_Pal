@@ -5,6 +5,8 @@
 
 /** Apps ATOM never controls, matched by bundle id. */
 const BLOCKED_BUNDLES = [
+  /^com\.ark\.workspace(?:\.|$)/i,
+  /^com\.t3tools\.t3code(?:\.|$)/i,
   /^com\.apple\.terminal$/i,
   /^com\.googlecode\.iterm2$/i,
   /^com\.mitchellh\.ghostty$/i,

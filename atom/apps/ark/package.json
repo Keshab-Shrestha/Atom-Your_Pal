@@ -1,0 +1,5 @@
+{
+  "name": "@atom/ark",
+  "private": true,
+  "type": "module"
+}

@@ -13,7 +13,8 @@ import { readSavedChoice, settingsPath } from "./model-settings.ts";
 import { createRuntime, describe, withLogging } from "./runtime.ts";
 import { runTerminal } from "./terminal.ts";
 
-const island = process.argv.includes("--island");
+const features = process.argv.includes("--features");
+const island = features || process.argv.includes("--island");
 
 /** Exit code for a configuration error: the island shows it and does not restart (docs/island-protocol.md). */
 const EXIT_CONFIG = 78;
@@ -103,13 +104,13 @@ function start(config: Config) {
     for (const signal of ["SIGINT", "SIGTERM"] as const) if (!island || signal === "SIGINT") process.on(signal, () => process.exit(signal === "SIGINT" ? 130 : 143));
   }
 
-  const runtime = createRuntime(config, log, { keys, settingsPath: savedPath });
+  const runtime = createRuntime(config, log, { keys, settingsPath: savedPath, externalOrchestration: features });
   // Give the microphone and audio player a moment to release, and pending output to flush, before exiting.
   const exit = () => {
     // ADR-108: notes that wait for a quiet chat are written now, best effort, for at most NOTE_FLUSH_QUIT_MS.
     const wait = new Promise<void>((resolve) => setTimeout(resolve, NOTE_FLUSH_QUIT_MS).unref());
-    void Promise.race([runtime.flushNotes().catch(() => undefined), wait]).then(() => {
-      runtime.close(); // stops helper jobs and their claude programs
+    void Promise.race([runtime.flushNotes().catch(() => undefined), wait]).then(async () => {
+      await runtime.close(); // stops helper jobs and their claude programs
       setTimeout(() => process.stdout.write("", () => process.exit(0)), 100);
     });
   };
@@ -120,6 +121,11 @@ function start(config: Config) {
   }
 
   const session = runIsland({
+    warmVoice: !features,
+    arkKnowledge: runtime.arkKnowledge,
+    ...(runtime.arkAgentAccess ? { arkAgentAccess: runtime.arkAgentAccess } : {}),
+    ...(runtime.arkVoice ? { arkVoice: runtime.arkVoice } : {}),
+    ...(runtime.arkComputer ? { arkComputer: runtime.arkComputer } : {}),
     input: process.stdin,
     write: (line) => process.stdout.write(line),
     record: runtime.record,

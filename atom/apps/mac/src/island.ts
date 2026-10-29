@@ -1,3 +1,4 @@
+import { mutateArk } from "./ark-mutations.ts";
 // Island mode (`main.ts --island`): ATOM Island drives the voice loop with JSON-line commands on
 // stdin and receives JSON-line events on stdout. Specification: docs/island-protocol.md.
 
@@ -116,6 +117,8 @@ export function runIsland(options: IslandOptions): IslandSession {
     }
   }
   let accessActivation: AbortController | undefined;
+  options.arkVoice?.attach(send);
+  options.arkComputer?.attach(send);
   const pendingApprovals = new Map<string, Extract<IslandEvent, { type: "approval.request" }>>();
   options.computer?.attach((event) => {
     if (event.type === "approval.request") pendingApprovals.set(event.id, event);
@@ -271,6 +274,36 @@ export function runIsland(options: IslandOptions): IslandSession {
         }).finally(() => { if (replyRuns.get(command.id) === controller) replyRuns.delete(command.id); });
         return;
       }
+      case "ark.agent.access":
+        try {
+          if (!options.arkAgentAccess) throw new Error("Agent access policies are unavailable.");
+          send({ type: "ark.agent.access.result", request: command.request, value: options.arkAgentAccess.update(command.input) });
+        } catch (error) {
+          send({ type: "ark.agent.access.result", request: command.request, error: error instanceof Error ? error.message : "Agent access could not be updated." });
+        }
+        break;
+      case "ark.voice.run": case "ark.voice.cancel":
+        if (options.arkVoice) options.arkVoice.handle(command);
+        else if (command.type === "ark.voice.run") send({ type: "ark.voice.result", request: command.request, error: "Voice is unavailable in this runtime." });
+        break;
+      case "ark.computer.run": case "ark.computer.cancel": case "ark.computer.answer": case "ark.computer.decision.answer":
+        if (options.arkComputer) options.arkComputer.handle(command);
+        else if (command.type === "ark.computer.run") send({ type: "ark.computer.result", request: command.request, error: "Computer use is unavailable in this runtime." });
+        return;
+      case "ark.mutate":
+        try {
+          const value = mutateArk(command.input, { ...(options.helpers ? { helpers: options.helpers } : {}), ...(options.brain ? { brain: options.brain } : {}), interruptAnalysis: () => options.sourceAnalysis?.interrupt() });
+          send({ type: "ark.mutation.result", request: command.request, value });
+          sendHelpers();
+          sendBrain();
+        } catch (error) { send({ type: "ark.mutation.result", request: command.request, error: describe(error) }); }
+        return;
+      case "ark.knowledge":
+        try {
+          if (!options.arkKnowledge) throw new Error("Workspace knowledge is unavailable.");
+          send({ type: "ark.knowledge.result", request: command.request, value: options.arkKnowledge.read(command.input) });
+        } catch (error) { send({ type: "ark.knowledge.result", request: command.request, error: describe(error) }); }
+        return;
       case "reply.cancel":
         replyRuns.get(command.id)?.abort(); replyRuns.delete(command.id); return;
       case "source.analysis":
@@ -1328,10 +1361,10 @@ export function runIsland(options: IslandOptions): IslandSession {
 
   // Load the voice now so the first reply is not delayed; report readiness either way.
   const started = Date.now();
-  tts
-    .warmUp()
+  (options.warmVoice === false ? Promise.resolve(false) : tts.warmUp())
     .then(
       () => {
+        if (options.warmVoice === false) return false;
         options.log?.info("tts.ready", { ms: Date.now() - started });
         return true;
       },

@@ -119,10 +119,7 @@ export function createGateway(options: GatewayOptions): LanguageModel {
       // Text already passed on (and maybe spoken) must not be repeated by a retry.
       let streamed = false;
       const listener = request.onText;
-      const req = { ...request,
-        ...(listener ? { onText: (delta: string) => ((streamed = true), listener(delta)) } : {}),
-        ...(request.onReasoning ? { onReasoning: (delta: string) => ((streamed = true), request.onReasoning!(delta)) } : {}),
-      };
+      const req = listener ? { ...request, onText: (delta: string) => ((streamed = true), listener(delta)) } : request;
       for (let tries = 0; ; tries++) {
         if (signal?.aborted) throw cancelled();
         try {

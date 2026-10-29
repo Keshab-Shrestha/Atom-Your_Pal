@@ -69,7 +69,9 @@ export const decodeJsonReply = <S extends Schema.Top>(
   );
 };
 
-export function fromRunner(name: string, run: Runner): ProviderTextGeneration {
+const ReplyDraftOutput = Schema.Struct({ text: Schema.String });
+
+export function fromRunner(name: string, run: Runner, draft?: Runner): ProviderTextGeneration {
   const generateCommitMessage: ProviderTextGeneration["generateCommitMessage"] = Effect.fn(
     `${name}.generateCommitMessage`,
   )(function* (input) {
@@ -168,6 +170,21 @@ export function fromRunner(name: string, run: Runner): ProviderTextGeneration {
   });
 
   return {
+    ...(draft
+      ? {
+          generateReplyDraft: Effect.fn(`${name}.generateReplyDraft`)(function* (
+            input: Parameters<NonNullable<ProviderTextGeneration["generateReplyDraft"]>>[0],
+          ) {
+            return yield* draft({
+              operation: "generateReplyDraft",
+              cwd: input.cwd,
+              prompt: input.prompt,
+              modelSelection: input.modelSelection,
+              outputSchema: ReplyDraftOutput,
+            });
+          }),
+        }
+      : {}),
     generateCommitMessage,
     generatePrContent,
     generateBranchName,

@@ -144,7 +144,6 @@ export interface SendOptions {
   clientComposed?: boolean;
   signal?: AbortSignal;
   onText?: (delta: string) => void;
-  onReasoning?: (delta: string) => void;
 }
 
 export interface ChatSessionHandle {
@@ -247,7 +246,6 @@ interface Turn {
   resolve: (value: { text: string; sessionId?: string }) => void;
   reject: (error: unknown) => void;
   filter?: ReturnType<typeof sourcesFilter>;
-  onReasoning?: (delta: string) => void;
   wrote: boolean;
   acted: boolean;
   lastError?: string;
@@ -436,9 +434,6 @@ export async function openChatSession(o: ChatSessionOptions): Promise<ChatSessio
           const event = message.event ?? {};
           try {
             if (event.type === "message_start" && t.wrote) t.filter?.push("\n"); // a new model turn starts a new sentence
-            if (event.type === "content_block_delta" && event.delta?.type === "thinking_delta" && typeof event.delta.thinking === "string") {
-              t.onReasoning?.(event.delta.thinking);
-            }
             if (event.type === "content_block_delta" && event.delta?.type === "text_delta" && typeof event.delta.text === "string") {
               t.wrote = true;
               t.filter?.push(event.delta.text);
@@ -490,7 +485,7 @@ export async function openChatSession(o: ChatSessionOptions): Promise<ChatSessio
       clearTimeout(idle);
       return new Promise((resolve, reject) => {
         // Claude Code is in a turn of its own: its result comes first, then this one's.
-        const t: Turn = { resolve, reject, wrote: false, acted: false, cancelled: false, skip: selfTurn ? 1 : 0, ...(so.onText ? { filter: sourcesFilter(so.onText) } : {}), ...(so.onReasoning ? { onReasoning: so.onReasoning } : {}) };
+        const t: Turn = { resolve, reject, wrote: false, acted: false, cancelled: false, skip: selfTurn ? 1 : 0, ...(so.onText ? { filter: sourcesFilter(so.onText) } : {}) };
         turn = t;
         turnSignal = so.signal;
         // Stop = interrupt: the process stays; the turn ends when Claude Code reports it, or the session closes.

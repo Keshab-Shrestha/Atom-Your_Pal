@@ -1,6 +1,6 @@
-# ATOM — T3 chat foundation
+# ARK
 
-This branch combines T3 Code’s original interface and chat engine with ATOM’s backend. See [ATOM development](docs/operations/atom-development.md) for the launcher and [backend boundary](docs/internals/atom-backend.md) for current integration limits. Existing installed ATOM history is preserved separately; this branch does not migrate it automatically.
+ARK brings ATOM’s features to T3 Code’s interface while preserving T3’s original chat and thinking system. ATOM is not a chat provider. See [ARK development](docs/operations/ark-development.md) and the [architecture boundary](docs/internals/ark-architecture.md) for setup and the current porting limits.
 
 ---
 

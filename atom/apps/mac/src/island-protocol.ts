@@ -19,6 +19,11 @@ export * from "./island-commands.ts";
 import type { WorkspaceResponse } from "./project-workspace.ts";
 
 export type IslandEvent =
+  | import("./ark-agent-access.ts").ArkAgentAccessEvent
+  | import("./ark-voice.ts").ArkVoiceEvent
+  | import("./ark-computer.ts").ArkComputerEvent
+  | import("./ark-mutations.ts").ArkMutationResponse
+  | import("./ark-knowledge.ts").ArkKnowledgeResponse
   | import("./source-analysis.ts").SourceAnalysisResponse
   | ProjectSourceResponse
   | WorkspaceResponse

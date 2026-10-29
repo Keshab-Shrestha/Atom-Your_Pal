@@ -517,7 +517,6 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
     const readOnly = !project && Boolean(attached);
     let streamed = false;
     const onText = hooks?.onText ? (d: string) => ((streamed = true), hooks.onText!(d)) : undefined;
-    const onReasoning = hooks?.onReasoning ? (d: string) => ((streamed = true), hooks.onReasoning!(d)) : undefined;
     let lastAttempt: Live | undefined;
 
     const turn = async (fresh: boolean): Promise<{ text: string; sessionId?: string; resumed: boolean }> => {
@@ -573,7 +572,6 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
           clientComposed: chatOnly || Boolean(deps.clientComposed) || needsComposed(message),
           signal,
           ...(onText ? { onText } : {}),
-          ...(onReasoning ? { onReasoning } : {}),
         });
         if (continuity) entry.continuityKey = continuity.key;
         finishRecall(signal.aborted ? "cancelled" : "completed");
@@ -650,7 +648,6 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
         ...(reasoning ? { reasoning } : {}),
         ...(hasTools && files ? { files } : {}),
         ...(hooks?.onText ? { onText: hooks.onText } : {}),
-        ...(hooks?.onReasoning ? { onReasoning: hooks.onReasoning } : {}),
       },
       signal,
     ); } catch (error) { finishRecall(signal.aborted ? "cancelled" : "failed"); throw error; }

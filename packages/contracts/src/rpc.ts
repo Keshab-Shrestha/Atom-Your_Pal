@@ -1,4 +1,26 @@
 import {
+  ArkAgentAccessInput,
+  ArkAgentAccessResult,
+  ArkVoiceInput,
+  ArkVoiceResult,
+  ArkFeatureSnapshot,
+  ArkComputerState,
+  ArkComputerSettingsInput,
+  ArkComputerAnswer,
+  ArkSetAgentPaused,
+  ArkFeatureError,
+  ArkMutation,
+  ArkMutationResult,
+  ArkKnowledgeQuery,
+  ArkKnowledgeResult,
+  ArkSourceRequest,
+  ArkSourceResult,
+  ArkDraftInput,
+  ArkDraftResult,
+  ArkDraftLookupInput,
+  ArkDraftContextResult,
+} from "./ark.ts";
+import {
   OrchestrationV2SearchThreadError,
   OrchestrationV2SearchThreadInput,
   OrchestrationV2SearchThreadResult,
@@ -481,6 +503,22 @@ export const WS_METHODS = {
 
   serverProbe: "server.probe",
   serverGetConfig: "server.getConfig",
+  arkSubscribeFeatures: "ark.subscribeFeatures",
+  arkSetAgentPaused: "ark.setAgentPaused",
+  arkMutate: "ark.mutate",
+  arkReadKnowledge: "ark.readKnowledge",
+  arkSource: "ark.source",
+  arkGetSources: "ark.getSources",
+  arkSubscribeComputer: "ark.subscribeComputer",
+  arkConfigureComputer: "ark.configureComputer",
+  arkAnswerComputer: "ark.answerComputer",
+  arkStopComputer: "ark.stopComputer",
+  arkAgentAccess: "ark.agentAccess",
+  arkVoice: "ark.voice",
+  arkVoiceCancel: "ark.voiceCancel",
+  arkDraftLookup: "ark.draftLookup",
+  arkDraftGenerate: "ark.draftGenerate",
+  arkDraftCancel: "ark.draftCancel",
   serverRefreshProviders: "server.refreshProviders",
   serverUpdateProvider: "server.updateProvider",
   serverUpdateServer: "server.updateServer",
@@ -1913,7 +1951,115 @@ export class RpcScopeAuthorization extends RpcMiddleware.Service<RpcScopeAuthori
   { error: EnvironmentAuthorizationError },
 ) {}
 
+const ArkComputerSubscribeRpc = Rpc.make(WS_METHODS.arkSubscribeComputer, {
+  payload: Schema.Struct({}),
+  success: ArkComputerState,
+  error: EnvironmentAuthorizationError,
+  stream: true,
+});
+const ArkComputerConfigureRpc = Rpc.make(WS_METHODS.arkConfigureComputer, {
+  payload: ArkComputerSettingsInput,
+  success: ArkComputerState,
+  error: Schema.Union([ArkFeatureError, EnvironmentAuthorizationError]),
+});
+const ArkComputerAnswerRpc = Rpc.make(WS_METHODS.arkAnswerComputer, {
+  payload: ArkComputerAnswer,
+  success: Schema.Void,
+  error: Schema.Union([ArkFeatureError, EnvironmentAuthorizationError]),
+});
+const ArkComputerStopRpc = Rpc.make(WS_METHODS.arkStopComputer, {
+  payload: Schema.Struct({ request: Schema.String.check(Schema.isUUID()) }),
+  success: Schema.Void,
+  error: EnvironmentAuthorizationError,
+});
+
+const ArkAgentAccessRpc = Rpc.make(WS_METHODS.arkAgentAccess, {
+  payload: ArkAgentAccessInput,
+  success: ArkAgentAccessResult,
+  error: Schema.Union([ArkFeatureError, EnvironmentAuthorizationError]),
+});
+
+const ArkVoiceRpc = Rpc.make(WS_METHODS.arkVoice, {
+  payload: ArkVoiceInput,
+  success: ArkVoiceResult,
+  error: Schema.Union([ArkFeatureError, EnvironmentAuthorizationError]),
+});
+const ArkVoiceCancelRpc = Rpc.make(WS_METHODS.arkVoiceCancel, {
+  payload: Schema.Struct({ requestId: Schema.String.check(Schema.isUUID()) }),
+  success: Schema.Void,
+  error: EnvironmentAuthorizationError,
+});
+
+const ArkDraftLookupRpc = Rpc.make(WS_METHODS.arkDraftLookup, {
+  payload: ArkDraftLookupInput,
+  success: ArkDraftContextResult,
+  error: Schema.Union([ArkFeatureError, EnvironmentAuthorizationError]),
+});
+const ArkDraftGenerateRpc = Rpc.make(WS_METHODS.arkDraftGenerate, {
+  payload: ArkDraftInput,
+  success: ArkDraftResult,
+  error: Schema.Union([ArkFeatureError, EnvironmentAuthorizationError]),
+});
+const ArkDraftCancelRpc = Rpc.make(WS_METHODS.arkDraftCancel, {
+  payload: Schema.Struct({ requestId: Schema.String.check(Schema.isUUID()) }),
+  success: Schema.Void,
+  error: EnvironmentAuthorizationError,
+});
+
+const ArkGetSourcesRpc = Rpc.make(WS_METHODS.arkGetSources, {
+  payload: Schema.Struct({}),
+  success: ArkSourceResult,
+  error: Schema.Union([ArkFeatureError, EnvironmentAuthorizationError]),
+});
+
+const ArkSourceRpc = Rpc.make(WS_METHODS.arkSource, {
+  payload: ArkSourceRequest,
+  success: ArkSourceResult,
+  error: Schema.Union([ArkFeatureError, EnvironmentAuthorizationError]),
+});
+
+const ArkReadKnowledgeRpc = Rpc.make(WS_METHODS.arkReadKnowledge, {
+  payload: ArkKnowledgeQuery,
+  success: ArkKnowledgeResult,
+  error: Schema.Union([ArkFeatureError, EnvironmentAuthorizationError]),
+});
+
+const ArkMutateRpc = Rpc.make(WS_METHODS.arkMutate, {
+  payload: ArkMutation,
+  success: ArkMutationResult,
+  error: Schema.Union([ArkFeatureError, EnvironmentAuthorizationError]),
+});
+
+const ArkSetAgentPausedRpc = Rpc.make(WS_METHODS.arkSetAgentPaused, {
+  payload: ArkSetAgentPaused,
+  success: ArkFeatureSnapshot,
+  error: Schema.Union([ArkFeatureError, EnvironmentAuthorizationError]),
+});
+
+const ArkSubscribeFeaturesRpc = Rpc.make(WS_METHODS.arkSubscribeFeatures, {
+  payload: Schema.Struct({}),
+  success: ArkFeatureSnapshot,
+  stream: true,
+  error: EnvironmentAuthorizationError,
+});
+
 export const WsRpcGroup = RpcGroup.make(
+  ArkSubscribeFeaturesRpc,
+  ArkComputerSubscribeRpc,
+  ArkComputerConfigureRpc,
+  ArkComputerAnswerRpc,
+  ArkComputerStopRpc,
+  ArkSetAgentPausedRpc,
+  ArkMutateRpc,
+  ArkReadKnowledgeRpc,
+  ArkSourceRpc,
+  ArkGetSourcesRpc,
+  ArkAgentAccessRpc,
+  ArkVoiceRpc,
+  ArkVoiceCancelRpc,
+  ArkDraftLookupRpc,
+  ArkDraftGenerateRpc,
+  ArkDraftCancelRpc,
   WsGuestShareCreateRpc,
   WsServerProbeRpc,
   WsServerGetConfigRpc,

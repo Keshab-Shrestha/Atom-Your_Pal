@@ -1,7 +1,7 @@
 // Kokoro runs in its own child process. Synthesis is CPU-bound, and the ONNX runtime aborts the
 // whole process if a thread running it is stopped mid-synthesis; a child process can be killed
 // at any moment (quit, Ctrl+C) without affecting ATOM, and a Kokoro crash cannot take ATOM down.
-type Init = { type: "init"; modelId: string; voice: string; dtype: "fp32" | "fp16" | "q8" | "q4" | "q4f16"; speed: number; cacheDir: string };
+type Init = { type: "init"; modelId: string; voice: string; dtype: "fp32" | "fp16" | "q8" | "q4" | "q4f16"; speed: number; cacheDir: string; localFilesOnly?: boolean };
 type Request = { type: "synthesize"; id: number; text: string };
 
 const send = (message: unknown) => process.send?.(message);
@@ -15,6 +15,7 @@ let settings: Init;
 async function load(init: Init) {
   const { env } = await import("@huggingface/transformers");
   env.cacheDir = init.cacheDir;
+  if (init.localFilesOnly) env.allowRemoteModels = false;
   const { KokoroTTS } = await import("kokoro-js");
   const tts = await KokoroTTS.from_pretrained(init.modelId, { dtype: init.dtype, device: "cpu" });
   const voices = Object.keys(tts.voices);

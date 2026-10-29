@@ -28,6 +28,7 @@ export class TextGeneration extends Context.Service<TextGeneration, ProviderText
 ) {}
 
 type TextGenerationOp =
+  | "generateReplyDraft"
   | "generateCommitMessage"
   | "generatePrContent"
   | "generateBranchName"
@@ -57,6 +58,20 @@ export const make = Effect.gen(function* () {
   const registry = yield* ProviderInstanceRegistry.ProviderInstanceRegistry;
   const sourceControl = yield* SourceControlProviderRegistry.SourceControlProviderRegistry;
   return TextGeneration.of({
+    generateReplyDraft: Effect.fn("TextGeneration.generateReplyDraft")(function* (input) {
+      const provider = yield* resolveInstance(
+        registry,
+        "generateReplyDraft",
+        input.modelSelection.instanceId,
+      );
+      if (!provider.generateReplyDraft)
+        return yield* new TextGenerationError({
+          operation: "generateReplyDraft",
+          detail:
+            "This provider cannot guarantee tool-free reply drafting. Choose Claude or Codex.",
+        });
+      return yield* provider.generateReplyDraft(input);
+    }),
     generateCommitMessage: Effect.fn("TextGeneration.generateCommitMessage")(function (input) {
       return resolveInstance(
         registry,

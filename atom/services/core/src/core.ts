@@ -10,8 +10,6 @@ export class CoreError extends Error {
 export interface HandleHooks {
   /** The reply's text as the model writes it (ADR-065). Not called by models that cannot stream. */
   onText?: (delta: string) => void;
-  /** Provider-visible reasoning summaries, kept separate from the answer. */
-  onReasoning?: (delta: string) => void;
 }
 
 export interface Core {

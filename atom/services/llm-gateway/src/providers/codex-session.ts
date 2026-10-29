@@ -141,9 +141,6 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
       if (m.params.delta.length && a.firstTextAt === undefined) a.firstTextAt = performance.now();
       a.text += m.params.delta; a.request.onText?.(m.params.delta);
     }
-    if (m.method === "item/reasoning/summaryTextDelta" && typeof m.params.delta === "string") {
-      a.request.onReasoning?.(m.params.delta);
-    }
     if (m.method === "item/completed" && m.params.item?.type === "agentMessage") {
       const item = m.params.item;
       if (typeof item.text === "string") { a.text = item.text; if (item.phase === "final_answer") a.final = item.text; }

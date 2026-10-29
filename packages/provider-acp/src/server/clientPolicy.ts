@@ -193,14 +193,10 @@ export function acpPermissionDisposition(
   runtimePolicy: AcpRuntimePolicy,
   request: EffectAcpSchema.RequestPermissionRequest,
 ): AcpPermissionDisposition {
-  const disposition = acpOperationDisposition(runtimePolicy, {
+  return acpOperationDisposition(runtimePolicy, {
     kind: request.toolCall.kind,
     locations: request.toolCall.locations,
   });
-  // A backend's explicit confirmation must survive the client's automatic approval mode.
-  return disposition !== "deny" && request._meta?.["atom.requireExplicitApproval"] === true
-    ? "ask"
-    : disposition;
 }
 
 export function acpMcpToolApprovalElicitationDisposition(

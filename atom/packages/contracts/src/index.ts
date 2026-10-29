@@ -113,8 +113,6 @@ export interface ModelRequest {
    * Text written before a tool call ("Let me check.") is included; turns are separated by a newline.
    */
   onText?: (delta: string) => void;
-  /** Displayable provider reasoning only; never synthesized from host activity. */
-  onReasoning?: (delta: string) => void;
   /**
    * ADR-107: set for a project chat: direct read-only file tools (Read, Glob, Grep) confined to `cwd`. Every call goes
    * through `check` (a reason it is refused, or undefined). Providers that cannot run file tools refuse the request.

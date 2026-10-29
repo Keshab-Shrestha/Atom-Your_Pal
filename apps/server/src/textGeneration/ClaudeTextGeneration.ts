@@ -1,3 +1,4 @@
+import { REPLY_DRAFT_INSTRUCTIONS } from "@t3tools/provider-core/server/replyDraftPrompt";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Option from "effect/Option";
@@ -183,7 +184,7 @@ export const makeClaudeTextGeneration = Effect.fn("makeClaudeTextGeneration")(fu
 
     const runClaudeCommand = Effect.fn("runClaudeJson.runClaudeCommand")(function* () {
       const workingDirectory =
-        operation === "generateThreadTitle"
+        operation === "generateThreadTitle" || operation === "generateReplyDraft"
           ? yield* fileSystem
               .makeTempDirectoryScoped({ prefix: "t3code-claude-title-" })
               .pipe(
@@ -193,6 +194,11 @@ export const makeClaudeTextGeneration = Effect.fn("makeClaudeTextGeneration")(fu
               )
           : cwd;
       const managedMcpConfig = yield* hasClaudeManagedMcpConfig();
+      if (operation === "generateReplyDraft" && managedMcpConfig)
+        return yield* new TextGenerationError({
+          operation,
+          detail: "Managed Claude MCP configuration prevents isolated drafting. No draft was sent.",
+        });
       const spawnCommand = yield* resolveSpawnCommand(
         claudeSettings.binaryPath || "claude",
         [
@@ -217,6 +223,19 @@ export const makeClaudeTextGeneration = Effect.fn("makeClaudeTextGeneration")(fu
               ]
             : ["--tools", ""]),
           "--disable-slash-commands",
+          ...(operation === "generateReplyDraft"
+            ? [
+                "--safe-mode",
+                "--restricted",
+                "--no-session-persistence",
+                "--system-prompt",
+                REPLY_DRAFT_INSTRUCTIONS,
+                "--setting-sources",
+                "",
+                "--mcp-config",
+                '{"mcpServers":{}}',
+              ]
+            : []),
           // managed-mcp.json already isolates servers and makes Claude reject this flag.
           ...(managedMcpConfig ? [] : ["--strict-mcp-config"]),
           "--permission-mode",
@@ -225,7 +244,15 @@ export const makeClaudeTextGeneration = Effect.fn("makeClaudeTextGeneration")(fu
         { env: claudeEnvironment },
       );
       const command = ChildProcess.make(spawnCommand.command, spawnCommand.args, {
-        env: claudeEnvironment,
+        env:
+          operation === "generateReplyDraft"
+            ? {
+                ...claudeEnvironment,
+                ENABLE_CLAUDEAI_MCP_SERVERS: "false",
+                CLAUDE_CODE_AUTO_CONNECT_IDE: "0",
+                CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL: "1",
+              }
+            : claudeEnvironment,
         cwd: workingDirectory,
         shell: spawnCommand.shell,
         stdin: {
@@ -318,5 +345,5 @@ export const makeClaudeTextGeneration = Effect.fn("makeClaudeTextGeneration")(fu
     );
   });
 
-  return TextGenerationOperations.fromRunner("ClaudeTextGeneration", runClaudeJson);
+  return TextGenerationOperations.fromRunner("ClaudeTextGeneration", runClaudeJson, runClaudeJson);
 });

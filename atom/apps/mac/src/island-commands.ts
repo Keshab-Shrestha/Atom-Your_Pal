@@ -1,3 +1,8 @@
+import { parseArkAgentAccess, type ArkAgentAccessCommand } from "./ark-agent-access.ts";
+import { parseArkVoice, type ArkVoiceCommand } from "./ark-voice.ts";
+import { parseArkComputer, type ArkComputerCommand } from "./ark-computer.ts";
+import { parseArkMutation, type ArkMutationCommand } from "./ark-mutations.ts";
+import { parseArkKnowledge, type ArkKnowledgeCommand } from "./ark-knowledge.ts";
 // The commands from the island, their allowlist and the parser (moved from island-protocol.ts; docs/island-protocol.md is the specification).
 
 import { isChatAccessMode, type ChatAccessMode } from "@atom/contracts";
@@ -16,6 +21,11 @@ export type BriefChange = Partial<Record<(typeof BRIEF_FLAGS)[number], boolean>>
 
 
 export type IslandCommand =
+  | ArkAgentAccessCommand
+  | ArkVoiceCommand
+  | ArkComputerCommand
+  | ArkMutationCommand
+  | ArkKnowledgeCommand
   | LocalBackupCommand
   | SourceAnalysisCommand
   | import("./reply-drafts.ts").ReplyCommand
@@ -172,6 +182,11 @@ export type IslandCommand =
   | { type: "quit" };
 
 const COMMANDS = new Set<IslandCommand["type"]>([
+  "ark.agent.access",
+  "ark.voice.run", "ark.voice.cancel",
+  "ark.computer.run", "ark.computer.cancel", "ark.computer.answer", "ark.computer.decision.answer",
+  "ark.mutate",
+  "ark.knowledge",
   "talk.start",
   "talk.send",
   "talk.cancel",
@@ -318,6 +333,26 @@ export function parseCommand(line: string): ParsedLine {
   const type = (value as { type?: unknown }).type;
   if (typeof type !== "string") return { error: 'Command has no "type".' };
   if (!COMMANDS.has(type as IslandCommand["type"])) return { error: `Unknown command "${type.slice(0, 40)}".` };
+  if (type === "ark.agent.access") {
+    const command = parseArkAgentAccess(value as Record<string, unknown>);
+    return command ? { command } : { error: "Invalid agent access request." };
+  }
+  if (type.startsWith("ark.voice.")) {
+    const command = parseArkVoice(value as Record<string, unknown>);
+    return command ? { command } : { error: "Invalid voice request." };
+  }
+  if (type.startsWith("ark.computer.")) {
+    const command = parseArkComputer(value as Record<string, unknown>);
+    return command ? { command } : { error: "Invalid computer request." };
+  }
+  if (type === "ark.mutate") {
+    const command = parseArkMutation(value as Record<string, unknown>);
+    return command ? { command } : { error: "Invalid workspace mutation request." };
+  }
+  if (type === "ark.knowledge") {
+    const command = parseArkKnowledge(value as Record<string, unknown>);
+    return command ? { command } : { error: "Invalid workspace knowledge request." };
+  }
   if (type === "reply.context" || type === "reply.draft" || type === "reply.cancel") {
     const v = value as Record<string, any>;
     if (typeof v.id !== "string" || !/^[\w-]{1,64}$/.test(v.id)) return { error: "Reply requests need an id." };

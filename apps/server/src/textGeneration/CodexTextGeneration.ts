@@ -1,3 +1,4 @@
+import { runIsolatedCodexDraft } from "./IsolatedCodexDraft.ts";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Option from "effect/Option";
@@ -392,5 +393,22 @@ export const makeCodexTextGeneration = Effect.fn("makeCodexTextGeneration")(func
     }).pipe(Effect.ensuring(cleanup));
   });
 
-  return TextGenerationOperations.fromRunner("CodexTextGeneration", runCodexJson);
+  const draft = Effect.fn("CodexTextGeneration.draft")(function* <S extends Schema.Top>(
+    request: TextGenerationOperations.Request<S>,
+  ) {
+    const resolved = resolveRuntime
+      ? yield* resolveRuntime.pipe(
+          Effect.mapError(
+            (cause) =>
+              new TextGenerationError({ operation: request.operation, detail: cause.detail }),
+          ),
+        )
+      : undefined;
+    return yield* runIsolatedCodexDraft(
+      request,
+      resolved?.config ?? codexConfig,
+      resolved?.environment ?? resolvedEnvironment,
+    );
+  });
+  return TextGenerationOperations.fromRunner("CodexTextGeneration", runCodexJson, draft);
 });

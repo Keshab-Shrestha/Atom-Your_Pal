@@ -263,6 +263,7 @@ export function splitSentences(text: string): string[] {
 export const KOKORO_MODEL_ID = "onnx-community/Kokoro-82M-v1.0-ONNX";
 
 export interface KokoroOptions {
+  localFilesOnly?: boolean;
   /** Kokoro voice id, e.g. "af_heart". */
   voice: string;
   /** Model precision: "fp32" (~330 MB, default: highest quality and, on Apple silicon, fastest) or "q8" (~90 MB). */
@@ -273,7 +274,7 @@ export interface KokoroOptions {
 }
 
 export function createKokoroSynthesizer(options: KokoroOptions): Synthesizer {
-  const { voice, dtype = "fp32", speed = 1, cacheDir = resolve("models/huggingface") } = options;
+  const { voice, dtype = "fp32", speed = 1, cacheDir = resolve("models/huggingface"), localFilesOnly = false } = options;
   let child: ChildProcess | null = null;
   let loading: Promise<void> | null = null;
   let nextId = 0;
@@ -318,7 +319,9 @@ export function createKokoroSynthesizer(options: KokoroOptions): Synthesizer {
             proc.kill("SIGKILL");
             rejectLoad(
               new TtsError(
-                message.known
+                localFilesOnly
+                  ? "The local Kokoro voice is not installed or could not load. Install the configured Kokoro model on this environment before reading aloud."
+                  : message.known
                   ? message.message
                   : `Could not load Kokoro (${message.message}). The first run downloads the model and needs internet.`,
               ),
@@ -344,7 +347,7 @@ export function createKokoroSynthesizer(options: KokoroOptions): Synthesizer {
           failAll(error);
           rejectLoad(error);
         });
-        proc.send({ type: "init", modelId: KOKORO_MODEL_ID, voice, dtype, speed, cacheDir });
+        proc.send({ type: "init", modelId: KOKORO_MODEL_ID, voice, dtype, speed, cacheDir, localFilesOnly });
       });
       return loading;
     },
