@@ -212,19 +212,33 @@ export async function* streamSentences(pieces: AsyncIterable<string>): AsyncGene
   if (buffer.trim()) yield* emit(buffer);
 }
 
+/** Inline code longer than this is not read out: a spoken hash or command is noise. */
+export const MAX_SPOKEN_INLINE_CODE = 40;
+
+/** A file path is spoken as its file name: "src/app/core.ts" → "core.ts". The extension must start with a letter, so "3/4.5" stays. */
+function shortenPaths(text: string): string {
+  return text.replace(/(?:[\w.@-]+\/)+([\w-]+\.[A-Za-z]\w{0,5})\b/g, "$1");
+}
+
 /**
  * Models are told to answer in plain sentences, but sometimes reply with markdown or emoji anyway.
  * Strip what would otherwise be read aloud as symbols; list items and headings become sentences.
+ * Path, long-inline-code, image and checkbox handling follows OpenMausBot `speakable` (Apache-2.0).
+ * Code blocks and tables stay silent on purpose: the spoken part is one short sentence (native-core.ts).
  */
 export function toSpeakable(text: string): string {
-  return text
-    .replace(/```[\s\S]*?```/g, " ") // code blocks cannot be spoken usefully
+  const spoken = text
+    .replace(/(```|~~~)[\s\S]*?\1/g, " ") // code blocks cannot be spoken usefully
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ") // an image stays on screen
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1") // [label](url) → label
     .replace(/https?:\/\/(?:www\.)?([^\/\s]+)\S*/g, "$1") // URL → its domain
+    .replace(/`([^`\n]+)`/g, (_match, code: string) => (code.length <= MAX_SPOKEN_INLINE_CODE ? code : " ")) // short inline code is read, long is not
     .split(/\n+/)
     .map((line) =>
-      (/^\s*\|/.test(line) ? "" : line) // table rows stay on screen
+      shortenPaths(/^\s*\|/.test(line) ? "" : line) // table rows stay on screen
+        .replace(/^\s*(?:[-*_]\s*){3,}$/, "") // horizontal rules
         .replace(/^\s*(?:#{1,6}\s+|[-*+•]\s+|\d+[.)]\s+|>\s*)/, "") // headings, bullets, numbers, quotes
+        .replace(/^\[[ xX]\]\s*/, "") // task-list checkboxes
         .replace(/(\*\*|__|\*|`|~~)/g, "") // emphasis and inline code markers
         .replace(/[\p{Extended_Pictographic}\p{Regional_Indicator}\u200D\uFE0F]/gu, "") // emoji, incl. flags
         .trim(),
@@ -235,6 +249,8 @@ export function toSpeakable(text: string): string {
     .replace(/\s+([.,!?])/g, "$1")
     .replace(/\s+/g, " ")
     .trim();
+  // A synthesizer renders a lone full stop as a click: nothing to say means nothing to send.
+  return /[\p{L}\p{N}]/u.test(spoken) ? spoken : "";
 }
 
 /** Splits text into sentences for incremental speech; very short fragments are merged. */

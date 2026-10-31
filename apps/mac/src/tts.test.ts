@@ -276,6 +276,27 @@ test("toSpeakable skips Markdown table rows: the table stays on screen", () => {
   assert.equal(toSpeakable("Here is the table.\n| Name | Age |\n|---|---|\n| Ann | 30 |"), "Here is the table.");
 });
 
+test("toSpeakable says a file path as its file name and keeps fractions and dates whole", () => {
+  assert.equal(toSpeakable("Open src/app/core.ts now."), "Open core.ts now.");
+  assert.equal(toSpeakable("Add 3/4.5 cups on 10/12/2026 and/or more."), "Add 3/4.5 cups on 10/12/2026 and/or more.");
+});
+
+test("toSpeakable reads short inline code and skips long inline code", () => {
+  assert.equal(toSpeakable("Run `pnpm test` first."), "Run pnpm test first.");
+  assert.equal(toSpeakable(`Try \`${"x".repeat(41)}\` today.`), "Try today.");
+});
+
+test("toSpeakable drops images, rules, checkboxes and tilde fences", () => {
+  assert.equal(toSpeakable("Look ![chart](a.png) here."), "Look here.");
+  assert.equal(toSpeakable("One\n---\nTwo"), "One. Two.");
+  assert.equal(toSpeakable("- [x] Done\n- [ ] Next"), "Done. Next.");
+  assert.equal(toSpeakable("Run this:\n~~~sh\nrm -rf /\n~~~\nDone"), "Run this: Done.");
+});
+
+test("toSpeakable returns nothing when no letter or digit is left", () => {
+  assert.equal(toSpeakable("...\n---"), "");
+});
+
 // 2026-10-16 (review): a "." between digits ended a sentence, so "pi is 3.14159" was spoken as "pi is 3." and "14159 ...".
 test("splitSentences keeps decimals, version numbers and times whole", () => {
   assert.deepEqual(splitSentences("The value of pi is 3.14159 and it never ends. The next sentence is here."), ["The value of pi is 3.14159 and it never ends.", "The next sentence is here."]);
