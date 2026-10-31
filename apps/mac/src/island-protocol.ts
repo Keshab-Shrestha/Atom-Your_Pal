@@ -44,6 +44,8 @@ export type IslandEvent =
   | { type: "notice"; kind: NoticeKind; message: string }
   /** ADR-107: `projectId` when the new chat belongs to a project (after `chat.new`). */
   | { type: "conversation.reset"; projectId?: string }
+  /** The answer to `chats.export` or `chats.clear`: how many chats, the folder written, or why not. */
+  | { type: "chats.history"; action: "export" | "clear"; ok: boolean; count: number; folder?: string; error?: string }
   | { type: "computer.step"; text: string }
   | { type: "computer.decision"; id: string; state: string; criteria: Record<string, string> }
   | { type: "computer.decision.cancel"; id: string }

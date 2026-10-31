@@ -94,4 +94,17 @@ struct ProjectsTests {
         #expect(try json(.chatRename(id: "c1", title: "Hi")) == ["type": "chat.rename", "id": "c1", "title": "Hi"])
         #expect(IslandCommand.conversationReset.line == "{\"type\":\"conversation.reset\"}\n")
     }
+
+    /// Settings > Privacy > Chat history (2026-10-31): export and delete-all go out, and their answer comes back.
+    @Test func chatHistoryCommandsAndAnswer() throws {
+        #expect(try json(.chatsExport(folder: "/Users/k/Desktop")) == ["type": "chats.export", "folder": "/Users/k/Desktop"])
+        #expect(IslandCommand.chatsClear.line == "{\"type\":\"chats.clear\"}\n")
+        let exported = try decodeEvent(#"{"type":"chats.history","action":"export","ok":true,"count":2,"folder":"/tmp/ATOM chats 2026-10-31"}"#)
+        #expect(exported == .chatsHistory(ChatHistoryResult(action: "export", ok: true, count: 2, folder: "/tmp/ATOM chats 2026-10-31")))
+        guard case .chatsHistory(let cleared) = try decodeEvent(#"{"type":"chats.history","action":"clear","ok":true,"count":1}"#) else { Issue.record("not chats.history"); return }
+        #expect(cleared.sentence == "Deleted 1 chat.")
+        let refused = ChatHistoryResult(action: "export", ok: false, count: 0, error: "That folder no longer exists.")
+        #expect(refused.sentence == "That folder no longer exists.")
+        #expect(throws: (any Error).self) { try decodeEvent(#"{"type":"chats.history","action":"wipe","ok":true,"count":0}"#) }
+    }
 }

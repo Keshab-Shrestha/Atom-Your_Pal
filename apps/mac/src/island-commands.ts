@@ -52,6 +52,10 @@ export type IslandCommand =
   | { type: "skill.get"; name: string }
   | { type: "skill.save"; name: string; text: string }
   | { type: "chats.list" }
+  /** Settings > Privacy > Chat history: every saved chat as Markdown in a new folder inside `folder` (a full path). */
+  | { type: "chats.export"; folder: string }
+  /** Settings > Privacy > Chat history: delete every saved chat (the window asked Keshab first). */
+  | { type: "chats.clear" }
   /** ADR-107: a new chat, in a project when `projectId` is given (`conversation.reset` is the same without a project). */
   | { type: "chat.new"; projectId?: string }
   /** ADR-107: Keshab's own title for a chat (any chat the window writes). */
@@ -195,6 +199,8 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "skill.get",
   "skill.save",
   "chats.list",
+  "chats.export",
+  "chats.clear",
   "chat.control",
   "chat.question.answer",
   "chat.work.watch",
@@ -769,6 +775,13 @@ export function parseCommand(line: string): ParsedLine {
     const { enabled } = value as { enabled?: unknown };
     if (typeof enabled !== "boolean") return { error: 'suggestions.set needs "enabled" to be true or false.' };
     return { command: { type, enabled } };
+  }
+  if (type === "chats.export") {
+    const { folder } = value as { folder?: unknown };
+    if (typeof folder !== "string" || !folder.startsWith("/") || folder.length > MAX_PROJECT_PATH || /[\x00-\x1f\x7f]/.test(folder) || folder.split("/").includes("..")) {
+      return { error: 'chats.export needs "folder", a full path to a folder on this Mac.' };
+    }
+    return { command: { type, folder } };
   }
   if (type === "brain.search") {
     const { query } = value as { query?: unknown };

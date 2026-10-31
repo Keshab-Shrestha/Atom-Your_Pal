@@ -21,6 +21,8 @@ public enum IslandEvent: Sendable, Equatable {
     case turnComplete(TurnTimings)
     case notice(kind: String, message: String)
     case conversationReset
+    /// The answer to `chatsExport` or `chatsClear`.
+    case chatsHistory(ChatHistoryResult)
     /// ATOM is about to do something on the Mac, in plain words (ADR-054).
     case computerDecision(ComputerDecisionRequest)
     case computerDecisionCancel(String)
@@ -106,6 +108,7 @@ public enum IslandEvent: Sendable, Equatable {
         case .turnComplete: "turn.complete"
         case .notice(let kind, _): "notice:\(kind)"
         case .conversationReset: "conversation.reset"
+        case .chatsHistory(let result): "chats.history:\(result.action)"
         case .computerDecision: "computer.decision"
         case .computerDecisionCancel: "computer.decision.cancel"
         case .computerStep: "computer.step"
@@ -217,6 +220,11 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .notice(kind: try f.string("kind"), message: try f.string("message"))
     case "conversation.reset":
         return .conversationReset
+    case "chats.history":
+        let action = try f.string("action")
+        guard action == "export" || action == "clear" else { throw ProtocolError.invalidValue(event: "chats.history", field: "action") }
+        return .chatsHistory(ChatHistoryResult(action: action, ok: try f.bool("ok"), count: try f.int("count"),
+                                               folder: f.optionalString("folder"), error: f.optionalString("error")))
     case "computer.decision":
         let request = try JSONDecoder().decode(ComputerDecisionRequest.self, from: JSONSerialization.data(withJSONObject: f.values))
         guard request.valid else { throw ProtocolError.invalidValue(event: "computer.decision", field: "request") }
@@ -1120,5 +1128,28 @@ extension Fields {
             return HubSkillInstalled(name: name, repo: i["repo"] as? String ?? "", path: i["path"] as? String ?? "", sha: i["sha"] as? String ?? "")
         }
         return HubState(results: results, pending: pending, installed: installed, message: h["message"] as? String)
+    }
+}
+
+/// Settings > Privacy > Chat history: what an export or a delete-all did.
+public struct ChatHistoryResult: Sendable, Equatable {
+    /// "export" or "clear".
+    public var action: String
+    public var ok: Bool
+    public var count: Int
+    /// The folder the export wrote.
+    public var folder: String?
+    /// Why it did not work, in words for Keshab.
+    public var error: String?
+
+    public init(action: String, ok: Bool, count: Int, folder: String? = nil, error: String? = nil) {
+        self.action = action; self.ok = ok; self.count = count; self.folder = folder; self.error = error
+    }
+
+    /// The line the card shows after it is done.
+    public var sentence: String {
+        if let error { return error }
+        let chats = count == 1 ? "1 chat" : "\(count) chats"
+        return action == "export" ? "Exported \(chats) to \(folder.map { ($0 as NSString).abbreviatingWithTildeInPath } ?? "the folder")." : "Deleted \(chats)."
     }
 }

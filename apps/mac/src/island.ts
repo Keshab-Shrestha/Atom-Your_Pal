@@ -12,6 +12,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import type { Message } from "@atom/contracts";
+import { clearChats, exportChats } from "./chat-export.ts";
 import { PROTOCOL_VERSION, createLevelThrottle, encodeEvent, parseCommand, planUsageEvent, type IslandCommand, type IslandEvent, type SearchHitItem } from "./island-protocol.ts";
 import { spokenDuration } from "@atom/tool-engine";
 import { createVoiceLoop, type LoopNotice, type VoiceLoop } from "./voice-loop.ts";
@@ -253,7 +254,7 @@ export function runIsland(options: IslandOptions): IslandSession {
   }
 
   function handle(command: IslandCommand) {
-    if (["chat.access", "chat.open", "chat.new", "chat.delete", "chat.model", "chat.control", "conversation.reset", "talk.start", "talk.send", "talk.cancel", "text.send", "quit"].includes(command.type)) accessActivation?.abort();
+    if (["chat.access", "chat.open", "chat.new", "chat.delete", "chats.clear", "chat.model", "chat.control", "conversation.reset", "talk.start", "talk.send", "talk.cancel", "text.send", "quit"].includes(command.type)) accessActivation?.abort();
     switch (command.type) {
       case "reply.context":
         try { send(options.replyDrafts?.lookup(command.id, command.query) ?? { type: "reply.context", id: command.id, items: [], error: "Reply drafting is unavailable." }); }
@@ -530,6 +531,29 @@ export function runIsland(options: IslandOptions): IslandSession {
           sendOpened(command.id, turns, replay.trimmed);
           sendChats();
         }, "chat.open");
+        return;
+      }
+      case "chats.export": {
+        if (!options.chats) { send({ type: "chats.history", action: "export", ok: false, count: 0, error: "Chats are not saved here." }); return; }
+        try {
+          const { folder, count } = exportChats(options.chats, command.folder);
+          options.log?.info("chats.exported", { count });
+          send({ type: "chats.history", action: "export", ok: true, count, folder });
+        } catch (error) {
+          send({ type: "chats.history", action: "export", ok: false, count: 0, error: describe(error) });
+        }
+        return;
+      }
+      case "chats.clear": {
+        if (!options.chats) { send({ type: "chats.history", action: "clear", ok: false, count: 0, error: "Chats are not saved here." }); return; }
+        const count = clearChats(options.chats);
+        // The open chat went too: start a fresh conversation, as deleting the open chat does.
+        loop.cancel();
+        core.reset();
+        send({ type: "conversation.reset" });
+        sendChats();
+        options.log?.info("chats.cleared", { count });
+        send({ type: "chats.history", action: "clear", ok: true, count });
         return;
       }
       case "chat.delete": {

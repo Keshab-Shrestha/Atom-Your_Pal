@@ -241,6 +241,25 @@ final class IslandModel {
     var showsAllAgents = false
     /// 2026-10-31: the window's right panel of what runs in the background (ActivityPanel). Shown on request.
     var activityShown = false
+    /// Settings > Privacy > Chat history: an export or a delete-all was sent and not answered yet, and the last answer.
+    var chatHistoryPending = false
+    var chatHistoryResult: ChatHistoryResult?
+
+    /// Writes every saved chat as Markdown into a new folder inside `folder`.
+    func exportChats(to folder: URL) {
+        guard !chatHistoryPending else { return }
+        chatHistoryPending = true
+        chatHistoryResult = nil
+        send(.chatsExport(folder: folder.path))
+    }
+
+    /// Deletes every saved chat. The page has asked first.
+    func clearChats() {
+        guard !chatHistoryPending else { return }
+        chatHistoryPending = true
+        chatHistoryResult = nil
+        send(.chatsClear)
+    }
     /// The Settings page open inside the Settings tab; nil shows the list of pages (ADR-057).
     var settingsPage: SettingsPage?
 
@@ -979,6 +998,9 @@ final class IslandModel {
             resetChatControlReading()
             resetChatFind()
             trimmedChatId = trimmed ? id : nil
+        case .chatsHistory(let result):
+            chatHistoryPending = false
+            chatHistoryResult = result
         case .conversationReset:
             workspace.clear(); workspaceBrowser.reset(); workspaceTerminal.reset()
             resetChatControlReading()

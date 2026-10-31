@@ -254,6 +254,7 @@ Token cost, job 4: `usage` has the optional `recent`: the newest 8 calls, newest
 - `{"type":"chat.open","id":"…"}`: ATOM continues that chat (voice and typing go to it) → `{"type":"chat.opened","id":"…","messages":[{"role":"user"|"assistant","text":"…"}]}`, then `chats`.
 - `{"type":"chat.delete","id":"…"}`: deletes it; if it was the current chat, ATOM starts a new one (`conversation.reset`), then `chats`.
 - `conversation.reset` (New chat) is also followed by `chats` once the window has asked for them.
+- `{"type":"chats.export","folder":"…"}` and `{"type":"chats.clear"}` (Settings → Privacy → Chat history) → `{"type":"chats.history","action":"export"|"clear","ok":true|false,"count":N,"folder"?,"error"?}`. A delete-all is followed by `conversation.reset`, then `chats`. Chat text is never logged; the log has the count only.
 
 ### Projects (ADR-107)
 
@@ -271,6 +272,8 @@ Commands. Every refusal is an `error` event with stage `settings`. Every success
 | `{"type":"project.web","id":"…","web":true}` | Web search in the project's chats. Off by default |
 | `{"type":"chat.new"}` or `{"type":"chat.new","projectId":"…"}` | A new chat, in a project when `projectId` is given. An unknown or archived project is refused and nothing resets. `conversation.reset` is the same command without a project |
 | `{"type":"chat.rename","id":"…","title":"…"}` | Give a chat a title (1 to 60 characters, one line). The title stays when the chat is saved again. It works for every chat the window writes. The chats `telegram`, `api` and `api-<chatId>` are refused with the read-only message. A chat that is not saved yet is refused: send a message first |
+| `{"type":"chats.export","folder":"/full/path"}` | Write every saved chat as one Markdown file into a new folder `ATOM chats <date>` inside `folder`. The folder must be a full path that exists. The answer is `chats.history` |
+| `{"type":"chats.clear"}` | Delete every saved chat, project chats too. The open conversation starts again (`conversation.reset`). The window asks Keshab first. The answer is `chats.history` |
 
 Events.
 

@@ -189,6 +189,10 @@ public enum IslandCommand: Sendable, Equatable {
     /// A new chat, in a project when `projectId` is set (`conversationReset` is the plain one).
     case chatNew(projectId: String?)
     case chatRename(id: String, title: String)
+    /// Settings > Privacy > Chat history: every saved chat as Markdown in a new folder inside `folder` (a full path).
+    case chatsExport(folder: String)
+    /// Settings > Privacy > Chat history: delete every saved chat. The window asks first.
+    case chatsClear
 
     /// The command's `type` field. Safe for logs: never includes values.
     public var type: String {
@@ -328,6 +332,8 @@ public enum IslandCommand: Sendable, Equatable {
         case .projectWeb: "project.web"
         case .chatNew: "chat.new"
         case .chatRename: "chat.rename"
+        case .chatsExport: "chats.export"
+        case .chatsClear: "chats.clear"
         }
     }
 
@@ -609,6 +615,8 @@ public enum IslandCommand: Sendable, Equatable {
         case .chatRename(let id, let title):
             fields["id"] = id
             fields["title"] = title
+        case .chatsExport(let folder):
+            fields["folder"] = folder
         default:
             break
         }
