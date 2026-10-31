@@ -47,7 +47,7 @@ An error after requested dispatch explicitly retains an unknown external outcome
 
 No dependency, schema, UI switch, native Codex browser/network privilege, external MCP assignment or provider fallback changed. Next independent capability: nested-worker design with explicit task ownership, grant inheritance, depth and Stop limits. General shell/scripts/builds/tests, built-in hosted search and omitted browser operations remain separate gaps. Live acceptance remains outstanding.
 
-Reference: [Playwright MCP documentation](https://github.com/microsoft/playwright-mcp/blob/main/README.md). Implementation uses the installed package's fixed tool arguments, inline snapshot sections and flags; newer documentation does not establish runtime compatibility. The documented origin controls are not a security boundary.
+Since 2026-10-31 the worker browser is agent-browser on the installed Brave, behind `apps/mac/src/browser-bridge.ts`. The bridge keeps the `browser_*` tool names, the fixed arguments and the snapshot format that this adapter reads. See [worker-browser.md](worker-browser.md). The Playwright MCP package is removed. The documented origin controls are not a security boundary.
 
 
 Subsequent update (ADR-164): one generation of tool-free advisory children is implemented with bounded ownership, supplied context and parent/child Stop behavior. [Current advisory child scope and verification limits](codex-advisory-workers.md). Tool-enabled/recursive children remain separate; the earlier next-step statement describes the browser batch's checkpoint.

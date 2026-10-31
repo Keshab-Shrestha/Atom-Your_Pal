@@ -9,6 +9,7 @@ packages:
 # - sharp: prebuilt binaries ship via @img/sharp-* packages; the script only verifies them
 allowBuilds:
   '@google/genai': false
+  agent-browser: false
   onnxruntime-node: false
   protobufjs: false
   sharp: false

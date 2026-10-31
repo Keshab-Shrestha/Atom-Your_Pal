@@ -4,8 +4,7 @@
 // only from the agent's granted folders; files the browser saves stay in data/. The log gets tool names and origins,
 // never typed text.
 
-import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { statSync } from "node:fs";
 import { homedir } from "node:os";
@@ -16,18 +15,18 @@ import { holdsSecret } from "./folder-run.ts";
 /** The MCP server's name: its tools are `mcp__atom-browser__browser_*`. Keshab's own servers may not use it. */
 export const BROWSER_SERVER = "atom-browser";
 
-/** The Agent SDK config that starts Playwright's MCP server for one agent's run. */
+/**
+ * The Agent SDK config that starts the worker browser for one agent's run: browser-bridge-main.ts, which drives agent-browser (Rust) on the
+ * installed Brave (ATOM_BROWSER_PATH picks another Chromium browser). It replaces Playwright MCP, so no browser is downloaded.
+ */
 export function browserServer(dataDir: string, helper: string): Record<string, unknown> {
-  const cli = join(dirname(createRequire(import.meta.url).resolve("@playwright/mcp/package.json")), "cli.js");
   return {
     type: "stdio",
     command: process.execPath,
     args: [
-      cli,
-      "--browser", "chromium", // Playwright's own Chromium (Chrome for Testing), not the Chrome Keshab uses
-      "--user-data-dir", join(dataDir, "browser-profile", helper), // one profile per agent; logins stay in it
+      fileURLToPath(new URL("./browser-bridge-main.ts", import.meta.url)),
+      "--user-data-dir", join(dataDir, "browser-profile", helper), // ATOM's own profile, one per agent; logins stay in it, never Keshab's browser profile
       "--output-dir", join(dataDir, "browser-files", helper), // downloads and screenshots stay in data/
-      "--no-webmcp", // no tools that pages register
       "--init-script", fileURLToPath(new URL("./browser-password-mark.cjs", import.meta.url)), // marks password fields in the snapshot
     ],
   };

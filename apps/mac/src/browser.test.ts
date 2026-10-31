@@ -32,10 +32,11 @@ function policy(answer: (s: string) => boolean = () => true, tainted = false) {
 }
 const page = (url: string, extra = "") => `- Page URL: ${url}\n${extra}`;
 
-test("browserServer: own Chromium, per-agent profile and output dirs inside data/", () => {
+test("browserServer: the agent-browser bridge, per-agent profile and output dirs inside data/", () => {
   const s = browserServer("/d", "scout") as any;
   assert.equal(s.type, "stdio");
-  assert.ok(s.args.includes("--no-webmcp"));
+  assert.match(s.args[0], /browser-bridge-main\.ts$/);
+  assert.ok(!s.args.includes("--browser"), "no Playwright browser choice is passed");
   assert.equal(s.args[s.args.indexOf("--user-data-dir") + 1], "/d/browser-profile/scout");
   assert.equal(s.args[s.args.indexOf("--output-dir") + 1], "/d/browser-files/scout");
 });
