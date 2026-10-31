@@ -48,9 +48,9 @@ struct ActivityPanel: View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass").appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
             if snapshot {
-                Text("Search agents…").foregroundStyle(theme.text3.color).frame(maxWidth: .infinity, alignment: .leading)
+                Text("Search").foregroundStyle(theme.text3.color).frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                TextField("Search agents…", text: $query).textFieldStyle(.plain).foregroundStyle(theme.text.color)
+                TextField("Search", text: $query).textFieldStyle(.plain).foregroundStyle(theme.text.color)
                     .onExitCommand { query = "" }
             }
         }

@@ -764,10 +764,11 @@ private struct EmptyConversation: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Text("What can I help you with?")
+            // unslop: the title names the context, not a greeting.
+            Text("New chat")
                 .appFont(.system(size: 26, weight: .medium))
                 .foregroundStyle(theme.text.color)
-            Text("Ask a question or start something new.")
+            Text("Ask a question or start something new")
                 .appFont(.system(size: 14)).foregroundStyle(theme.text3.color)
             BriefCard(model: model).padding(.top, 6).frame(maxWidth: 520) // upgrades.md C3: today's brief, when there is one
             EmptyConversationExamples(model: model).padding(.top, 6)

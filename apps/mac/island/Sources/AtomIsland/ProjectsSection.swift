@@ -413,12 +413,10 @@ struct SidebarChatRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.leading, 8).padding(.trailing, hovering && !renaming && !snapshot ? 30 : 8).padding(.vertical, 6)
             .frame(minHeight: 30)
+            // The open chat: a surface step with a hairline (unslop), not an accent tint and a bar.
             .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(selected ? theme.accent.color.opacity(0.14) : hovering ? theme.fill2.color : .clear))
-            // The open chat: a short accent bar at the leading edge, as in EasyUI's navigation.
-            .overlay(alignment: .leading) {
-                if selected { Capsule().fill(theme.accent.color).frame(width: 3, height: 14).padding(.leading, 2) }
-            }
+                .fill(selected ? theme.fill3.color : hovering ? theme.fill2.color : .clear))
+            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(selected ? theme.separator.color : .clear, lineWidth: 1))
             .contentShape(Rectangle())
             .animation(Motion.hover(false, ghost: theme.isGhost), value: hovering)
         }

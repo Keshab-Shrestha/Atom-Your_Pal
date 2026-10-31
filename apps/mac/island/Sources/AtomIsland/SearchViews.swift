@@ -19,7 +19,7 @@ struct SidebarSearchField: View {
             if snapshot {
                 Text("Search").appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color).frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                TextField("Search everything", text: Binding(get: { model.searchText }, set: { model.searchText = $0 }))
+                TextField("Search", text: Binding(get: { model.searchText }, set: { model.searchText = $0 }))
                     .textFieldStyle(.plain).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color)
                     .focused(focus.projectedValue)
                     .onSubmit { model.submitSearch() }
