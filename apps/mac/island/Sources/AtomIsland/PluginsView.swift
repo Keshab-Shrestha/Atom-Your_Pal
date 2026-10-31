@@ -19,19 +19,27 @@ struct PluginsPane: View {
         let list = model.helpers.list
         Scrollable {
             VStack(alignment: .leading, spacing: 22) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Plugins").appFont(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
-                    Text("Skills and MCP servers your workers may use. Nothing is on until you turn it on.").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
+                HStack(spacing: 14) {
+                    Image(systemName: "puzzlepiece.extension").appFont(.system(size: 17, weight: .medium)).foregroundStyle(theme.accent.color)
+                        .frame(width: 42, height: 42)
+                        .background(theme.accent.color.opacity(0.13), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Plugins").appFont(.system(size: 20, weight: .semibold)).foregroundStyle(theme.text.color).accessibilityAddTraits(.isHeader)
+                        Text("Skills and MCP servers your workers may use. Nothing is on until you turn it on.").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    }
                 }
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("MCP servers").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+                        PluginsSectionLabel(title: "MCP servers", count: list?.mcp.count)
                         Spacer()
                         if model.savedField == "mcp" && model.helpers.problem == nil { SavedMark() }
-                        QuietButton(title: adding.wrappedValue ? "Cancel" : "Add server", symbol: adding.wrappedValue ? "xmark" : "plus") {
-                            adding.wrappedValue.toggle()
-                            model.helpers.clearProblem()
+                        // With no servers the empty card offers Add server; one button, not two.
+                        if adding.wrappedValue || !(list?.mcp ?? []).isEmpty {
+                            QuietButton(title: adding.wrappedValue ? "Cancel" : "Add server", symbol: adding.wrappedValue ? "xmark" : "plus") {
+                                adding.wrappedValue.toggle()
+                                model.helpers.clearProblem()
+                            }
                         }
                     }
                     if adding.wrappedValue { addPanel(existing: Set((list?.mcp ?? []).map(\.name))) }
@@ -45,7 +53,7 @@ struct PluginsPane: View {
                     ForEach(list?.mcp ?? []) { server in ServerCard(model: model, server: server, team: list?.helpers ?? []) }
                 }
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Skills").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+                    PluginsSectionLabel(title: "Skills", count: list?.skills.count)
                     // ADR-094: Tinker's drafts and edits wait here; nothing is used or changed before you answer.
                     ForEach((list?.skillDrafts ?? []).filter { $0.state == "pending" }) { draft in SkillDraftCard(model: model, draft: draft) }
                     ForEach((list?.skillEdits ?? []).filter { $0.state == "pending" || $0.state == "accepted" }) { edit in SkillEditCard(model: model, edit: edit) }
@@ -56,6 +64,8 @@ struct PluginsPane: View {
                 }
                 HubSkillsSection(model: model, hub: list?.skillHub ?? .empty) // B3.5
             }
+            // A readable measure, as on the Settings pages.
+            .frame(maxWidth: 760, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Spacing.panel)
             .padding(.top, 28)
@@ -138,14 +148,23 @@ private struct ServerCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                StatusDot(color: server.enabled ? theme.success.color : server.problem != nil ? theme.problem.color : theme.text3.color, size: 6)
-                Text(server.name).appFont(theme.appIdentifierFont(.system(size: 13, weight: .semibold), size: 12.5)).foregroundStyle(theme.text.color)
-                Text(server.kind == "command" ? (server.command ?? "") : (server.url ?? "")).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5))
-                    .foregroundStyle(theme.text3.color).lineLimit(1).truncationMode(.middle)
+            HStack(spacing: 12) {
+                let state = server.enabled ? theme.success.color : server.problem != nil ? theme.problem.color : theme.text3.color
+                Image(systemName: server.kind == "command" ? "terminal" : "globe").appFont(.system(size: 13, weight: .semibold)).foregroundStyle(state)
+                    .frame(width: 36, height: 36)
+                    .background(state.opacity(0.13), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(server.name).appFont(theme.appIdentifierFont(.system(size: 13, weight: .semibold), size: 12.5)).foregroundStyle(theme.text.color)
+                        Text(server.enabled ? "On" : server.problem != nil ? "Problem" : "Off").appFont(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(state).padding(.horizontal, 6).frame(height: 16).background(Capsule().fill(state.opacity(0.12)))
+                    }
+                    Text(server.kind == "command" ? (server.command ?? "") : (server.url ?? "")).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5))
+                        .foregroundStyle(theme.text3.color).lineLimit(1).truncationMode(.middle)
+                }
                 Spacer(minLength: 8)
-                QuietButton(title: "Test") { model.sendHelpers(model.helpers.mcpCommand(.mcpTest(id: server.id))) }
-                QuietButton(title: "Remove") { model.sendHelpers(model.helpers.mcpCommand(.mcpRemove(id: server.id))) }
+                QuietButton(title: "Test", symbol: "bolt") { model.sendHelpers(model.helpers.mcpCommand(.mcpTest(id: server.id))) }
+                IconButton(symbol: "trash", label: "Remove \(server.name)", diameter: ControlMetrics.buttonHeight) { model.sendHelpers(model.helpers.mcpCommand(.mcpRemove(id: server.id))) }
             }
             if let problem = server.problem { ProblemLine(text: problem) }
             else if server.tested { Text(server.tools.isEmpty ? "No tools." : "Tools: \(server.tools.joined(separator: ", "))").appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(2) }
@@ -174,8 +193,7 @@ private struct ServerCard: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
-            .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
+        .pluginCard()
     }
 
     private func toggle(_ label: String, _ on: Bool, enabled: Bool, set: @escaping (Bool) -> Void) -> some View {
@@ -254,7 +272,40 @@ struct SkillCard<Content: View>: View {
         VStack(alignment: .leading, spacing: 6) { content }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
-                .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
+            .pluginCard()
+    }
+}
+
+/// A section label on the Plugins page: small tracked capitals and, once known, a count badge.
+private struct PluginsSectionLabel: View {
+    let title: String
+    let count: Int?
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(title.uppercased()).appFont(.system(size: 10.5, weight: .semibold)).tracking(0.6).foregroundStyle(theme.text3.color)
+            if let count, count > 0 {
+                Text("\(count)").appFont(.system(size: 10, weight: .semibold)).monospacedDigit().foregroundStyle(theme.text2.color)
+                    .padding(.horizontal, 5).frame(minWidth: 18, minHeight: 16).background(Capsule().fill(theme.fill3.color))
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+extension View {
+    /// The Plugins page's card: the card fill, a hairline, and hover depth.
+    func pluginCard() -> some View { modifier(PluginCardModifier()) }
+}
+
+private struct PluginCardModifier: ViewModifier {
+    @Environment(\.theme) private var theme
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        content
+            .background(theme.fill1.a > 0 ? theme.fill1.color : theme.fill2.color.opacity(0.5), in: shape)
+            .overlay(shape.strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
+            .hoverLift(radius: 14, rises: false)
     }
 }

@@ -24,7 +24,7 @@ struct HubSkillsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Find skills").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+            Text("FIND SKILLS").appFont(.system(size: 10.5, weight: .semibold)).tracking(0.6).foregroundStyle(theme.text3.color)
             HStack(spacing: 8) {
                 Group {
                     if snapshot {
@@ -35,10 +35,9 @@ struct HubSkillsSection: View {
                             .accessibilityLabel("Search community skills").accessibilityHint("Type a word, then choose Search")
                     }
                 }
-                .appFont(.system(size: 12))
-                .padding(.horizontal, 10).padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: theme.radiusControl + 2, style: .continuous)
-                    .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: 1))
+                .appFont(.system(size: 12.5))
+                .padding(.horizontal, 12).frame(height: 34)
+                .background(theme.fill2.color, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 QuietButton(title: "Search", symbol: "magnifyingglass", action: search)
                     .disabled(!canSearch).opacity(canSearch ? 1 : 0.5)
                     .accessibilityHint("Looks for skills shared by the community")
