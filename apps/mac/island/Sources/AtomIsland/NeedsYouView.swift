@@ -64,7 +64,7 @@ struct NeedsYouPane: View {
                 }
                 ForEach(items) { item in row(item) }
                 if !failed.isEmpty {
-                    Text("FAILED · \(failed.count)").appFont(.system(size: 10.5, weight: .semibold)).tracking(0.6).foregroundStyle(theme.text3.color).padding(.top, items.isEmpty ? 0 : 6)
+                    Text("Failed · \(failed.count)").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.top, items.isEmpty ? 0 : 6)
                     Text("Open a task to review what happened before trying it again. Interrupted work may already have changed files.")
                         .appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
                     ForEach(failed) { item in FailedTaskCard(model: model, item: item) }
@@ -142,7 +142,7 @@ struct NeedsYouPane: View {
                     NeedsYouBadge(text: kind, tint: look.tint)
                     if !who.isEmpty { Text(who).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2)) }
                 }
-                Text(title).appFont(.system(size: 13.5, weight: .semibold)).foregroundStyle(theme.text.color).fixedSize(horizontal: false, vertical: true).lineLimit(3)
+                Text(title).appFont(.system(size: 13.5, weight: .medium)).foregroundStyle(theme.text.color).fixedSize(horizontal: false, vertical: true).lineLimit(3)
                 Text(detail).appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true).lineLimit(8) // 8: an approval can carry a whole soul (create_agent)
                 if let tests { tests.padding(.top, 2) }
                 HStack(spacing: 8) { actions() }.padding(.top, 6)
@@ -207,10 +207,12 @@ private struct NeedsYouLook {
 private struct NeedsYouTile: View {
     let symbol: String
     let tint: Color
+    @Environment(\.theme) private var theme
     var body: some View {
-        Image(systemName: symbol).appFont(.system(size: 13, weight: .semibold)).foregroundStyle(tint)
+        // The glyph in the text colour on a neutral step; the kind's colour lives only in its badge (unslop).
+        Image(systemName: symbol).appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text2.color)
             .frame(width: 36, height: 36)
-            .background(tint.opacity(0.13), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .background(theme.fill3.color, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             .accessibilityHidden(true)
     }
 }
@@ -240,7 +242,7 @@ private struct NeedsYouCardModifier: ViewModifier {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(theme.fill1.a > 0 ? theme.fill1.color : theme.fill2.color.opacity(0.5), in: shape)
             .overlay(shape.strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
-            .hoverLift(radius: 14, rises: false)
+            .hoverLift(radius: 14)
     }
 }
 

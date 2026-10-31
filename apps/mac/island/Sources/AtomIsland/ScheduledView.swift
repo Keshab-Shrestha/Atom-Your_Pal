@@ -28,13 +28,10 @@ struct ScheduledPane: View {
         Scrollable {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .center, spacing: 14) {
-                    Image(systemName: "calendar.badge.clock").appFont(.system(size: 17, weight: .medium)).foregroundStyle(theme.accent.color)
-                        .frame(width: 42, height: 42)
-                        .background(theme.accent.color.opacity(0.13), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Scheduled").appFont(.system(size: 20, weight: .semibold)).foregroundStyle(theme.text.color)
+                        Text("Scheduled").appFont(.system(size: 20, weight: .medium)).foregroundStyle(theme.text.color)
                             .accessibilityAddTraits(.isHeader)
-                        Text("What runs by itself: routines.")
+                        Text("What runs by itself: routines")
                             .appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 8)
@@ -80,15 +77,14 @@ private struct ScheduledCard: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let tint = entry.paused ? theme.attention.color : theme.accent.color
         let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
         HStack(alignment: .center, spacing: 14) {
-            // What kind of entry it is, in its state's colour: repeating, or paused.
-            Image(systemName: entry.paused ? "pause.fill" : "repeat").appFont(.system(size: 14, weight: .semibold)).foregroundStyle(tint)
-                .frame(width: 40, height: 40)
-                .background(tint.opacity(0.13), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            // What kind of entry it is: repeating or paused. The state's colour is in the badge only.
+            Image(systemName: entry.paused ? "pause" : "repeat").appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text2.color)
+                .frame(width: 36, height: 36)
+                .background(theme.fill3.color, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             VStack(alignment: .leading, spacing: 5) {
-                Text(entry.title).appFont(.system(size: 13.5, weight: .semibold)).foregroundStyle(theme.text.color).lineLimit(2)
+                Text(entry.title).appFont(.system(size: 13.5, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
                 HStack(spacing: 6) {
                     Text(entry.helperName).appFont(theme.appIdentifierFont(.system(size: 11, weight: .medium), size: 10.5))
                         .foregroundStyle(theme.idColor(theme.text))

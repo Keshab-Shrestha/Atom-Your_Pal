@@ -17,7 +17,7 @@ struct DashboardPane: View {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 1) {
-                        Text("Overview").appFont(.system(size: 20, weight: .semibold)).foregroundStyle(theme.text.color)
+                        Text("Overview").appFont(.system(size: 20, weight: .medium)).foregroundStyle(theme.text.color)
                         // Today's date under the title, as a calendar would show it.
                         Text(Date().formatted(.dateTime.weekday(.wide).month(.wide).day())).appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
                     }
@@ -91,7 +91,6 @@ struct DashboardPane: View {
     }
     private func summaryValue(_ value: String, title: String, symbol: String) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: symbol).appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text2.color).statIcon()
             VStack(alignment: .leading, spacing: 3) {
                 Text(value).appFont(.system(size: 18, weight: .semibold)).monospacedDigit().foregroundStyle(theme.text.color)
                 Text(title).appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)
@@ -115,8 +114,8 @@ struct DashboardPane: View {
     private func workLink(value: Int?, title: String, symbol: String, attention: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                Image(systemName: symbol).appFont(.system(size: 13, weight: .medium)).foregroundStyle(attention ? theme.attention.color : theme.text2.color)
-                    .statIcon(tint: attention ? theme.attention.color : nil)
+                // Needs attention: a small dot, not a coloured icon (unslop: stat cards are numbers).
+                if attention { StatusDot(color: theme.attention.color, size: 6) }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(value.map(String.init) ?? "—").appFont(.system(size: 18, weight: .semibold)).monospacedDigit().foregroundStyle(theme.text.color)
                     Text(title).appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)

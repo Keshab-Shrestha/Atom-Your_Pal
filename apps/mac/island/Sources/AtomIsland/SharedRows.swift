@@ -51,10 +51,9 @@ struct Card<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let title {
-                // A section label: small capitals with a little tracking, above its card.
-                Text(title.uppercased())
-                    .appFont(.system(size: 10.5, weight: .semibold))
-                    .tracking(0.6)
+                // A section label in sentence case above its card (unslop: no uppercase tracked labels).
+                Text(title)
+                    .appFont(.system(size: 11.5, weight: .medium))
                     .foregroundStyle(theme.text3.color)
                     .padding(.leading, 6)
             }

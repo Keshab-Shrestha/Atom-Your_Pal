@@ -76,7 +76,7 @@ struct BrainPane: View {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 8) {
                         Circle().fill(hud).frame(width: 7, height: 7).opacity(0.9)
-                        Text("Second brain").appFont(.system(size: 20, weight: .semibold)).foregroundStyle(theme.text.color)
+                        Text("Second brain").appFont(.system(size: 20, weight: .medium)).foregroundStyle(theme.text.color)
                     }
                     Text(subtitle(state)).appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                         .lineLimit(2)
@@ -504,7 +504,7 @@ private struct BrainLinksSection: View {
     var body: some View {
         if !links.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
-                Text("\(title) · \(links.count)".uppercased()).appFont(.system(size: 10.5, weight: .semibold)).tracking(0.6).foregroundStyle(theme.text3.color)
+                Text("\(title) · \(links.count)").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
                 ForEach(links) { link in
                     Button {
                         guard model.brain.selectedId != link.id else { return }
@@ -590,7 +590,7 @@ private struct NoteEditor: View {
             if let note {
                 HStack(spacing: 6) {
                     Image(systemName: note.kind.symbol).appFont(.system(size: 10.5)).foregroundStyle(kindColor(note.kind, theme))
-                    Text((note.ghost ? "Not written yet" : note.kind.title).uppercased()).appFont(.system(size: 10.5, weight: .semibold)).tracking(0.6).foregroundStyle(theme.text3.color)
+                    Text(note.ghost ? "Not written yet" : note.kind.title).appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
                     Spacer(minLength: 0)
                     if let date = note.updatedAt, !note.ghost { Text(date.formatted(date: .abbreviated, time: .omitted)).appFont(.system(size: 11)).foregroundStyle(theme.text3.color) }
                 }

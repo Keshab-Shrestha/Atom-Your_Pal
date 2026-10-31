@@ -9,20 +9,6 @@ extension View {
     func statTile(attention: Bool = false) -> some View { modifier(StatTileModifier(attention: attention)) }
 }
 
-extension View {
-    /// A stat tile's glyph in a small rounded well; tinted when the tile asks for attention.
-    func statIcon(tint: Color? = nil) -> some View { modifier(StatIconModifier(tint: tint)) }
-}
-
-private struct StatIconModifier: ViewModifier {
-    let tint: Color?
-    @Environment(\.theme) private var theme
-    func body(content: Content) -> some View {
-        content.frame(width: 32, height: 32)
-            .background((tint ?? theme.text2.color).opacity(tint == nil ? 0.1 : 0.14), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-    }
-}
-
 private struct StatTileModifier: ViewModifier {
     let attention: Bool
     @Environment(\.theme) private var theme
@@ -74,7 +60,7 @@ struct TrendChart: View {
                     guard values.count > 0, proxy.size.width > 0 else { return }
                     let step = values.count == 1 ? 1 : proxy.size.width / CGFloat(values.count - 1)
                     let index = values.count == 1 ? 0 : min(values.count - 1, max(0, Int((location.x / step).rounded())))
-                    if hovered != index { withAnimation(Motion.tilt(reduceMotion)) { hovered = index } }
+                    if hovered != index { withAnimation(Motion.track(reduceMotion)) { hovered = index } }
                 case .ended:
                     withAnimation(Motion.close(reduceMotion)) { hovered = nil }
                 }

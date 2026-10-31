@@ -36,7 +36,7 @@ struct SlashPicker: View {
             if !item.hint.isEmpty { Text(item.hint).appFont(.system(size: 11, design: .monospaced)).foregroundStyle(theme.text3.color) }
             Text(item.detail).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(1)
             Spacer(minLength: 8)
-            Text(item.sourceLabel.uppercased()).appFont(.system(size: 9, weight: .medium, design: .monospaced)).tracking(0.6).foregroundStyle(theme.text3.color)
+            Text(item.sourceLabel).appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
         }
         .padding(.horizontal, 8).padding(.vertical, 5)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -89,7 +89,7 @@ struct MentionPicker: View {
             Text(item.kind == .helper ? "@" + item.name : item.name).appFont(.system(size: 12, weight: .medium))
                 .foregroundStyle(item.kind == .helper ? theme.idColor(theme.text) : theme.text.color).lineLimit(1)
             Spacer(minLength: 8)
-            Text(item.detail.uppercased()).appFont(.system(size: 9, weight: .medium, design: .monospaced)).tracking(0.6)
+            Text(item.detail).appFont(.system(size: 10.5))
                 .foregroundStyle(theme.text3.color).lineLimit(1)
         }
         .padding(.horizontal, 8).padding(.vertical, 5)

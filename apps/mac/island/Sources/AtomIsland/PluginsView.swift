@@ -20,11 +20,8 @@ struct PluginsPane: View {
         Scrollable {
             VStack(alignment: .leading, spacing: 22) {
                 HStack(spacing: 14) {
-                    Image(systemName: "puzzlepiece.extension").appFont(.system(size: 17, weight: .medium)).foregroundStyle(theme.accent.color)
-                        .frame(width: 42, height: 42)
-                        .background(theme.accent.color.opacity(0.13), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Plugins").appFont(.system(size: 20, weight: .semibold)).foregroundStyle(theme.text.color).accessibilityAddTraits(.isHeader)
+                        Text("Plugins").appFont(.system(size: 20, weight: .medium)).foregroundStyle(theme.text.color).accessibilityAddTraits(.isHeader)
                         Text("Skills and MCP servers your workers may use. Nothing is on until you turn it on.").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                     }
                 }
@@ -150,9 +147,9 @@ private struct ServerCard: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
                 let state = server.enabled ? theme.success.color : server.problem != nil ? theme.problem.color : theme.text3.color
-                Image(systemName: server.kind == "command" ? "terminal" : "globe").appFont(.system(size: 13, weight: .semibold)).foregroundStyle(state)
+                Image(systemName: server.kind == "command" ? "terminal" : "globe").appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text2.color)
                     .frame(width: 36, height: 36)
-                    .background(state.opacity(0.13), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .background(theme.fill3.color, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Text(server.name).appFont(theme.appIdentifierFont(.system(size: 13, weight: .semibold), size: 12.5)).foregroundStyle(theme.text.color)
@@ -284,7 +281,7 @@ private struct PluginsSectionLabel: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Text(title.uppercased()).appFont(.system(size: 10.5, weight: .semibold)).tracking(0.6).foregroundStyle(theme.text3.color)
+            Text(title).appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             if let count, count > 0 {
                 Text("\(count)").appFont(.system(size: 10, weight: .semibold)).monospacedDigit().foregroundStyle(theme.text2.color)
                     .padding(.horizontal, 5).frame(minWidth: 18, minHeight: 16).background(Capsule().fill(theme.fill3.color))
@@ -306,6 +303,6 @@ private struct PluginCardModifier: ViewModifier {
         content
             .background(theme.fill1.a > 0 ? theme.fill1.color : theme.fill2.color.opacity(0.5), in: shape)
             .overlay(shape.strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
-            .hoverLift(radius: 14, rises: false)
+            .hoverLift(radius: 14)
     }
 }

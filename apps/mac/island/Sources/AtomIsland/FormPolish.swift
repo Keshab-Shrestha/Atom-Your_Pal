@@ -82,7 +82,7 @@ struct SettingsCard<Content: View>: View {
         let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).appFont(.system(size: 12.5, weight: .semibold)).foregroundStyle(theme.text.color)
+                Text(title).appFont(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color)
                 if let detail { Text(detail).appFont(.system(size: 11)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true) }
             }
             .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 10)

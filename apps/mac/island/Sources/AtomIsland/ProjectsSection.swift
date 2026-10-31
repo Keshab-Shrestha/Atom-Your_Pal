@@ -63,7 +63,7 @@ struct ProjectsSection: View {
 
     private var header: some View {
         HStack {
-            Text("PROJECTS").appFont(.system(size: 10.5, weight: .semibold)).tracking(0.6).foregroundStyle(theme.text3.color)
+            Text("Projects").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
                 .accessibilityAddTraits(.isHeader)
             Spacer()
             Button(action: chooseFolder) {
@@ -398,7 +398,7 @@ struct SidebarChatRow: View {
                     HStack(spacing: 5) {
                         if chat.pinned { Image(systemName: "pin.fill").appFont(.system(size: 10)).accessibilityLabel("Pinned") }
                         if chat.archived { Image(systemName: "archivebox").appFont(.system(size: 10)).accessibilityLabel("Archived") }
-                        Text(chat.title).appFont(.system(size: 12.5, weight: current ? .semibold : .regular))
+                        Text(chat.title).appFont(.system(size: 12.5, weight: current ? .medium : .regular))
                             .foregroundStyle(theme.text.color).lineLimit(1)
                         Spacer(minLength: 6)
                         // The age stays on the one line (2026-10-15: no second line); hover swaps it for Delete.

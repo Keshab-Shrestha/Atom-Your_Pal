@@ -12,12 +12,9 @@ struct EmptyStateView: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        // A dashed card that says what is missing, why it is useful, and the one way to start (2026-10-31).
+        // A dashed card that says what is missing, why it is useful, and the one way to start (2026-10-31). No icon.
         let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
-        HStack(alignment: .top, spacing: 14) {
-            Image(systemName: "sparkles").appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text2.color)
-                .frame(width: 34, height: 34).background(Circle().fill(theme.fill2.color))
-                .accessibilityHidden(true)
+        HStack(alignment: .top, spacing: 0) {
             VStack(alignment: .leading, spacing: 5) {
                 Text(title).appFont(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
                 Text(detail).appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)

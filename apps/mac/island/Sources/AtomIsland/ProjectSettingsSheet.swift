@@ -98,14 +98,11 @@ struct ProjectSettingsSheet: View {
         } message: { Text("The folder and its files are not deleted. Keeping chats moves them to the normal list; deleting chats removes their history permanently.") }
         .onChange(of: project?.name) { if let project { name = project.name } }
     }
-    /// A folder tile, the title and the project's name, and Done.
+    /// The title and the project's name, and Done.
     private var header: some View {
         HStack(spacing: 12) {
-            Image(systemName: "folder.fill").appFont(.system(size: 15, weight: .semibold)).foregroundStyle(theme.accent.color)
-                .frame(width: 36, height: 36)
-                .background(theme.accent.color.opacity(0.14), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             VStack(alignment: .leading, spacing: 1) {
-                Text("Project settings").appFont(.system(size: 16, weight: .semibold)).foregroundStyle(theme.text.color).accessibilityAddTraits(.isHeader)
+                Text("Project settings").appFont(.system(size: 16, weight: .medium)).foregroundStyle(theme.text.color).accessibilityAddTraits(.isHeader)
                 Text(project?.name ?? initial.name).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(1)
             }
             Spacer()

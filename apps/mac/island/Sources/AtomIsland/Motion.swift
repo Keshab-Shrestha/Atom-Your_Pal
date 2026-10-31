@@ -3,8 +3,8 @@ import SwiftUI
 /// ATOM's named motion (ADR-084, design study §3): one small family of springs, so everything moves as if made by
 /// one hand. Things arrive with a little life and leave without fuss: nothing springs on the way out.
 /// Every name takes Reduce Motion: springs become a plain 0.15 s ease-out, breathing stops, cascades collapse.
-/// Press, hover depth, pointer tilt and arrival are in `MotionModifiers.swift` (`.pressable`, `.hoverLift`,
-/// `.pointerTilt`, `Motion.arrival`): use those, never a new one-off spring.
+/// Press, hover and arrival are in `MotionModifiers.swift` (`.pressable`, `.hoverLift`, `.hoverRow`,
+/// `Motion.arrival`): use those, never a new one-off spring.
 enum Motion {
     /// Workspace panes retarget immediately, with no overshoot or delayed input.
     static func workspace(_ reduceMotion: Bool) -> Animation {
@@ -13,9 +13,9 @@ enum Motion {
     /// The Reduce Motion fallback for every spring.
     static let plain = Animation.easeOut(duration: 0.15)
 
-    /// Hover, press (scale 0.97), toggles.
+    /// Hover, press (scale 0.97), toggles. No overshoot (unslop, 2026-10-31).
     static func snap(_ reduceMotion: Bool) -> Animation {
-        reduceMotion ? plain : .spring(response: 0.20, dampingFraction: 0.70)
+        reduceMotion ? plain : .spring(response: 0.20, dampingFraction: 1)
     }
 
     /// Hover on a control: the snap spring, or in Void (ghost buttons, ADR-086) a plain 150 ms ease-out as the
@@ -26,7 +26,7 @@ enum Motion {
 
     /// Tab change, page push, row expand.
     static func settle(_ reduceMotion: Bool) -> Animation {
-        reduceMotion ? plain : .spring(response: 0.30, dampingFraction: 0.82)
+        reduceMotion ? plain : .spring(response: 0.30, dampingFraction: 1)
     }
 
     /// The panel, the bubble and the strip appearing.

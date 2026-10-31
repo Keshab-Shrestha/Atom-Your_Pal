@@ -24,7 +24,7 @@ struct HubSkillsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("FIND SKILLS").appFont(.system(size: 10.5, weight: .semibold)).tracking(0.6).foregroundStyle(theme.text3.color)
+            Text("Find skills").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             HStack(spacing: 8) {
                 Group {
                     if snapshot {

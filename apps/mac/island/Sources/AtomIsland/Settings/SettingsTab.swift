@@ -65,11 +65,8 @@ struct SettingsTab: View {
     /// The page's glyph in a tinted tile, its name and what it is for.
     private func pageHeader(_ page: IslandModel.SettingsPage) -> some View {
         HStack(spacing: 14) {
-            Image(systemName: page.symbol).appFont(.system(size: 17, weight: .medium)).foregroundStyle(theme.accent.color)
-                .frame(width: 42, height: 42)
-                .background(theme.accent.color.opacity(0.13), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
-                Text(page.rawValue).appFont(.system(size: 20, weight: .semibold)).foregroundStyle(theme.text.color)
+                Text(page.rawValue).appFont(.system(size: 20, weight: .medium)).foregroundStyle(theme.text.color)
                     .accessibilityAddTraits(.isHeader)
                 Text(page.purpose).appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
             }

@@ -91,21 +91,15 @@ struct DashboardPanel<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center, spacing: 10) {
-                if let symbol = DashboardPanelSymbols.byTitle[title] {
-                    Image(systemName: symbol).appFont(.system(size: 12, weight: .semibold)).foregroundStyle(theme.text2.color)
-                        .frame(width: 28, height: 28)
-                        .background(theme.fill3.color, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        .accessibilityHidden(true)
-                }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).appFont(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
+                    Text(title).appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color)
                     if let detail { Text(detail).appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color) }
                 }
             }
             content
         }.padding(12).frame(maxWidth: .infinity, alignment: .topLeading)
             .background(theme.isDark ? theme.fill2.color : Color.white, in: RoundedRectangle(cornerRadius: 12))
-            .hoverLift(radius: 12, rises: false)
+            .hoverLift(radius: 12)
     }
 }
 
@@ -368,11 +362,3 @@ struct PanelNote: View {
     }
 }
 
-enum DashboardPanelSymbols {
-    /// Each Dashboard panel's glyph beside its title (2026-10-31), by title so the callers stay as they are.
-    static let byTitle: [String: String] = [
-        "Trends": "chart.xyaxis.line", "Recent turns": "clock.arrow.circlepath", "Usage details": "list.bullet.rectangle",
-        "Git activity": "point.3.connected.trianglepath.dotted", "Team branches": "arrow.triangle.branch",
-        "Your day": "sun.max", "Token mix": "chart.pie", "Brief archive": "archivebox", "Prepared for review": "tray.full",
-    ]
-}
