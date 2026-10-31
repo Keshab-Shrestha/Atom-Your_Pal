@@ -1,7 +1,7 @@
 import SwiftUI
 import AtomIslandCore
 
-/// A contribution-style strip from actual dated commits in the currently listed local branches.
+/// A contribution calendar (EasyUI's Activity Heatmap) from actual dated commits in the currently listed local branches.
 /// This is not a push log or a complete repository history; shared commits are counted once per repository.
 struct GitCommitActivity: View {
     let branches: [GitBranch]
@@ -17,22 +17,12 @@ struct GitCommitActivity: View {
 
     var body: some View {
         let commits = dated
-        if let latest = commits.compactMap(\.at).max() {
-            let calendar = Calendar.current
-            let end = calendar.startOfDay(for: latest)
-            let dates = (-13...0).compactMap { calendar.date(byAdding: .day, value: $0, to: end) }
+        if !commits.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("Recorded commits").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text.color)
-                    Spacer(minLength: 8)
-                    Text("14 days ending " + latest.formatted(date: .abbreviated, time: .omitted))
-                        .appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
-                }
-                HeatStrip(days: dates.map { day in (day, commits.filter { calendar.isDate($0.at!, inSameDayAs: day) }.count) },
-                          unit: "recorded commits")
+                ActivityHeatmap(events: commits.compactMap(\.at), unit: "commits")
                 Text("Local branch snapshots only; shared commits counted once per repository. Push status appears on each branch.")
-                    .appFont(.system(size: 11)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
-            }.padding(.vertical, 6)
+                    .appFont(.system(size: 11)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
+            }.padding(.vertical, 4)
         }
     }
 }

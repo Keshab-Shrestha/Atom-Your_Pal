@@ -184,7 +184,7 @@ private struct DashboardTrendsPanel: View {
 }
 
 /// Two or three tabs in a rounded strip (from the HTML preview).
-private struct DashboardTabStrip: View {
+struct DashboardTabStrip: View {
     let titles: [String]
     let selected: Int
     let select: (Int) -> Void

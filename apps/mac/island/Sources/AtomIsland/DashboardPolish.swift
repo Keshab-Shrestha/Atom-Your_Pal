@@ -1,8 +1,7 @@
 import SwiftUI
 import AtomIslandCore
 
-// Dashboard polish (2026-10-31 UX pass): a stat tile, a smooth trend chart with a hover read-out, and a
-// contribution-style heat strip. Ideas from EasyUI's stat card and live line chart, rebuilt on the theme's tokens
+// Dashboard polish (2026-10-31 UX pass): a stat tile and a smooth trend chart with a hover read-out. Ideas from EasyUI's stat card and live line chart, rebuilt on the theme's tokens
 // and `Motion`'s rules. Snapshots (gallery) draw the finished state; Reduce Motion skips the draw-in.
 
 extension View {
@@ -114,54 +113,5 @@ struct TrendChart: View {
         guard let first = points.first, let last = points.last else { return path }
         path.addLine(to: CGPoint(x: last.x, y: height)); path.addLine(to: CGPoint(x: first.x, y: height)); path.closeSubpath()
         return path
-    }
-}
-
-/// The contribution-style strip: five steps of intensity scaled to the busiest day, a hover read-out, a legend.
-struct HeatStrip: View {
-    /// One entry per day, oldest first.
-    let days: [(date: Date, count: Int)]
-    let unit: String
-    @State private var hovered: Int?
-    @Environment(\.theme) private var theme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        let busiest = max(1, days.map(\.count).max() ?? 1)
-        VStack(alignment: .leading, spacing: 8) {
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 5), count: 7), spacing: 5) {
-                ForEach(Array(days.enumerated()), id: \.offset) { index, day in
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(Self.level(day.count, busiest: busiest, theme: theme))
-                        .frame(maxWidth: .infinity).frame(height: 22)
-                        .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .strokeBorder(day.count == 0 ? theme.text3.color.opacity(0.35) : Color.clear, lineWidth: 0.6))
-                        .scaleEffect(hovered == index && !reduceMotion ? 1.12 : 1)
-                        .onHover { inside in withAnimation(Motion.snap(reduceMotion)) { hovered = inside ? index : (hovered == index ? nil : hovered) } }
-                        .accessibilityLabel("\(day.date.formatted(date: .abbreviated, time: .omitted)), \(day.count) \(unit)")
-                }
-            }
-            HStack(spacing: 4) {
-                Text(hovered.map { "\(days[$0].date.formatted(date: .abbreviated, time: .omitted)): \(days[$0].count) \(unit)" } ?? " ")
-                    .appFont(.system(size: 11)).foregroundStyle(theme.text.color).monospacedDigit()
-                Spacer(minLength: 8)
-                Text("Less").appFont(.system(size: 10)).foregroundStyle(theme.text3.color)
-                ForEach(0..<5, id: \.self) { step in
-                    RoundedRectangle(cornerRadius: 2).fill(Self.step(step, theme: theme)).frame(width: 10, height: 10)
-                }
-                Text("More").appFont(.system(size: 10)).foregroundStyle(theme.text3.color)
-            }
-            .accessibilityHidden(true)
-        }
-    }
-
-    /// 0 is the empty cell; 1...4 are the success colour at rising strength.
-    static func level(_ count: Int, busiest: Int, theme: ThemePalette) -> Color {
-        guard count > 0 else { return theme.fill3.color }
-        return step(min(4, 1 + Int((Double(count) / Double(busiest) * 3.999).rounded(.down))), theme: theme)
-    }
-
-    static func step(_ level: Int, theme: ThemePalette) -> Color {
-        level == 0 ? theme.fill3.color : theme.success.color.opacity([0, 0.28, 0.5, 0.75, 1][min(level, 4)])
     }
 }
