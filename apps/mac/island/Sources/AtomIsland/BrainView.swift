@@ -24,6 +24,7 @@ private enum BrainTab: String, CaseIterable {
 
 struct BrainPane: View {
     @Environment(\.appTextSize) private var textSize
+    @Environment(\.appTypeface) private var typeface
     let model: IslandModel
     /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
     private let positions = State(initialValue: [Int: CGPoint]())
@@ -75,9 +76,9 @@ struct BrainPane: View {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 8) {
                         Circle().fill(hud).frame(width: 7, height: 7).opacity(0.9)
-                        Text("SECOND BRAIN").appFont(.system(size: 17, weight: .semibold, design: .monospaced)).tracking(2).foregroundStyle(theme.text.color)
+                        Text("Second brain").appFont(.system(size: 20, weight: .semibold)).foregroundStyle(theme.text.color)
                     }
-                    Text("// " + subtitle(state).uppercased()).appFont(.system(size: 10, design: .monospaced)).tracking(0.8).foregroundStyle(theme.text2.color)
+                    Text(subtitle(state)).appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                         .lineLimit(2)
                 }
                 Spacer(minLength: 8)
@@ -96,28 +97,14 @@ struct BrainPane: View {
         .padding(.bottom, 12)
     }
 
-    /// Graph or Memory: one page for everything ATOM keeps.
+    /// Graph, Memory or Sources: the Dashboard's tab strip, its pill sliding to the chosen tab.
     private var tabSwitch: some View {
-        HStack(spacing: 2) {
-            ForEach(BrainTab.allCases, id: \.self) { item in
-                let on = tab.wrappedValue == item
-                Button {
-                    guard tab.wrappedValue != item else { return }
-                    model.navigate { tab.wrappedValue = item }
-                } label: {
-                    Text(item.rawValue.uppercased()).appFont(.system(size: 10.5, weight: on ? .semibold : .regular, design: .monospaced)).tracking(1)
-                        .foregroundStyle(on ? theme.text.color : theme.text2.color)
-                        .padding(.horizontal, 12).frame(height: 24)
-                        .background(Capsule().fill(on ? theme.fill3.color : Color.clear))
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
-            }
+        let tabs = BrainTab.allCases
+        return DashboardTabStrip(titles: tabs.map(\.rawValue), selected: tabs.firstIndex(of: tab.wrappedValue) ?? 0) { index in
+            let item = tabs[index]
+            guard tab.wrappedValue != item else { return }
+            model.navigate { tab.wrappedValue = item }
         }
-        .padding(2)
-        .background(Capsule().fill(theme.fill1.color))
-        .overlay(Capsule().strokeBorder(theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.5))
     }
 
     /// What ATOM keeps: the facts, the conversation notes and the kept chats, with a way to forget each.
@@ -168,20 +155,26 @@ struct BrainPane: View {
     @ViewBuilder private func legend(_ state: BrainState) -> some View {
         let counts = state.counts()
         let tags = Array((state.graph?.tags ?? []).prefix(8))
+        // Chips keep their whole names: in a narrower window fewer tags show, never a cut-off chip.
+        ViewThatFits(in: .horizontal) {
+            legendRow(state, counts: counts, tags: tags)
+            legendRow(state, counts: counts, tags: Array(tags.prefix(4)))
+            legendRow(state, counts: counts, tags: Array(tags.prefix(2)))
+            legendRow(state, counts: counts, tags: [])
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder private func legendRow(_ state: BrainState, counts: [BrainKindCount], tags: [BrainTag]) -> some View {
         HStack(spacing: 6) {
             ForEach(counts) { entry in
                 let hidden = state.hiddenKinds.contains(entry.kind)
                 Button {
                     if hidden { model.brain.hiddenKinds.remove(entry.kind) } else { model.brain.hiddenKinds.insert(entry.kind) }
                 } label: {
-                    HStack(spacing: 5) {
-                        Circle().fill(kindColor(entry.kind, theme)).frame(width: 7, height: 7).opacity(hidden ? 0.3 : 1)
-                        Text("\(entry.kind.title) \(entry.count)".uppercased()).appFont(.system(size: 9.5, design: .monospaced)).tracking(0.5).foregroundStyle(hidden ? theme.text3.color : theme.text2.color)
-                    }
-                    .padding(.horizontal, 9).frame(height: 22)
-                    .background(Capsule().fill(theme.fill1.color))
+                    BrainChip(title: entry.kind.title, count: entry.count, dot: kindColor(entry.kind, theme), on: !hidden, dimmed: hidden)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.pressable)
                 .help(hidden ? "Show \(entry.kind.title.lowercased())" : "Hide \(entry.kind.title.lowercased())")
             }
             if !tags.isEmpty {
@@ -189,16 +182,12 @@ struct BrainPane: View {
                 ForEach(tags) { tag in
                     let on = state.tagFilter == tag.tag
                     Button { model.brain.tagFilter = on ? nil : tag.tag } label: {
-                        Text("#\(tag.tag) \(tag.count)".uppercased()).appFont(.system(size: 9.5, weight: on ? .semibold : .regular, design: .monospaced)).tracking(0.5)
-                            .foregroundStyle(on ? theme.text.color : theme.text2.color)
-                            .padding(.horizontal, 9).frame(height: 22)
-                            .background(Capsule().fill(on ? theme.fill3.color : theme.fill1.color))
+                        BrainChip(title: "#" + tag.tag, count: tag.count, dot: nil, on: on, dimmed: false, selected: on)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.pressable)
                     .help(on ? "Show every tag" : "Only notes tagged \(tag.tag)")
                 }
             }
-            Spacer(minLength: 0)
         }
     }
 
@@ -328,12 +317,15 @@ struct BrainPane: View {
 
     /// Corner readouts: what is on the screen, and what is locked.
     private func hudReadout(_ state: BrainState, _ graph: BrainGraphData) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text("SYS // ONLINE").foregroundStyle(hud.opacity(0.9))
-            Text(String(format: "NODES %03d  LINKS %03d  ZOOM %.2f×", graph.nodes.count, graph.edges.count, zoom.wrappedValue)).foregroundStyle(theme.text3.color)
-            Text("TARGET: " + (state.note?.title.uppercased() ?? "NONE")).foregroundStyle(state.note == nil ? theme.text3.color : theme.accent.color).lineLimit(1)
+        // A quiet line, not a HUD: how much is on screen, the zoom, and the note chosen.
+        HStack(spacing: 6) {
+            Text("\(graph.nodes.count) notes · \(graph.edges.count) links · \(Int((zoom.wrappedValue * 100).rounded()))%").foregroundStyle(theme.text3.color)
+            if let note = state.note {
+                Text("·").foregroundStyle(theme.text3.color)
+                Text(note.title).foregroundStyle(theme.accent.color).lineLimit(1)
+            }
         }
-        .appFont(.system(size: 9, design: .monospaced)).tracking(0.8)
+        .appFont(.system(size: 10.5)).monospacedDigit()
         .padding(.leading, 22).padding(.top, 20)
         .allowsHitTesting(false)
     }
@@ -390,6 +382,7 @@ struct BrainPane: View {
         }
         // Then the nodes as small targets: a core, a ring, and a second dashed ring for the hubs.
         let neighbours = Set(graph.edges.filter { $0.a == selected || $0.b == selected }.flatMap { [$0.a, $0.b] })
+        var labels: [(rank: Int, text: Text, at: CGPoint)] = []
         for node in graph.nodes where visible.contains(node.id) {
             guard let p = point(node.id) else { continue }
             let r = radius(node)
@@ -422,11 +415,24 @@ struct BrainPane: View {
             let named = node.id == selected || neighbours.contains(node.id) || (matched?.contains(node.id) ?? false) || zoom.wrappedValue > 1.5 || node.degree >= 4
             if named && !dim {
                 let name = node.title.count > 24 ? String(node.title.prefix(23)) + "…" : node.title
-                let label = Text(name.uppercased())
-                    .appFont(.system(size: 8.5, weight: node.id == selected ? .semibold : .regular, design: .monospaced), scaledBy: textSize)
+                let label = Text(name)
+                    .appFont(.system(size: 10, weight: node.id == selected ? .semibold : .medium), scaledBy: textSize, face: typeface)
                     .foregroundStyle(theme.text.color.opacity(node.ghost ? 0.6 : 0.9))
-                context.draw(label, at: CGPoint(x: p.x, y: p.y + r + 10), anchor: .top)
+                let rank = node.id == selected ? 0 : neighbours.contains(node.id) ? 1 : (matched?.contains(node.id) ?? false) ? 2 : 3 + max(0, 20 - node.degree)
+                labels.append((rank, label, CGPoint(x: p.x, y: p.y + r + 6)))
             }
+        }
+        // Names that would overlap one another are left out, most important first: the chosen note, its links, matches, hubs.
+        var placed: [CGRect] = []
+        for label in labels.sorted(by: { $0.rank < $1.rank }) {
+            let resolved = context.resolve(label.text)
+            let size = resolved.measure(in: CGSize(width: 240, height: 40))
+            let box = CGRect(x: label.at.x - size.width / 2 - 3, y: label.at.y - 1, width: size.width + 6, height: size.height + 2)
+            guard !placed.contains(where: { $0.intersects(box) }) else { continue }
+            placed.append(box)
+            // A soft backdrop in the canvas colour, so a name reads over links and rings.
+            context.fill(Path(roundedRect: box.insetBy(dx: -2, dy: 0), cornerRadius: 4), with: .color(theme.surfaceSolid.color.opacity(0.78)))
+            context.draw(resolved, at: label.at, anchor: .top)
         }
     }
 }
@@ -498,7 +504,7 @@ private struct BrainLinksSection: View {
     var body: some View {
         if !links.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
-                Text("// \(title) · \(links.count)".uppercased()).appFont(.system(size: 9.5, weight: .medium, design: .monospaced)).tracking(0.8).foregroundStyle(theme.text3.color)
+                Text("\(title) · \(links.count)".uppercased()).appFont(.system(size: 10.5, weight: .semibold)).tracking(0.6).foregroundStyle(theme.text3.color)
                 ForEach(links) { link in
                     Button {
                         guard model.brain.selectedId != link.id else { return }
@@ -584,7 +590,7 @@ private struct NoteEditor: View {
             if let note {
                 HStack(spacing: 6) {
                     Image(systemName: note.kind.symbol).appFont(.system(size: 10.5)).foregroundStyle(kindColor(note.kind, theme))
-                    Text((note.ghost ? "Not written yet" : note.kind.title).uppercased()).appFont(.system(size: 9.5, design: .monospaced)).tracking(0.8).foregroundStyle(theme.text3.color)
+                    Text((note.ghost ? "Not written yet" : note.kind.title).uppercased()).appFont(.system(size: 10.5, weight: .semibold)).tracking(0.6).foregroundStyle(theme.text3.color)
                     Spacer(minLength: 0)
                     if let date = note.updatedAt, !note.ghost { Text(date.formatted(date: .abbreviated, time: .omitted)).appFont(.system(size: 11)).foregroundStyle(theme.text3.color) }
                 }
@@ -651,7 +657,8 @@ private struct NoteEditor: View {
                 }
             } else if let note {
                 Text(note.title).appFont(.system(size: 15, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
-                Text(note.body.isEmpty ? "(empty)" : note.body).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color).textSelection(.enabled)
+                Text(note.body.isEmpty ? AttributedString("(empty)") : BrainNoteText.styled(note.body, theme: theme))
+                    .appFont(.system(size: 12.5)).foregroundStyle(theme.text.color).textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
                 Text("ATOM mirrors this from its memory, so it changes there. Forget it on the Memory tab.")
                     .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
@@ -673,5 +680,56 @@ private struct NoteEditor: View {
         // The runtime changed this note (ATOM edited it, or it was saved): take the new text only where nothing was typed.
         .onChange(of: note?.body) { old, new in if text.wrappedValue == (old ?? "") { text.wrappedValue = new ?? "" } }
         .onChange(of: note?.title) { old, new in if title.wrappedValue == (old ?? "") { title.wrappedValue = new ?? "" } }
+    }
+}
+
+/// A kind or tag filter chip: an optional colour dot, the name, and the count in a small badge (EasyUI's badge chips).
+private struct BrainChip: View {
+    let title: String
+    let count: Int
+    let dot: Color?
+    let on: Bool
+    let dimmed: Bool
+    var selected = false
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if let dot { Circle().fill(dot).frame(width: 7, height: 7).opacity(dimmed ? 0.3 : 1) }
+            Text(title).appFont(.system(size: 11.5, weight: selected ? .semibold : .medium))
+                .foregroundStyle(dimmed ? theme.text3.color : selected ? theme.text.color : theme.text2.color)
+            Text("\(count)").appFont(.system(size: 10, weight: .semibold)).monospacedDigit()
+                .foregroundStyle(theme.text2.color.opacity(dimmed ? 0.5 : 1))
+                .padding(.horizontal, 5).frame(minWidth: 18, minHeight: 16)
+                .background(Capsule().fill(theme.fill3.color))
+        }
+        .fixedSize()
+        .padding(.leading, 10).padding(.trailing, 4).frame(height: 26)
+        .background(Capsule().fill(selected ? theme.fill3.color : theme.fill1.a > 0 ? theme.fill1.color : theme.fill2.color))
+        .overlay(Capsule().strokeBorder(selected ? theme.hairline(true) : theme.separator.color, lineWidth: 0.6))
+    }
+}
+
+/// A note's text for reading: [[Links]] as accent words without brackets, #tags in the identifier colour.
+enum BrainNoteText {
+    static func styled(_ body: String, theme: ThemePalette) -> AttributedString {
+        var result = AttributedString()
+        var rest = Substring(body)
+        while let match = rest.firstMatch(of: /\[\[([^\]]+)\]\]|#([A-Za-z0-9_-]+)/) {
+            result += AttributedString(String(rest[rest.startIndex..<match.range.lowerBound]))
+            if let link = match.output.1 {
+                var piece = AttributedString(String(link))
+                piece.foregroundColor = theme.accent.color
+                piece.inlinePresentationIntent = .stronglyEmphasized
+                result += piece
+            } else if let tag = match.output.2 {
+                var piece = AttributedString("#" + tag)
+                piece.foregroundColor = theme.idColor(theme.text2)
+                result += piece
+            }
+            rest = rest[match.range.upperBound...]
+        }
+        result += AttributedString(String(rest))
+        return result
     }
 }
