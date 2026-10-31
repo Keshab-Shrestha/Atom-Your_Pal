@@ -26,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         .appendingPathComponent("Library/Logs/ATOM/island.log")
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        AppFonts.register() // Settings > Appearance > Typeface: the bundled Inter and Geist.
         if let gallery = AtomEnv.read("ATOM_ISLAND_GALLERY") {
             IslandGallery.render(to: URL(fileURLWithPath: gallery))
             NSApp.terminate(nil)

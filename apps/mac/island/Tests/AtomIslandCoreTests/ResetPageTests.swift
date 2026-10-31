@@ -7,7 +7,7 @@ import Testing
 @Suite("Reset this page")
 @MainActor
 struct ResetPageTests {
-    static let appearanceKeys: Set = [IslandSettings.themeKey]
+    static let appearanceKeys: Set = [IslandSettings.themeKey, IslandSettings.textSizeKey, IslandSettings.typefaceKey]
     static let dictationKeys: Set = [IslandSettings.dictationModeKey, IslandSettings.livePreviewKey, IslandSettings.removeFillersKey]
     static let palKeys: Set = [
         IslandSettings.palSizeKey, IslandSettings.palWanderKey, IslandSettings.palNapKey,
@@ -23,7 +23,7 @@ struct ResetPageTests {
         let name = "atom.test.reset.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: name)!
         let s = IslandSettings(defaults: defaults)
-        s.theme = other(s.theme)
+        s.theme = other(s.theme); s.textSize = other(s.textSize); s.typeface = other(s.typeface)
         s.dictationMode = other(s.dictationMode); s.livePreview.toggle(); s.removeFillers.toggle()
         s.palSize = other(s.palSize); s.palWander = other(s.palWander); s.palNap = other(s.palNap)
         s.palReacts.toggle(); s.palHomeDisplay = .display(uuid: "SIDE")
@@ -51,7 +51,7 @@ struct ResetPageTests {
     @Test func appearanceResetTouchesOnlyTheTheme() {
         let (s, fresh, changed) = run { $0.resetAppearance() }
         #expect(changed == Self.appearanceKeys)
-        #expect(s.theme == fresh.theme)
+        #expect(s.theme == fresh.theme && s.textSize == fresh.textSize && s.typeface == fresh.typeface)
         #expect(s.dictationMode != fresh.dictationMode && s.palSize != fresh.palSize)
     }
 

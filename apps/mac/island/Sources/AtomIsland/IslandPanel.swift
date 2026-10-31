@@ -56,7 +56,7 @@ struct IslandView: View {
             // little as it leaves. With Reduce Motion it only fades (the window's alpha).
             .scaleEffect(model.presented || reduceMotion ? 1 : 0.98, anchor: UnitPoint(x: model.openAnchorX, y: 0))
             .themed(palette)
-            .environment(\.appTextSize, model.settings.textSize)
+            .appTypography(model.settings)
             .environment(\.islandSnapshot, snapshot)
     }
 }

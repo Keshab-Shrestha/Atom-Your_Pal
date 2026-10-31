@@ -91,7 +91,7 @@ struct ConversationControls: View {
                 AtomScrollView { ChatTaskResults(model: model, initiallyExpanded: true).id(model.chats?.current ?? "") }
             }
             .padding(20).frame(minWidth: 420, idealWidth: 560, minHeight: 360, idealHeight: 560)
-            .themed(theme).environment(\.appTextSize, model.settings.textSize)
+            .themed(theme).appTypography(model.settings)
         }
         .sheet(isPresented: Binding(get: { model.recovery.shown }, set: { model.recovery.shown = $0 })) {
             ForegroundRecoveryView(model: model)

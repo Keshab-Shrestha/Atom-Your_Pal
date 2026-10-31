@@ -334,6 +334,15 @@ enum IslandGallery {
         save(frozen(HelpersView(model: columned).environment(\.islandSnapshot, true).frame(width: 1180, height: 1000))
             .environment(\.theme, theme.palette).themed(theme.palette).background(theme.palette.surfaceSolid.color),
              name: name + "-board-columns", to: directory)
+        // 2026-10-31: the same chat and Dashboard in each typeface (Settings > Appearance > Typeface). Default theme only.
+        if theme == .void {
+            for face in AppTypeface.allCases {
+                tabled.settings.typeface = face; dashing.settings.typeface = face
+                save(HStack(alignment: .top, spacing: 18) { window("Chat · \(face.title)", tabled); window("Dashboard · \(face.title)", dashing) }
+                    .padding(24).background(Color(red: 0.36, green: 0.42, blue: 0.52)), name: "44-typeface-\(face.title.lowercased())", to: directory)
+            }
+            tabled.settings.typeface = .system; dashing.settings.typeface = .system
+        }
         // ADR-094: the floor with fifty agents: twelve seated, ten in the lounge, "+2 at work" and "+26 more".
         save(OfficeFloor(model: crowded).environment(\.islandSnapshot, true).environment(\.theme, theme.palette).frame(width: 660)
             .padding(16).background(Color.black), name: name + "-floor-crowd", to: directory)

@@ -59,6 +59,11 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 # T3 Code chat design adaptation (MIT): include its notice with the distributed app.
 cp "$root/reference/licenses/t3code-MIT.txt" "$app/Contents/Resources/ThirdParty-T3Code.txt"
 cp "$root/reference/licenses/SwiftTerm-MIT.txt" "$app/Contents/Resources/ThirdParty-SwiftTerm.txt"
+# Settings > Appearance > Typeface: Inter and Geist (SIL Open Font License 1.1), with their licences.
+mkdir -p "$app/Contents/Resources/fonts"
+cp "$root"/assets/fonts/*.ttf "$app/Contents/Resources/fonts/"
+cp "$root/reference/licenses/Inter-OFL.txt" "$app/Contents/Resources/ThirdParty-Inter-OFL.txt"
+cp "$root/reference/licenses/Geist-OFL.txt" "$app/Contents/Resources/ThirdParty-Geist-OFL.txt"
 cp "$root/assets/skills/omh/LICENSE" "$app/Contents/Resources/ThirdParty-OhMyHermes.txt"
 mkdir -p "$app/Contents/Resources/skills"
 cp -R "$root/assets/skills/omh" "$app/Contents/Resources/skills/omh"

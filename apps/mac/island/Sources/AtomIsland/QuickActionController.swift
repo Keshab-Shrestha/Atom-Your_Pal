@@ -45,7 +45,7 @@ final class QuickActionController: NSObject, NSWindowDelegate {
                                    replace: { [weak self] text in await self?.replace(text, in: target) ?? "" },
                                    draft: { [weak self] text in self?.showReply(text, target: target) },
                                    close: { [weak self] in self?.close() })
-            .themed(model.settings.theme.palette).environment(\.appTextSize, model.settings.textSize)
+            .themed(model.settings.theme.palette).appTypography(model.settings)
         present(view, width: 440)
     }
 
@@ -56,7 +56,7 @@ final class QuickActionController: NSObject, NSWindowDelegate {
         present(ReplyDraftPane(session: session, source: text, close: { [weak self] in self?.close() },
                                insertTarget: target.name, insertRunning: { target.app.map { !$0.isTerminated } ?? false },
                                insert: { [weak self] draft in await self?.insertDraft(draft, in: target) ?? "" })
-            .themed(model.settings.theme.palette).environment(\.appTextSize, model.settings.textSize), width: 560, height: 580)
+            .themed(model.settings.theme.palette).appTypography(model.settings), width: 560, height: 580)
     }
 
     private func present<Content: View>(_ view: Content, width: CGFloat, height: CGFloat? = nil) {

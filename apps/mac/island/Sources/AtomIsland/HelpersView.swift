@@ -61,7 +61,7 @@ struct HelpersView: View {
         .themed(palette)
         .environment(\.desktopDesign, true)
         .appFont(.system(size: 13))
-        .environment(\.appTextSize, model.settings.textSize)
+        .appTypography(model.settings)
     }
 
     /// The small line above a chat's title: project, Pinned, model (the HTML preview's header chips).

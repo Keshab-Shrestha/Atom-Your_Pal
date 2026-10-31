@@ -9,12 +9,13 @@ struct AppearanceSection: View {
     var body: some View {
         let settings = model.settings
         let themes: [AppTheme] = [.sapphire, .champagne, .emerald, .plum, .cobalt, .teal]
-        Card("Font size", footer: "Changes text across workspace pages, chat messages and typing fields. Saved on this Mac.") {
+        Card("Font", footer: "Changes text across workspace pages, chat messages and typing fields. Model names, paths and code stay in SF Mono. Saved on this Mac.") {
+            ChoiceRow(title: "Typeface", selection: settings.typeface) { settings.typeface = $0 }
             ChoiceRow(title: "Text size", selection: settings.textSize) { settings.textSize = $0 }
             Text("A calmer place to do your best work.")
                 .appFont(.system(size: 14)).foregroundStyle(theme.text.color)
                 .padding(.horizontal, Spacing.well).padding(.bottom, Spacing.well)
-                .accessibilityLabel("Font size preview")
+                .accessibilityLabel("Font preview")
         }
         Card("Workspace themes", footer: "Applied to the whole window and companion. " + settings.theme.detail) {
             VStack(spacing: 6) {
@@ -40,7 +41,7 @@ struct AppearanceSection: View {
                 }
             }.padding(8)
         }
-        ResetPageCard(footer: "The theme and font size go back to their defaults.") { settings.resetAppearance() }
+        ResetPageCard(footer: "The theme, typeface and text size go back to their defaults.") { settings.resetAppearance() }
     }
 }
 

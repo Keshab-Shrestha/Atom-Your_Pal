@@ -49,7 +49,7 @@ Rules:
 
 ## 3. Typography Rules
 
-- **Sans:** the system font (SF Pro). **Mono:** SF Mono.
+- **Sans:** the system font (SF Pro) by default. Settings > Appearance > Typeface also offers SF Pro Rounded, Inter and Geist. Inter and Geist are bundled files in `assets/fonts` (SIL Open Font License 1.1). **Mono:** SF Mono in every typeface.
 - **Titles:** SF Pro, semibold. **Identifiers and readouts:** mono.
 - The window's sizes today are 10.5, 11, 11.5, 12, 12.5, 13, 18 and 26 pt. Move toward one scale: **11, 12, 13, 15, 18, 26**. Use a size only for its role: caption, secondary, body, row title, page title, number.
 - Make hierarchy with three things together: size, weight, and colour level. A size alone is not hierarchy.

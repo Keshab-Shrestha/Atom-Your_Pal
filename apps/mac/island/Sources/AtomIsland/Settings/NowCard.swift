@@ -7,6 +7,7 @@ import AtomIslandCore
 
 struct NowCard: View {
     @Environment(\.appTextSize) private var textSize
+    @Environment(\.appTypeface) private var typeface
     let model: IslandModel
     /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
     private let showsTimings: State<Bool>
@@ -40,7 +41,7 @@ struct NowCard: View {
                     .appFont(.system(size: 14, weight: .semibold, design: theme.titleDesign))
                     .foregroundStyle(theme.text.color)
                 // The model is an identifier: SF Mono in Void's violet.
-                (Text("Replies from ") + Text(facts.model).appFont(theme.appIdentifierFont(.system(size: 11.5), size: 11), scaledBy: textSize).foregroundColor(theme.idColor(theme.text2)))
+                (Text("Replies from ") + Text(facts.model).appFont(theme.appIdentifierFont(.system(size: 11.5), size: 11), scaledBy: textSize, face: typeface).foregroundColor(theme.idColor(theme.text2)))
                     .appFont(.system(size: 11.5))
                     .foregroundStyle(theme.text2.color)
             }

@@ -134,7 +134,7 @@ struct WorkStripView: View {
         .shadow(color: .black.opacity(palette.usesShadows ? (palette.isDark ? 0.3 : 0.12) : 0), radius: 2, y: 1)
         .shadow(color: .black.opacity(palette.usesShadows ? (palette.isDark ? 0.36 : 0.14) : 0), radius: 12, y: 7)
         .themed(palette)
-        .environment(\.appTextSize, model.settings.textSize)
+        .appTypography(model.settings)
         .environment(\.islandSnapshot, snapshot)
         .animation(.easeOut(duration: 0.18), value: asking)
         .padding(WorkStripController.shadowInset)

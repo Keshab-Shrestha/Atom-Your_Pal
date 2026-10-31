@@ -110,7 +110,7 @@ struct BubbleView: View {
                 BubbleGlass(state: state, tone: tone, snapshot: snapshot, fill: model.settings.bubbleOpacity.fill, tailAnchor: tailAnchor)
             }
             .themed(palette)
-            .environment(\.appTextSize, model.settings.textSize)
+            .appTypography(model.settings)
             .environment(\.islandSnapshot, snapshot)
             .animation(Motion.glow(reduceMotion), value: tone)
             .scaleEffect(state.visible || reduceMotion ? 1 : 0.6, anchor: tailAnchor)
