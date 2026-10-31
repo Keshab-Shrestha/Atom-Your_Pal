@@ -344,6 +344,14 @@ enum IslandGallery {
         save(frozen(HelpersView(model: scheduling).environment(\.islandSnapshot, true).frame(width: 1000, height: 760))
             .environment(\.theme, theme.palette).themed(theme.palette).background(theme.palette.surfaceSolid.color),
              name: name + "-scheduled", to: directory)
+        // 2026-10-31: the Agents panel at the right, beside the Board, while agents work.
+        let watching = model(theme, failed: true)
+        watching.helpers.selectBoard()
+        watching.boardView = .columns
+        watching.activityShown = true
+        save(frozen(HelpersView(model: watching).environment(\.islandSnapshot, true).frame(width: 1280, height: 800))
+            .environment(\.theme, theme.palette).themed(theme.palette).background(theme.palette.surfaceSolid.color),
+             name: name + "-activity", to: directory)
         // 2026-10-31: the same chat and Dashboard in each typeface (Settings > Appearance > Typeface). Default theme only.
         if theme == .void {
             let usual = tabled.settings.typeface

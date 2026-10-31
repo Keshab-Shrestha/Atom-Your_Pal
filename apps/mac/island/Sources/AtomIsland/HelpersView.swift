@@ -37,7 +37,15 @@ struct HelpersView: View {
                 .workspaceLane(color: palette.surfaceSolid)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            // 2026-10-31: what runs in the background, by agent (the reference app's right panel).
+            if model.activityShown {
+                ActivityPanel(model: model).frame(width: 300)
+                    .themed(ChatAppearance.palette(theme: model.settings.theme, sidebar: true))
+                    .workspaceLane(color: WorkspaceColors.for(model.settings.theme).panel)
+                    .transition(reduceMotion ? .opacity : .move(edge: .trailing).combined(with: .opacity))
+            }
         }
+        .animation(Motion.workspace(reduceMotion), value: model.activityShown)
         .padding(8).padding(.top, 30)
         .background(WorkspaceColors.for(model.settings.theme).frame.color.ignoresSafeArea())
         .background { if !snapshot { WindowDragArea() } }
@@ -96,6 +104,7 @@ struct HelpersView: View {
                         .help("Toggle workspace (⌥⌘R)")
                     ConversationControls(model: model)
                 }
+                ActivityToggleButton(model: model)
             }
     }
 

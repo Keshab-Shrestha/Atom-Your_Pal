@@ -239,6 +239,8 @@ final class IslandModel {
     }
     /// ADR-094: the Board's "All agents" list is open (from its chip or a "+N" sign on the floor).
     var showsAllAgents = false
+    /// 2026-10-31: the window's right panel of what runs in the background (ActivityPanel). Shown on request.
+    var activityShown = false
     /// The Settings page open inside the Settings tab; nil shows the list of pages (ADR-057).
     var settingsPage: SettingsPage?
 
