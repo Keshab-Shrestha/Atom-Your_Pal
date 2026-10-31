@@ -162,6 +162,32 @@ public struct WorkspaceColors: Sendable {
             p.radiusSurface = 14; p.radiusCard = 14; p.radiusControl = 9
             p.buttonStyle = .filled; p.usesGlow = false; p.usesShadows = true
             return WorkspaceColors(frame: RGBA(hex: 0x070D0D), rail: RGBA(hex: 0x091111), panel: RGBA(hex: 0x101D1D), work: RGBA(hex: 0x0B1515), workspace: RGBA(hex: 0x0E1A1A), card: RGBA(hex: 0x142323), bubble: RGBA(hex: 0x23534D), palette: p)
+        case .ember:
+            // The reference app: near-black graphite lanes, white text at three strengths, hairlines at 8%, and
+            // orange only for the one thing in focus.
+            var p = ThemePalette.void
+            p.text = RGBA(hex: 0xECECEC)
+            p.text2 = RGBA(hex: 0xA3A3A3)
+            p.text3 = RGBA(hex: 0x8A8A8A)
+            p.fill1 = RGBA(hex: 0x1B1B1B)
+            p.fill2 = RGBA(hex: 0x222222)
+            p.fill3 = RGBA(hex: 0x2A2A2A)
+            p.border = RGBA(1, 1, 1, 0.10)
+            p.separator = RGBA(1, 1, 1, 0.07)
+            p.rim = RGBA(1, 1, 1, 0.07)
+            p.borderHover = RGBA(1, 1, 1, 0.22)
+            p.accent = RGBA(hex: 0xF26B2C)
+            p.onAccent = RGBA(hex: 0x111111)
+            p.attention = RGBA(hex: 0xF2B544)
+            p.problem = RGBA(hex: 0xF28B82)
+            p.success = RGBA(hex: 0x5FD08F)
+            p.live = RGBA(hex: 0x7CB8FF)
+            p.surfaceSolid = RGBA(hex: 0x131313); p.surface = p.surfaceSolid; p.surfaceTop = nil
+            p.accentEnd = p.accent; p.identifier = nil; p.monoIdentifiers = false
+            p.radiusSurface = 14; p.radiusCard = 12; p.radiusControl = 8
+            p.buttonStyle = .filled; p.usesGlow = false; p.usesShadows = true
+            return WorkspaceColors(frame: RGBA(hex: 0x0C0C0C), rail: RGBA(hex: 0x171717), panel: RGBA(hex: 0x171717), work: RGBA(hex: 0x131313),
+                                   workspace: RGBA(hex: 0x161616), card: RGBA(hex: 0x1B1B1B), bubble: RGBA(hex: 0x262626), palette: p)
         default:
             let p = theme.palette
             return WorkspaceColors(frame: p.fill3.over(p.surfaceSolid), rail: p.fill1.over(p.surfaceSolid),

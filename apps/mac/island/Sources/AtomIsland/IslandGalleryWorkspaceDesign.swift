@@ -33,7 +33,7 @@ extension IslandGallery {
         if let event = try? decodeEvent(#"{"type":"helpers","apps":[],"usage":{"today":{"input":2400,"output":900,"cacheRead":190000,"cacheWrite":38000,"dollars":0.42,"runs":6},"week":{"input":19000,"output":7600,"cacheRead":1400000,"cacheWrite":290000,"dollars":3.1,"runs":41},"days":[],"byWorker":[],"byModel":[]},"helpers":[{"id":"sid","name":"Sid","role":"researcher","available":true,"jobs":[]}]}"#) { model.apply(event) }
         model.windowPage = .chat
         model.workspace.tab = "files"
-        for theme in [AppTheme.sapphire, .champagne, .emerald, .plum, .cobalt, .teal] {
+        for theme in [AppTheme.ember, .sapphire, .champagne, .emerald, .plum, .cobalt, .teal] {
             model.settings.theme = theme; model.workspace.shown = true
             save(HelpersView(model: model).frame(width: 1440, height: 900).environment(\.islandSnapshot, true),
                  name: "43-workspace-\(theme.rawValue)", to: directory)

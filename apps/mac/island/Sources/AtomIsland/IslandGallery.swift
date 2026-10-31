@@ -352,6 +352,21 @@ enum IslandGallery {
         save(frozen(HelpersView(model: watching).environment(\.islandSnapshot, true).frame(width: 1280, height: 800))
             .environment(\.theme, theme.palette).themed(theme.palette).background(theme.palette.surfaceSolid.color),
              name: name + "-activity", to: directory)
+        // 2026-10-31: the Graphite & Ember theme (the reference app's look): the Board with the Agents panel, and a chat.
+        if theme == .void {
+            let ember = AppTheme.ember.palette
+            let emberBoard = model(.ember, failed: true)
+            emberBoard.helpers.selectBoard()
+            emberBoard.boardView = .columns
+            emberBoard.activityShown = true
+            save(frozen(HelpersView(model: emberBoard).environment(\.islandSnapshot, true).frame(width: 1280, height: 800))
+                .environment(\.theme, ember).themed(ember).background(ember.surfaceSolid.color), name: "45-ember-activity", to: directory)
+            let emberChat = model(.ember)
+            emberChat.windowPage = .chat
+            emberChat.activityShown = true
+            save(frozen(HelpersView(model: emberChat).environment(\.islandSnapshot, true).frame(width: 1280, height: 800))
+                .environment(\.theme, ember).themed(ember).background(ember.surfaceSolid.color), name: "45-ember-chat", to: directory)
+        }
         // 2026-10-31: the same chat and Dashboard in each typeface (Settings > Appearance > Typeface). Default theme only.
         if theme == .void {
             let usual = tabled.settings.typeface

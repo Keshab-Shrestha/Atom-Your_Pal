@@ -8,7 +8,7 @@ struct AppearanceSection: View {
 
     var body: some View {
         let settings = model.settings
-        let themes: [AppTheme] = [.sapphire, .champagne, .emerald, .plum, .cobalt, .teal]
+        let themes: [AppTheme] = [.ember, .sapphire, .champagne, .emerald, .plum, .cobalt, .teal]
         Card("Font", footer: "Changes text across workspace pages, chat messages and typing fields. Model names, paths and code stay in SF Mono. Saved on this Mac.") {
             ChoiceRow(title: "Typeface", selection: settings.typeface) { settings.typeface = $0 }
             RowDivider()

@@ -23,6 +23,8 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
 
     // Workspace reference themes. Existing raw values stay stable for saved preferences.
     case sapphire = 7, champagne, emerald, plum, cobalt, teal
+    /// Neutral graphite with one ember-orange accent, after the agent app Keshab chose as the reference (2026-10-31).
+    case ember = 13
 
     public var id: Int { rawValue }
     public var title: String {
@@ -40,6 +42,7 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
         case .emerald: "Ivory & Emerald"
         case .champagne: "Graphite & Champagne Gold"
         case .sapphire: "Midnight Sapphire"
+        case .ember: "Graphite & Ember"
         }
     }
     public var detail: String {
@@ -57,6 +60,7 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
         case .emerald: "Warm ivory surfaces with an emerald accent."
         case .champagne: "Graphite surfaces with a muted gold accent."
         case .sapphire: "Deep blue surfaces with a periwinkle accent."
+        case .ember: "Neutral graphite, quiet hairlines and one ember-orange accent."
         }
     }
     public var palette: ThemePalette { ThemePalette.for(self) }
@@ -179,7 +183,7 @@ public struct ThemePalette: Sendable, Equatable {
         case .luminous: luminous
         case .warm: warm
         case .daylight: daylight
-        case .sapphire, .champagne, .emerald, .plum, .cobalt, .teal: WorkspaceColors.for(theme).palette
+        case .sapphire, .champagne, .emerald, .plum, .cobalt, .teal, .ember: WorkspaceColors.for(theme).palette
         }
     }
 
