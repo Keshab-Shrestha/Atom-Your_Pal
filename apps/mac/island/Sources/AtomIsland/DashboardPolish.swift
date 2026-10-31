@@ -9,6 +9,20 @@ extension View {
     func statTile(attention: Bool = false) -> some View { modifier(StatTileModifier(attention: attention)) }
 }
 
+extension View {
+    /// A stat tile's glyph in a small rounded well; tinted when the tile asks for attention.
+    func statIcon(tint: Color? = nil) -> some View { modifier(StatIconModifier(tint: tint)) }
+}
+
+private struct StatIconModifier: ViewModifier {
+    let tint: Color?
+    @Environment(\.theme) private var theme
+    func body(content: Content) -> some View {
+        content.frame(width: 32, height: 32)
+            .background((tint ?? theme.text2.color).opacity(tint == nil ? 0.1 : 0.14), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+    }
+}
+
 private struct StatTileModifier: ViewModifier {
     let attention: Bool
     @Environment(\.theme) private var theme

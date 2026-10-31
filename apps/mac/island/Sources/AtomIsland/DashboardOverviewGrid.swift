@@ -42,10 +42,10 @@ struct DashboardOverviewGrid: View {
                     if branches.contains(where: { $0.commits.contains(where: { $0.at != nil }) }) {
                         GitCommitActivity(branches: branches)
                     } else {
-                        Text("No dated task commits recorded yet.").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
+                        PanelNote(text: "No dated task commits recorded yet.")
                     }
                 } else {
-                    Text("Loading local branch activity…").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    PanelNote(text: "Loading local branch activity…")
                 }
             }
             DashboardPanel("Token mix", detail: "Last 7 days · includes cache") {
@@ -67,7 +67,7 @@ struct DashboardOverviewGrid: View {
                 if model.dailyBrief.history.count > 1 {
                     BriefHistory(model: model, initiallyExpanded: true, compact: true)
                 } else {
-                    Text("Earlier briefs will appear here.").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    PanelNote(text: "Earlier briefs will appear here.")
                 }
             }
             if model.dailyBrief.latest?.preparation != nil {
@@ -90,9 +90,17 @@ struct DashboardPanel<Content: View>: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title).appFont(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
-                if let detail { Text(detail).appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color) }
+            HStack(alignment: .center, spacing: 10) {
+                if let symbol = DashboardPanelSymbols.byTitle[title] {
+                    Image(systemName: symbol).appFont(.system(size: 12, weight: .semibold)).foregroundStyle(theme.text2.color)
+                        .frame(width: 28, height: 28)
+                        .background(theme.fill3.color, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .accessibilityHidden(true)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).appFont(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
+                    if let detail { Text(detail).appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color) }
+                }
             }
             content
         }.padding(12).frame(maxWidth: .infinity, alignment: .topLeading)
@@ -150,7 +158,7 @@ struct DashboardTrend: View {
                 Text("7-day total").appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)
             }
             if days.isEmpty {
-                Text("No daily usage recorded yet.").appFont(.system(size: 12)).foregroundStyle(theme.text2.color).frame(height: 100)
+                PanelNote(text: "No daily usage recorded yet.").frame(height: 100, alignment: .center)
             } else {
                 TrendChart(values: days.map(value), labels: days.map(\.day), color: color)
                 HStack {
@@ -248,7 +256,7 @@ struct DashboardRecentTurns: View {
 
     @ViewBuilder private func turns(_ bars: [RecentTurnBar]) -> some View {
         if bars.isEmpty {
-            Text("No recent turns recorded yet.").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
+            PanelNote(text: "No recent turns recorded yet.")
         } else {
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(Array(bars.enumerated()), id: \.offset) { _, bar in
@@ -342,4 +350,29 @@ struct DashboardRecentTurns: View {
             Text(title).appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)
         }.accessibilityHidden(true)
     }
+}
+
+/// A panel with nothing to show yet: a quiet line in a soft well, not loose text (2026-10-31).
+struct PanelNote: View {
+    let text: String
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "circle.dashed").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color).accessibilityHidden(true)
+            Text(text).appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 12).padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.fill3.color.opacity(0.5), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+}
+
+enum DashboardPanelSymbols {
+    /// Each Dashboard panel's glyph beside its title (2026-10-31), by title so the callers stay as they are.
+    static let byTitle: [String: String] = [
+        "Trends": "chart.xyaxis.line", "Recent turns": "clock.arrow.circlepath", "Usage details": "list.bullet.rectangle",
+        "Git activity": "point.3.connected.trianglepath.dotted", "Team branches": "arrow.triangle.branch",
+        "Your day": "sun.max", "Token mix": "chart.pie", "Brief archive": "archivebox", "Prepared for review": "tray.full",
+    ]
 }
