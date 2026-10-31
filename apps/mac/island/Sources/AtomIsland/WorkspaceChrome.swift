@@ -34,6 +34,22 @@ struct WorkspaceNavigationRail: View {
         }
         .padding(.vertical, 10).frame(width: 51)
         .workspaceLane(color: WorkspaceColors.for(model.settings.theme).rail)
+        // 2026-10-31: the rail shows glyphs only; the hovered button's name floats out to its right, over the next pane.
+        .overlayPreferenceValue(RailHoverKey.self) { hovered in
+            GeometryReader { proxy in
+                if let hovered, !snapshot {
+                    let rect = proxy[hovered.anchor]
+                    RailNameTag(title: hovered.title)
+                        .fixedSize()
+                        .alignmentGuide(.leading) { _ in -(rect.maxX + 8) }
+                        .alignmentGuide(.top) { tag in -(rect.midY - tag.height / 2) }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .allowsHitTesting(false)
+                        .transition(.opacity)
+                }
+            }
+        }
+        .zIndex(1)
         .accessibilityElement(children: .contain).accessibilityLabel("Main navigation")
     }
 
@@ -103,7 +119,32 @@ struct WorkspaceNavigationRail: View {
     }
 }
 
-/// Names stay visible so destinations are recognizable without memorizing glyphs or hovering.
+/// The hovered rail button: its name and where it is, for the floating name tag.
+private struct RailHover {
+    let title: String
+    let anchor: Anchor<CGRect>
+}
+
+private struct RailHoverKey: PreferenceKey {
+    static let defaultValue: RailHover? = nil
+    static func reduce(value: inout RailHover?, nextValue: () -> RailHover?) { value = value ?? nextValue() }
+}
+
+/// The floating name beside a hovered rail button: a small dark pill, like a tooltip that comes at once.
+private struct RailNameTag: View {
+    let title: String
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        Text(title).appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
+            .padding(.horizontal, 10).frame(height: 26)
+            .background(theme.surfaceSolid.color, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(theme.hairline(true), lineWidth: 0.6))
+            .shadow(color: .black.opacity(theme.isFlat ? 0.25 : 0.3), radius: 8, y: 3)
+    }
+}
+
+/// 2026-10-31 (Keshab): glyphs only, as in the reference app; the name shows beside the button on hover.
 private struct WorkspaceRailButton: View {
     let title: String
     let symbol: String
@@ -127,22 +168,19 @@ private struct WorkspaceRailButton: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: appIcon ? 1 : 5) {
+            Group {
                 if appIcon {
                     homeIcon.frame(width: Self.homeIconSize, height: Self.homeIconSize).accessibilityHidden(true)
                 } else {
                     Image(systemName: symbol)
-                        .font(.system(size: 14.25, weight: selected ? .semibold : .medium))
+                        .font(.system(size: 15, weight: selected ? .semibold : .medium))
                         .symbolRenderingMode(.hierarchical)
-                        .frame(height: 18)
                 }
-                Text(caption).appFont(.system(size: 8.5, weight: selected ? .semibold : .medium))
-                    .lineLimit(1).minimumScaleFactor(0.8)
             }
-            .foregroundStyle(selected ? theme.accent.color : hovering ? theme.text.color : theme.text2.color)
-            .frame(width: 43, height: 54)
-            .background(selected ? theme.accent.color.opacity(0.15) : hovering ? theme.fill2.color : .clear,
-                        in: RoundedRectangle(cornerRadius: 11))
+            .foregroundStyle(selected ? theme.text.color : hovering ? theme.text.color : theme.text2.color)
+            .frame(width: 36, height: 36)
+            .background(selected ? theme.fill3.color : hovering ? theme.fill2.color : .clear,
+                        in: RoundedRectangle(cornerRadius: 9, style: .continuous))
             .overlay(alignment: .topTrailing) {
                 if badge > 0 {
                     Text(badge > 9 ? "9+" : String(badge)).appFont(.system(size: 9, weight: .semibold))
@@ -154,7 +192,7 @@ private struct WorkspaceRailButton: View {
         .buttonStyle(WorkspacePressStyle())
         .onHover { hovering = $0 }
         .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: hovering)
-        .help(appIcon ? "Home — Dashboard" : title).accessibilityLabel(badge > 0 ? "\(title), \(badge) need attention" : title)
+        .anchorPreference(key: RailHoverKey.self, value: .bounds) { hovering ? RailHover(title: appIcon ? "Home" : title, anchor: $0) : nil }.accessibilityLabel(badge > 0 ? "\(title), \(badge) need attention" : title)
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
