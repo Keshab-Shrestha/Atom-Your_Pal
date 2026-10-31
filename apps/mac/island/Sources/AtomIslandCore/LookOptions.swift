@@ -125,7 +125,7 @@ public enum BubbleOpacity: Int, SettingsChoice {
 }
 
 /// Presentation only: the typeface of every sans text style (2026-10-31). Identifiers stay in SF Mono. Inter and Geist
-/// are bundled with the app (SIL Open Font License); without their files the system font is used.
+/// are bundled with the app (SIL Open Font License); without their files the system font is used. Default Inter.
 public enum AppTypeface: Int, SettingsChoice {
     case system = 0, rounded, inter, geist
     public var title: String {
