@@ -28,17 +28,8 @@ struct GitCommitActivity: View {
                     Text("14 days ending " + latest.formatted(date: .abbreviated, time: .omitted))
                         .appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
                 }
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 5), count: 7), spacing: 5) {
-                    ForEach(dates, id: \.self) { day in
-                        let count = commits.filter { calendar.isDate($0.at!, inSameDayAs: day) }.count
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(count == 0 ? theme.fill3.color : theme.success.color.opacity(count < 2 ? 0.35 : count < 4 ? 0.65 : 1))
-                            .frame(maxWidth: .infinity).frame(height: 22)
-                            .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(count == 0 ? theme.text3.color.opacity(0.65) : Color.clear, lineWidth: 0.6))
-                            .help("\(day.formatted(date: .abbreviated, time: .omitted)): \(count) recorded commits")
-                            .accessibilityLabel("\(day.formatted(date: .abbreviated, time: .omitted)), \(count) recorded commits")
-                    }
-                }
+                HeatStrip(days: dates.map { day in (day, commits.filter { calendar.isDate($0.at!, inSameDayAs: day) }.count) },
+                          unit: "recorded commits")
                 Text("Local branch snapshots only; shared commits counted once per repository. Push status appears on each branch.")
                     .appFont(.system(size: 11)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
             }.padding(.vertical, 6)

@@ -76,15 +76,14 @@ struct DashboardPane: View {
     }
 
     private func summaryStrip(usage: TokenUsageSummary?, attention: BoardAttention, columns: Int) -> some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: columns), alignment: .leading, spacing: 14) {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: columns), alignment: .leading, spacing: 10) {
             workLink(value: model.helpers.list == nil ? nil : attention.total, title: "Need review", symbol: "tray", attention: attention.total > 0) { openBoard(.needsYou) }
             workLink(value: model.helpers.list == nil ? nil : attention.running, title: "Running", symbol: "arrow.triangle.2.circlepath") { openBoard(.columns) }
             workLink(value: model.helpers.list?.helpers.count, title: "Agents", symbol: "person.2") { openBoard(.floor); model.showsAllAgents = true }
             summaryValue(usage.map { TokenTotals.short($0.today.io) } ?? "—", title: "Tokens today", symbol: "chart.xyaxis.line")
             summaryValue(usage.map { String(format: "$%.2f", $0.week.dollars) } ?? "—", title: "API-equivalent · week", symbol: "dollarsign.circle")
             summaryValue(usage?.week.cacheHitText ?? "—", title: "Cache hits · week", symbol: "arrow.triangle.2.circlepath")
-        }.padding(.horizontal, 16).padding(.vertical, 6)
-            .background(theme.fill2.color.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+        }
     }
     private func summaryValue(_ value: String, title: String, symbol: String) -> some View {
         HStack(spacing: 10) {
@@ -93,7 +92,7 @@ struct DashboardPane: View {
                 Text(value).appFont(.system(size: 18, weight: .semibold)).monospacedDigit().foregroundStyle(theme.text.color)
                 Text(title).appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)
             }
-        }.padding(.vertical, 10).frame(maxWidth: .infinity, alignment: .leading)
+        }.padding(.vertical, 10).frame(maxWidth: .infinity, alignment: .leading).statTile()
     }
 
     private func usageMetrics(_ usage: TokenUsageSummary, columns: Int) -> some View {
@@ -119,8 +118,8 @@ struct DashboardPane: View {
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right").appFont(.system(size: 9)).foregroundStyle(theme.text3.color)
-            }.padding(.vertical, 12).contentShape(Rectangle())
-        }.buttonStyle(.plain).disabled(model.helpers.list == nil).accessibilityLabel("\(value.map(String.init) ?? "Loading") \(title). Open Board.")
+            }.padding(.vertical, 12).contentShape(Rectangle()).statTile(attention: attention)
+        }.buttonStyle(.pressable).disabled(model.helpers.list == nil).accessibilityLabel("\(value.map(String.init) ?? "Loading") \(title). Open Board.")
     }
 
     /// "Updated 12 sec ago": how old the numbers are. A snapshot cannot tick, so it says "just now".

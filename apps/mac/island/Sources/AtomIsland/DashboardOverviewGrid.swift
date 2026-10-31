@@ -97,6 +97,7 @@ struct DashboardPanel<Content: View>: View {
             content
         }.padding(12).frame(maxWidth: .infinity, alignment: .topLeading)
             .background(theme.isDark ? theme.fill2.color : Color.white, in: RoundedRectangle(cornerRadius: 12))
+            .hoverLift(radius: 12, rises: false)
     }
 }
 
@@ -151,30 +152,7 @@ struct DashboardTrend: View {
             if days.isEmpty {
                 Text("No daily usage recorded yet.").appFont(.system(size: 12)).foregroundStyle(theme.text2.color).frame(height: 100)
             } else {
-                GeometryReader { proxy in
-                    let values = days.map { CGFloat(value($0)) }
-                    let maximum = max(1, values.max() ?? 1)
-                    let chartHeight = max(1, proxy.size.height - 8)
-                    let points = values.enumerated().map { index, n in
-                        CGPoint(x: values.count == 1 ? proxy.size.width / 2 : CGFloat(index) / CGFloat(values.count - 1) * proxy.size.width,
-                                y: chartHeight - n / maximum * chartHeight + 4)
-                    }
-                    Path { path in
-                        path.move(to: CGPoint(x: 0, y: proxy.size.height))
-                        for point in points { path.addLine(to: point) }
-                        path.addLine(to: CGPoint(x: proxy.size.width, y: proxy.size.height)); path.closeSubpath()
-                    }.fill(color.opacity(0.1))
-                    Path { path in
-                        if let first = points.first { path.move(to: first) }
-                        for point in points.dropFirst() { path.addLine(to: point) }
-                    }.stroke(color, style: StrokeStyle(lineWidth: 1.5, lineJoin: .round))
-                    ForEach(Array(points.enumerated()), id: \.offset) { index, point in
-                        Circle().fill(color).frame(width: 4, height: 4).position(point)
-                            .help("\(days[index].day): \(value(days[index]))")
-                    }
-                }.frame(height: 78)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(days.map { "\($0.day): \(value($0))" }.joined(separator: ", "))
+                TrendChart(values: days.map(value), labels: days.map(\.day), color: color)
                 HStack {
                     Text(days.first?.day ?? "")
                     Spacer()
@@ -210,19 +188,28 @@ private struct DashboardTabStrip: View {
     let titles: [String]
     let selected: Int
     let select: (Int) -> Void
+    @Namespace private var pill
     @Environment(\.theme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 2) {
             ForEach(Array(titles.enumerated()), id: \.offset) { index, title in
-                Button { select(index) } label: {
+                Button { withAnimation(Motion.settle(reduceMotion)) { select(index) } } label: {
                     Text(title).appFont(.system(size: 11.5, weight: selected == index ? .medium : .regular))
                         .foregroundStyle(selected == index ? theme.text.color : theme.text2.color)
                         .padding(.horizontal, 10).padding(.vertical, 4)
-                        .background(selected == index ? (theme.isDark ? theme.fill1.color : Color.white) : .clear, in: RoundedRectangle(cornerRadius: 6))
+                        .background {
+                            // The selected pill slides to the new tab (Kobra's stretching focus ring), not a jump.
+                            if selected == index {
+                                RoundedRectangle(cornerRadius: 6).fill(theme.isDark ? theme.fill1.color : Color.white)
+                                    .shadow(color: .black.opacity(theme.isFlat ? 0 : 0.12), radius: 2, y: 1)
+                                    .matchedGeometryEffect(id: "pill", in: pill)
+                            }
+                        }
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.pressable)
                 .accessibilityLabel(title)
                 .accessibilityAddTraits(selected == index ? .isSelected : [])
             }

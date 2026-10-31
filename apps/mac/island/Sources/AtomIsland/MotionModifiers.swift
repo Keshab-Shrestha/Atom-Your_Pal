@@ -65,6 +65,8 @@ extension ButtonStyle where Self == PressableButtonStyle {
 
 private struct HoverLiftModifier: ViewModifier {
     let radius: CGFloat
+    /// False for a large panel: only the hairline brightens, nothing rises and no shadow grows.
+    let rises: Bool
     private let hovering = State(initialValue: false)
     @Environment(\.theme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -74,8 +76,8 @@ private struct HoverLiftModifier: ViewModifier {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         content
             .overlay(shape.strokeBorder(theme.hairline(on).opacity(on ? 1 : 0), lineWidth: 1).allowsHitTesting(false))
-            .shadow(color: .black.opacity(on && !theme.isFlat ? (theme.isDark ? 0.34 : 0.12) : 0), radius: on ? 12 : 0, y: on ? 6 : 0)
-            .offset(y: on && !reduceMotion ? -Motion.liftHeight : 0)
+            .shadow(color: .black.opacity(rises && on && !theme.isFlat ? (theme.isDark ? 0.34 : 0.12) : 0), radius: rises && on ? 12 : 0, y: rises && on ? 6 : 0)
+            .offset(y: rises && on && !reduceMotion ? -Motion.liftHeight : 0)
             .onHover { hovering.wrappedValue = $0 }
             .animation(Motion.lift(reduceMotion), value: on)
     }
@@ -137,8 +139,8 @@ private struct PointerTiltModifier: ViewModifier {
 
 extension View {
     /// Hover depth for a card or tile: a hairline, a soft shadow and a 1.5 pt rise. With Reduce Motion only the
-    /// hairline and shadow change.
-    func hoverLift(radius: CGFloat = 12) -> some View { modifier(HoverLiftModifier(radius: radius)) }
+    /// hairline and shadow change. `rises: false` keeps just the hairline, for large panels.
+    func hoverLift(radius: CGFloat = 12, rises: Bool = true) -> some View { modifier(HoverLiftModifier(radius: radius, rises: rises)) }
 
     /// A slight 3D tilt toward the pointer with a moving sheen (Aceternity's tilt card, much quieter). Off with
     /// Reduce Motion. Use on tiles the size of a card, never on a whole page or a list.
