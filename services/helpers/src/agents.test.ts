@@ -45,6 +45,23 @@ test("editing soul.md in an editor becomes a new version; a save in the window w
   }
 });
 
+// 2026-10-31 (Keshab renamed Sandy to Ugway; it stayed Sandy): a listener that reads the team on every change read
+// soul.md before the save wrote it, took the old file as a newer version, and the rename was undone.
+test("a rename survives a listener that reads the team on every change", () => {
+  const { agentsDir, store, done } = setup();
+  try {
+    store.createAgent(rumi);
+    store.onChange(() => void store.list());
+    const before = store.list().find((h) => h.id === "rumi")!;
+    store.saveSoul("rumi", { ...before.soul, name: "Ugway" });
+    const after = store.list().find((h) => h.id === "rumi")!;
+    assert.deepEqual([after.name, after.soulVersion], ["Ugway", before.soulVersion + 1], "one new version, with the new name");
+    assert.match(readFileSync(join(agentsDir, "rumi", "soul.md"), "utf8"), /^---\nname: Ugway\n/);
+  } finally {
+    done();
+  }
+});
+
 test("a folder dropped in by hand is an agent; a broken one is named, not loaded", () => {
   const { agentsDir, store, done } = setup();
   try {

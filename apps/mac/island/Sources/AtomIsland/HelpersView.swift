@@ -966,6 +966,11 @@ private struct NameTitle: View {
             return
         }
         model.send(command) // stays open, with a spinner, until the list confirms or the runtime refuses
+        guard let request = model.helpers.pendingRename else { return }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(8))
+            model.helpers.renameTimedOut(request) // never spin for ever: say why and keep the typed name
+        }
     }
 
     private func cancel() {

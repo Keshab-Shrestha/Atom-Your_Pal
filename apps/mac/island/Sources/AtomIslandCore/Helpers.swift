@@ -724,6 +724,14 @@ public struct HelpersState: Sendable, Equatable {
         return command
     }
 
+    /// No answer came for `request` in time: stop waiting and say so, so the editor never spins for ever.
+    public mutating func renameTimedOut(_ request: RenameRequest) {
+        guard pendingRename == request else { return }
+        pendingRename = nil
+        isWaiting = false
+        problem = "ATOM did not confirm the new name. Try again."
+    }
+
     /// True once after the list confirmed the last rename, so the window shows "Saved" then and not before.
     public mutating func takeRenameConfirmed() -> Bool {
         defer { renameConfirmed = false }

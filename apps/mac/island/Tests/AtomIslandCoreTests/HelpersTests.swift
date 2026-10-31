@@ -423,6 +423,16 @@ struct HelperSoulTests {
         #expect(empty.rename("   ") == nil && empty.problem != nil && empty.pendingRename == nil)
     }
 
+    @Test func aRenameWithNoAnswerStopsWaitingWithAReason() throws {
+        var state = try loaded()
+        #expect(state.rename("Ace") != nil)
+        let request = try #require(state.pendingRename)
+        state.renameTimedOut(RenameRequest(helper: "sid", name: "Other")) // an older request: ignored
+        #expect(state.pendingRename == request)
+        state.renameTimedOut(request)
+        #expect(state.pendingRename == nil && state.problem == "ATOM did not confirm the new name. Try again.")
+    }
+
     @Test func saveSendsTheTrimmedSoulOnlyWhenChangedAndValid() throws {
         var state = try loaded()
         state.openSoul()

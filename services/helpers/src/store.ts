@@ -329,10 +329,16 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
 
   const current = (helper: HelperId) => latestSoul.get(helper) as unknown as SoulRow;
 
-  function newSoulVersion(helper: HelperId, soul: Soul) {
-    const version = current(helper).version + 1;
-    putSoul(helper, version, soul);
-    emit({ action: "soul", helper, version });
+  /**
+   * Keeps a new soul version and, for a custom agent, writes its soul.md before telling listeners: a listener that
+   * reads the team (`roster`) would otherwise find the old file, keep it as a newer version and undo the change
+   * (2026-10-31: a rename from Sandy to Ugway stayed Sandy).
+   */
+  function newSoulVersion(member: Member, soul: Soul) {
+    const version = current(member.id).version + 1;
+    putSoul(member.id, version, soul);
+    writeBack(member);
+    emit({ action: "soul", helper: member.id, version });
   }
 
   function mustGet(id: number): Job {
