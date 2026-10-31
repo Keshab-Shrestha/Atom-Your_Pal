@@ -1016,7 +1016,7 @@ private struct ChatsList: View {
 
     var body: some View {
         let list = model.chats
-        Text("Chats").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+        Text("CHATS").appFont(.system(size: 10.5, weight: .semibold)).tracking(0.6).foregroundStyle(theme.text3.color)
             .accessibilityAddTraits(.isHeader).padding(.horizontal, 8).padding(.top, 4)
         let active = ProjectSidebarScope.activeChats(list?.chats ?? [], projects: list?.projects ?? [], selected: model.sidebarProjectFilter)
         if !active.isEmpty {

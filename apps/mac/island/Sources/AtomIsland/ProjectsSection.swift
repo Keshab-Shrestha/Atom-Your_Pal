@@ -63,7 +63,7 @@ struct ProjectsSection: View {
 
     private var header: some View {
         HStack {
-            Text("Projects").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+            Text("PROJECTS").appFont(.system(size: 10.5, weight: .semibold)).tracking(0.6).foregroundStyle(theme.text3.color)
                 .accessibilityAddTraits(.isHeader)
             Spacer()
             Button(action: chooseFolder) {
@@ -363,10 +363,25 @@ struct SidebarChatRow: View {
             }
     }
 
+    /// The row's quiet age at the right: "now", "12m", "3h", "5d", then the date.
+    static func shortAge(_ date: Date?, now: Date = Date()) -> String {
+        guard let date else { return "" }
+        let seconds = max(0, now.timeIntervalSince(date))
+        switch seconds {
+        case ..<60: return "now"
+        case ..<3_600: return "\(Int(seconds / 60))m"
+        case ..<86_400: return "\(Int(seconds / 3_600))h"
+        case ..<604_800: return "\(Int(seconds / 86_400))d"
+        default: return date.formatted(.dateTime.month(.abbreviated).day())
+        }
+    }
+
     /// "Updated 5 minutes ago": what the second line used to say.
     static func updatedText(_ chat: ChatInfo) -> String {
         chat.updatedAt.map { "Updated " + $0.formatted(.relative(presentation: .named)) } ?? ""
     }
+
+    private var selected: Bool { current && model.windowPage == .chat }
 
     private var row: some View {
         Button {
@@ -383,7 +398,14 @@ struct SidebarChatRow: View {
                     HStack(spacing: 5) {
                         if chat.pinned { Image(systemName: "pin.fill").appFont(.system(size: 10)).accessibilityLabel("Pinned") }
                         if chat.archived { Image(systemName: "archivebox").appFont(.system(size: 10)).accessibilityLabel("Archived") }
-                        Text(chat.title).appFont(.system(size: 12.5, weight: current ? .semibold : .regular)).foregroundStyle(theme.text.color).lineLimit(1)
+                        Text(chat.title).appFont(.system(size: 12.5, weight: current ? .semibold : .regular))
+                            .foregroundStyle(selected ? theme.text.color : theme.text.color.opacity(0.88)).lineLimit(1)
+                        Spacer(minLength: 6)
+                        // The age stays on the one line (2026-10-15: no second line); hover swaps it for Delete.
+                        if !hovering || snapshot {
+                            Text(Self.shortAge(chat.updatedAt)).appFont(.system(size: 10.5)).monospacedDigit().foregroundStyle(theme.text3.color)
+                                .accessibilityHidden(true)
+                        }
                     }
                 }
                 // 2026-10-15: the time is not a second line any more (one line is a shorter row); it is the tip and VoiceOver's.
@@ -392,10 +414,15 @@ struct SidebarChatRow: View {
             .padding(.leading, 8).padding(.trailing, hovering && !renaming && !snapshot ? 30 : 8).padding(.vertical, 6)
             .frame(minHeight: 30)
             .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(current && model.windowPage == .chat ? theme.accent.color.opacity(0.14) : hovering ? theme.fill1.color : .clear))
+                .fill(selected ? theme.accent.color.opacity(0.14) : hovering ? theme.fill2.color : .clear))
+            // The open chat: a short accent bar at the leading edge, as in EasyUI's navigation.
+            .overlay(alignment: .leading) {
+                if selected { Capsule().fill(theme.accent.color).frame(width: 3, height: 14).padding(.leading, 2) }
+            }
             .contentShape(Rectangle())
+            .animation(Motion.hover(false, ghost: theme.isGhost), value: hovering)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .help(Self.updatedText(chat))
         .accessibilityLabel(Self.updatedText(chat).isEmpty ? chat.title : "\(chat.title), \(Self.updatedText(chat))")
         .contextMenu {
