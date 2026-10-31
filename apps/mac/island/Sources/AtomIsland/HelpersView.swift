@@ -823,7 +823,7 @@ struct ReadReportButton: View {
                                         hovering: hovering.wrappedValue, tint: violet))
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .onHover { hovering.wrappedValue = $0 }
         .animation(Motion.plain, value: hovering.wrappedValue)
     }
@@ -839,7 +839,7 @@ struct ReadReportButton: View {
                 .overlay(Capsule().strokeBorder(theme.accent.color.opacity(0.45), lineWidth: 0.8))
                 .contentShape(Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .onHover { hovering.wrappedValue = $0 }
         .animation(Motion.snap(reduceMotion), value: hovering.wrappedValue)
     }
@@ -872,7 +872,7 @@ struct QuietButton: View {
             }
             .contentShape(Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .onHover { hovering.wrappedValue = $0 }
         .animation(Motion.hover(reduceMotion, ghost: theme.isGhost), value: hovering.wrappedValue)
     }

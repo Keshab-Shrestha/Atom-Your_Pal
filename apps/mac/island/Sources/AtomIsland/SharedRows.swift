@@ -23,7 +23,7 @@ struct IconButton: View {
                 .background(ControlFill(Circle(), fill: hovering.wrappedValue ? theme.fill3.color : restFill, hovering: hovering.wrappedValue))
                 .contentShape(Circle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .onHover { hovering.wrappedValue = $0 }
         .animation(Motion.hover(reduceMotion, ghost: theme.isGhost), value: hovering.wrappedValue)
         .help(label)
@@ -249,7 +249,7 @@ struct PillButton: View {
             }
             .contentShape(Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .onHover { hovering.wrappedValue = $0 }
         .animation(theme.isGhost ? Motion.plain : nil, value: hovering.wrappedValue)
     }
