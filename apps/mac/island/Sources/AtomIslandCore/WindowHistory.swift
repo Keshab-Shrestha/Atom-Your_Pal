@@ -33,44 +33,27 @@ public enum BoardView: String, CaseIterable, Sendable {
     }
 }
 
-/// One step of the window's history: the sidebar page and, on the team page, what is open in it. Other pages keep
-/// only the page, so a change on the team page that Keshab cannot see is not a step.
+/// One step of the window's history: the sidebar page and, on the team page, whether the Board or an agent was
+/// shown, the Board's view and whether All agents was open. What was open inside the page (which agent, a task, a
+/// soul, the new-agent form) is not kept: Back returns to the Board, never into an agent Keshab already left
+/// (2026-10-31: Board with an agent open, Settings, Back reopened the agent).
 public struct WindowLocation: Equatable, Sendable {
     public var page: WindowPage
-    public var helperId: String?
+    /// The Board was shown, not an agent's page. Keeps "Board, then an agent" two steps; both return to the Board.
     public var showsBoard = false
     public var boardView = BoardView.floor
-    public var jobId: Int?
-    public var soulOpen = false
-    public var creatingAgent = false
     public var allAgents = false
 
-    public init(page: WindowPage, helperId: String? = nil, showsBoard: Bool = false, boardView: BoardView = .floor, jobId: Int? = nil,
-                soulOpen: Bool = false, creatingAgent: Bool = false, allAgents: Bool = false) {
+    public init(page: WindowPage, showsBoard: Bool = false, boardView: BoardView = .floor, allAgents: Bool = false) {
         self.page = page
         guard page == .agents else { return }
-        self.helperId = helperId
         self.showsBoard = showsBoard
         self.boardView = showsBoard ? boardView : .floor
-        self.jobId = jobId
-        self.soulOpen = soulOpen
-        self.creatingAgent = creatingAgent
         self.allAgents = allAgents
     }
 
     public init(page: WindowPage, helpers: HelpersState, allAgents: Bool, boardView: BoardView = .floor) {
-        self.init(page: page, helperId: helpers.selectedHelperId, showsBoard: helpers.showsBoard, boardView: boardView,
-                  jobId: helpers.openJobId, soulOpen: helpers.isSoulOpen, creatingAgent: helpers.isCreatingAgent,
-                  allAgents: allAgents)
-    }
-
-    /// What this step shows still exists: the task or the agent on screen (in the window's order).
-    public func isValid(in list: HelpersList?) -> Bool {
-        guard page == .agents, !creatingAgent else { return true }
-        if let jobId { return list?.item(jobId) != nil }
-        if showsBoard { return true }
-        guard let helperId else { return true }
-        return list?.helpers.contains { $0.id == helperId } == true
+        self.init(page: page, showsBoard: helpers.showsBoard, boardView: boardView, allAgents: allAgents)
     }
 }
 

@@ -1008,20 +1008,11 @@ public struct HelpersState: Sendable, Equatable {
         return waiting(.threadGet(id: id))
     }
 
-    /// ADR-096: puts the team page back as it was at `location` (Back). Gone agents are not chosen again.
-    /// Returns the thread to ask for when a task was open.
-    public mutating func show(_ location: WindowLocation) -> IslandCommand? {
-        if let id = location.helperId, id != selectedHelperId, list?.helpers.contains(where: { $0.id == id }) == true {
-            selectedHelperId = id
-            draftBlockers = []
-        }
-        showsBoard = location.showsBoard
-        isCreatingAgent = location.creatingAgent
-        problem = nil
-        if let id = location.jobId, list?.item(id) != nil { return openThread(id) }
-        closeReport()
-        isSoulOpen = location.soulOpen && selectedHelper?.soul != nil
-        return nil
+    /// ADR-096: Back to the team page lands on the Board's top level: no agent, task, soul or new-agent form opens
+    /// again (2026-10-31). The Board's view and All agents are the window's to put back.
+    public mutating func show(_ location: WindowLocation) {
+        guard location.page == .agents else { return }
+        selectBoard()
     }
 
     public mutating func closeReport() {

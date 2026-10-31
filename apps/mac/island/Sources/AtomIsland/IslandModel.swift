@@ -865,11 +865,11 @@ final class IslandModel {
         navigate { [self] in
             recordLocation()
             let current = location
-            guard let target = history.back(where: { $0 != current && $0.isValid(in: helpers.list) }) else { return }
+            guard let target = history.back(where: { $0 != current }) else { return }
             windowPage = target.page
             showsAllAgents = target.allAgents
             boardView = target.boardView
-            if target.page == .agents { sendHelpers(helpers.show(target)) }
+            helpers.show(target) // the Board's top level: nothing open inside the page comes back
             lastLocation = location // a Back is not a new step
         }
     }
