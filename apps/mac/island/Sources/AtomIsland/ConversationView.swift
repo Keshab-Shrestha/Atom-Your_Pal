@@ -808,7 +808,7 @@ struct TurnView: View {
                     .lineLimit(collapsed ? UserMessagePreview.lineLimit : nil)
                     .truncationMode(.tail)
                     .accessibilityHint(collapsed ? "Message preview. Open Message actions and choose Show full message to read the rest." : "")
-                    .appFont(.system(size: 13.5))
+                    .appFont(.system(size: 14))
                     .foregroundStyle(theme.text.color)
                     .lineSpacing(3)
                     .padding(.horizontal, 14).padding(.vertical, 10)

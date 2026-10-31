@@ -399,7 +399,7 @@ struct SidebarChatRow: View {
                         if chat.pinned { Image(systemName: "pin.fill").appFont(.system(size: 10)).accessibilityLabel("Pinned") }
                         if chat.archived { Image(systemName: "archivebox").appFont(.system(size: 10)).accessibilityLabel("Archived") }
                         Text(chat.title).appFont(.system(size: 12.5, weight: current ? .semibold : .regular))
-                            .foregroundStyle(selected ? theme.text.color : theme.text.color.opacity(0.88)).lineLimit(1)
+                            .foregroundStyle(theme.text.color).lineLimit(1)
                         Spacer(minLength: 6)
                         // The age stays on the one line (2026-10-15: no second line); hover swaps it for Delete.
                         if !hovering || snapshot {

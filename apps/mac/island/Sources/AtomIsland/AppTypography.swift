@@ -13,7 +13,7 @@ struct AppFont {
     static var headline: Self { .system(size: 13, weight: .semibold) }
     static var caption2: Self { .system(size: 10) }
     func monospacedDigit() -> Self { Self { resolve($0, $1).monospacedDigit() } }
-    func font(at size: AppTextSize, face: AppTypeface = .inter) -> Font { resolve(size.scale, face) }
+    func font(at size: AppTextSize, face: AppTypeface = .system) -> Font { resolve(size.scale, face) }
 }
 
 /// The typefaces behind `AppFont` (Settings > Appearance > Typeface). Monospaced text stays SF Mono in every face.
@@ -66,7 +66,7 @@ enum AppFonts {
 }
 
 private struct AppTextSizeKey: EnvironmentKey { static let defaultValue = AppTextSize.standard }
-private struct AppTypefaceKey: EnvironmentKey { static let defaultValue = AppTypeface.inter }
+private struct AppTypefaceKey: EnvironmentKey { static let defaultValue = AppTypeface.system }
 extension EnvironmentValues {
     var appTextSize: AppTextSize {
         get { self[AppTextSizeKey.self] }
@@ -96,7 +96,7 @@ extension View {
 
 extension Text {
     /// Inline concatenation and Canvas require Text, rather than an opaque modified View.
-    func appFont(_ font: AppFont, scaledBy size: AppTextSize, face: AppTypeface = .inter) -> Text { self.font(font.font(at: size, face: face)) }
+    func appFont(_ font: AppFont, scaledBy size: AppTextSize, face: AppTypeface = .system) -> Text { self.font(font.font(at: size, face: face)) }
 }
 
 extension ThemePalette {

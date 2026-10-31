@@ -138,7 +138,7 @@ public final class IslandSettings {
     public var bubbleOpacity: BubbleOpacity { didSet { store(bubbleOpacity.rawValue, Self.bubbleOpacityKey) } }
     /// How ATOM's surfaces look (ADR-057). Default Void (ADR-086).
     public var textSize: AppTextSize { didSet { store(textSize.rawValue, Self.textSizeKey) } }
-    /// The sans typeface for every surface. Default Inter (Keshab, 2026-10-31).
+    /// The sans typeface for every surface. Default the system font (SF Pro): Keshab found Inter and Geist "off" in chat (2026-10-31).
     public var typeface: AppTypeface { didSet { store(typeface.rawValue, Self.typefaceKey) } }
     public var theme: AppTheme { didSet { store(theme.rawValue, Self.themeKey) } }
 
@@ -251,7 +251,7 @@ public final class IslandSettings {
         bubbleSize = Self.choice(defaults, Self.bubbleSizeKey, .normal)
         bubbleOpacity = Self.choice(defaults, Self.bubbleOpacityKey, .normal)
         textSize = Self.choice(defaults, Self.textSizeKey, .standard)
-        typeface = Self.choice(defaults, Self.typefaceKey, .inter)
+        typeface = Self.choice(defaults, Self.typefaceKey, .system)
         theme = Self.choice(defaults, Self.themeKey, .void)
         sidebar = SidebarLayout(storage: defaults.string(forKey: Self.sidebarKey))
         sidebarHidden = defaults.bool(forKey: Self.sidebarHiddenKey)
@@ -345,7 +345,7 @@ public final class IslandSettings {
     public func resetAppearance() {
         theme = .void
         textSize = .standard
-        typeface = .inter
+        typeface = .system
     }
 
     /// Dictation: how it starts and stops, the live preview and filler removal.
