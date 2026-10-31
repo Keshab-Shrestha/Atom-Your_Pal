@@ -27,15 +27,19 @@ struct ScheduledPane: View {
         let page = model.helpers.list.map(ScheduledPage.init(list:))
         Scrollable {
             VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .top, spacing: 8) {
+                HStack(alignment: .center, spacing: 14) {
+                    Image(systemName: "calendar.badge.clock").appFont(.system(size: 17, weight: .medium)).foregroundStyle(theme.accent.color)
+                        .frame(width: 42, height: 42)
+                        .background(theme.accent.color.opacity(0.13), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Scheduled").appFont(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
+                        Text("Scheduled").appFont(.system(size: 20, weight: .semibold)).foregroundStyle(theme.text.color)
+                            .accessibilityAddTraits(.isHeader)
                         Text("What runs by itself: routines.")
                             .appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 8)
                     if form.wrappedValue == nil, let first = model.helpers.list?.helpers.first(where: \.takesTasks) {
-                        QuietButton(title: "New schedule", symbol: "plus") {
+                        PillButton(title: "New schedule", symbol: "plus", prominent: true) {
                             let start = Calendar.current.date(byAdding: .hour, value: 1, to: Date()) ?? Date()
                             form.wrappedValue = ScheduleForm(id: nil, draft: RoutineDraft(helper: first.id, startAt: start))
                         }
@@ -57,6 +61,8 @@ struct ScheduledPane: View {
                     }
                 }
             }
+            // A readable measure, as on the Settings pages.
+            .frame(maxWidth: 760, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Spacing.panel)
             .padding(.top, 28)
@@ -74,30 +80,49 @@ private struct ScheduledCard: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Image(systemName: "repeat").appFont(.system(size: 10.5, weight: .semibold)).foregroundStyle(theme.text3.color)
-                Text(entry.helperName).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2))
-                Text(entry.schedule).appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
-                Spacer(minLength: 0)
-                Text(ScheduledPage.nextText(entry)).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5))
-                    .foregroundStyle(entry.paused ? theme.attention.color : theme.text2.color)
-            }
-            Text(entry.title).appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
-            Text(ScheduledPage.lastText(entry)).appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
-            HStack(spacing: 8) {
-                if case .routine(let id) = entry.kind, let routine = model.helpers.list?.helpers.first(where: { $0.id == entry.helperId })?.routines.first(where: { $0.id == id }) {
-                    QuietButton(title: "Edit", symbol: "pencil") { edit(routine, entry.helperId) }
+        let tint = entry.paused ? theme.attention.color : theme.accent.color
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        HStack(alignment: .center, spacing: 14) {
+            // What kind of entry it is, in its state's colour: repeating, or paused.
+            Image(systemName: entry.paused ? "pause.fill" : "repeat").appFont(.system(size: 14, weight: .semibold)).foregroundStyle(tint)
+                .frame(width: 40, height: 40)
+                .background(tint.opacity(0.13), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            VStack(alignment: .leading, spacing: 5) {
+                Text(entry.title).appFont(.system(size: 13.5, weight: .semibold)).foregroundStyle(theme.text.color).lineLimit(2)
+                HStack(spacing: 6) {
+                    Text(entry.helperName).appFont(theme.appIdentifierFont(.system(size: 11, weight: .medium), size: 10.5))
+                        .foregroundStyle(theme.idColor(theme.text))
+                        .padding(.horizontal, 7).frame(height: 18)
+                        .background(Capsule().fill(theme.fill3.color))
+                    Text(entry.schedule).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(1)
                 }
-                QuietButton(title: entry.paused ? "Resume" : "Pause", symbol: entry.paused ? "play.fill" : "pause.fill") { pause(!entry.paused) }
-                QuietButton(title: "Delete") { delete() }
+                Text(ScheduledPage.lastText(entry)).appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
             }
-            .padding(.top, 4)
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 10) {
+                HStack(spacing: 5) {
+                    StatusDot(color: entry.paused ? theme.attention.color : theme.success.color, size: 6)
+                    Text(ScheduledPage.nextText(entry)).appFont(.system(size: 11, weight: .medium)).monospacedDigit()
+                        .foregroundStyle(entry.paused ? theme.attention.color : theme.text2.color)
+                }
+                .padding(.horizontal, 8).frame(height: 22)
+                .background(Capsule().fill((entry.paused ? theme.attention.color : theme.success.color).opacity(0.1)))
+                HStack(spacing: 6) {
+                    if case .routine(let id) = entry.kind, let routine = model.helpers.list?.helpers.first(where: { $0.id == entry.helperId })?.routines.first(where: { $0.id == id }) {
+                        IconButton(symbol: "pencil", label: "Edit \(entry.title)", diameter: ControlMetrics.buttonHeight) { edit(routine, entry.helperId) }
+                    }
+                    IconButton(symbol: entry.paused ? "play.fill" : "pause.fill", label: entry.paused ? "Resume" : "Pause",
+                               diameter: ControlMetrics.buttonHeight) { pause(!entry.paused) }
+                    IconButton(symbol: "trash", label: "Delete \(entry.title)", diameter: ControlMetrics.buttonHeight) { delete() }
+                }
+            }
         }
-        .padding(.horizontal, 16).padding(.vertical, 12)
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
-            .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
+        .background(theme.fill1.a > 0 ? theme.fill1.color : theme.fill2.color.opacity(0.5), in: shape)
+        .overlay(shape.strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
+        .hoverLift(radius: 14)
+        .accessibilityElement(children: .contain)
     }
 
     private func pause(_ paused: Bool) {
@@ -211,8 +236,9 @@ private struct ScheduleFormCard: View {
         }
         .padding(.horizontal, 16).padding(.vertical, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
-            .strokeBorder(theme.accent.color.opacity(0.6), lineWidth: 1))
+        // The open form: the card fill with a calm accent hairline.
+        .background(theme.fill1.a > 0 ? theme.fill1.color : theme.fill2.color.opacity(0.5), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(theme.accent.color.opacity(0.35), lineWidth: 1))
         .tracksEdits(model, "schedule-form", value.edited && !value.sent)
         .onChange(of: model.helpers.isWaiting) { _, waiting in
             guard !waiting, form.wrappedValue?.sent == true else { return }

@@ -340,6 +340,10 @@ enum IslandGallery {
         save(frozen(HelpersView(model: kamed).environment(\.islandSnapshot, true).frame(width: 1000, height: 760))
             .environment(\.theme, theme.palette).themed(theme.palette).background(theme.palette.surfaceSolid.color),
              name: name + "-agent-page", to: directory)
+        // 2026-10-31: the Scheduled page on its own.
+        save(frozen(HelpersView(model: scheduling).environment(\.islandSnapshot, true).frame(width: 1000, height: 760))
+            .environment(\.theme, theme.palette).themed(theme.palette).background(theme.palette.surfaceSolid.color),
+             name: name + "-scheduled", to: directory)
         // 2026-10-31: the same chat and Dashboard in each typeface (Settings > Appearance > Typeface). Default theme only.
         if theme == .void {
             let usual = tabled.settings.typeface
