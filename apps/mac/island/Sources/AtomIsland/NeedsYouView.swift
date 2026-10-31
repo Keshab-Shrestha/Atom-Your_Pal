@@ -43,7 +43,7 @@ struct NeedsYouPane: View {
                             ? request.reason + "\n\nThis file only. Chat access lasts across tasks and restarts until you revoke it."
                             : request.reason
                         card(kind: "ATOM asks", who: "", title: request.summary, detail: detail) {
-                            QuietButton(title: request.rememberFile ? "Allow for task" : "Allow", symbol: "checkmark") { model.answerApproval(true) }
+                            PillButton(title: request.rememberFile ? "Allow for task" : "Allow", symbol: "checkmark", prominent: true) { model.answerApproval(true) }
                             if request.rememberFile {
                                 QuietButton(title: "Allow for chat", symbol: "checkmark.bubble") { model.answerApproval(true, rememberFile: true) }
                                     .help("Allow future edits to this file in this chat. Say ‘Forget file permissions for this chat’ to revoke.")
@@ -64,12 +64,14 @@ struct NeedsYouPane: View {
                 }
                 ForEach(items) { item in row(item) }
                 if !failed.isEmpty {
-                    Text("Failed · \(failed.count)").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.top, items.isEmpty ? 0 : 6)
+                    Text("FAILED · \(failed.count)").appFont(.system(size: 10.5, weight: .semibold)).tracking(0.6).foregroundStyle(theme.text3.color).padding(.top, items.isEmpty ? 0 : 6)
                     Text("Open a task to review what happened before trying it again. Interrupted work may already have changed files.")
                         .appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
                     ForEach(failed) { item in FailedTaskCard(model: model, item: item) }
                 }
             }
+            // A readable measure, as on the Settings pages.
+            .frame(maxWidth: 760, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Spacing.panel)
             .padding(.top, embedded ? 4 : 28)
@@ -81,7 +83,7 @@ struct NeedsYouPane: View {
         switch item.kind {
         case .plan:
             card(kind: "Plan", who: item.helperName, title: item.title, detail: item.detail) {
-                QuietButton(title: "Approve", symbol: "checkmark") { model.sendHelpers(model.helpers.answerPlan(item.jobId!, approve: true)) }
+                PillButton(title: "Approve", symbol: "checkmark", prominent: true) { model.sendHelpers(model.helpers.answerPlan(item.jobId!, approve: true)) }
                 QuietButton(title: "Reject", symbol: "xmark") { model.sendHelpers(model.helpers.answerPlan(item.jobId!, approve: false)) }
                 open(item)
             }
@@ -89,12 +91,12 @@ struct NeedsYouPane: View {
             let proposal = model.helpers.list?.helpers.first { $0.id == item.helperId }?.proposals.first { $0.id == item.proposalId }
             card(kind: "Tinker suggests", who: item.helperName, title: item.title, detail: item.detail,
                  tests: proposal.map { TestRunView(model: model, kind: "soul", id: $0.id, tests: $0.tests, hasCases: hasCases("soul", item.helperId), pending: true) }) {
-                QuietButton(title: "Accept", symbol: "checkmark") { model.sendHelpers(model.helpers.answerProposal(helper: item.helperId, id: item.proposalId!, accept: true)) }
+                PillButton(title: "Accept", symbol: "checkmark", prominent: true) { model.sendHelpers(model.helpers.answerProposal(helper: item.helperId, id: item.proposalId!, accept: true)) }
                 QuietButton(title: "Reject", symbol: "xmark") { model.sendHelpers(model.helpers.answerProposal(helper: item.helperId, id: item.proposalId!, accept: false)) }
             }
         case .skillDraft:
             card(kind: "Tinker drafted a skill", who: item.helperName, title: item.title, detail: item.detail) {
-                QuietButton(title: "Approve", symbol: "checkmark") { model.sendHelpers(model.helpers.answerSkillDraft(item.skillItemId!, approve: true)) }
+                PillButton(title: "Approve", symbol: "checkmark", prominent: true) { model.sendHelpers(model.helpers.answerSkillDraft(item.skillItemId!, approve: true)) }
                 QuietButton(title: "Reject", symbol: "xmark") { model.sendHelpers(model.helpers.answerSkillDraft(item.skillItemId!, approve: false)) }
                 QuietButton(title: "Plugins") { model.navigate { model.windowPage = .plugins } }
             }
@@ -102,7 +104,7 @@ struct NeedsYouPane: View {
             let edit = model.helpers.list?.skillEdits.first { $0.id == item.skillItemId }
             card(kind: "Skill edit suggested", who: item.helperName, title: item.title, detail: item.detail,
                  tests: edit.map { TestRunView(model: model, kind: "skill", id: $0.id, tests: $0.tests, hasCases: hasCases("skill", $0.skill), pending: true) }) {
-                QuietButton(title: "Accept", symbol: "checkmark") { model.sendHelpers(model.helpers.answerSkillEdit(item.skillItemId!, accept: true)) }
+                PillButton(title: "Accept", symbol: "checkmark", prominent: true) { model.sendHelpers(model.helpers.answerSkillEdit(item.skillItemId!, accept: true)) }
                 QuietButton(title: "Reject", symbol: "xmark") { model.sendHelpers(model.helpers.answerSkillEdit(item.skillItemId!, accept: false)) }
                 QuietButton(title: "Plugins") { model.navigate { model.windowPage = .plugins } }
             }
@@ -132,20 +134,21 @@ struct NeedsYouPane: View {
     }
 
     private func card(kind: String, who: String, title: String, detail: String, tests: TestRunView? = nil, @ViewBuilder actions: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Text(kind).appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
-                if !who.isEmpty { Text(who).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2)) }
+        let look = NeedsYouLook(kind: kind, theme: theme)
+        return HStack(alignment: .top, spacing: 14) {
+            NeedsYouTile(symbol: look.symbol, tint: look.tint)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    NeedsYouBadge(text: kind, tint: look.tint)
+                    if !who.isEmpty { Text(who).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2)) }
+                }
+                Text(title).appFont(.system(size: 13.5, weight: .semibold)).foregroundStyle(theme.text.color).fixedSize(horizontal: false, vertical: true).lineLimit(3)
+                Text(detail).appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true).lineLimit(8) // 8: an approval can carry a whole soul (create_agent)
+                if let tests { tests.padding(.top, 2) }
+                HStack(spacing: 8) { actions() }.padding(.top, 6)
             }
-            Text(title).appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).fixedSize(horizontal: false, vertical: true).lineLimit(3)
-            Text(detail).appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true).lineLimit(8) // 8: an approval can carry a whole soul (create_agent)
-            if let tests { tests.padding(.top, 2) }
-            HStack(spacing: 8) { actions() }.padding(.top, 4)
         }
-        .padding(.horizontal, 16).padding(.vertical, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
-            .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
+        .needsYouCard()
     }
 }
 
@@ -157,6 +160,8 @@ struct FailedTaskCard: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+        NeedsYouTile(symbol: item.job.recoveryNeeded ? "exclamationmark.arrow.circlepath" : "exclamationmark.triangle", tint: theme.problem.color)
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 JobDot(job: item.job)
@@ -174,12 +179,68 @@ struct FailedTaskCard: View {
                 if !item.job.recoveryNeeded { QuietButton(title: "Retry", symbol: "arrow.clockwise") { model.sendHelpers(model.helpers.retry(item.id)) } }
                 QuietButton(title: item.job.recoveryNeeded ? "Review attempt" : "Open") { model.navigate { model.windowPage = .agents; model.sendHelpers(model.helpers.openThread(item.id)) } }
             }
-            .padding(.top, 4)
+            .padding(.top, 6)
         }
-        .padding(.horizontal, 16).padding(.vertical, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
-            .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
+        }
+        .needsYouCard()
+    }
+}
+
+/// How a kind of waiting item looks: its glyph and the colour of its tile and badge.
+private struct NeedsYouLook {
+    let symbol: String
+    let tint: Color
+
+    init(kind: String, theme: ThemePalette) {
+        switch kind {
+        case "Plan": (symbol, tint) = ("list.bullet.clipboard", theme.accent.color)
+        case "ATOM asks": (symbol, tint) = ("questionmark.bubble", theme.attention.color)
+        case "Held": (symbol, tint) = ("hand.raised", theme.attention.color)
+        case "Failed": (symbol, tint) = ("exclamationmark.triangle", theme.problem.color)
+        case "Tinker suggests": (symbol, tint) = ("wand.and.stars", theme.idColor(theme.accent))
+        default: (symbol, tint) = ("puzzlepiece.extension", theme.idColor(theme.accent)) // skills: drafts, edits, the hub
+        }
+    }
+}
+
+/// The kind's glyph in a tinted rounded tile, at the card's leading edge.
+private struct NeedsYouTile: View {
+    let symbol: String
+    let tint: Color
+    var body: some View {
+        Image(systemName: symbol).appFont(.system(size: 13, weight: .semibold)).foregroundStyle(tint)
+            .frame(width: 36, height: 36)
+            .background(tint.opacity(0.13), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .accessibilityHidden(true)
+    }
+}
+
+/// The kind as a small tinted badge ("Plan", "Held").
+private struct NeedsYouBadge: View {
+    let text: String
+    let tint: Color
+    var body: some View {
+        Text(text).appFont(.system(size: 10.5, weight: .semibold)).foregroundStyle(tint)
+            .padding(.horizontal, 7).frame(height: 18)
+            .background(Capsule().fill(tint.opacity(0.12)))
+    }
+}
+
+extension View {
+    /// A Needs you card: padding, the card fill, a hairline and hover depth.
+    fileprivate func needsYouCard() -> some View { modifier(NeedsYouCardModifier()) }
+}
+
+private struct NeedsYouCardModifier: ViewModifier {
+    @Environment(\.theme) private var theme
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        content
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(theme.fill1.a > 0 ? theme.fill1.color : theme.fill2.color.opacity(0.5), in: shape)
+            .overlay(shape.strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
+            .hoverLift(radius: 14, rises: false)
     }
 }
 
@@ -193,18 +254,20 @@ private struct NeedsYouChip: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 5) {
-                Text(title)
-                Text("\(count)").monospacedDigit().foregroundStyle(theme.text3.color)
+            HStack(spacing: 6) {
+                Text(title).appFont(.system(size: 12, weight: selected ? .semibold : .medium))
+                    .foregroundStyle(selected ? theme.text.color : theme.text2.color)
+                Text("\(count)").appFont(.system(size: 10, weight: .semibold)).monospacedDigit()
+                    .foregroundStyle(count > 0 ? theme.text2.color : theme.text3.color)
+                    .padding(.horizontal, 5).frame(minWidth: 18, minHeight: 16)
+                    .background(Capsule().fill(theme.fill3.color))
             }
-            .appFont(.system(size: 12, weight: selected ? .medium : .regular))
-            .foregroundStyle(selected ? theme.text.color : theme.text2.color)
-            .padding(.horizontal, 10).padding(.vertical, 5)
-            .background(selected ? theme.fill2.color : .clear, in: Capsule())
-            .overlay(Capsule().strokeBorder(theme.separator.color, lineWidth: selected ? 0 : 0.6))
+            .padding(.leading, 11).padding(.trailing, 5).frame(height: 28)
+            .background(Capsule().fill(selected ? theme.fill3.color : theme.fill1.a > 0 ? theme.fill1.color : theme.fill2.color.opacity(0.5)))
+            .overlay(Capsule().strokeBorder(selected ? theme.hairline(true) : theme.separator.color, lineWidth: 0.6))
             .contentShape(Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .accessibilityLabel("\(title), \(count)")
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
