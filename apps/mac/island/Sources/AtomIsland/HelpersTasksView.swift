@@ -192,7 +192,7 @@ struct BoardWell: View {
         .clipShape(shape)
         .background(shape.fill(theme.fill1.color))
         .overlay(shape.strokeBorder(theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.5))
-        .hoverLift(radius: theme.radiusCard, rises: false)
+        .hoverLift(radius: theme.radiusCard)
     }
 }
 
