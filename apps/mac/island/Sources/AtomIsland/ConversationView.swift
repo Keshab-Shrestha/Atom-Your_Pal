@@ -110,23 +110,25 @@ struct Composer: View {
                 }
                 .frame(minHeight: 22, alignment: .topLeading)
                 if readOnly == nil {
+                    // A hairline between what you type and the toolbar under it, edge to edge (the reference app).
+                    Rectangle().fill(theme.separator.color).frame(height: 1).padding(.horizontal, -14).padding(.vertical, 2)
                     ViewThatFits(in: .horizontal) {
                         HStack(spacing: 10) {
-                            composerTools
+                            composerTools.toolbarPill()
                             composerSettings
                             Spacer(minLength: 4)
                             sendControls
                         }
                         // Very narrow panes and larger text keep every control reachable.
                         VStack(alignment: .leading, spacing: 6) {
-                            HStack(spacing: 10) {
-                                ChatModelMenu(model: model)
-                                ChatReasoningMenu(model: model)
+                            HStack(spacing: 6) {
+                                ChatModelMenu(model: model).toolbarPill()
+                                ChatReasoningMenu(model: model).toolbarPill()
                                 Spacer(minLength: 0)
                             }
-                            HStack(spacing: 10) {
-                                composerTools
-                                ChatAccessMenu(model: model)
+                            HStack(spacing: 6) {
+                                composerTools.toolbarPill()
+                                ChatAccessMenu(model: model).toolbarPill()
                                 Spacer(minLength: 4)
                                 sendControls
                             }
@@ -172,10 +174,10 @@ struct Composer: View {
     }
 
     private var composerSettings: some View {
-        HStack(spacing: 10) {
-            ChatModelMenu(model: model)
-            ChatReasoningMenu(model: model)
-            ChatAccessMenu(model: model)
+        HStack(spacing: 6) {
+            ChatModelMenu(model: model).toolbarPill()
+            ChatReasoningMenu(model: model).toolbarPill()
+            ChatAccessMenu(model: model).toolbarPill()
         }
     }
 
@@ -801,25 +803,24 @@ struct TurnView: View {
         let copyTitle = preview == nil ? "Copy message" : "Copy full message"
         VStack(alignment: .leading, spacing: 8) {
             if !turn.transcript.isEmpty { // an answer ATOM posted by itself has no question (ADR-109)
-                ChatUserBubbleLayout {
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text(collapsed ? (preview ?? turn.transcript) : turn.transcript)
-                            .lineLimit(collapsed ? UserMessagePreview.lineLimit : nil)
-                            .truncationMode(.tail)
-                            .accessibilityHint(collapsed ? "Message preview. Open Message actions and choose Show full message to read the rest." : "")
-                            .appFont(.system(size: 14))
-                            .foregroundStyle(theme.text.color)
-                            .lineSpacing(3)
-                            .padding(10)
-                            .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).fill(theme.text.color.opacity(theme.isDark ? 0.07 : 0.045)))
-                            .textSelection(.enabled)
-                            .contextMenu { userActions(collapsed: collapsed) }
-                            .overlay(alignment: .topLeading) {
-                                ChatActionsMenu(title: "Message actions", revealed: hovering.wrappedValue) { userActions(collapsed: collapsed) }
-                                    .offset(x: -28)
-                            }
+                // 2026-10-31 (the reference app): your message is a full-width box at the head of its turn, not a bubble.
+                Text(collapsed ? (preview ?? turn.transcript) : turn.transcript)
+                    .lineLimit(collapsed ? UserMessagePreview.lineLimit : nil)
+                    .truncationMode(.tail)
+                    .accessibilityHint(collapsed ? "Message preview. Open Message actions and choose Show full message to read the rest." : "")
+                    .appFont(.system(size: 13.5))
+                    .foregroundStyle(theme.text.color)
+                    .lineSpacing(3)
+                    .padding(.horizontal, 14).padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(theme.text.color.opacity(theme.isDark ? 0.06 : 0.04)))
+                    .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(theme.separator.color, lineWidth: 1))
+                    .textSelection(.enabled)
+                    .contextMenu { userActions(collapsed: collapsed) }
+                    .padding(.trailing, 28)
+                    .overlay(alignment: .topTrailing) {
+                        ChatActionsMenu(title: "Message actions", revealed: hovering.wrappedValue) { userActions(collapsed: collapsed) }
                     }
-                }
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel("You said")
                 .accessibilityActions {

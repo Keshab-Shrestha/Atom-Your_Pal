@@ -23,7 +23,19 @@ private struct ComposerFocusModifier<S: InsettableShape>: ViewModifier {
     }
 }
 
+private struct ToolbarPillModifier: ViewModifier {
+    @Environment(\.theme) private var theme
+    func body(content: Content) -> some View {
+        content
+            .padding(.horizontal, 9).frame(height: 26)
+            .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(theme.border.color, lineWidth: 1))
+    }
+}
+
 extension View {
+    /// A composer toolbar control as a small outlined button (model, reasoning, access), as in the reference app.
+    func toolbarPill() -> some View { modifier(ToolbarPillModifier()) }
+
     /// The message box's focus state: a softer ring than a hard accent outline, settling in on `Motion.settle`.
     func composerFocus(_ focused: Bool, shape: some InsettableShape) -> some View {
         modifier(ComposerFocusModifier(focused: focused, shape: shape))
