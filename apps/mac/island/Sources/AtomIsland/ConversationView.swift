@@ -37,6 +37,7 @@ struct Composer: View {
     @FocusState private var focused: Bool
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Concentric with the panel's bottom corners (the theme's `cornerGap`: 24 = 16 + 8 in Void).
     /// `initialDraft` is for the gallery: the box starts with these words (the "/" picker shows for "/re").
@@ -55,8 +56,10 @@ struct Composer: View {
             // ADR-117: typing "/" lists ATOM's commands, Keshab's skills and his Claude commands above the field.
             if !slashItems.isEmpty && readOnly == nil {
                 SlashPicker(items: slashItems, selected: min(pick.wrappedValue, slashItems.count - 1), choose: choose)
+                    .transition(Motion.arrival(reduceMotion))
             } else if !mentionItems.isEmpty && readOnly == nil {
                 MentionPicker(items: mentionItems, selected: min(pick.wrappedValue, mentionItems.count - 1), choose: choose)
+                    .transition(Motion.arrival(reduceMotion))
             }
             if let message = projectSearchNotice.wrappedValue, mentionClosed.wrappedValue == nil, MentionMenu.query(in: draft.wrappedValue) != nil, readOnly == nil {
                 Text(message).appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
@@ -144,6 +147,8 @@ struct Composer: View {
         .onChange(of: model.chats?.current) { _, _ in recall.wrappedValue = MessageRecall(sent: []) }
         .task(id: projectMentionKey) { await searchProjectMentions() }
         .onChange(of: focused) { _, now in paste.wrappedValue.focused = now }
+        // The "/" and "@" menus rise in and settle rather than pop.
+        .animation(Motion.arrive(reduceMotion), value: openRows == 0)
         .onChange(of: model.composerFocusTick) { _, _ in
             if paste.wrappedValue.window === NSApp.keyWindow { focused = true }
         }
@@ -161,7 +166,7 @@ struct Composer: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(composerShape.fill(theme.fill2.color))
-        .overlay(composerShape.strokeBorder(focused ? theme.accent.color.opacity(0.35) : theme.border.color, lineWidth: 1))
+        .composerFocus(focused, shape: composerShape)
         // Dropping files on the composer attaches them.
         .modifier(ComposerDropTarget(files: attached))
     }
@@ -605,7 +610,7 @@ private struct ComposerButton: View {
                 .background(ControlFill(Circle(), fill: Color.clear, hovering: !empty, tint: tint))
                 .contentTransition(.symbolEffect(.replace))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .allowsHitTesting(!empty)
         .accessibilityRemoveTraits(empty ? .isButton : [])
         .animation(Motion.plain, value: empty)
@@ -624,7 +629,7 @@ private struct ComposerButton: View {
                 .background(Circle().fill(lit ? theme.accentFill : AnyShapeStyle(theme.fill2.color)))
                 .contentTransition(.symbolEffect(.replace))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .allowsHitTesting(!empty) // not dimmed while empty: the lit microphone is a hint, the shortcut is the action
         .accessibilityRemoveTraits(empty ? .isButton : [])
         .animation(Motion.snap(reduceMotion), value: empty)
@@ -637,6 +642,7 @@ private struct ComposerButton: View {
 struct ConversationTab: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let results = model.chatFindShown ? ChatFind.search(model.conversation.turns, query: model.chatFindQuery) : ChatFind.Results()
@@ -721,8 +727,10 @@ struct ConversationTab: View {
                                          editSaved: savedAction(turn, kind: "edit"), retrySaved: savedAction(turn, kind: "retry"),
                                          project: model.chats?.currentProject, findMatch: match?.turnID == turn.id ? match : nil,
                                          computerStep: model.conversation.isLatest(turn) ? model.status.currentStep : nil).id(turn.id)
+                                    .transition(Motion.arrival(reduceMotion))
                             }
                         }
+                        .animation(Motion.arrive(reduceMotion), value: model.conversation.turns.count)
                         .frame(maxWidth: 880)
                         .frame(maxWidth: .infinity)
                         .padding(.horizontal, Spacing.conversation)
