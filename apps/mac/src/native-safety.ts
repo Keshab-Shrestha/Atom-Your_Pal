@@ -50,7 +50,7 @@ const MAX_REMEMBERED = 500;
  * memory, a routine) or send data out. A page can ask for them; only the user's own message may. A new user message clears the main thread's taint.
  */
 export const TAINT_REFUSED_TOOLS: ReadonlySet<string> = new Set([
-  "create_agent", "propose_skill", "improve_skill", "open_url", "remember", "forget", "brain_note", "schedule", "note_add", "reminder_add", "timer_set", "open_app", "computer", "paperclip_hand", "paperclip_decide", "plan_repair",
+  "create_agent", "propose_skill", "improve_skill", "open_url", "remember", "forget", "undo_memory_change", "brain_note", "schedule", "note_add", "reminder_add", "timer_set", "open_app", "computer", "paperclip_hand", "paperclip_decide", "plan_repair",
 ]);
 const WEB_TOOLS = "^(?:WebFetch|WebSearch)$";
 

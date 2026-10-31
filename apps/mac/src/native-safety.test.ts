@@ -242,7 +242,7 @@ test("taint: after the main thread read the web, create_agent, remember, open_ur
   const atomTool = (tool: string) => ({ tool_name: `mcp__atom__${tool}`, tool_input: { name: "x" } });
   assert.equal((await pre(gate, atomTool("create_agent"), "t1")).decision, "allow", "not tainted: the tool's own approval card applies");
   await post(gate, { tool_name: "WebFetch", tool_input: { url: "https://evil.example/page" } });
-  for (const tool of ["create_agent", "propose_skill", "improve_skill", "open_url", "remember", "forget", "brain_note", "schedule", "note_add"]) {
+  for (const tool of ["create_agent", "propose_skill", "improve_skill", "open_url", "remember", "forget", "undo_memory_change", "brain_note", "schedule", "note_add"]) {
     const r = await pre(gate, atomTool(tool), `t-${tool}`);
     assert.equal(r.decision, "deny", tool);
     assert.match(r.reason!, /web text/);

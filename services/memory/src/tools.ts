@@ -16,7 +16,7 @@ export interface MemoryToolOptions {
   /** Provenance for a new memory: the request it came from. Read when `remember` runs. */
   provenance: () => { source: "voice" | "text"; requestId?: string };
   /** For the log: counts and ids only, never memory text. */
-  onChange?: (event: { action: "remember" | "forget"; id: number; count: number }) => void;
+  onChange?: (event: { action: "remember" | "forget" | "undo"; id: number; count: number }) => void;
 }
 
 const line = (m: Memory) =>
@@ -114,6 +114,25 @@ export function createMemoryTools(options: MemoryToolOptions): MemoryTool[] {
         store.remove(id);
         onChange?.({ action: "forget", id, count: store.count() });
         return `Forgot memory ${id}: ${memory.text}`;
+      },
+    },
+    {
+      capability: { title: "Remember things", examples: ["Undo that memory change"] },
+      spec: {
+        name: "undo_memory_change",
+        description:
+          "Undoes the newest memory change that can still be undone: a fact that remember replaced, or facts that ATOM's own tidy-up " +
+          "hid as duplicates. The hidden fact comes back. Use it when the user says a replaced or missing fact should be back. " +
+          "It cannot bring back a fact that forget deleted.",
+        inputSchema: { type: "object", properties: {} },
+      },
+      run() {
+        const change = store.undo();
+        if (!change) return "There is nothing to undo.";
+        onChange?.({ action: "undo", id: change.memoryId, count: store.count() });
+        const memory = store.get(change.memoryId);
+        const what = change.action === "supersede" ? "replacement" : "tidy-up";
+        return `Undid the ${what}: memory ${change.memoryId} is back${memory ? `: ${memory.text}` : "."}`;
       },
     },
   ];

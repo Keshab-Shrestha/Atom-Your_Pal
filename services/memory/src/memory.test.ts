@@ -104,6 +104,26 @@ test("context: matching memories first, then the newest, with ids; nothing when 
   assert.match(block, /3 more kept; use recall/);
 });
 
+test("tools: undo_memory_change reverses a replacement and a tidy-up, one step at a time", () => {
+  const store = openMemoryStore({ path: ":memory:" });
+  const changes: unknown[] = [];
+  const tools = createMemoryTools({ store, provenance: () => ({ source: "text" }), onChange: (e) => changes.push(e) });
+  const [remember, , , undo] = tools;
+  assert.equal(undo!.spec.name, "undo_memory_change");
+  assert.equal(undo!.run({}), "There is nothing to undo.");
+
+  remember!.run({ fact: "Keshab lives in Oslo." });
+  assert.equal(remember!.run({ fact: "Keshab lives in Bergen.", replaces: 1 }), "Kept as memory 2, replacing memory 1.");
+  assert.equal(store.search("Oslo", 5).length, 0);
+  assert.equal(undo!.run({}), "Undid the replacement: memory 1 is back: Keshab lives in Oslo.");
+  assert.equal(store.get(2)?.text, undefined, "the replacing fact is deleted, not hidden");
+  assert.equal(store.search("Oslo", 5).length, 1);
+  assert.equal(store.search("Bergen", 5).length, 0, "the replacing fact is gone");
+  assert.equal(undo!.run({}), "There is nothing to undo.");
+  assert.deepEqual(changes.at(-1), { action: "undo", id: 1, count: 1 });
+  assert.ok(!JSON.stringify(changes).includes("Oslo"), "the log holds no fact text");
+});
+
 test("tools: remember, recall and forget, with provenance and a log that never holds the text", () => {
   const store = openMemoryStore({ path: ":memory:" });
   const changes: unknown[] = [];
@@ -332,7 +352,7 @@ test("episode context: newest few, oldest first, never the current session", () 
 test("each memory tool says what can be asked of it, under one title (ADR-076)", () => {
   const tools = createMemoryTools({ store: openMemoryStore({ path: ":memory:" }), provenance: () => voice });
   assert.deepEqual([...new Set(tools.map((t) => t.capability.title))], ["Remember things"]);
-  assert.equal(new Set(tools.flatMap((t) => t.capability.examples)).size, 3);
+  assert.equal(new Set(tools.flatMap((t) => t.capability.examples)).size, 4);
 });
 
 test("chats are saved per session with a title from their first words, listed newest first, read and removed (ADR-091)", () => {

@@ -14,12 +14,25 @@ import { SttError } from "./stt.ts";
 import { TtsError } from "./tts.ts";
 import type { VoiceLoopEvents } from "./voice-loop.ts";
 
+const MEMORY_TIDY_MS = 24 * 60 * 60_000;
+
 /** Opens the memory store, or returns undefined (memory off, or the file cannot be opened: ATOM still runs). */
 export function openMemory(path: string, log: Logger): MemoryStore | undefined {
   if (readEnv(process.env, "ATOM_MEMORY") === "0") return undefined;
   try {
     const store = openMemoryStore({ path });
     log.info("memory.open", { kept: store.count() });
+    // Folds duplicate facts at start and once a day. Each fold is journaled, so undo_memory_change can reverse it.
+    const tidy = () => {
+      try {
+        const folded = store.tidy();
+        if (folded > 0) log.info("memory.tidy", { folded });
+      } catch (error) {
+        log.error("memory.tidy_failed", { ...errorFields(error) });
+      }
+    };
+    tidy();
+    setInterval(tidy, MEMORY_TIDY_MS).unref();
     return store;
   } catch (error) {
     log.error("memory.unavailable", { ...errorFields(error) });
