@@ -330,6 +330,13 @@ Prefer:
 
 Do not claim completion without verification.
 
+Verify changes on a fixture, never on live data:
+
+- Run any test that changes data against an isolated fixture: a temporary data folder, a throwaway project folder and a test chat.
+- Do not change the owner's live chats, agents, routines, memory or settings to prove a change works.
+- A live check of the running app may only read. If it must change something, ask the owner first.
+- Idea adopted from OpenMausBot (Apache-2.0) `AGENTS.md`.
+
 ---
 
 ## 18. Dependencies
