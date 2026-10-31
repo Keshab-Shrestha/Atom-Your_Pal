@@ -46,12 +46,35 @@ struct SettingsTab: View {
     private func pageView(_ page: IslandModel.SettingsPage) -> some View {
         VStack(spacing: 0) {
             Scrollable {
-                VStack(alignment: .leading, spacing: Spacing.wells) { pageContent(page) }
-                    .padding(.horizontal, Spacing.panel)
-                    .padding(.bottom, Spacing.panel)
-                    .padding(.top, 24)
+                VStack(alignment: .leading, spacing: Spacing.wells) {
+                    pageHeader(page)
+                    pageContent(page)
+                }
+                // A readable measure: rows do not stretch across a wide window.
+                .frame(maxWidth: Self.pageWidth, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, Spacing.panel)
+                .padding(.bottom, Spacing.panel)
+                .padding(.top, 24)
             }
         }
+    }
+
+    private static let pageWidth: CGFloat = 760
+
+    /// The page's glyph in a tinted tile, its name and what it is for.
+    private func pageHeader(_ page: IslandModel.SettingsPage) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: page.symbol).appFont(.system(size: 17, weight: .medium)).foregroundStyle(theme.accent.color)
+                .frame(width: 42, height: 42)
+                .background(theme.accent.color.opacity(0.13), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(page.rawValue).appFont(.system(size: 20, weight: .semibold)).foregroundStyle(theme.text.color)
+                    .accessibilityAddTraits(.isHeader)
+                Text(page.purpose).appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
+            }
+        }
+        .padding(.bottom, 4)
     }
 
     private func open(_ page: IslandModel.SettingsPage) {

@@ -26,6 +26,25 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Sendable {
     case privacy = "Privacy"
     public var id: String { rawValue }
 
+    /// One line under the page's title: what the page is for (2026-10-31 page headers).
+    public var purpose: String {
+        switch self {
+        case .examples: "Things you can ask ATOM to do, with the tools it has."
+        case .appearance: "The theme, the typeface and the text size."
+        case .design: "ATOM's components and tokens."
+        case .model: "The model that answers in chat, and where it runs."
+        case .shortcuts: "Keys that start talking, dictation and quick actions."
+        case .dictation: "How your speech becomes text."
+        case .pal: "The companion on your screen: size, movement and rest."
+        case .sounds: "What ATOM says aloud and the sounds it plays."
+        case .general: "Start-up, voice turns and the tour."
+        case .computer: "What ATOM can do on this Mac."
+        case .notifications: "Which events tell you, and how."
+        case .connections: "The local API and other apps that connect to ATOM."
+        case .privacy: "What ATOM keeps, and what it forgets."
+        }
+    }
+
     /// A monochrome glyph for the page's row (outline symbols, drawn in secondary text: no coloured tiles).
     public var symbol: String {
         switch self {

@@ -51,9 +51,11 @@ struct Card<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let title {
-                Text(title)
-                    .appFont(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(theme.text2.color)
+                // A section label: small capitals with a little tracking, above its card.
+                Text(title.uppercased())
+                    .appFont(.system(size: 10.5, weight: .semibold))
+                    .tracking(0.6)
+                    .foregroundStyle(theme.text3.color)
                     .padding(.leading, 6)
             }
             VStack(alignment: .leading, spacing: 0) { content }
@@ -259,7 +261,8 @@ extension View {
     /// A card's well: the theme's faint fill and a soft hairline, or in Void (ADR-086) black with a full 1 px hairline.
     func cardWell(_ theme: ThemePalette, radius: CGFloat? = nil) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius ?? theme.radiusCard, style: .continuous)
-        return background(shape.fill(theme.fill1.color))
+        // Void's black cards get a faint lift so a card reads as a surface, not only an outline (2026-10-31).
+        return background(shape.fill(theme.isFlat ? theme.fill2.color.opacity(0.5) : theme.fill1.color))
             .overlay(shape.strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color.opacity(0.6), lineWidth: theme.isFlat ? 1 : 0.5))
     }
 }

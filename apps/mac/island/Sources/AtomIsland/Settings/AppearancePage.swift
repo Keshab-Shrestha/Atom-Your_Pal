@@ -11,10 +11,12 @@ struct AppearanceSection: View {
         let themes: [AppTheme] = [.sapphire, .champagne, .emerald, .plum, .cobalt, .teal]
         Card("Font", footer: "Changes text across workspace pages, chat messages and typing fields. Model names, paths and code stay in SF Mono. Saved on this Mac.") {
             ChoiceRow(title: "Typeface", selection: settings.typeface) { settings.typeface = $0 }
+            RowDivider()
             ChoiceRow(title: "Text size", selection: settings.textSize) { settings.textSize = $0 }
+            RowDivider()
             Text("A calmer place to do your best work.")
                 .appFont(.system(size: 14)).foregroundStyle(theme.text.color)
-                .padding(.horizontal, Spacing.well).padding(.bottom, Spacing.well)
+                .padding(.horizontal, Spacing.well).padding(.vertical, Spacing.well)
                 .accessibilityLabel("Font preview")
         }
         Card("Workspace themes", footer: "Applied to the whole window and companion. " + settings.theme.detail) {
