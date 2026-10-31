@@ -11,7 +11,7 @@ import { openFilePermissions, type FilePermissions } from "./file-permissions.ts
 import { openForeground, type ForegroundStore } from "./foreground.ts";
 import { openChatIndex, type ChatIndex } from "./chat-index.ts";
 import { openProjects, type ProjectStore } from "./projects.ts";
-import { openSuggestions, type Suggestions } from "./suggestions.ts";
+import { foldFact, openSuggestions, type Suggestions } from "./suggestions.ts";
 import { openBriefs, type Briefs } from "./briefs.ts";
 import { openRecallReceipts, type RecallReceipts } from "./recall-receipts.ts";
 
@@ -34,6 +34,21 @@ export interface Memory {
   source: InputSource;
   requestId?: string;
   createdAt: Date;
+  /** After this moment the fact is no longer recalled (a trip, a deadline). Absent: it never expires. */
+  expiresAt?: Date;
+}
+
+/** One reversible change to the kept facts. Holds ids only, never fact text, so Forget stays final. */
+export interface MemoryChange {
+  id: number;
+  at: Date;
+  /** "supersede": a newer fact replaced one. "fold": two facts differed only in case, spacing or a final full stop. */
+  action: "supersede" | "fold";
+  /** The fact that was hidden. */
+  memoryId: number;
+  /** The fact that now stands in its place. */
+  replacedBy: number;
+  undone: boolean;
 }
 
 /** A short summary of one past conversation (ADR-059), so a new conversation can pick up where the last left off. */
@@ -63,16 +78,26 @@ export class MemoryError extends Error {
 }
 
 export interface MemoryStore {
-  /** Saves one fact. Returns the existing memory if the same text is already kept. */
-  add(text: string, provenance: Provenance): Memory;
-  /** Memories matching the words in `query`, best first. */
+  /** Saves one fact. Returns the live memory if the same text is already kept. `until`: when the fact stops being recalled. */
+  add(text: string, provenance: Provenance, options?: { until?: Date }): Memory;
+  /** Memories matching the words in `query`, best first. Expired and replaced facts are left out. */
   search(query: string, limit?: number): Memory[];
-  /** The newest memories first. */
+  /** The newest live memories first. */
   recent(limit?: number): Memory[];
+  /** Any memory by id, hidden or not, so a receipt or an undo can still find it. */
   get(id: number): Memory | undefined;
   /** Deletes a memory. Returns false if there was none with that id. */
   remove(id: number): boolean;
+  /** How many live memories are kept (expired and replaced facts do not count). */
   count(): number;
+  /** Replaces a live fact with a newer one. The old fact stays, hidden, until `undo`. Returns the fact that now stands. */
+  supersede(id: number, text: string, provenance: Provenance, options?: { until?: Date }): Memory;
+  /** Hides live facts that differ only in case, spacing or a final full stop; the newest stands. Returns how many were hidden. */
+  tidy(): number;
+  /** The newest changes first. */
+  journal(limit?: number): MemoryChange[];
+  /** Reverts the newest change that is not reverted yet. Undefined when there is none. */
+  undo(): MemoryChange | undefined;
   /** Deletes every memory of this owner. Returns how many were deleted. */
   clear(): number;
   /** Saves (or updates) the summary of one conversation; the oldest beyond the limit are deleted. */
@@ -120,7 +145,28 @@ interface Row {
   source: string;
   request_id: string | null;
   created_at: string;
+  expires_at: string | null;
+  superseded_by: number | null;
 }
+
+interface ChangeRow {
+  id: number;
+  at: string;
+  action: string;
+  memory_id: number;
+  replaced_by: number;
+  created_new: number;
+  undone_at: string | null;
+}
+
+const toChange = (row: ChangeRow): MemoryChange => ({
+  id: row.id,
+  at: new Date(row.at),
+  action: row.action as MemoryChange["action"],
+  memoryId: row.memory_id,
+  replacedBy: row.replaced_by,
+  undone: row.undone_at !== null,
+});
 
 interface EpisodeRow {
   id: number;
@@ -146,7 +192,12 @@ const toMemory = (row: Row): Memory => ({
   source: row.source as InputSource,
   ...(row.request_id ? { requestId: row.request_id } : {}),
   createdAt: new Date(row.created_at),
+  ...(row.expires_at ? { expiresAt: new Date(row.expires_at) } : {}),
 });
+
+/** A fact is live while nothing replaced it and its expiry, if any, is still ahead. Same rule as the SQL below. */
+const LIVE = "superseded_by IS NULL AND (expires_at IS NULL OR expires_at > ?)";
+const LIVE_JOINED = "m.superseded_by IS NULL AND (m.expires_at IS NULL OR m.expires_at > ?)";
 
 /** Cleans a fact for storage: one line, trimmed, inner whitespace collapsed. */
 export function normalizeMemoryText(text: string): string {
@@ -204,7 +255,21 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
       ended_at TEXT NOT NULL,
       UNIQUE (owner, session_id)
     );
+    CREATE TABLE IF NOT EXISTS memory_journal (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      owner TEXT NOT NULL,
+      at TEXT NOT NULL,
+      action TEXT NOT NULL,
+      memory_id INTEGER NOT NULL,
+      replaced_by INTEGER NOT NULL,
+      created_new INTEGER NOT NULL DEFAULT 0,
+      undone_at TEXT
+    );
   `);
+  // Additive migration: a database made before expiry and replacement existed gets the two columns.
+  const columns = new Set((db.prepare("PRAGMA table_info(memories)").all() as unknown as { name: string }[]).map((column) => column.name));
+  if (!columns.has("expires_at")) db.exec("ALTER TABLE memories ADD COLUMN expires_at TEXT");
+  if (!columns.has("superseded_by")) db.exec("ALTER TABLE memories ADD COLUMN superseded_by INTEGER");
   const upsertEpisode = db.prepare(`
     INSERT INTO episodes (owner, session_id, summary, exchanges, ended_at) VALUES (?, ?, ?, ?, ?)
     ON CONFLICT (owner, session_id) DO UPDATE SET summary = excluded.summary, exchanges = excluded.exchanges, ended_at = excluded.ended_at
@@ -217,18 +282,53 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
   const deleteEpisode = db.prepare("DELETE FROM episodes WHERE owner = ? AND id = ?");
   const clearAllEpisodes = db.prepare("DELETE FROM episodes WHERE owner = ?");
 
-  const insert = db.prepare("INSERT INTO memories (text, owner, scope, source, request_id, created_at) VALUES (?, ?, 'personal', ?, ?, ?)");
-  const byText = db.prepare("SELECT * FROM memories WHERE owner = ? AND lower(text) = lower(?)");
+  const insert = db.prepare("INSERT INTO memories (text, owner, scope, source, request_id, created_at, expires_at) VALUES (?, ?, 'personal', ?, ?, ?, ?)");
+  const byText = db.prepare(`SELECT * FROM memories WHERE owner = ? AND lower(text) = lower(?) AND ${LIVE}`);
   const byId = db.prepare("SELECT * FROM memories WHERE owner = ? AND id = ?");
-  const newest = db.prepare("SELECT * FROM memories WHERE owner = ? ORDER BY id DESC LIMIT ?");
-  const counter = db.prepare("SELECT count(*) AS n FROM memories WHERE owner = ?");
+  const newest = db.prepare(`SELECT * FROM memories WHERE owner = ? AND ${LIVE} ORDER BY id DESC LIMIT ?`);
+  const liveOldestFirst = db.prepare(`SELECT * FROM memories WHERE owner = ? AND ${LIVE} ORDER BY id`);
+  const counter = db.prepare(`SELECT count(*) AS n FROM memories WHERE owner = ? AND ${LIVE}`);
   const deleter = db.prepare("DELETE FROM memories WHERE owner = ? AND id = ?");
   const clearer = db.prepare("DELETE FROM memories WHERE owner = ?");
   const matcher = db.prepare(
-    "SELECT m.* FROM memories_fts f JOIN memories m ON m.id = f.rowid WHERE memories_fts MATCH ? AND m.owner = ? ORDER BY bm25(memories_fts), m.id DESC LIMIT ?",
+    `SELECT m.* FROM memories_fts f JOIN memories m ON m.id = f.rowid WHERE memories_fts MATCH ? AND m.owner = ? AND ${LIVE_JOINED} ORDER BY bm25(memories_fts), m.id DESC LIMIT ?`,
   );
+  const hide = db.prepare("UPDATE memories SET superseded_by = ? WHERE owner = ? AND id = ?");
+  const unhide = db.prepare("UPDATE memories SET superseded_by = NULL WHERE owner = ? AND id = ?");
+  const recordChange = db.prepare("INSERT INTO memory_journal (owner, at, action, memory_id, replaced_by, created_new) VALUES (?, ?, ?, ?, ?, ?)");
+  const newestChanges = db.prepare("SELECT * FROM memory_journal WHERE owner = ? ORDER BY id DESC LIMIT ?");
+  const newestOpenChange = db.prepare("SELECT * FROM memory_journal WHERE owner = ? AND undone_at IS NULL ORDER BY id DESC LIMIT 1");
+  const markUndone = db.prepare("UPDATE memory_journal SET undone_at = ? WHERE id = ?");
 
-  const count = () => Number((counter.get(owner) as { n: number }).n);
+  const nowIso = () => now().toISOString();
+  const count = () => Number((counter.get(owner, nowIso()) as { n: number }).n);
+  const isLive = (row: Row) => row.superseded_by === null && (row.expires_at === null || row.expires_at > nowIso());
+
+  const atomically = <T>(work: () => T): T => {
+    db.exec("BEGIN");
+    try {
+      const result = work();
+      db.exec("COMMIT");
+      return result;
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+  };
+
+  /** Keeps a fact unless the same live text is already kept. `room`: slots about to be freed, so a replacement fits at the limit. */
+  const keep = (raw: string, provenance: Provenance, until: Date | undefined, room = 0): { memory: Memory; created: boolean } => {
+    const text = normalizeMemoryText(raw);
+    if (!text) throw new MemoryError("There is nothing to remember.");
+    if (until && !(until.getTime() > now().getTime())) throw new MemoryError("That date is not in the future.");
+    const existing = byText.get(owner, text, nowIso()) as Row | undefined;
+    if (existing) return { memory: toMemory(existing), created: false };
+    if (count() - room >= maxMemories) {
+      throw new MemoryError(`Memory is full (${maxMemories} kept). Ask the user to forget some first.`);
+    }
+    const result = insert.run(text, owner, provenance.source, provenance.requestId ?? null, nowIso(), until ? until.toISOString() : null);
+    return { memory: toMemory(byId.get(owner, Number(result.lastInsertRowid)) as unknown as Row), created: true };
+  };
 
   const filePermissions = openFilePermissions(db);
   const foreground = openForeground(db, now);
@@ -258,26 +358,65 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
     },
     projects,
     chatIndex,
-    add(raw, provenance) {
-      const text = normalizeMemoryText(raw);
-      if (!text) throw new MemoryError("There is nothing to remember.");
-      const existing = byText.get(owner, text) as Row | undefined;
-      if (existing) return toMemory(existing);
-      if (count() >= maxMemories) {
-        throw new MemoryError(`Memory is full (${maxMemories} kept). Ask the user to forget some first.`);
-      }
-      const result = insert.run(text, owner, provenance.source, provenance.requestId ?? null, now().toISOString());
-      return toMemory(byId.get(owner, Number(result.lastInsertRowid)) as unknown as Row);
+    add(raw, provenance, options) {
+      return keep(raw, provenance, options?.until).memory;
     },
 
     search(query, limit = 8) {
       const q = ftsQuery(query);
       if (!q) return [];
-      return (matcher.all(q, owner, limit) as unknown as Row[]).map(toMemory);
+      return (matcher.all(q, owner, nowIso(), limit) as unknown as Row[]).map(toMemory);
     },
 
     recent(limit = 8) {
-      return (newest.all(owner, limit) as unknown as Row[]).map(toMemory);
+      return (newest.all(owner, nowIso(), limit) as unknown as Row[]).map(toMemory);
+    },
+
+    supersede(id, raw, provenance, options) {
+      return atomically(() => {
+        const old = byId.get(owner, id) as Row | undefined;
+        if (!old || !isLive(old)) throw new MemoryError(`Memory ${id} is not kept.`);
+        const { memory, created } = keep(raw, provenance, options?.until, 1);
+        if (memory.id === id) throw new MemoryError("That is the same fact, so there is nothing to replace.");
+        hide.run(memory.id, owner, id);
+        recordChange.run(owner, nowIso(), "supersede", id, memory.id, created ? 1 : 0);
+        return memory;
+      });
+    },
+
+    tidy() {
+      return atomically(() => {
+        const standing = new Map<string, Row>();
+        let hidden = 0;
+        // Oldest first: a later duplicate replaces the earlier one, so the newest stands.
+        for (const row of liveOldestFirst.all(owner, nowIso()) as unknown as Row[]) {
+          const key = foldFact(row.text);
+          const earlier = standing.get(key);
+          if (earlier) {
+            hide.run(row.id, owner, earlier.id);
+            recordChange.run(owner, nowIso(), "fold", earlier.id, row.id, 0);
+            hidden++;
+          }
+          standing.set(key, row);
+        }
+        return hidden;
+      });
+    },
+
+    journal(limit = 10) {
+      return (newestChanges.all(owner, limit) as unknown as ChangeRow[]).map(toChange);
+    },
+
+    undo() {
+      const entry = newestOpenChange.get(owner) as ChangeRow | undefined;
+      if (!entry) return undefined;
+      const at = nowIso();
+      atomically(() => {
+        unhide.run(owner, entry.memory_id);
+        if (entry.created_new) deleter.run(owner, entry.replaced_by);
+        markUndone.run(at, entry.id);
+      });
+      return toChange({ ...entry, undone_at: at });
     },
 
     get(id) {

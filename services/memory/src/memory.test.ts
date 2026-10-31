@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { CHAT_TITLE_LENGTH, createMemoryTools, ftsQuery, looksSecret, memoryContext, MemoryError, openMemoryStore, MAX_MEMORY_CHARS } from "./index.ts";
 
 const voice = { source: "voice" as const, requestId: "req-1" };
@@ -362,6 +363,114 @@ test("remember refuses a missing or empty fact instead of keeping the word 'unde
   assert.equal(store.count(), 0);
   assert.match(String(remember!.run({ fact: "  My sister lives in Oslo  " } as never)), /Kept as memory/);
   assert.equal(store.get(1)?.text, "My sister lives in Oslo", "trimmed");
+});
+
+// Memory upkeep: expiry, replacement, duplicate folding and undo. Idea from OpenMausBot `docs/memory.md` (Apache-2.0).
+function steppedClock(start = "2026-10-04T09:00:00Z") {
+  let t = Date.parse(start);
+  return { now: () => new Date(t), advanceDays: (days: number) => void (t += days * 86_400_000) };
+}
+
+test("a fact with an end date is recalled until that date, then hidden but still findable by id", () => {
+  const clk = steppedClock();
+  const store = openMemoryStore({ path: ":memory:", now: clk.now });
+  const trip = store.add("Keshab is in Kyoto this week.", voice, { until: new Date("2026-10-08T23:59:59.999Z") });
+  store.add("Keshab drinks green tea.", voice);
+  assert.equal(trip.expiresAt?.toISOString(), "2026-10-08T23:59:59.999Z");
+  assert.equal(store.count(), 2);
+  clk.advanceDays(5);
+  assert.deepEqual(store.recent().map((m) => m.text), ["Keshab drinks green tea."]);
+  assert.deepEqual(store.search("Kyoto"), []);
+  assert.equal(store.count(), 1, "an expired fact does not use a slot");
+  assert.equal(store.get(trip.id)?.text, "Keshab is in Kyoto this week.", "a receipt can still read it");
+  assert.notEqual(store.add("Keshab is in Kyoto this week.", voice).id, trip.id, "the same words later are a new fact");
+  assert.throws(() => store.add("Past.", voice, { until: new Date("2026-10-01T00:00:00Z") }), /not in the future/);
+});
+
+test("supersede hides the old fact, keeps it for undo, and fits at the memory limit", () => {
+  const store = openMemoryStore({ path: ":memory:", maxMemories: 1, now: clock() });
+  const old = store.add("Keshab lives in Pune.", voice);
+  const now = store.supersede(old.id, "Keshab lives in Oslo.", voice);
+  assert.deepEqual(store.recent().map((m) => m.id), [now.id]);
+  assert.deepEqual(store.search("Pune"), []);
+  assert.equal(store.count(), 1);
+  assert.deepEqual(store.journal().map((c) => [c.action, c.memoryId, c.replacedBy, c.undone]), [["supersede", old.id, now.id, false]]);
+  assert.ok(!JSON.stringify(store.journal()).includes("Oslo"), "the journal holds ids, never fact text");
+
+  const undone = store.undo();
+  assert.equal(undone?.undone, true);
+  assert.deepEqual(store.recent().map((m) => m.id), [old.id], "the old fact is back and the new one is gone");
+  assert.equal(store.get(now.id), undefined);
+  assert.equal(store.undo(), undefined, "nothing is left to undo");
+});
+
+test("supersede refuses the same fact and a fact that is not kept; undo never deletes a fact that already existed", () => {
+  const store = openMemoryStore({ path: ":memory:", now: clock() });
+  const a = store.add("Keshab likes tea.", voice);
+  const b = store.add("Keshab likes coffee.", voice);
+  assert.throws(() => store.supersede(a.id, "keshab likes TEA.", voice), /same fact/);
+  assert.throws(() => store.supersede(99, "Anything.", voice), /not kept/);
+  store.supersede(a.id, "Keshab likes coffee.", voice);
+  assert.deepEqual(store.recent().map((m) => m.id), [b.id]);
+  store.undo();
+  assert.deepEqual(store.recent().map((m) => m.id).sort(), [a.id, b.id], "b was kept before the change, so undo keeps it");
+  store.remove(a.id);
+  assert.throws(() => store.supersede(a.id, "Gone.", voice), /not kept/);
+});
+
+test("tidy hides facts that differ only in case, spacing or a final full stop; the newest stands; undo reverses in order", () => {
+  const store = openMemoryStore({ path: ":memory:", now: clock() });
+  const first = store.add("Keshab lives in Oslo", voice);
+  const second = store.add("keshab  lives in oslo.", voice);
+  const third = store.add("Keshab lives in Oslo。", voice);
+  store.add("Keshab drinks tea.", voice);
+  assert.equal(store.tidy(), 2);
+  assert.deepEqual(store.recent().map((m) => m.text).reverse(), ["Keshab lives in Oslo。", "Keshab drinks tea."]);
+  assert.equal(store.tidy(), 0, "a second pass finds nothing");
+  assert.equal(store.journal().filter((c) => c.action === "fold").length, 2);
+  store.undo();
+  store.undo();
+  assert.deepEqual(store.recent(10).map((m) => m.id).sort(), [first.id, second.id, third.id, 4].sort());
+});
+
+test("forgetting stays final: it deletes the row even after a replacement", () => {
+  const store = openMemoryStore({ path: ":memory:", now: clock() });
+  const old = store.add("Keshab lives in Pune.", voice);
+  const now = store.supersede(old.id, "Keshab lives in Oslo.", voice);
+  store.remove(now.id);
+  assert.equal(store.get(now.id), undefined);
+  assert.equal(store.search("Oslo").length, 0);
+});
+
+test("a database made before expiry and replacement existed is upgraded in place and keeps its facts", () => {
+  const dir = mkdtempSync(join(tmpdir(), "atom-memory-"));
+  try {
+    const path = join(dir, "memory.db");
+    const old = new DatabaseSync(path);
+    old.exec("CREATE TABLE memories (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, owner TEXT NOT NULL, scope TEXT NOT NULL DEFAULT 'personal', source TEXT NOT NULL, request_id TEXT, created_at TEXT NOT NULL)");
+    old.prepare("INSERT INTO memories (text, owner, source, created_at) VALUES (?, 'local', 'text', ?)").run("Keshab likes tea.", "2026-10-01T00:00:00.000Z");
+    old.close();
+    const store = openMemoryStore({ path });
+    assert.deepEqual(store.recent().map((m) => m.text), ["Keshab likes tea."]);
+    assert.equal(store.supersede(1, "Keshab likes coffee.", voice).text, "Keshab likes coffee.");
+    store.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("tools: remember with until and replaces; a bad date or id is refused; recall shows the end date", () => {
+  const store = openMemoryStore({ path: ":memory:", now: steppedClock().now });
+  const [remember, recall] = createMemoryTools({ store, provenance: () => ({ source: "text" }) });
+  assert.match(String(remember!.run({ fact: "Keshab is in Kyoto.", until: "2026-10-08" } as never)), /Kept as memory 1/);
+  assert.match(String(recall!.run({} as never)), /until 2026-10-08/);
+  for (const until of ["next week", "2026-02-31", "2026-13-01", 5]) {
+    assert.throws(() => remember!.run({ fact: "Bad date.", until } as never), /real day/, String(until));
+  }
+  assert.match(String(remember!.run({ fact: "Keshab is in Osaka.", replaces: 1 } as never)), /Kept as memory 2, replacing memory 1/);
+  assert.deepEqual(store.recent().map((m) => m.id), [2]);
+  assert.throws(() => remember!.run({ fact: "X.", replaces: 0 } as never), /whole number/);
+  assert.throws(() => remember!.run({ fact: "X.", replaces: 1 } as never), /not kept/, "memory 1 is already replaced");
 });
 
 // 2026-10-16 (code check): any run of 13 to 19 digits was refused as a card number, so an international phone number could not be remembered.

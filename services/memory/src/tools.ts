@@ -19,7 +19,16 @@ export interface MemoryToolOptions {
   onChange?: (event: { action: "remember" | "forget"; id: number; count: number }) => void;
 }
 
-const line = (m: Memory) => `[${m.id}] ${m.text} (kept ${m.createdAt.toISOString().slice(0, 10)})`;
+const line = (m: Memory) =>
+  `[${m.id}] ${m.text} (kept ${m.createdAt.toISOString().slice(0, 10)}${m.expiresAt ? `, until ${m.expiresAt.toISOString().slice(0, 10)}` : ""})`;
+
+/** "2026-11-30" is the end of that day, UTC. Undefined when absent; an error when it is not a real date. */
+function parseUntil(value: unknown): Date | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  const date = typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T23:59:59.999Z`) : undefined;
+  if (!date || Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) throw new MemoryError("The until date must be a real day like 2026-11-30.");
+  return date;
+}
 
 export function createMemoryTools(options: MemoryToolOptions): MemoryTool[] {
   const { store, provenance, onChange } = options;
@@ -35,7 +44,11 @@ export function createMemoryTools(options: MemoryToolOptions): MemoryTool[] {
           'one sentence, e.g. "Keshab\'s sister is called Asha." Never keep passwords, card numbers or other secrets.',
         inputSchema: {
           type: "object",
-          properties: { fact: { type: "string", description: "The fact, one sentence, at most 300 characters." } },
+          properties: {
+            fact: { type: "string", description: "The fact, one sentence, at most 300 characters." },
+            until: { type: "string", description: "Optional. The last day the fact is true, as YYYY-MM-DD (a trip, a deadline). After it ATOM stops using the fact." },
+            replaces: { type: "number", description: "Optional. The id of an older fact that this one corrects. The old fact is hidden, not deleted, and the user can undo it." },
+          },
           required: ["fact"],
         },
       },
@@ -44,8 +57,16 @@ export function createMemoryTools(options: MemoryToolOptions): MemoryTool[] {
         const fact = typeof input.fact === "string" ? input.fact.trim() : "";
         if (!fact) throw new MemoryError("Say what to remember: the fact is missing or empty.");
         if (looksSecret(fact)) throw new MemoryError("That looks like a password or other secret; ATOM does not keep those.");
+        const until = parseUntil(input.until);
+        if (input.replaces !== undefined && input.replaces !== null) {
+          const replaces = Number(input.replaces);
+          if (!Number.isInteger(replaces) || replaces < 1) throw new MemoryError("The replaces id must be a whole number from a memory.");
+          const memory = store.supersede(replaces, fact, provenance(), { until });
+          onChange?.({ action: "remember", id: memory.id, count: store.count() });
+          return `Kept as memory ${memory.id}, replacing memory ${replaces}.`;
+        }
         const before = store.count();
-        const memory = store.add(fact, provenance());
+        const memory = store.add(fact, provenance(), { until });
         const count = store.count();
         if (count === before) return `Already kept as memory ${memory.id}.`;
         onChange?.({ action: "remember", id: memory.id, count });
@@ -78,7 +99,7 @@ export function createMemoryTools(options: MemoryToolOptions): MemoryTool[] {
         name: "forget",
         description:
           "Deletes one kept memory for good. Use it when the user asks you to forget something or says a kept fact is wrong. " +
-          "Find the id first (it is shown in your instructions or by recall). To correct a fact, forget the old one and remember the new one.",
+          "Find the id first (it is shown in your instructions or by recall). To correct a fact, use remember with replaces instead: the old fact is then kept hidden and the user can undo.",
         inputSchema: {
           type: "object",
           properties: { id: { type: "number", description: "The memory's id." } },
