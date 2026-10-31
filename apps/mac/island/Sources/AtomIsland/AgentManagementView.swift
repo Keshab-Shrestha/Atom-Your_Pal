@@ -59,12 +59,13 @@ struct AgentManagementRow: View {
                     }
                     Spacer(minLength: 0)
                 }.contentShape(Rectangle())
-            }.buttonStyle(.plain).accessibilityLabel("Configure \(helper.name)")
+            }.buttonStyle(.pressable).accessibilityLabel("Configure \(helper.name)")
             AgentAvailabilityMenu(model: model, helper: helper)
             Button("Edit") { open(edit: true) }
                 .buttonStyle(SnapshotBorderlessButtonStyle()).appFont(.system(size: 12)).disabled(helper.soul == nil)
                 .accessibilityLabel("Edit \(helper.name)")
         }.padding(.vertical, 10).frame(minHeight: 54)
+            .padding(.horizontal, 6).hoverRow(radius: 10).padding(.horizontal, -6)
     }
     private func open(edit: Bool) {
         model.navigate {

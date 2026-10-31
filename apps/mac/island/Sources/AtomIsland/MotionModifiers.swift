@@ -83,6 +83,23 @@ private struct HoverLiftModifier: ViewModifier {
     }
 }
 
+// MARK: - Row hover
+
+private struct HoverRowModifier: ViewModifier {
+    let radius: CGFloat
+    private let hovering = State(initialValue: false)
+    @Environment(\.theme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .background(RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .fill(theme.fill2.color.opacity(hovering.wrappedValue ? 1 : 0)).allowsHitTesting(false))
+            .onHover { hovering.wrappedValue = $0 }
+            .animation(Motion.hover(reduceMotion, ghost: theme.isGhost), value: hovering.wrappedValue)
+    }
+}
+
 // MARK: - Pointer tilt
 
 private struct TiltSizeKey: PreferenceKey {
@@ -147,6 +164,9 @@ extension View {
     func pointerTilt(radius: CGFloat = 12, degrees: Double = Motion.tiltDegrees) -> some View {
         modifier(PointerTiltModifier(radius: radius, degrees: degrees))
     }
+
+    /// A list row under the pointer: the theme's hover fill fades in behind it. Nothing moves.
+    func hoverRow(radius: CGFloat = 0) -> some View { modifier(HoverRowModifier(radius: radius)) }
 
     /// The tile treatment: hover depth and pointer tilt together.
     func interactiveTile(radius: CGFloat = 12) -> some View { pointerTilt(radius: radius).hoverLift(radius: radius) }

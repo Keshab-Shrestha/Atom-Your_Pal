@@ -144,11 +144,14 @@ struct BoardPane: View {
                                    detail: "Choose a worker and give it a task, or ask ATOM in chat to delegate one. Tasks show here by status, with a count for each.")
                 }
                 if let tasks = model.helpers.list?.paperclip { PaperclipSection(tasks: tasks) }
-                ForEach(model.boardView == .floor ? [] : board, id: \.column) { group in
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("\(group.column.title) · \(group.items.count)")
-                            .appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
-                        BoardWell(model: model, items: group.items)
+                // Bento columns: status groups sit side by side when the Board is wide, stacked when it is narrow.
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 14, alignment: .top)], alignment: .leading, spacing: 18) {
+                    ForEach(model.boardView == .floor ? [] : board, id: \.column) { group in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("\(group.column.title) · \(group.items.count)")
+                                .appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
+                            BoardWell(model: model, items: group.items)
+                        }
                     }
                 }
             }
@@ -182,12 +185,14 @@ struct BoardWell: View {
         VStack(spacing: 0) {
             ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                 if index > 0 { Rectangle().fill(theme.separator.color).frame(height: theme.isFlat ? 1 : 0.5) }
-                Button { model.navigate { model.sendHelpers(model.helpers.openThread(item.id)) } } label: { BoardCard(model: model, item: item) }
-                    .buttonStyle(.plain)
+                Button { model.navigate { model.sendHelpers(model.helpers.openThread(item.id)) } } label: { BoardCard(model: model, item: item).hoverRow() }
+                    .buttonStyle(.pressable)
             }
         }
+        .clipShape(shape)
         .background(shape.fill(theme.fill1.color))
         .overlay(shape.strokeBorder(theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.5))
+        .hoverLift(radius: theme.radiusCard, rises: false)
     }
 }
 
@@ -706,8 +711,9 @@ private struct TeamChips: View {
                     .background(RoundedRectangle(cornerRadius: theme.radiusControl + 4, style: .continuous)
                         .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
                     .contentShape(Rectangle())
+                    .interactiveTile(radius: theme.radiusControl + 4)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.pressable)
                 .help("\(helper.name)'s page")
             }
             if chips.count < everyone.count {
