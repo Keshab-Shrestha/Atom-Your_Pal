@@ -97,6 +97,14 @@ const ACTIONS = ["status", "list_apps", "windows", "look", "open", "click", "cli
 
 /** Actions that change something in an app, so `look_after` makes sense for them. */
 const INPUT_ACTIONS = new Set(["click", "type", "key", "scroll", "set_value"]);
+
+/** What a window read carries besides the numbered elements. Both default to true, as for a look. */
+interface ReadView {
+  /** The window image (about 1 300 tokens and one screenshot grab). */
+  image?: boolean;
+  /** The paragraph naming the computer actions and the decision provider (about 250 tokens). */
+  intro?: boolean;
+}
 const TEXT_INPUT_ROLES = new Set(["AXTextArea", "AXTextField", "AXSearchField", "AXComboBox"]);
 
 /** Roles that take typed text, so a value set into one counts as typing. */
@@ -246,10 +254,14 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
   }
 
   /** Read exactly the observed window; the driver rechecks its ownership and this host checks the returned identity. */
-  async function readWindow(app: { name: string; bundle_id?: string }, pid: number, windowId: number, title?: string, signal?: AbortSignal, generation?: number, query?: string): Promise<string> {
+  async function readWindow(app: { name: string; bundle_id?: string }, pid: number, windowId: number, title?: string, signal?: AbortSignal, generation?: number, query?: string, view: ReadView = {}): Promise<string> {
+    // Token and speed cost: the window image is about 1 300 tokens and a screenshot grab, the intro about 250 tokens. A look sends both;
+    // a read after an action or between sequence clicks sends only what the model needs (measured 2026-10-31).
+    const { image = true, intro = true } = view;
+    const prior = target;
     target = undefined;
     lastApp = undefined;
-    const state = await cua.call("get_window_state", { pid, window_id: windowId, include_screenshot: true, max_dimension: 1280, ...(query ? { query } : {}) }, signal, generation);
+    const state = await cua.call("get_window_state", { pid, window_id: windowId, include_screenshot: image, ...(image ? { max_dimension: 1280 } : {}), ...(query ? { query } : {}) }, signal, generation);
     if (state.isError) refuse(state.refusal?.code, app.name, `Could not read ${app.name}: ${state.refusal?.message ?? state.text}`);
     if (generation !== undefined && generation !== cua.generation) throw new Refused("The computer session changed while reading the window. Look again.");
     if ((state.data.pid !== undefined && state.data.pid !== pid) ||
@@ -258,8 +270,10 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
       throw new Refused(`The ${app.name} window owner changed. No elements were retained; look again.`);
     }
     const elements = withoutMenuBar((state.data.elements ?? []) as Element[]);
-    observationImages = state.images;
-    target = { generation: cua.generation, pid, windowId: windowId, app: app.name, bundleId: app.bundle_id, bounds: state.data.window_bounds, elements: new Map(elements.map((e) => [e.element_index, e])), justTyped: false, readings: labelledReadings(String(state.data.tree_markdown ?? "")) };
+    observationImages = image ? state.images : undefined;
+    // A read without an image carries no window bounds; the same window keeps the bounds of the read before.
+    const bounds = state.data.window_bounds ?? (prior && prior.pid === pid && prior.windowId === windowId ? prior.bounds : undefined);
+    target = { generation: cua.generation, pid, windowId: windowId, app: app.name, bundleId: app.bundle_id, bounds, elements: new Map(elements.map((e) => [e.element_index, e])), justTyped: false, readings: labelledReadings(String(state.data.tree_markdown ?? "")) };
     lastApp = { name: app.name, ...(app.bundle_id ? { bundle_id: app.bundle_id } : {}), pid, generation: cua.generation };
     const shown = elements.slice(0, maxElements).map((e) => {
       const bits = [`[${e.element_index}] ${e.role ?? "?"}`];
@@ -272,19 +286,25 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
     const more = elements.length > maxElements ? `\n(${elements.length - maxElements} more elements not shown)` : "";
     const texts = screenTexts(String(state.data.tree_markdown ?? ""));
     const read = texts.length ? `\nText on screen (read only): ${texts.join("; ")}` : "";
-    const picture = observationImages?.length ? "Complete window image attached; cross-check it with the elements." : "No usable window image was returned: accessibility-only observation. Do not claim visual verification.";
-    const decisionProvider = options.decisionProvider?.() ?? "off";
-    const decisionHint = `Fast decision provider: ${decisionProvider === "off" ? "off (use the main model and ordinary checked sequences)" : decisionProvider + " (choose_sequence may select between prepared plans)"}.`;
-    const geometry = state.data.window_bounds ? `Window bounds in global screen points: ${JSON.stringify(state.data.window_bounds)}.\n` : "";
-    return `${app.name} — window "${title ?? state.data.window_title ?? ""}" (window_id=${windowId})\n${geometry}Current computer actions include windows(app) to list windows on connected displays, look(app, window_id) to select one, and click_sequence with steps:[{button:"exact button label",expect:{label:"read-only text label",value:"expected text"}}] for up to 8 buttons, checking fresh labelled text after each click. Refresh the tool definition if an earlier session described fewer actions.\n${decisionHint}\n${picture}\n${shown.join("\n")}${more}${read}`;
+    const picture = !image
+      ? "No window image with this read: use the numbered elements and do not claim visual verification. Look again for the image."
+      : observationImages?.length ? "Complete window image attached; cross-check it with the elements." : "No usable window image was returned: accessibility-only observation. Do not claim visual verification.";
+    const geometry = bounds ? `Window bounds in global screen points: ${JSON.stringify(bounds)}.\n` : "";
+    let introduction = "";
+    if (intro) {
+      const decisionProvider = options.decisionProvider?.() ?? "off";
+      const decisionHint = `Fast decision provider: ${decisionProvider === "off" ? "off (use the main model and ordinary checked sequences)" : decisionProvider + " (choose_sequence may select between prepared plans)"}.`;
+      introduction = `Current computer actions include windows(app) to list windows on connected displays, look(app, window_id) to select one, and click_sequence with steps:[{button:"exact button label",expect:{label:"read-only text label",value:"expected text"}}] for up to 8 buttons, checking fresh labelled text after each click. Refresh the tool definition if an earlier session described fewer actions.\n${decisionHint}\n`;
+    }
+    return `${app.name} — window "${title ?? state.data.window_title ?? ""}" (window_id=${windowId})\n${geometry}${introduction}${picture}\n${shown.join("\n")}${more}${read}`;
   }
 
   /** The new screen, appended to an action's reply so the model needs no extra step. The "just typed" memory survives it. */
-  async function lookAfter(signal?: AbortSignal): Promise<string> {
+  async function lookAfter(signal?: AbortSignal, image = false): Promise<string> {
     const keep = target?.justTyped ?? false;
     try {
       const previous = need();
-      const seen = await readWindow({ name: previous.app, ...(previous.bundleId ? { bundle_id: previous.bundleId } : {}) }, previous.pid, previous.windowId, undefined, signal, previous.generation);
+      const seen = await readWindow({ name: previous.app, ...(previous.bundleId ? { bundle_id: previous.bundleId } : {}) }, previous.pid, previous.windowId, undefined, signal, previous.generation, undefined, { image, intro: false });
       if (target) target.justTyped = keep;
       return `\n\n${seen}`;
     } catch (error) {
@@ -391,7 +411,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
       const result = await perform(action, input, signal);
       let out = typeof result === "string" ? result : result.text;
       const uncertain = typeof result !== "string" && result.uncertain;
-      if ((input.look_after === true || uncertain) && INPUT_ACTIONS.has(action) && target) out += await lookAfter(signal);
+      if ((input.look_after === true || uncertain) && INPUT_ACTIONS.has(action) && target) out += await lookAfter(signal, Boolean(uncertain)); // an uncertain effect keeps the image to check it by eye
       const images = capturedImages();
       const stopped = typeof result !== "string" && result.stopped === true;
       log({ action, ...(appName ? { app: appName } : {}), ok: !stopped, ...(stopped ? { reason: "sequence_stopped" } : {}), ...(images?.length ? { imageCount: images.length } : {}) });
@@ -498,6 +518,10 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
         let completed = 0;
         let unconfirmed = 0;
         let seen = "";
+        // Between clicks only the elements and labelled text are checked, so the image (and its screenshot grab) is skipped; the last read, and
+        // the read of a stopped sequence, carry it because the model then looks at the result.
+        const readPinned = (image: boolean) => readWindow({ name: pinned.app, ...(pinned.bundleId ? { bundle_id: pinned.bundleId } : {}) }, pinned.pid, pinned.windowId, undefined, signal, pinned.generation, undefined, { image, intro: false });
+        const withImage = async () => { seen = await readPinned(true).catch(() => seen); };
         for (const [i, step] of steps.entries()) {
           if (signal?.aborted) {
             target = undefined;
@@ -507,6 +531,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
           if (t.pid !== pinned.pid || t.windowId !== pinned.windowId || t.generation !== pinned.generation) throw new Refused("The sequence window changed. No remaining clicks were sent; look again.");
           const buttons = [...t.elements.values()].filter((e) => e.role === "AXButton" && e.label === step.button);
           if (buttons.length !== 1 || buttons[0]!.enabled === false) {
+            if (seen) await withImage();
             return { text: `Sequence stopped after ${completed}/${steps.length} checked clicks: the next button was missing, ambiguous or disabled. No remaining clicks were sent. Look again; do not replay the sequence.${seen ? `\n\n${seen}` : ""}`, uncertain: false, stopped: true };
           }
           const before = matchesReading(t, step.expect);
@@ -515,7 +540,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
           let clicked: Awaited<ReturnType<typeof perform>>;
           try {
             clicked = await perform("click", { element: buttons[0]!.element_index, mode }, signal);
-            seen = await readWindow({ name: pinned.app, ...(pinned.bundleId ? { bundle_id: pinned.bundleId } : {}) }, pinned.pid, pinned.windowId, undefined, signal, pinned.generation);
+            seen = await readPinned(i === steps.length - 1);
             if (signal?.aborted) throw new Refused("Cancelled.");
           } catch (error) {
             target = undefined;
@@ -524,6 +549,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
           const effect = typeof clicked !== "string" ? clicked.effect : undefined;
           const matched = matchesReading(need(), step.expect);
           if (!matched || (effect !== "confirmed" && !(effect === "unverifiable" && !before))) {
+            if (i < steps.length - 1) await withImage();
             return { text: `Sequence stopped at click ${i + 1}/${steps.length}; ${completed} earlier clicks passed their checks. The expected unique labelled value was missing, unchanged after unconfirmed input, or the driver reported no effect. This click is uncertain. No remaining clicks were sent. Inspect the observation; do not replay the sequence.\n\n${seen}`, uncertain: false, stopped: true };
           }
           completed += 1;
