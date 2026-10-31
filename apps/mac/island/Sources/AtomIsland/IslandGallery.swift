@@ -252,9 +252,11 @@ enum IslandGallery {
         if let e = try? decodeEvent(usageJSON) { dashing.apply(e) } else { FileHandle.standardError.write(Data("gallery: could not decode the dashboard usage\n".utf8)) }
         dashing.helpers.apply(.git([GitBranch(repo: "/Users/k/Developer/site", repoName: "site", branch: "zeno/task-12", task: 12, title: "Add a dark mode toggle",
                                               base: "origin/main", commits: [GitCommit(sha: "3f9c2a1", subject: "ATOM task 12: Add a dark mode toggle", at: nil)]
-                                                  // Dated commits over two weeks, so the Git activity heat strip has something to draw.
-                                                  + [0, 0, 1, 3, 3, 3, 4, 6, 8, 8, 9, 11, 11, 11, 11, 13].enumerated().map { index, day in
-                                                      GitCommit(sha: "c\(index)", subject: "Step \(index)", at: Date(timeIntervalSince1970: 1_792_022_400 - Double(day) * 86_400))
+                                                  // A year of dated commits (a fixed pseudo-random spread), so the Git activity heatmap has something to draw.
+                                                  + (0..<260).map { index in
+                                                      let r = (index &* 2_654_435_761) % 4_294_967_291
+                                                      let seconds = Double(r % 330) * 86_400 + Double(9 + r % 11) * 3_600
+                                                      return GitCommit(sha: "c\(index)", subject: "Step \(index)", at: Date(timeIntervalSince1970: 1_792_022_400 - seconds))
                                                   },
                                               files: [GitFile(path: "src/theme.css", added: 42, removed: 3), GitFile(path: "src/App.tsx", added: 18, removed: 6)],
                                               remote: "git@github.com:keshab/site.git", pushed: .no)]))
@@ -334,6 +336,10 @@ enum IslandGallery {
         save(frozen(HelpersView(model: columned).environment(\.islandSnapshot, true).frame(width: 1180, height: 1000))
             .environment(\.theme, theme.palette).themed(theme.palette).background(theme.palette.surfaceSolid.color),
              name: name + "-board-columns", to: directory)
+        // 2026-10-31: an agent's page: the profile card and the Setup card.
+        save(frozen(HelpersView(model: kamed).environment(\.islandSnapshot, true).frame(width: 1000, height: 760))
+            .environment(\.theme, theme.palette).themed(theme.palette).background(theme.palette.surfaceSolid.color),
+             name: name + "-agent-page", to: directory)
         // 2026-10-31: the same chat and Dashboard in each typeface (Settings > Appearance > Typeface). Default theme only.
         if theme == .void {
             let usual = tabled.settings.typeface

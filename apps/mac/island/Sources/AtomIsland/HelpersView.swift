@@ -395,9 +395,10 @@ private struct HelperPane: View {
     var body: some View {
         Scrollable {
             VStack(alignment: .leading, spacing: 18) {
-                HStack(spacing: 14) {
-                    HelperBadge(helper: helper, size: 42)
-                    VStack(alignment: .leading, spacing: 2) {
+                // The profile card: the agent, its role and counts, and what can be done to it.
+                HStack(alignment: .center, spacing: 14) {
+                    HelperBadge(helper: helper, size: 52)
+                    VStack(alignment: .leading, spacing: 3) {
                         NameTitle(model: model, helper: helper).id(helper.id) // a rename in progress belongs to one agent
                         Text(Self.subtitle(helper)).appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                             .lineLimit(1)
@@ -410,19 +411,36 @@ private struct HelperPane: View {
                     AgentAvailabilityMenu(model: model, helper: helper)
                     if helper.custom { RemoveAgentButton(model: model, helper: helper) }
                 }
+                .padding(16)
+                .background(theme.fill1.a > 0 ? theme.fill1.color : theme.fill2.color, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
                 if helper.proposals.contains(where: { $0.state == "pending" || $0.state == "accepted" }) {
                     ProposalsSection(model: model, proposals: helper.proposals, soul: helper.soul)
                 }
                 TestCasesList(model: model, kind: "soul", target: helper.id) // ADR-098 item 8
                 if helper.available || helper.paused {
-                    HStack(spacing: 8) {
-                        AppPicker(model: model, helper: helper)
-                        ModelPicker(model: model, helper: helper, models: model.helpers.list?.models ?? [])
+                    // Setup: the four choices side by side, then the switches as rows of one card.
+                    SettingsCard(title: "Setup", detail: "How \(helper.name) works on new tasks.") {
+                        // One line when they fit, two pairs when they do not: packed together, never spread over the width.
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: 8) { appAndClaude; codexAndSkills }
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack(spacing: 8) { appAndClaude }
+                                HStack(spacing: 8) { codexAndSkills }
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16).padding(.bottom, 14)
+                        SettingsCardRow(title: "Plan first", detail: "New tasks start with a plan for your OK.") {
+                            ThemedSwitch(isOn: helper.planFirst, set: { model.sendHelpers(model.helpers.setPlanFirst($0)) }, label: "Plan first")
+                        }
+                        if helper.takesTasks, helper.kit != "think" { // ADR-098
+                            SettingsCardRow(title: "Browser", detail: "Opens pages in ATOM's own browser. Each new site and each form asks you first.") {
+                                ThemedSwitch(isOn: helper.browser, set: { model.sendHelpers(model.helpers.setBrowser($0)) }, label: "Browser")
+                            }
+                        }
                     }
-                    CodexWorkerModelPicker(model: model, helper: helper)
-                    SkillsPicker(model: model, helper: helper, skills: model.helpers.list?.skills ?? [])
-                    PlanFirstRow(model: model, helper: helper)
-                    if helper.takesTasks, helper.kit != "think" { BrowserRow(model: model, helper: helper) } // ADR-098
                     if helper.worksInFolders { FilesNote(helper: helper) }
                     VStack(alignment: .leading, spacing: 8) {
                         if helper.paused {
@@ -447,6 +465,16 @@ private struct HelperPane: View {
             .padding(.top, 28)
             .padding(.bottom, Spacing.panel)
         }
+    }
+
+    @ViewBuilder private var appAndClaude: some View {
+        AppPicker(model: model, helper: helper)
+        ModelPicker(model: model, helper: helper, models: model.helpers.list?.models ?? [])
+    }
+
+    @ViewBuilder private var codexAndSkills: some View {
+        CodexWorkerModelPicker(model: model, helper: helper)
+        SkillsPicker(model: model, helper: helper, skills: model.helpers.list?.skills ?? [])
     }
 
     /// Under the name: the role, then the job counts ("Researcher · 1 running, 1 done").
@@ -922,15 +950,13 @@ private struct NameTitle: View {
         VStack(alignment: .leading, spacing: 4) {
         HStack(spacing: 6) {
             if editing.wrappedValue {
-                TextField("Name", text: draft.projectedValue)
-                    .textFieldStyle(.plain)
-                    .appFont(.system(size: 18, weight: .semibold, design: theme.titleDesign))
-                    .frame(maxWidth: 220)
-                    .onSubmit(save)
-                    .onExitCommand(perform: cancel)
-                if pending { ProgressView().controlSize(.small).accessibilityLabel("Saving the name") }
-                QuietButton(title: "Cancel", action: cancel)
-                SaveButton(enabled: changed && !pending, label: "Save name", action: save)
+                // One field with its actions inside it: no loose buttons beside the name.
+                InlineField(placeholder: "Name", text: draft.projectedValue, size: 16, weight: .semibold, submit: save, cancel: cancel) {
+                    if pending { ProgressView().controlSize(.small).padding(.horizontal, 4).accessibilityLabel("Saving the name") }
+                    else { FieldAction(symbol: "checkmark", label: "Save name", prominent: true, enabled: changed, action: save) }
+                    FieldAction(symbol: "xmark", label: "Cancel", action: cancel)
+                }
+                .frame(maxWidth: 280)
             } else {
                 Text(helper.name).appFont(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
                 if model.savedField == "agent-name" && model.helpers.problem == nil { SavedMark() }

@@ -25,73 +25,72 @@ struct ProjectSettingsSheet: View {
         self.model = model; self.initial = initial; _name = State(initialValue: initial.name)
     }
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                Text("Project settings").appFont(.system(size: 18, weight: .semibold)).accessibilityAddTraits(.isHeader)
-                Spacer()
-                Button("Done") { dismiss() }.keyboardShortcut(.cancelAction)
-            }
+        VStack(alignment: .leading, spacing: 14) {
+            header
             if let project {
                 if project.archived {
-                    Text("Archived project. Unarchive it below to change its settings.")
-                        .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    Label("Archived project. Unarchive it below to change its settings.", systemImage: "archivebox")
+                        .appFont(.system(size: 12)).foregroundStyle(theme.attention.color)
                 }
-                VStack(alignment: .leading, spacing: 8) {
-                    heading("Name")
-                    HStack {
-                        if snapshot { Text(name).appFont(.system(size: 13)).frame(maxWidth: .infinity, alignment: .leading) }
-                        else { TextField("Project name", text: $name).textFieldStyle(.roundedBorder).accessibilityLabel("Project settings name") }
-                        Button("Save name") { saveName(project) }
-                            .disabled(!ProjectList.isValidName(name) || name.trimmingCharacters(in: .whitespacesAndNewlines) == project.name)
+                SettingsCard(title: "Name") {
+                    InlineField(placeholder: "Project name", text: $name, submit: { saveName(project) }) {
+                        if model.projectCommandPending { ProgressView().controlSize(.small).padding(.horizontal, 4) }
+                        else {
+                            FieldAction(symbol: "checkmark", label: "Save name", prominent: true,
+                                        enabled: ProjectList.isValidName(name) && name.trimmingCharacters(in: .whitespacesAndNewlines) != project.name) { saveName(project) }
+                        }
                     }
-                }.disabled(model.projectSettingsBusy || project.archived)
-                VStack(alignment: .leading, spacing: 6) {
-                    heading("Folder")
-                    Text(verbatim: project.folderLabel).appFont(.system(size: 12, design: .monospaced)).textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
-                    if project.missing { Text("Folder unavailable").appFont(.system(size: 11)).foregroundStyle(theme.attention.color) }
-                    Button("Show in Finder") {
-                        guard let current = self.project, let root = ProjectFileNavigation.root(current) else { return }
-                        NSWorkspace.shared.activateFileViewerSelecting([root])
-                    }.appFont(.system(size: 12)).disabled(project.missing || project.archived || project.folderLabel.isEmpty)
-                    Text("The registered folder stays under the existing project permissions.")
-                        .appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
+                    .accessibilityLabel("Project settings name")
+                    .padding(.horizontal, 16).padding(.bottom, 14)
                 }
-                VStack(alignment: .leading, spacing: 8) {
-                    heading("Default model")
-                    if snapshot { Text(modelTitle(project)).appFont(.system(size: 13)) }
-                    else { modelMenu(project) }
-                    Text("Used by chats that follow this project's default. Chat overrides and active replies keep their own choice.")
-                        .appFont(.system(size: 11)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
+                .disabled(model.projectSettingsBusy || project.archived)
+                SettingsCard(title: "Folder", detail: "The registered folder stays under the existing project permissions.") {
+                    SettingsCardRow(title: project.folderLabel.isEmpty ? "No folder" : project.folderLabel,
+                                    detail: project.missing ? "Folder unavailable" : nil) {
+                        QuietButton(title: "Show in Finder", symbol: "folder") {
+                            guard let current = self.project, let root = ProjectFileNavigation.root(current) else { return }
+                            NSWorkspace.shared.activateFileViewerSelecting([root])
+                        }
+                        .disabled(project.missing || project.archived || project.folderLabel.isEmpty)
+                    }
+                    .appFont(.system(size: 12, design: .monospaced))
                 }
-                VStack(alignment: .leading, spacing: 6) {
-                    if snapshot { Text("Allow web search: " + (project.web ? "on" : "off")).appFont(.system(size: 13)) }
-                    else {
-                        Toggle("Allow web search", isOn: Binding(get: { self.project?.web ?? false }, set: { value in
+                SettingsCard(title: "Chats in this project") {
+                    SettingsCardRow(title: "Default model", detail: "For chats that follow the project. A chat's own choice wins.") {
+                        if snapshot { PillMenuLabel(label: "Model", value: modelTitle(project), dimmed: project.model == nil, identifier: project.model != nil) }
+                        else { modelMenu(project) }
+                    }
+                    SettingsCardRow(title: "Web search", detail: "Access modes and tool approvals still apply.") {
+                        ThemedSwitch(isOn: project.web, set: { value in
                             guard let current = self.project, !current.archived, !model.projectSettingsBusy else { return }
                             model.sendProject(.projectWeb(id: current.id, web: value))
-                        })).toggleStyle(.checkbox).disabled(model.projectSettingsBusy || project.archived)
+                        }, label: "Allow web search")
+                        .disabled(model.projectSettingsBusy || project.archived)
                     }
-                    Text("Applies to this project's chats. Chat access modes and tool approvals still apply.")
-                        .appFont(.system(size: 11)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
                 }
-                HStack {
-                    Button(project.archived ? "Unarchive project" : "Archive project") {
+                HStack(spacing: 10) {
+                    QuietButton(title: project.archived ? "Unarchive" : "Archive", symbol: project.archived ? "tray.and.arrow.up" : "archivebox") {
                         guard let current = self.project, !model.projectSettingsBusy else { return }
                         model.sendProject(.projectArchive(id: current.id, archived: !current.archived))
                     }
                     Spacer()
-                    Button("Remove project…", role: .destructive) { confirmingRemoval = true }
-                }.appFont(.system(size: 12)).disabled(model.projectSettingsBusy)
-                if model.projectCommandPending { Text("Saving project setting…").appFont(.system(size: 11)).foregroundStyle(theme.text2.color) }
+                    Button { confirmingRemoval = true } label: {
+                        Label("Remove project…", systemImage: "trash").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.problem.color)
+                            .padding(.horizontal, 12).frame(height: ControlMetrics.buttonHeight)
+                            .background(Capsule().fill(theme.problem.color.opacity(0.12)))
+                    }
+                    .buttonStyle(.pressable)
+                }
+                .disabled(model.projectSettingsBusy)
+                .padding(.top, 2)
                 if model.projectCommandTarget == initial.id, let error = model.projectError { ProblemLine(text: error) }
             } else {
                 Text("This project is no longer available. Your current chat is unchanged.")
                     .appFont(.system(size: 13)).foregroundStyle(theme.text2.color)
             }
         }
-        .padding(22).frame(width: 500, alignment: .leading).foregroundStyle(theme.text.color)
-        .background(theme.surfaceSolid.color).buttonStyle(SnapshotBorderlessButtonStyle())
+        .padding(20).frame(width: 480, alignment: .leading).foregroundStyle(theme.text.color)
+        .background(theme.surfaceSolid.color)
         .confirmationDialog("Remove this project?", isPresented: $confirmingRemoval, titleVisibility: .visible) {
             Button("Remove project, keep chats") { if let project { model.sendProject(.projectRemove(id: project.id, deleteChats: false)) } }
             Button("Also delete its chats", role: .destructive) { if let project { model.sendProject(.projectRemove(id: project.id, deleteChats: true)) } }
@@ -99,8 +98,20 @@ struct ProjectSettingsSheet: View {
         } message: { Text("The folder and its files are not deleted. Keeping chats moves them to the normal list; deleting chats removes their history permanently.") }
         .onChange(of: project?.name) { if let project { name = project.name } }
     }
-    private func heading(_ title: String) -> some View {
-        Text(title).appFont(.system(size: 12, weight: .semibold)).foregroundStyle(theme.text2.color)
+    /// A folder tile, the title and the project's name, and Done.
+    private var header: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "folder.fill").appFont(.system(size: 15, weight: .semibold)).foregroundStyle(theme.accent.color)
+                .frame(width: 36, height: 36)
+                .background(theme.accent.color.opacity(0.14), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Project settings").appFont(.system(size: 16, weight: .semibold)).foregroundStyle(theme.text.color).accessibilityAddTraits(.isHeader)
+                Text(project?.name ?? initial.name).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(1)
+            }
+            Spacer()
+            PillButton(title: "Done", prominent: true) { dismiss() }.keyboardShortcut(.cancelAction)
+        }
+        .padding(.bottom, 2)
     }
     private func modelTitle(_ project: ProjectInfo) -> String {
         guard let provider = project.provider, let selected = project.model else { return "Use app default" }
@@ -122,7 +133,8 @@ struct ProjectSettingsSheet: View {
                     }
                 }
             } else { Text("Model catalog unavailable") }
-        } label: { Text(modelTitle(project)).appFont(.system(size: 13)) }
+        } label: { PillMenuLabel(label: "Model", value: modelTitle(project), dimmed: project.model == nil, identifier: project.model != nil) }
+            .menuStyle(.button).buttonStyle(.plain).fixedSize()
             .accessibilityLabel("Project default model: " + modelTitle(project))
             .disabled(model.projectSettingsBusy || project.archived)
     }
