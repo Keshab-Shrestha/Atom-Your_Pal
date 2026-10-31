@@ -497,6 +497,11 @@ public struct HelpersState: Sendable, Equatable {
     public private(set) var problem: String?
     /// A command from the window is waiting for its answer: a `settings` error now belongs to the window.
     public private(set) var isWaiting = false
+    /// A rename sent and not answered yet: the worker and the name asked for. A list with that name confirms it; a
+    /// refusal (`problem`) ends it. Until then the window shows neither "Saved" nor a closed editor.
+    public private(set) var pendingRename: RenameRequest?
+    /// The list confirmed the last rename: the window shows "Saved" once (`takeRenameConfirmed`).
+    private var renameConfirmed = false
     /// ADR-091: ATOM's task branches (nil until asked), and the one whose changes are shown.
     public private(set) var git: [GitBranch]?
     public var gitDiff: GitDiff?
@@ -538,6 +543,10 @@ public struct HelpersState: Sendable, Equatable {
             list = newList
             isWaiting = false
             problem = nil
+            if let pending = pendingRename, newList.helpers.first(where: { $0.id == pending.helper })?.name == pending.name {
+                pendingRename = nil
+                renameConfirmed = true
+            }
             if selectedHelper == nil {
                 selectedHelperId = (newList.helpers.first(where: \.available) ?? newList.helpers.first)?.id
                 isSoulOpen = false
@@ -565,6 +574,7 @@ public struct HelpersState: Sendable, Equatable {
         case .error(let error) where claims(event):
             isWaiting = false
             problem = error.message
+            pendingRename = nil // refused: the editor keeps the typed name and shows why
         default:
             break
         }
@@ -704,11 +714,20 @@ public struct HelpersState: Sendable, Equatable {
         return waiting(.soulSet(helper: helper.id, soul: clean))
     }
 
-    /// ADR-091: renames the open worker: a new soul version with the new name (checked like any soul).
+    /// ADR-091: renames the open worker: a new soul version with the new name (checked like any soul). Nil with
+    /// `problem` set when the name is obviously invalid. Not saved until the runtime's list shows the new name.
     public mutating func rename(_ name: String) -> IslandCommand? {
-        guard var soul = selectedHelper?.soul else { return nil }
+        guard let helper = selectedHelper, var soul = helper.soul else { return nil }
         soul.name = name
-        return saveSoul(soul)
+        guard let command = saveSoul(soul) else { return nil }
+        pendingRename = RenameRequest(helper: helper.id, name: soul.trimmed.name)
+        return command
+    }
+
+    /// True once after the list confirmed the last rename, so the window shows "Saved" then and not before.
+    public mutating func takeRenameConfirmed() -> Bool {
+        defer { renameConfirmed = false }
+        return renameConfirmed
     }
 
     /// Makes a listed older version current again. Nil for the current version or one not listed.
@@ -1017,6 +1036,7 @@ public struct HelpersState: Sendable, Equatable {
         // closing it as if it had been saved (code check, 2026-10-16).
         if isWaiting && problem == nil { problem = "ATOM was not running, so that was not done. Try again." }
         isWaiting = false
+        pendingRename = nil
     }
 
     private mutating func waiting(_ command: IslandCommand) -> IslandCommand {
@@ -1024,6 +1044,12 @@ public struct HelpersState: Sendable, Equatable {
         problem = nil
         return command
     }
+}
+
+/// A rename the window sent: which worker, and the name it should have once the runtime saved it.
+public struct RenameRequest: Sendable, Equatable {
+    public var helper: String
+    public var name: String
 }
 
 /// Task 3.9: a schedule that makes a task for a worker, as the runtime describes it.

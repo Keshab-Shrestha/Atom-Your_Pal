@@ -918,6 +918,8 @@ private struct NameTitle: View {
 
     var body: some View {
         let changed = editing.wrappedValue && draft.wrappedValue.trimmingCharacters(in: .whitespaces) != helper.name
+        let pending = model.helpers.pendingRename?.helper == helper.id
+        VStack(alignment: .leading, spacing: 4) {
         HStack(spacing: 6) {
             if editing.wrappedValue {
                 TextField("Name", text: draft.projectedValue)
@@ -925,9 +927,10 @@ private struct NameTitle: View {
                     .appFont(.system(size: 18, weight: .semibold, design: theme.titleDesign))
                     .frame(maxWidth: 220)
                     .onSubmit(save)
-                    .onExitCommand { editing.wrappedValue = false }
-                QuietButton(title: "Cancel") { editing.wrappedValue = false }
-                SaveButton(enabled: changed, label: "Save name", action: save)
+                    .onExitCommand(perform: cancel)
+                if pending { ProgressView().controlSize(.small).accessibilityLabel("Saving the name") }
+                QuietButton(title: "Cancel", action: cancel)
+                SaveButton(enabled: changed && !pending, label: "Save name", action: save)
             } else {
                 Text(helper.name).appFont(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
                 if model.savedField == "agent-name" && model.helpers.problem == nil { SavedMark() }
@@ -944,15 +947,30 @@ private struct NameTitle: View {
                 }
             }
         }
+            // Why the name was refused (here or by the runtime), under the editor that still holds the typed name.
+            if editing.wrappedValue, !pending, let problem = model.helpers.problem { ProblemLine(text: problem) }
+        }
         .tracksEdits(model, "agent-name", changed)
+        // The editor closes when the runtime's list shows the new name; "Saved" then comes from the model.
+        .onChange(of: helper.name) { _, name in
+            if editing.wrappedValue, name == draft.wrappedValue.trimmingCharacters(in: .whitespaces) { editing.wrappedValue = false }
+        }
     }
 
     private func save() {
         let name = draft.wrappedValue.trimmingCharacters(in: .whitespaces)
+        guard name != helper.name else { editing.wrappedValue = false; return }
+        guard let command = model.helpers.rename(name) else {
+            // Refused here (the reason is in `problem`, shown under the field), or nothing to send: close only then.
+            if model.helpers.problem == nil { editing.wrappedValue = false }
+            return
+        }
+        model.send(command) // stays open, with a spinner, until the list confirms or the runtime refuses
+    }
+
+    private func cancel() {
         editing.wrappedValue = false
-        guard name != helper.name, let command = model.helpers.rename(name) else { return }
-        model.send(command)
-        model.showSaved("agent-name")
+        model.helpers.clearProblem()
     }
 }
 

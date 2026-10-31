@@ -926,6 +926,7 @@ final class IslandModel {
         let helperRefusal = helpers.claims(event)
         recordLocation() // Keshab's last step, before the runtime moves the page (a new agent, a removed one)
         helpers.apply(event)
+        if helpers.takeRenameConfirmed() { showSaved("agent-name") } // only once the runtime's list has the new name
         lastLocation = location // a change the runtime made is not a step
         if let refresh = helpers.takeRefresh() { send(refresh) } // the open task changed: ask for its thread again
         if helperRefusal { return } // a refused helper command is shown in the ATOM window only

@@ -397,6 +397,32 @@ struct HelperSoulTests {
         #expect(IslandCommand.speechSet(reports: false, updates: true, chime: true).line == #"{"chime":true,"reports":false,"type":"speech.set","updates":true}"# + "\n")
     }
 
+    /// A rename is not saved until the runtime's list shows the new name (2026-10-31: "Saved" showed for a refused name).
+    @Test func aRenameIsSavedOnlyWhenTheListShowsTheNewName() throws {
+        var state = try loaded()
+        #expect(state.rename("Ace") != nil)
+        #expect(state.pendingRename == RenameRequest(helper: "sid", name: "Ace"))
+        state.apply(try decodeEvent(Self.line)) // an unrelated list, still "Scout"
+        let early = state.takeRenameConfirmed()
+        #expect(!early && state.pendingRename != nil)
+        state.apply(try decodeEvent(Self.line.replacingOccurrences(of: #""name":"Scout""#, with: #""name":"Ace""#)))
+        let confirmed = state.takeRenameConfirmed(), again = state.takeRenameConfirmed()
+        #expect(confirmed && state.pendingRename == nil)
+        #expect(!again, "taken once")
+    }
+
+    @Test func aRefusedRenameKeepsTheReasonAndIsNotSaved() throws {
+        var state = try loaded()
+        #expect(state.rename("Penny") != nil)
+        state.apply(.error(RuntimeError(stage: "settings", message: "Another worker is already called Penny.")))
+        #expect(state.problem == "Another worker is already called Penny.")
+        let confirmed = state.takeRenameConfirmed()
+        #expect(state.pendingRename == nil && !confirmed)
+        // An obviously invalid name is refused here, with a reason, and nothing is sent.
+        var empty = try loaded()
+        #expect(empty.rename("   ") == nil && empty.problem != nil && empty.pendingRename == nil)
+    }
+
     @Test func saveSendsTheTrimmedSoulOnlyWhenChangedAndValid() throws {
         var state = try loaded()
         state.openSoul()
