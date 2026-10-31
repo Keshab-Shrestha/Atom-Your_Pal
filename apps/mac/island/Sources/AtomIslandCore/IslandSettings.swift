@@ -43,10 +43,6 @@ public final class IslandSettings {
     static let sidebarHiddenKey = "atom.window.sidebarHidden"
     static let favoriteModelsKey = "atom.models.favorites"
     static let replyExamplesKey = "atom.reply.writingExamples"
-    /// Set once the ADR-084 move to Lantern has run, so a later choice of Quiet Native sticks.
-    static let lanternMoveKey = "atom.look.lanternDefault"
-    /// Set once the ADR-086 move to Void has run, so a later choice of Lantern sticks.
-    static let voidMoveKey = "atom.look.voidDefault"
     static let palReactsKey = "atom.wisp.reacts"
     static let palHomeDisplayKey = "atom.wisp.homeDisplay"
     static let tourDoneKey = "atom.tourDone"
@@ -254,8 +250,6 @@ public final class IslandSettings {
         bubbleStay = Self.choice(defaults, Self.bubbleStayKey, .seconds2)
         bubbleSize = Self.choice(defaults, Self.bubbleSizeKey, .normal)
         bubbleOpacity = Self.choice(defaults, Self.bubbleOpacityKey, .normal)
-        Self.moveToLanternOnce(defaults)
-        Self.moveToVoidOnce(defaults)
         textSize = Self.choice(defaults, Self.textSizeKey, .standard)
         typeface = Self.choice(defaults, Self.typefaceKey, .inter)
         theme = Self.choice(defaults, Self.themeKey, .void)
@@ -352,29 +346,6 @@ public final class IslandSettings {
         theme = .void
         textSize = .standard
         typeface = .inter
-    }
-
-    /// ADR-084: Lantern replaced Quiet Native as the default. A stored Quiet Native cannot be told apart from the
-    /// old default (choosing it and "Reset this page" both stored it), so it moves to Lantern once; choosing
-    /// Quiet Native again afterwards is kept. Other stored themes are left as they are.
-    private static func moveToLanternOnce(_ defaults: UserDefaults) {
-        guard !defaults.bool(forKey: lanternMoveKey) else { return }
-        defaults.set(true, forKey: lanternMoveKey)
-        if defaults.object(forKey: themeKey) as? Int == AppTheme.native.rawValue {
-            defaults.set(AppTheme.lantern.rawValue, forKey: themeKey)
-        }
-    }
-
-    /// ADR-086: Void replaced Lantern as the default. Lantern was only ever stored by the ADR-084 move above, by
-    /// "Reset this page" or by picking it, and these cannot be told apart, so a stored Lantern moves to Void once (as
-    /// Quiet Native moved to Lantern); picking Lantern again afterwards is kept. Lantern Day and the rest are kept.
-    /// Runs after `moveToLanternOnce`, so a Quiet Native left from before both moves also lands on Void.
-    private static func moveToVoidOnce(_ defaults: UserDefaults) {
-        guard !defaults.bool(forKey: voidMoveKey) else { return }
-        defaults.set(true, forKey: voidMoveKey)
-        if defaults.object(forKey: themeKey) as? Int == AppTheme.lantern.rawValue {
-            defaults.set(AppTheme.void.rawValue, forKey: themeKey)
-        }
     }
 
     /// Dictation: how it starts and stops, the live preview and filler removal.

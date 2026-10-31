@@ -80,13 +80,11 @@ enum IslandGallery {
         // ADR-086: Void is the default; each sheet that changed with it is also drawn in Lantern ("-lantern").
         writePals(to: directory)
         writePet(to: directory)
-        writePet(to: directory, theme: .lantern, name: "5-pal-moods-lantern")
         writeBubbles(to: directory)
         writeApproval(to: directory)
         writeThemes(to: directory)
         writeSetup(to: directory)
         writeHelpers(to: directory)
-        writeHelpers(to: directory, theme: .lantern, name: "13-helpers-lantern")
         writeHelpers(to: directory, theme: .daylight, name: "13-helpers-daylight") // 2026-10-15: the light theme
         writeMenuBar(to: directory)
         writeMenuBar(to: directory, flat: false, name: "15-menu-bar-item-lantern")
@@ -99,7 +97,6 @@ enum IslandGallery {
         writeWorkspace(to: directory)
         writeWorkspaceDesign(to: directory)
         writeProjects(to: directory)
-        writeProjects(to: directory, theme: .lantern, name: "16-projects-lantern")
         writeBrain(to: directory)
         writeMcpPaste(to: directory)
         writeStates(to: directory)
@@ -109,7 +106,6 @@ enum IslandGallery {
         writeSidebarHidden(to: directory)
         writeDesignPage(to: directory)
         writeBrain(to: directory, theme: .daylight, name: "17-brain-daylight")
-        writeBrain(to: directory, theme: .lantern, name: "17-brain-lantern")
     }
 
     /// ADR-081: the ATOM window with Sid running one job and done with another, the rest of the team (Task 3.3); Sid's
@@ -266,8 +262,8 @@ enum IslandGallery {
                 window("A task's thread: report, the whole goal, notes, activity (Tasks 3.4, 3.5)", reading)
             }
             HStack(alignment: .top, spacing: 18) {
-                let other: AppTheme = theme == .void ? .void : .warm
-                window("\(other == .warm ? "Warm (light)" : other.title): Sid pinned to Sonnet, large model off, a failed job", model(other, pinned: #""claude-sonnet-4-5""#, allowLarge: false, failed: true))
+                let other: AppTheme = theme == .void ? .void : .daylight
+                window("\(other.title): Sid pinned to Sonnet, large model off, a failed job", model(other, pinned: #""claude-sonnet-4-5""#, allowLarge: false, failed: true))
                 window("Sid's soul (Task 3.3)", souled)
             }
             HStack(alignment: .top, spacing: 18) {
@@ -387,7 +383,7 @@ enum IslandGallery {
         let suite = "atom.gallery.setup.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
-        func model(_ theme: AppTheme = .lantern) -> IslandModel {
+        func model(_ theme: AppTheme = .void) -> IslandModel {
             let m = IslandModel(settings: IslandSettings(defaults: defaults))
             m.settings.theme = theme
             m.permissions.states = [
@@ -413,7 +409,7 @@ enum IslandGallery {
         }
         let stopped = model()
         stopped.status.apply(.failed("ATOM's runtime keeps stopping: it exited with code 1"))
-        let config = model(.luminous)
+        let config = model(.sapphire)
         config.status.apply(.configError("Invalid configuration:\n  - GEMINI_API_KEY is required (set it in .env)"))
         let sheet = HStack(alignment: .top, spacing: 22) {
             card("Settings → General → Permissions", checklist, PermissionsCard(model: checklist))

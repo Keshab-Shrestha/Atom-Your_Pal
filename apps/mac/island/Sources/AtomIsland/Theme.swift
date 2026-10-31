@@ -12,7 +12,7 @@ extension RGBA {
 }
 
 // Views outside a themed surface (the gallery's loose Pals) keep Lantern's look; every real surface sets its own.
-private struct ThemeKey: EnvironmentKey { static let defaultValue = ThemePalette.lantern }
+private struct ThemeKey: EnvironmentKey { static let defaultValue = ThemePalette.void }
 
 extension EnvironmentValues {
     var theme: ThemePalette {

@@ -79,8 +79,8 @@ struct DesignCatalogTests {
     @Test func thePreviewStartsOnTheCurrentFlatTheme() {
         #expect(DesignPreviewTheme(current: .daylight) == .daylight)
         #expect(DesignPreviewTheme(current: .void) == .void)
-        #expect(DesignPreviewTheme(current: .lantern) == .void)
-        #expect(DesignPreviewTheme(current: .warm) == .void)
+        #expect(DesignPreviewTheme(current: .plum) == .void)
+        #expect(DesignPreviewTheme(current: .ember) == .void)
     }
 
     @Test func coloursPrintAsHex() {

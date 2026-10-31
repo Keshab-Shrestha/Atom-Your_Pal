@@ -7,22 +7,16 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
     /// Flat black with 1 px graphite hairlines, ghost buttons and mono identifiers; colour only on small status dots,
     /// no glow or shadow anywhere (ADR-086, after Resend's style). The default. Listed first.
     case void = 5
-    /// Night glass in cool greys; the only colour is Pal's own light, and state is how brightly it burns
-    /// (ADR-084). Raw values keep older stored choices valid.
-    case lantern = 3
-    /// Lantern in daylight: pale cool glass, ink text, the light kept for Pal's glow.
-    case lanternDay = 4
-    /// Dark glass and system-like controls, one teal accent. Looks like it shipped with macOS.
-    case native = 0
-    /// Near-black glass with a cyan → violet gradient for selection, the main button and live sound.
-    case luminous
-    /// Warm off-white paper glass, ink text, a coral accent and mint for live states.
-    case warm
     /// Void's flat, hairline look on a light canvas, one indigo accent. From Keshab's UI playground (2026-10-15).
     case daylight = 6
 
+    // 2026-10-31 (Keshab): Lantern, Lantern Day, Quiet Native, Luminous, Warm, Ivory & Emerald and Cloud White & Cobalt
+    // are gone; their colours did not pair well. A stored choice of one (raw 0-4, 9, 11) reads back as Void.
+
     // Workspace reference themes. Existing raw values stay stable for saved preferences.
-    case sapphire = 7, champagne, emerald, plum, cobalt, teal
+    case sapphire = 7, champagne
+    case plum = 10
+    case teal = 12
     /// Neutral graphite with one ember-orange accent, after the agent app Keshab chose as the reference (2026-10-31).
     case ember = 13
 
@@ -30,16 +24,9 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
     public var title: String {
         switch self {
         case .void: "Void"
-        case .lantern: "Lantern"
-        case .lanternDay: "Lantern Day"
-        case .native: "Quiet Native"
-        case .luminous: "Luminous"
-        case .warm: "Warm"
         case .daylight: "Daylight"
         case .teal: "Obsidian & Electric Teal"
-        case .cobalt: "Cloud White & Cobalt"
         case .plum: "Royal Plum & Lavender"
-        case .emerald: "Ivory & Emerald"
         case .champagne: "Graphite & Champagne Gold"
         case .sapphire: "Midnight Sapphire"
         case .ember: "Graphite & Ember"
@@ -48,16 +35,9 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
     public var detail: String {
         switch self {
         case .void: "Flat black with hairlines; colour only where it shows a status"
-        case .lantern: "Night glass lit only by ATOM's light"
-        case .lanternDay: "Pale glass by day, with ATOM's light"
-        case .native: "Dark glass with one teal accent, like a built-in Mac app"
-        case .luminous: "Near-black glass with a cyan-to-violet glow"
-        case .warm: "Light paper glass with a coral accent"
         case .daylight: "Flat light with hairlines and one indigo accent"
         case .teal: "Deep green-black surfaces with a teal accent."
-        case .cobalt: "Pale blue-white surfaces with a cobalt accent."
         case .plum: "Deep plum surfaces with a lavender accent."
-        case .emerald: "Warm ivory surfaces with an emerald accent."
         case .champagne: "Graphite surfaces with a muted gold accent."
         case .sapphire: "Deep blue surfaces with a periwinkle accent."
         case .ember: "Neutral graphite, quiet hairlines and one ember-orange accent."
@@ -177,13 +157,8 @@ public struct ThemePalette: Sendable, Equatable {
     public static func `for`(_ theme: AppTheme) -> ThemePalette {
         switch theme {
         case .void: void
-        case .lantern: lantern
-        case .lanternDay: lanternDay
-        case .native: native
-        case .luminous: luminous
-        case .warm: warm
         case .daylight: daylight
-        case .sapphire, .champagne, .emerald, .plum, .cobalt, .teal, .ember: WorkspaceColors.for(theme).palette
+        case .sapphire, .champagne, .plum, .teal, .ember: WorkspaceColors.for(theme).palette
         }
     }
 
@@ -225,6 +200,7 @@ public struct ThemePalette: Sendable, Equatable {
         surfaceStyle: .flat, buttonStyle: .ghost, usesGlow: false, usesShadows: false, monoIdentifiers: true,
         statusDots: true, borderHover: RGBA(hex: 0x6E727A), identifier: RGBA(hex: 0xBAA7FF), cornerGap: 8)
 
+    /// Not a theme any more (2026-10-31): Pal's character, the pet and the menu-bar glyph keep drawing with Lantern's light.
     /// Lantern (ADR-084, design study §3 A): night glass, cool greys, one light (#8FD3FF). Amber only when
     /// Pal needs you, coral only when something went wrong; ready and success are the light too.
     public static let lantern = ThemePalette(
@@ -255,44 +231,6 @@ public struct ThemePalette: Sendable, Equatable {
         radiusSurface: 26, radiusCard: 14, radiusControl: 9,
         surfaceTop: RGBA(hex: 0xFAFCFE), glow: RGBA(hex: 0x8FD3FF, alpha: 0.9))
 
-    /// A: dark Liquid-Glass, system-like, one teal accent from Pal's glow.
-    public static let native = ThemePalette(
-        isDark: true,
-        surface: RGBA(hex: 0x202226, alpha: 0.72), surfaceSolid: RGBA(hex: 0x1E2024),
-        border: .white(0.10), rim: .white(0.16),
-        text: .white(0.92), text2: .white(0.66), text3: .white(0.56),
-        fill1: .white(0.06), fill2: .white(0.10), fill3: .white(0.16), separator: .white(0.085),
-        accent: RGBA(hex: 0x5BD6E8), accentEnd: RGBA(hex: 0x5BD6E8), onAccent: RGBA(hex: 0x062A31),
-        live: RGBA(hex: 0x5BD6E8),
-        attention: RGBA(hex: 0xFFB547), onAttention: RGBA(hex: 0x2B1A00),
-        problem: RGBA(hex: 0xFF8A65), success: RGBA(hex: 0x5FD38D),
-        radiusSurface: 18, radiusCard: 10, radiusControl: 6,
-        glow: RGBA(hex: 0x5BD6E8, alpha: 0.5))
 
-    /// B: near-black deep glass; the orb's cyan → periwinkle → violet gradient used sparingly.
-    public static let luminous = ThemePalette(
-        isDark: true,
-        surface: RGBA(hex: 0x0E1016, alpha: 0.80), surfaceSolid: RGBA(hex: 0x0B0D12),
-        border: .white(0.09), rim: .white(0.15),
-        text: .white(0.95), text2: .white(0.68), text3: .white(0.60),
-        fill1: .white(0.05), fill2: .white(0.09), fill3: .white(0.15), separator: .white(0.08),
-        accent: RGBA(hex: 0x7EEBFF), accentEnd: RGBA(hex: 0xB69CFF), onAccent: RGBA(hex: 0x0B0D12),
-        live: RGBA(hex: 0x6FE7FF),
-        attention: RGBA(hex: 0xFFB86B), onAttention: RGBA(hex: 0x2A1600),
-        problem: RGBA(hex: 0xFF7A6B), success: RGBA(hex: 0x62E6B4),
-        radiusSurface: 22, radiusCard: 12, radiusControl: 8,
-        glow: RGBA(hex: 0x7EEBFF, alpha: 0.5))
 
-    /// C: warm off-white paper glass, ink type, coral accent, mint for live states.
-    public static let warm = ThemePalette(
-        isDark: false,
-        surface: RGBA(hex: 0xFBF8F3, alpha: 0.88), surfaceSolid: RGBA(hex: 0xFBF8F3),
-        border: .ink(0x462D14, 0.14), rim: .white(0.9),
-        text: RGBA(hex: 0x1D1B18), text2: .ink(0x1D1B18, 0.76), text3: .ink(0x1D1B18, 0.64),
-        fill1: .ink(0x604828, 0.05), fill2: .ink(0x604828, 0.08), fill3: .ink(0x604828, 0.13), separator: .ink(0x1D1B18, 0.09),
-        accent: RGBA(hex: 0xBF4527), accentEnd: RGBA(hex: 0xBF4527), onAccent: .white(1),
-        live: RGBA(hex: 0x08776A),
-        attention: RGBA(hex: 0x8F5600), onAttention: .white(1),
-        problem: RGBA(hex: 0xB83F22), success: RGBA(hex: 0x167A53),
-        radiusSurface: 22, radiusCard: 14, radiusControl: 10)
 }

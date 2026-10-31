@@ -34,15 +34,9 @@ import Testing
     }
 
     @Test func darkAndLightThemes() {
-        #expect(AppTheme.native.palette.isDark)
-        #expect(AppTheme.luminous.palette.isDark)
-        #expect(!AppTheme.warm.palette.isDark)
-        #expect(AppTheme.lantern.palette.isDark)
-        #expect(!AppTheme.lanternDay.palette.isDark)
-        #expect(AppTheme.void.palette.isDark)
+        #expect(AppTheme.void.palette.isDark && AppTheme.ember.palette.isDark && AppTheme.teal.palette.isDark)
         #expect(!AppTheme.daylight.palette.isDark)
-        #expect(AppTheme.luminous.palette.accentIsGradient)
-        #expect(!AppTheme.native.palette.accentIsGradient)
+        #expect(!AppTheme.allCases.contains { $0.palette.accentIsGradient }, "every theme left has one flat accent")
     }
 
     @Test func cornerRadiiAreConcentric() {
@@ -66,9 +60,9 @@ import Testing
 
         let settings = IslandSettings(defaults: defaults)
         #expect(settings.theme == .void)
-        settings.theme = .warm
+        settings.theme = .plum
         let reloaded = IslandSettings(defaults: defaults)
-        #expect(reloaded.theme == .warm)
+        #expect(reloaded.theme == .plum)
         reloaded.resetAppearance()
         #expect(reloaded.theme == .void)
     }
@@ -97,7 +91,6 @@ import Testing
             #expect(RGBA.contrast(p.accent, p.surfaceSolid) >= 4.5, "light as text")
             #expect(RGBA.contrast(p.attention, p.surfaceSolid) >= 4.5, "amber as text (meter at 86%)")
         }
-        #expect(ThemePalette.warm.glow.a == 0, "Warm keeps its paper look: no glow")
     }
 
     /// Daylight (2026-10-15): Void's flat look in light, from the UI playground. A stored choice of 6 reads back, and
@@ -114,46 +107,21 @@ import Testing
         defaults.removePersistentDomain(forName: suite)
     }
 
-    /// ADR-084, then ADR-086: anyone still on an old default (Quiet Native, then Lantern) moves on once.
-    @MainActor @Test func oldDefaultsMoveOnOnce() {
-        func fresh(_ setup: (UserDefaults) -> Void) -> (IslandSettings, UserDefaults, String) {
-            let suite = "atom.test.theme.move.\(UUID().uuidString)"
+    /// 2026-10-31 (Keshab): seven themes were removed. A stored choice of any of them reads back as Void; the rest stay.
+    @MainActor @Test func removedThemesFallBackToVoid() {
+        for removed in [0, 1, 2, 3, 4, 9, 11] {
+            let suite = "atom.test.theme.removed.\(UUID().uuidString)"
             let defaults = UserDefaults(suiteName: suite)!
-            setup(defaults)
-            return (IslandSettings(defaults: defaults), defaults, suite)
+            defaults.set(removed, forKey: IslandSettings.themeKey)
+            #expect(IslandSettings(defaults: defaults).theme == .void, "raw \(removed)")
+            defaults.removePersistentDomain(forName: suite)
         }
-        // A new install.
-        let (new, d1, s1) = fresh { _ in }
-        defer { d1.removePersistentDomain(forName: s1) }
-        #expect(new.theme == .void)
-
-        // Quiet Native stored before Lantern existed (picked, or the old default after a reset): through Lantern to Void.
-        let (old, d2, s2) = fresh { $0.set(AppTheme.native.rawValue, forKey: IslandSettings.themeKey) }
-        defer { d2.removePersistentDomain(forName: s2) }
-        #expect(old.theme == .void)
-        #expect(IslandSettings(defaults: d2).theme == .void, "the move is saved")
-        // Choosing Quiet Native again after the move sticks.
-        old.theme = .native
-        #expect(IslandSettings(defaults: d2).theme == .native)
-
-        // Lantern stored by the ADR-084 move (or a reset, or a pick: they look the same) moves to Void once.
-        let (lit, d4, s4) = fresh {
-            $0.set(true, forKey: IslandSettings.lanternMoveKey)
-            $0.set(AppTheme.lantern.rawValue, forKey: IslandSettings.themeKey)
-        }
-        defer { d4.removePersistentDomain(forName: s4) }
-        #expect(lit.theme == .void)
-        // Picking Lantern after the move sticks, and so does Lantern Day.
-        lit.theme = .lantern
-        #expect(IslandSettings(defaults: d4).theme == .lantern)
-        let (day, d5, s5) = fresh { $0.set(AppTheme.lanternDay.rawValue, forKey: IslandSettings.themeKey) }
-        defer { d5.removePersistentDomain(forName: s5) }
-        #expect(day.theme == .lanternDay)
-
-        // Any other stored choice is kept.
-        let (warm, d3, s3) = fresh { $0.set(AppTheme.warm.rawValue, forKey: IslandSettings.themeKey) }
-        defer { d3.removePersistentDomain(forName: s3) }
-        #expect(warm.theme == .warm)
+        #expect(AppTheme.allCases.map(\.rawValue).sorted() == [5, 6, 7, 8, 10, 12, 13])
+        let suite = "atom.test.theme.kept.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.set(AppTheme.teal.rawValue, forKey: IslandSettings.themeKey)
+        #expect(IslandSettings(defaults: defaults).theme == .teal)
+        defaults.removePersistentDomain(forName: suite)
     }
 
     /// Void (ADR-086): the reference's colours and radii, and every glow, shadow and fill turned off. Older themes keep

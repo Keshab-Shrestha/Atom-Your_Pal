@@ -33,7 +33,7 @@ extension IslandGallery {
         if let event = try? decodeEvent(#"{"type":"helpers","apps":[],"usage":{"today":{"input":2400,"output":900,"cacheRead":190000,"cacheWrite":38000,"dollars":0.42,"runs":6},"week":{"input":19000,"output":7600,"cacheRead":1400000,"cacheWrite":290000,"dollars":3.1,"runs":41},"days":[],"byWorker":[],"byModel":[]},"helpers":[{"id":"sid","name":"Sid","role":"researcher","available":true,"jobs":[]}]}"#) { model.apply(event) }
         model.windowPage = .chat
         model.workspace.tab = "files"
-        for theme in [AppTheme.ember, .sapphire, .champagne, .emerald, .plum, .cobalt, .teal] {
+        for theme in [AppTheme.ember, .sapphire, .champagne, .plum, .teal] {
             model.settings.theme = theme; model.workspace.shown = true
             save(HelpersView(model: model).frame(width: 1440, height: 900).environment(\.islandSnapshot, true),
                  name: "43-workspace-\(theme.rawValue)", to: directory)
@@ -42,7 +42,7 @@ extension IslandGallery {
         let inspection = #"{"action":"inspect","id":"cedar","request":"gallery","ok":true,"brief":{"text":"Cedar launch on Thursday. Owner: Mira. Keep the audience, release date and owner together.","version":1},"recall":{"summary":"Used two remembered facts for the latest request.","details":"Prefers short summaries. Likes plain words.","at":"2026-10-28 09:14"},"continuity":{"enabled":false,"version":1,"status":"Automatic summaries are off for this chat.","summary":null},"info":{"messages":12,"archiveBytes":9000,"replayBytes":30000,"replayBudget":120000,"omitted":0,"access":{"provider":"codex","hostTools":true,"project":true,"fileGrants":2,"computer":false,"web":false}}}"#
         model.chatControls.snapshot = try? JSONDecoder().decode(ChatControlResponse.self, from: Data(inspection.utf8))
         model.workspace.tab = "details"
-        for theme in [AppTheme.sapphire, .cobalt] {
+        for theme in [AppTheme.sapphire, .daylight] {
             model.settings.theme = theme; model.workspace.shown = true
             save(HelpersView(model: model).frame(width: 1440, height: 900).environment(\.islandSnapshot, true),
                  name: "43-workspace-details-\(theme.rawValue)", to: directory)
