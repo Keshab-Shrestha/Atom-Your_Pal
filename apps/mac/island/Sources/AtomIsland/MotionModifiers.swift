@@ -1,4 +1,5 @@
 import SwiftUI
+import AtomIslandCore
 
 // One shared set of press, hover-depth and pointer-tilt rules (2026-10-31 UX pass). Ideas from web component
 // libraries (Aceternity's 3D tilt and wobble cards, Kobra's springing focus ring), rebuilt in SwiftUI on

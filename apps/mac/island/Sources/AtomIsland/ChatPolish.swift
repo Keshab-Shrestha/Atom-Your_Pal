@@ -1,4 +1,5 @@
 import SwiftUI
+import AtomIslandCore
 
 // Chat and composer polish (2026-10-31 UX pass): a softer focus ring and a selection that slides between menu rows.
 // Ideas from Kobra's input (a focus ring that settles, not snaps), rebuilt on the theme's tokens and `Motion`.
