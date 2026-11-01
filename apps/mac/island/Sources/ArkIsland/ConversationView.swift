@@ -750,7 +750,10 @@ struct ConversationTab: View {
                 }
             }
             composer
-            if model.conversation.isEmpty { Spacer(minLength: 0) }
+            if model.conversation.isEmpty {
+                NewChatSuggestionList(model: model).frame(maxWidth: ChatAppearance.readingWidth).padding(.horizontal, Spacing.conversation)
+                Spacer(minLength: 0)
+            }
         }
         .frame(maxWidth: .infinity)
     }
@@ -763,14 +766,17 @@ private struct EmptyConversation: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            // unslop: the title names the context, not a greeting.
-            Text("New chat")
+            // 2026-11-02 (the Codex reference): the title names the work's place, not a greeting.
+            let project = model.chats?.currentProject
+            Text(project.map { "What should we build in \($0.name)?" } ?? "What should we work on?")
                 .appFont(.system(size: 26, weight: .medium))
                 .foregroundStyle(theme.text.color)
-            Text("Ask a question or start something new")
-                .appFont(.system(size: 14)).foregroundStyle(theme.text3.color)
+                .multilineTextAlignment(.center)
+            if let project {
+                Label(project.folderLabel, systemImage: "folder").appFont(.system(size: 12)).foregroundStyle(theme.text3.color)
+                    .padding(.horizontal, 12).frame(height: 26).background(Capsule().fill(theme.fill1.color))
+            }
             BriefCard(model: model).padding(.top, 8).frame(maxWidth: 520) // upgrades.md C3: today's brief, when there is one
-            EmptyConversationExamples(model: model).padding(.top, 8)
         }
     }
 
@@ -1019,5 +1025,44 @@ struct ThinkingDots: View {
             }
         }
         .accessibilityLabel("Thinking")
+    }
+}
+
+/// Under a new chat's box: the last chat to continue and the tasks that wait or run (NewChatSuggestions), or the examples before there are any.
+private struct NewChatSuggestionList: View {
+    let model: IslandModel
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let items = NewChatSuggestions.items(chats: model.chats?.chats ?? [], current: model.chats?.current, project: model.chats?.currentProject?.id,
+                                             helpers: model.helpers.list?.helpers ?? [])
+        if items.isEmpty {
+            EmptyConversationExamples(model: model).padding(.top, 4)
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(items) { item in
+                    Button { run(item.action) } label: {
+                        HStack(spacing: 12) {
+                            Glyph(systemName: { if case .openTask = item.action { return "person.2" } else { return "text.bubble" } }())
+                                .foregroundStyle(theme.text3.color).frame(width: 16)
+                            Text(item.title).foregroundStyle(theme.text2.color).lineLimit(1)
+                            Spacer(minLength: 8)
+                            Text(item.detail).foregroundStyle(theme.text3.color).lineLimit(1)
+                        }
+                        .appFont(.system(size: 13))
+                        .padding(.horizontal, 12).frame(height: 36)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.pressable)
+                }
+            }
+        }
+    }
+
+    private func run(_ action: NewChatSuggestions.Action) {
+        switch action {
+        case .openChat(let id): model.openSavedInput(id)
+        case .openTask(let id): model.navigate { model.windowPage = .agents; model.sendHelpers(model.helpers.openThread(id)) }
+        }
     }
 }
