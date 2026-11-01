@@ -133,7 +133,7 @@ struct PlainFailureTests {
         let f = try #require(PlainFailure.forStatus(.failed("ATOM's runtime keeps stopping: it exited with code 1")))
         #expect(f.action == .restartRuntime)
         #expect(f.offersLog)
-        #expect(f.sentence == "ATOM stopped after crashing several times.")
+        #expect(f.sentence == "ATOM stopped repeatedly. Restart it, or open the log for the cause.")
     }
 
     @Test func configErrorUsesTheKnownSentenceAndRestarts() throws {

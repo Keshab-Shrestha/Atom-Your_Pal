@@ -859,6 +859,7 @@ test("helpers.list sends every helper in order with the installed apps, sorted",
         pinnedModel: null,
         browser: false, // ADR-098
         planFirst: false,
+        paused: false,
         routines: [],
         grants: [],
         skills: [],

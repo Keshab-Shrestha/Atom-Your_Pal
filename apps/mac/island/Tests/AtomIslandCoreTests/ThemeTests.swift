@@ -42,7 +42,8 @@ import Testing
     @Test func cornerRadiiAreConcentric() {
         for theme in AppTheme.allCases {
             let p = theme.palette
-            #expect(p.radiusSurface > p.radiusCard && p.radiusCard > p.radiusControl)
+            // The workspace themes (2026-10-25) give the window and its cards one radius.
+            #expect(p.radiusSurface >= p.radiusCard && p.radiusCard > p.radiusControl, "\(theme.title)")
         }
     }
 
@@ -148,7 +149,8 @@ import Testing
         #expect(on(p.borderHover) > on(p.border), "hover brightens the hairline")
         #expect(!AppTheme.allCases.filter { $0 != .void && $0 != .daylight }.contains { t in
             let q = t.palette
-            return q.surfaceStyle != .glass || q.buttonStyle != .filled || !q.usesGlow || !q.usesShadows || q.monoIdentifiers || q.statusDots
-        }, "the other themes look as before")
+            // The workspace themes (2026-10-25): filled buttons and shadows, no glow, no mono identifiers.
+            return q.buttonStyle != .filled || q.usesGlow || !q.usesShadows || q.monoIdentifiers
+        }, "the other themes keep the workspace look")
     }
 }
