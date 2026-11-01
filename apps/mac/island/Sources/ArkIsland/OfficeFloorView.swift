@@ -22,13 +22,14 @@ struct OfficeFloor: View {
         let plan = model.helpers.list.map { OfficePlan(list: $0) } ?? OfficePlan(list: HelpersList(helpers: [], apps: []))
         let looks = Dictionary(uniqueKeysWithValues: plan.seats.compactMap { s in PalLibrary.character(for: s.helperId).map { (s.helperId, $0) } })
         let scene = OfficeScene(plan: plan, looks: looks, pal: PalLibrary.pal, palBusy: model.status.isBusy, walker: walker.wrappedValue, animate: !snapshot && !reduceMotion)
+        let lights = model.settings.studioLightsOn
         GeometryReader { proxy in
             // Vector art: as large as fits, at any scale.
             let scale = max(0.5, proxy.size.width / CGFloat(OfficeMap.width))
             let size = CGSize(width: CGFloat(OfficeMap.width) * scale, height: CGFloat(OfficeMap.height) * scale)
             ticking { date in
                 Canvas { context, _ in
-                    OfficeDrawing.tones = theme.isDark ? theme : nil
+                    OfficeDrawing.lightsOn = lights
                     scene.draw(in: &context, scale: scale, date: date)
                 }
                     .frame(width: size.width, height: size.height)
@@ -41,7 +42,7 @@ struct OfficeFloor: View {
             }
         }
         .aspectRatio(CGFloat(OfficeMap.width) / CGFloat(OfficeMap.height), contentMode: .fit)
-        .background(Color(red: 0.91, green: 0.94, blue: 0.92))
+        .background(OfficeDrawing.paper(lightsOn: lights))
         .clipShape(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
             .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
@@ -57,6 +58,21 @@ struct OfficeFloor: View {
                 }
             }
         }
+        .overlay(alignment: .topTrailing) { bulb(lights) }
+    }
+
+    /// The Studio's light (2026-11-02, Keshab: the floor was too dark in a dark theme): pale print or navy print, remembered.
+    private func bulb(_ on: Bool) -> some View {
+        Button { model.settings.studioLightsOn.toggle() } label: {
+            Glyph(systemName: on ? "lightbulb.fill" : "lightbulb").appFont(.system(size: 13, weight: .medium))
+                .foregroundStyle(on ? Color(red: 0.93, green: 0.66, blue: 0.22) : OfficeDrawing.line(lightsOn: on))
+                .frame(width: 28, height: 28)
+                .background(Circle().fill(OfficeDrawing.line(lightsOn: on).opacity(0.12)))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain).padding(8)
+        .help(on ? "Turn the Studio lights off" : "Turn the Studio lights on")
+        .accessibilityLabel("Studio lights").accessibilityValue(on ? "On" : "Off")
     }
 
     /// A worker clicked: its task, or its page. Pal: the chat.

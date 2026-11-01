@@ -20,6 +20,7 @@ public final class IslandSettings {
     static let startPageKey = "ark.defaults.startPage"
     static let lastWindowPageKey = "ark.defaults.lastPage"
     static let dashboardRangeKey = "ark.defaults.dashboardRange"
+    static let studioLightsKey = "ark.board.studioLights"
     static let soundsKey = "ark.soundsEnabled"
     static let speakReportsKey = "ark.speech.reports"
     static let speakUpdatesKey = "ark.speech.updates"
@@ -156,6 +157,8 @@ public final class IslandSettings {
     /// For `StartPage.last`: chat, board or dashboard, kept when the window closes. Not a choice, so no revision.
     public var lastWindowPage: StartPage { didSet { defaults.set(lastWindowPage.rawValue, forKey: Self.lastWindowPageKey) } }
     public var dashboardRange: DashboardRange { didSet { store(dashboardRange.rawValue, Self.dashboardRangeKey) } }
+    /// The bulb on the Board's Studio (2026-11-02): on draws the blueprint on pale paper, off on navy. Default off.
+    public var studioLightsOn: Bool { didSet { defaults.set(studioLightsOn, forKey: Self.studioLightsKey) } }
 
     /// Start and stop sounds. Default on.
     public var soundsEnabled: Bool {
@@ -272,6 +275,7 @@ public final class IslandSettings {
         startPage = defaults.string(forKey: Self.startPageKey).flatMap(StartPage.init(rawValue:)) ?? .chat
         lastWindowPage = defaults.string(forKey: Self.lastWindowPageKey).flatMap(StartPage.init(rawValue:)).flatMap { $0 == .last ? nil : $0 } ?? .chat
         dashboardRange = Self.choice(defaults, Self.dashboardRangeKey, .week)
+        studioLightsOn = defaults.bool(forKey: Self.studioLightsKey)
         typeface = Self.choice(defaults, Self.typefaceKey, .system)
         theme = Self.choice(defaults, Self.themeKey, .void)
         sidebar = SidebarLayout(storage: defaults.string(forKey: Self.sidebarKey))

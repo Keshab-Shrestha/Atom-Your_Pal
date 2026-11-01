@@ -3919,3 +3919,23 @@ Keshab asked for three things: the model picker scrolled badly, the models had n
 
 - With Full access as the default, every new chat from the window starts without routine prompts. Keshab confirms this once in Settings, not per chat. External-content taint still asks.
 - Forked chats still start in Saved permissions.
+
+## ADR-217 — Studio as a blueprint, with a light bulb (2026-11-02)
+
+### Context
+
+Keshab asked for a different art style on the Board's Studio and a light bulb, because the floor was too dark in a dark theme. The old floor mapped every part to the dark theme's near-black tones. He chose the Blueprint style and a bulb that turns the lights on and off and is remembered.
+
+### Decision
+
+- `OfficeDrawing` draws the Studio as an architect's blueprint: a fine and a heavy grid, hairline furniture, solid walls, door swings, a dimension line and a title block. Labels are uppercase monospaced text. Only live things keep colour: a working screen (cyan), alerts, notes and confetti (amber, red). The characters, bubbles and nameplates do not change.
+- The print does not follow the app theme. A bulb button at the Studio's top right switches it:
+  - Lights off (default): navy paper with white lines.
+  - Lights on: pale paper with blue lines.
+- `IslandSettings.studioLightsOn` (key `ark.board.studioLights`) keeps the choice.
+- The map, the furniture anchors, the click targets and walking do not change.
+
+### Consequences
+
+- A dark theme no longer makes the Studio near-black: the navy print has clear contrast in every theme.
+- The "+N" signs are white cards, so their dark text reads on both prints.
