@@ -182,7 +182,8 @@ struct ActivityHeatmap: View {
     private var summary: String {
         guard mode == .calendar else { return "\(events.count) \(unit) by weekday and hour" }
         let yearAgo = calendar.date(byAdding: .year, value: -1, to: lastDay) ?? .distantPast
-        return "\(events.filter { $0 > yearAgo }.count) \(unit) in the last year"
+        let streak = ActivityStreak.days(events, calendar: calendar) // 2026-11-02
+        return "\(events.filter { $0 > yearAgo }.count) \(unit) in the last year" + (streak > 1 ? " · \(streak)-day streak" : "")
     }
 
     private var peak: String {
