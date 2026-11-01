@@ -44,6 +44,9 @@ public final class RuntimeSupervisor: @unchecked Sendable {
     private var stdoutClosed = false
     private var pending: [DispatchWorkItem] = [] // restart and stop-escalation timers
     private var quitting = false
+    /// Writes to the runtime's input block when it stops reading and the pipe is full. They run here, never on `queue`, so stop()
+    /// and its kill timers still run; the kill then frees the blocked write (2026-11-01: quit hung). Serial, so commands keep their order.
+    private let writer = DispatchQueue(label: "atom.runtime.input")
 
     public init(
         launch: RuntimeLaunch,
@@ -103,10 +106,12 @@ public final class RuntimeSupervisor: @unchecked Sendable {
                 onCommandDropped?(command)
                 return
             }
-            do {
-                try input.write(contentsOf: Data(command.line.utf8))
-            } catch {
-                log.warn("island.command_failed", ["command": command.type, "message": error.localizedDescription])
+            writer.async { [log] in
+                do {
+                    try input.write(contentsOf: Data(command.line.utf8))
+                } catch {
+                    log.warn("island.command_failed", ["command": command.type, "message": error.localizedDescription])
+                }
             }
         }
     }
@@ -132,9 +137,11 @@ public final class RuntimeSupervisor: @unchecked Sendable {
             stopping = true
             let pid = process.processIdentifier
             if let input {
-                try? input.write(contentsOf: Data(IslandCommand.quit.line.utf8))
-                try? input.close()
                 self.input = nil
+                writer.async { // after any command still being written
+                    try? input.write(contentsOf: Data(IslandCommand.quit.line.utf8))
+                    try? input.close()
+                }
             }
             let gen = generation
             schedule(after: stopTimeout) { [self] in
@@ -259,6 +266,8 @@ public final class RuntimeSupervisor: @unchecked Sendable {
         default:
             break
         }
+        // The app is quitting: what the runtime says while it writes its notes must not show a window again (2026-11-01).
+        if quitting { return }
         onEvent(event)
     }
 

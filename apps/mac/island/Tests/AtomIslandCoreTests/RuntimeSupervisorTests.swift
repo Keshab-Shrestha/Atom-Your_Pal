@@ -210,6 +210,39 @@ struct RuntimeSupervisorTests {
         #expect(supervisor.currentStatus() == .stopped)
     }
 
+    /// 2026-11-01: a runtime that stops reading its input filled the pipe; the next write blocked the supervisor's queue, so stop() never ran
+    /// and quit hung. Writes now go on their own queue: stop's kill timers still run, and the kill frees the blocked write.
+    @Test func aRuntimeThatStopsReadingDoesNotHangQuit() async throws {
+        let script = """
+        trap '' PIPE TERM
+        echo '\(Self.ready)'
+        while true; do sleep 0.05; done
+        """
+        let (supervisor, recorder) = make(script, stopTimeout: 0.3)
+        supervisor.start()
+        try await waitUntil { !recorder.events.isEmpty }
+        let line = String(repeating: "x", count: 16 * 1024)
+        for _ in 0..<12 { supervisor.send(.textSend(line)) } // 192 KiB: far past the 64 KiB pipe buffer
+        let started = Date()
+        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in supervisor.stop(forQuit: true) { done.resume() } }
+        #expect(Date().timeIntervalSince(started) < 3, "quit finished: the runtime was killed")
+        #expect(supervisor.currentStatus() == .stopped)
+    }
+
+    /// 2026-11-01: while the app quits, events from the runtime (it writes notes for up to 10 s) are not passed on, so no window shows again.
+    @Test func eventsAfterQuitBeganAreNotPassedOn() async throws {
+        let script = """
+        echo '\(Self.ready)'
+        while IFS= read -r line; do case "$line" in *quit*) echo '{"type":"state","state":"listening"}'; sleep 0.2; exit 0 ;; esac; done
+        """
+        let (supervisor, recorder) = make(script)
+        supervisor.start()
+        try await waitUntil { !recorder.events.isEmpty }
+        let before = recorder.events.count
+        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in supervisor.stop(forQuit: true) { done.resume() } }
+        #expect(recorder.events.count == before, "the runtime's line during quit stayed in the supervisor")
+    }
+
     /// 2026-10-16 (code review): a Computer-control restart in flight and a quit: the restart started a new runtime after the app had decided to exit.
     @Test func aRestartUnderWayDoesNotStartARuntimeWhenTheAppIsQuitting() async throws {
         let script = """
