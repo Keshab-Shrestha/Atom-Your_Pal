@@ -13,6 +13,8 @@ public struct ChatAgentRow: Sendable, Equatable, Identifiable {
     public let error: String?
     public let startedAt: Date?
     public let endedAt: Date?
+    /// How deep in the tree (2026-11-02): 0 for an agent ARK started, 1 for one that agent started, and so on.
+    public var depth = 0
 
     /// What the row says under the name: the live step while it runs, then the report's line or why it failed.
     public var detail: String? {
@@ -39,8 +41,20 @@ public enum ChatAgentWork {
                              step: job.step, summary: job.summary, error: job.error, startedAt: job.createdAt, endedAt: job.endedAt)
             }
         }
-        return rows
+        let shown = rows
             .filter { $0.state.isActive || $0.endedAt.map { now.timeIntervalSince($0) < keepFinished } == true }
             .sorted { ($0.startedAt ?? .distantPast, $0.id) < ($1.startedAt ?? .distantPast, $1.id) }
+        // A tree (2026-11-02): each sub-agent right under the agent that started it, one step deeper. A parent that is not shown makes a root.
+        let parents = Dictionary(helpers.flatMap { $0.jobs.compactMap { job in job.parentId.map { (job.id, $0) } } }, uniquingKeysWith: { a, _ in a })
+        let ids = Set(shown.map(\.id))
+        var ordered: [ChatAgentRow] = []
+        func place(_ row: ChatAgentRow, depth: Int) {
+            var row = row
+            row.depth = depth
+            ordered.append(row)
+            for child in shown where parents[child.id] == row.id && depth < 8 { place(child, depth: depth + 1) }
+        }
+        for root in shown where parents[root.id].map({ !ids.contains($0) }) ?? true { place(root, depth: 0) }
+        return ordered
     }
 }

@@ -81,6 +81,13 @@ private struct ChatAgentRowView: View {
             }
         }
         .padding(.vertical, 4)
+        // A sub-agent sits under the agent that started it, with a guide line (2026-11-02).
+        .padding(.leading, CGFloat(row.depth) * 20)
+        .overlay(alignment: .leading) {
+            if row.depth > 0 {
+                Rectangle().fill(theme.separator.color).frame(width: 1).padding(.leading, CGFloat(row.depth) * 20 - 14)
+            }
+        }
     }
 
     @ViewBuilder private var mark: some View {

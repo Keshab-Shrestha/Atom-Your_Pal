@@ -26,4 +26,15 @@ struct ChatAgentWorkTests {
         #expect(rows.map(\.agent) == ["Kame", "Kame", "Sid"])
         #expect(ChatAgentWork.rows(helpers: [kame, sid], chat: nil, now: now).isEmpty)
     }
+
+    @Test("a sub-agent sits right under the agent that started it, one step deeper")
+    func nestsByParent() {
+        var child = job(9, .running, chat: "c1", started: -10, step: "Reading a file")
+        child.parentId = 3
+        let kame = Helper(id: "kame", name: "Kame", available: true, app: nil, jobs: [job(3, .running, chat: "c1", started: -30), child], role: "coder")
+        let sid = Helper(id: "sid", name: "Sid", available: true, app: nil, jobs: [job(5, .running, chat: "c1", started: -20)], role: "researcher")
+        let rows = ChatAgentWork.rows(helpers: [kame, sid], chat: "c1", now: now)
+        #expect(rows.map(\.id) == [3, 9, 5])
+        #expect(rows.map(\.depth) == [0, 1, 0])
+    }
 }
