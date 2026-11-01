@@ -314,6 +314,18 @@ export function createRuntime(
     for (const listener of chatListeners) listener();
     return true;
   };
+  // What a deleted chat leaves outside its own rows, for one chat, all chats or a project's chats: no running turn saves
+  // it back, and no chat note, kept copy, receipt or file stays behind, so the Second brain forgets it (2026-11-01).
+  const forgetChat = (id: string) => {
+    if (!memory) return;
+    chatTurns.markDeleted(id);
+    continuity?.forget(id);
+    memory.recallReceipts?.forget(id);
+    episodes?.discard(id); // ADR-108: no note for a deleted chat
+    const forgotten = [memory.removeSessionEpisode(id), memory.chatIndex.drop(id)].some(Boolean);
+    attachments?.remove(id); // ADR-113: and none of its files
+    if (forgotten) for (const listener of memoryListeners) listener(); // Memory page and the Second brain follow
+  };
   const islandChats: IslandChats | undefined = memory && {
     lastOpened: () => memory.chats.lastOpened(),
     rememberOpened: (id) => memory.chats.rememberOpened(id),
@@ -345,16 +357,8 @@ export function createRuntime(
     },
     messages: (id) => memory.chats.messages(id),
     remove: (id) => {
-      chatTurns.markDeleted(id); // a turn running in it must not save it back
-      continuity?.forget(id);
-      memory.recallReceipts?.forget(id);
-      episodes?.discard(id); // ADR-108: no note for a deleted chat
-      // The note already written and a kept copy go too, so the Second brain forgets the chat (2026-11-01).
-      const forgotten = [memory.removeSessionEpisode(id), memory.chatIndex.drop(id)].some(Boolean);
-      attachments?.remove(id); // ADR-113: and none of its files
-      const removed = memory.chats.remove(id);
-      if (forgotten) for (const listener of memoryListeners) listener(); // Memory page and the Second brain follow
-      return removed;
+      forgetChat(id);
+      return memory.chats.remove(id);
     },
     modelOf: (id) => memory.chats.model(id) ?? projects?.modelOf(id), // ADR-107: the chat's own, else its project's
     rename: (id, title) => projects?.renameChat(id, title) ?? { error: "Projects are off." },
@@ -445,7 +449,12 @@ export function createRuntime(
         ...(helpers ? { helpers } : {}),
         log,
         checkModel: (provider, model) => settings.check(provider, model),
-        onChatsDeleted: (chatIds) => chatIds.forEach((chatId) => { chatTurns.markDeleted(chatId); memory.foreground.forgetChat(chatId); }),
+        // The project store drops the rows itself, so what `chats.remove` clears on its way out is cleared here too.
+        onChatsDeleted: (chatIds) => chatIds.forEach((chatId) => {
+          forgetChat(chatId);
+          memory.foreground.forgetChat(chatId);
+          memory.filePermissions.forChat(chatId).revokeAll();
+        }),
       })
     : undefined;
   // ADR-091: ATOM's task branches in the repositories Keshab granted; pushing one is his alone, asked from the window.
