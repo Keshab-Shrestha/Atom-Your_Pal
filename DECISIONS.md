@@ -3961,3 +3961,20 @@ Keshab asked to remove all typefaces and use the best-looking fonts from his lis
 
 - The app is about 3.7 MB larger. Lato is 2.6 MB of that.
 - Monospaced text stays SF Mono in every typeface.
+
+## ADR-219 — ARK states facts plainly (2026-11-02)
+
+### Context
+
+Keshab asked why ARK replies with "most likely". The case in the archive was a match result: one web source still listed the match as upcoming, and two others reported the score. The model hedged. No ARK prompt asked for hedging.
+
+### Decision
+
+- The prompts with tools (Claude, the team prompt and Codex) add one rule: "State facts plainly. When sources disagree, give the newest confirmed answer and name its source, instead of hedging with "most likely"."
+- The plain prompt for providers with no tools does not change, because it has no sources.
+
+### Consequences
+
+- Replies name the source ("ESPN reports a 3-0 win") instead of "most likely".
+- ARK can sound sure about an answer that a later source corrects. The named source shows the user where the answer comes from.
+- The system prompt text changes once, so the prompt cache starts again for each chat.

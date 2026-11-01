@@ -4,7 +4,7 @@ import type { Message, ProjectFiles, ToolRunner } from "@ark/contracts";
 import { answerTail, MAX_PROJECT_FILE_CALLS, type ChatSession, type SessionSdk } from "@ark/llm-gateway";
 import { openHelperStore } from "@ark/helpers";
 import { openMemoryStore } from "@ark/memory";
-import { CONTEXT_LABEL, createNativeCore, NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT, TYPED_NOTE, type NativeCoreDeps } from "./native-core.ts";
+import { CODEX_SYSTEM_PROMPT, CONTEXT_LABEL, createNativeCore, NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT, TYPED_NOTE, type NativeCoreDeps } from "./native-core.ts";
 import { nativeGate } from "./native-safety.ts";
 import { createComputerBridge } from "./computer-bridge.ts";
 
@@ -646,6 +646,13 @@ test("a large shared-chat catch-up is bounded without deleting saved messages or
   await assert.rejects(core.handle({ text: "z".repeat(1100), source: "text" }), /Shorten it or attach/);
   assert.deepEqual(core.history(), complete);
   assert.equal(queries[0]!.sent.length, 2, "the oversized question is never sent to Claude");
+});
+
+// 2026-11-02: Keshab asked why ARK replied "most likely": web sources disagreed and the model hedged.
+test("the prompts with tools tell ARK to state facts plainly and name the source when sources disagree", () => {
+  for (const prompt of [NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT, CODEX_SYSTEM_PROMPT]) {
+    assert.match(prompt, /State facts plainly\. When sources disagree, give the newest confirmed answer and name its source/);
+  }
 });
 
 // 2026-10-16: the prompt tells the main agent when to offer a skill and when to improve one.
