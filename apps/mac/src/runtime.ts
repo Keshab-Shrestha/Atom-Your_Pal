@@ -218,6 +218,9 @@ export function createRuntime(
     onCursorError: () => log.warn("computer.cursor_failed", {}),
   });
   const memory = openMemory(options.memoryPath ?? readEnv(process.env, "ARK_MEMORY_FILE") ?? "data/memory.db", log);
+  // 2026-11-02: images Codex makes in a chat are kept next to the memory file (data/images), owner-only. None for an in-memory test run.
+  const memoryFile = options.memoryPath ?? readEnv(process.env, "ARK_MEMORY_FILE") ?? "data/memory.db";
+  const generatedImages = memoryFile === ":memory:" ? undefined : join(dirname(resolve(memoryFile)), "images");
   let foregroundReady = Boolean(memory);
   try { memory?.foreground.recover(); }
   catch { foregroundReady = false; log.error("foreground.unavailable", {}); }
@@ -811,7 +814,7 @@ export function createRuntime(
                   },
                   ...(!composed ? { observe: chatWork.observe } : {}), ...(nativeTeam ? { team: nativeTeam } : {}), onUsage });
                 routers.set(choice.model, router); codexRouters.add(router);
-                gateway = createGateway({ provider: createCodexSessionAdapter({ program, model: choice.model, runner: (request) => router.forRequest(request), onUsage, onDiagnostic: (data, request) => log.info("codex.turn", { requestId: request.context.requestId, ...data, setup: JSON.stringify(data.setup), context: JSON.stringify(data.context), usage: data.usage ? JSON.stringify(data.usage) : undefined }) }), timeoutMs: Math.max(config.llm.timeoutMs, PLAN_TIMEOUT_MS), maxRetries: 0 });
+                gateway = createGateway({ provider: createCodexSessionAdapter({ program, model: choice.model, runner: (request) => router.forRequest(request), onUsage, ...(generatedImages ? { images: { dir: generatedImages } } : {}), onDiagnostic: (data, request) => log.info("codex.turn", { requestId: request.context.requestId, ...data, setup: JSON.stringify(data.setup), context: JSON.stringify(data.context), usage: data.usage ? JSON.stringify(data.usage) : undefined }) }), timeoutMs: Math.max(config.llm.timeoutMs, PLAN_TIMEOUT_MS), maxRetries: 0 });
                 models.set(choice.model, gateway); codexModels.add(gateway);
               }
               return gateway;

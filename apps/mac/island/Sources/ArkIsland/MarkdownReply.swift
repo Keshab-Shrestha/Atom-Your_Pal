@@ -89,6 +89,15 @@ private struct MarkdownBlockView: View {
             } else {
                 code(s, language: language)
             }
+        case .code(let s, let language) where language?.lowercased() == "svg":
+            // 2026-11-02: a drawing, once it is whole and passes the check; until then a quiet line, then the source.
+            if let svg = ReplySVG.check(s) {
+                ReplySVGView(svg: svg, copyEnabled: copyEnabled)
+            } else if !copyEnabled {
+                Label("Drawing…", systemImage: "scribble").appFont(.system(size: 12)).foregroundStyle(theme.text3.color)
+            } else {
+                code(s, language: language)
+            }
         case .code(let s, let language):
             code(s, language: language)
         case .table(let header, let rows, let alignment):

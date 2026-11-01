@@ -192,3 +192,36 @@ test("Codex catalog discovery times out and closes its owned transport", async (
   await assert.rejects(listCodexModels("fake", { timeoutMs: 10, transport: () => ({ listen() {}, send() {}, close() { closed = true; } }) }), /discovery ended/);
   assert.ok(closed);
 });
+
+// 2026-11-02: Codex image generation. On only when ARK gives an image folder; each image is kept there and added as an image line.
+test("a generated image is kept in ARK's folder and added to the reply; image generation is off without a folder", async () => {
+  const { mkdtempSync, readFileSync, rmSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const { tmpdir } = await import("node:os");
+  const dir = mkdtempSync(join(tmpdir(), "ark-codex-images-"));
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+  let imageFeature: unknown;
+  const fake = fakeCodex(({ start }) => {
+    imageFeature = start.config["features.image_generation"];
+    fake.wires[0]!.emit({ method: "item/completed", params: { threadId: "thread-0", item: { type: "imageGeneration", id: "i1", status: "completed", revisedPrompt: "A cedar [logo]", result: png.toString("base64") } } });
+    fake.wires[0]!.emit({ method: "item/completed", params: { threadId: "thread-0", item: { type: "imageGeneration", id: "i2", status: "failed", failure: { message: "blocked" } } } });
+    fake.wires[0]!.emit({ method: "item/completed", params: { threadId: "thread-0", item: { type: "imageGeneration", id: "i3", status: "completed", result: Buffer.from("not an image").toString("base64") } } });
+    return "Here it is.";
+  });
+  const adapter = createCodexSessionAdapter({ program: "fake", model: "codex-default", runner: () => runner, transport: fake.factory, images: { dir } });
+  try {
+    const reply = (await adapter.complete(request([{ role: "user", content: "Draw a cedar logo." }]), new AbortController().signal)).text;
+    assert.equal(imageFeature, true);
+    const [said, image, failed, unreadable] = reply.split("\n\n");
+    assert.equal(said, "Here it is.");
+    const path = /^!\[A cedar  logo\]\(<(.+\.png)>\)$/.exec(image!)?.[1];
+    assert.ok(path?.startsWith(dir), image);
+    assert.deepEqual(readFileSync(path!), png);
+    assert.equal(failed, "(Codex could not make the image.)");
+    assert.equal(unreadable, "(Codex could not make the image.)");
+  } finally { adapter.close?.(); rmSync(dir, { recursive: true, force: true }); }
+
+  const plain = fakeCodex(({ start }) => { imageFeature = start.config["features.image_generation"]; return "ok"; });
+  const off = createCodexSessionAdapter({ program: "fake", model: "codex-default", runner: () => runner, transport: plain.factory });
+  try { await off.complete(request([{ role: "user", content: "Hi" }]), new AbortController().signal); assert.equal(imageFeature, false); } finally { off.close?.(); }
+});

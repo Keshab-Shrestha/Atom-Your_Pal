@@ -103,3 +103,26 @@ public struct ReplyImage: Equatable, Sendable {
         return fileTypes.contains(url.pathExtension.lowercased()) ? .file(url) : nil
     }
 }
+
+/// A drawing in a reply (2026-11-02, Keshab: "try making a logo"): a ```svg block that the window draws. Only shapes,
+/// paths, gradients and text pass: a script, a link, an embedded or external image, a style import or an entity is
+/// refused, so a drawing cannot fetch anything or run anything. Pure.
+public enum ReplySVG {
+    public static let maxBytes = 64_000
+    private static let refused = ["<script", "<foreignobject", "<!doctype", "<!entity", "<iframe", "<image", "<a ", "<a>",
+                                  "javascript:", "http:", "https:", "data:", "file:", "@import", "href"]
+
+    /// The drawing, or nil when it is not one whole `<svg>…</svg>` within the limits.
+    public static func check(_ text: String) -> String? {
+        let svg = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard svg.utf8.count <= maxBytes else { return nil }
+        let body = svg.hasPrefix("<?xml") ? String(svg.drop(while: { $0 != ">" }).dropFirst()).trimmingCharacters(in: .whitespacesAndNewlines) : svg
+        guard body.lowercased().hasPrefix("<svg"), body.lowercased().hasSuffix("</svg>") else { return nil }
+        // The SVG namespace is an address in text only; nothing is fetched from it.
+        let scanned = body.replacingOccurrences(of: #"\sxmlns(:\w+)?\s*=\s*"[^"]*""#, with: " ", options: .regularExpression).lowercased()
+        if refused.contains(where: scanned.contains) { return nil }
+        // Event attributes such as onload= or onclick=.
+        if scanned.range(of: #"\son[a-z]+\s*="#, options: .regularExpression) != nil { return nil }
+        return body
+    }
+}

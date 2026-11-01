@@ -4023,3 +4023,27 @@ Keshab asked for a chart and got a Markdown table. He chose native charts and al
 - Charts need no files, no tools and no extra model call. They follow the theme.
 - ARK cannot yet make a new picture. An image is a file that already exists (for example one an agent wrote) or a web address.
 - Telegram and the API receive the chart block as text.
+
+## ADR-222 — Drawings for every model, image generation in Codex (2026-11-02)
+
+### Context
+
+Keshab asked ARK to make a logo and to think about image creation in Codex. Claude has no image generator. The installed Codex CLI (0.166) has `image_generation`, but ADR-137 turned it off in ARK's Codex sessions. Keshab chose both ways.
+
+### Decision
+
+- **Drawings (every model).** A ```svg block is drawn in the chat with Save SVG, Save PNG (1,024 pixels) and Copy SVG.
+  - `ReplySVG.check` accepts one whole `<svg>…</svg>` up to 64,000 bytes. It refuses scripts, event attributes, `foreignObject`, links (`href`), images, iframes, `<!DOCTYPE>`/`<!ENTITY>`, `@import` and any `http:`, `https:`, `data:`, `file:` or `javascript:` text outside the namespace declaration. A refused or unfinished block shows as code.
+  - Every chat prompt describes the block.
+- **Image generation (Codex chats).** `createCodexSessionAdapter` takes `images: { dir }`. Only then is `features.image_generation` on. The main Codex chat session passes `data/images` (next to the memory file).
+  - For each finished `imageGeneration` item, ARK keeps the image from its inline data or copies the file Codex saved. Only PNG, JPEG and WebP up to 25 MB are kept, as an owner-only file with a new random name.
+  - ARK adds `![revised prompt](<path>)` to the reply, so the chat shows it and the archive keeps it. A failed or unreadable image becomes the note "(Codex could not make the image.)".
+  - The Codex prompt says to use the tool for photos, illustrations and detailed pictures.
+- Codex workers, Codex text editing and model discovery keep image generation off. All other ADR-137 limits stay.
+
+### Consequences
+
+- Each generated image uses the ChatGPT plan's image allowance, and the image prompt goes to OpenAI, as Codex chat text already does.
+- Generated images stay in `data/images` when their chat is deleted. Cleanup is a later change.
+- The live check is not done: the plan reached its Codex usage limit on 2026-11-02. A fake Codex test covers the protocol.
+- AppKit's SVG renderer draws text in its own way, so fonts in a drawing can look different from the app.

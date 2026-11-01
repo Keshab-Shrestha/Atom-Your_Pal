@@ -54,6 +54,28 @@ struct ReplyMediaTests {
         #expect(ReplyImage.pieces("No pictures here.") == nil)
     }
 
+    @Test func aPlainDrawingPasses() throws {
+        let logo = ##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g"><stop offset="0" stop-color="#f60"/></linearGradient></defs><circle cx="32" cy="32" r="28" fill="url(#g)"/><text x="32" y="38">ARK</text></svg>"##
+        #expect(try #require(ReplySVG.check("\n" + logo + "\n")) == logo)
+        #expect(ReplySVG.check(#"<?xml version="1.0"?>\#n"# + logo) == logo)
+    }
+
+    @Test("a drawing that can run or fetch something is refused", arguments: [
+        ##"<svg viewBox="0 0 1 1"><script>alert(1)</script></svg>"##,
+        ##"<svg viewBox="0 0 1 1" onload="x()"><rect/></svg>"##,
+        ##"<svg viewBox="0 0 1 1"><image href="https://e.com/a.png"/></svg>"##,
+        ##"<svg viewBox="0 0 1 1"><use xlink:href="#a"/></svg>"##,
+        ##"<svg viewBox="0 0 1 1"><rect fill="url(https://e.com/p#x)"/></svg>"##,
+        ##"<!DOCTYPE svg [<!ENTITY x SYSTEM "file:///etc/passwd">]><svg>&x;</svg>"##,
+        ##"<svg viewBox="0 0 1 1"><foreignObject><div/></foreignObject></svg>"##,
+        ##"<svg viewBox="0 0 1 1"><style>@import url(x.css);</style></svg>"##,
+        ##"<svg viewBox="0 0 1 1"><rect"##,                                     // still streaming
+        ##"<div>not a drawing</div>"##,
+    ])
+    func refusedDrawing(_ svg: String) {
+        #expect(ReplySVG.check(svg) == nil)
+    }
+
     @Test func imagesAndChartsUseTheBlockRenderer() {
         #expect(MarkdownBlocks.isRich("Look:\n![c](/tmp/c.png)"))
         #expect(MarkdownBlocks.isRich("```chart\n{}\n```"))

@@ -1,4 +1,5 @@
 import AppKit
+import UniformTypeIdentifiers
 import Charts
 import SwiftUI
 import ArkIslandCore
@@ -173,6 +174,60 @@ struct ReplyImageView: View {
             } catch {
                 web = .failed("Could not load the image: \(error.localizedDescription)")
             }
+        }
+    }
+}
+
+/// A ```svg block drawn (2026-11-02, Keshab: "try making a logo"): vector, so it scales up to 320 points; Save as SVG or
+/// as a 1024-pixel PNG, or copy the source. `ReplySVG.check` has already refused anything that could fetch or run.
+struct ReplySVGView: View {
+    let svg: String
+    let copyEnabled: Bool
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        if let picture = NSImage(data: Data(svg.utf8)), picture.size.width > 0, picture.size.height > 0 {
+            let size = picture.size, fit = min(320 / size.width, 320 / size.height)
+            VStack(alignment: .leading, spacing: 8) {
+                Image(nsImage: picture).resizable().interpolation(.high)
+                    .frame(width: size.width * fit, height: size.height * fit)
+                    .padding(16)
+                    .background(RoundedRectangle(cornerRadius: Radius.card).fill(theme.text.color.opacity(0.05)))
+                    .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(theme.border.color, lineWidth: 0.5))
+                    .accessibilityLabel("Drawing")
+                HStack(spacing: 12) {
+                    QuietButton(title: "Save SVG…", symbol: "square.and.arrow.down") { Self.save(Data(svg.utf8), type: .svg, name: "drawing.svg") }
+                    QuietButton(title: "Save PNG…", symbol: "photo") { if let png = Self.png(picture) { Self.save(png, type: .png, name: "drawing.png") } }
+                    ChatCopyControl(title: "Copy SVG") { MarkdownCopy.code(svg) }
+                }
+                .disabled(!copyEnabled)
+            }
+        } else {
+            Label("This drawing could not be shown.", systemImage: "exclamationmark.triangle").appFont(.system(size: 12)).foregroundStyle(theme.text3.color)
+        }
+    }
+
+    /// The drawing as a PNG whose longer side is `side` pixels.
+    static func png(_ image: NSImage, side: CGFloat = 1024) -> Data? {
+        let k = side / max(image.size.width, image.size.height, 1)
+        let width = Int(image.size.width * k), height = Int(image.size.height * k)
+        guard width > 0, height > 0, let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height, bitsPerSample: 8,
+                                                                samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+                                                                bytesPerRow: 0, bitsPerPixel: 0) else { return nil }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        image.draw(in: NSRect(x: 0, y: 0, width: width, height: height))
+        NSGraphicsContext.restoreGraphicsState()
+        return rep.representation(using: .png, properties: [:])
+    }
+
+    private static func save(_ data: Data, type: UTType, name: String) {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [type]
+        panel.nameFieldStringValue = name
+        panel.begin { result in
+            guard result == .OK, let url = panel.url else { return }
+            do { try data.write(to: url, options: .atomic) } catch { NSSound.beep() }
         }
     }
 }

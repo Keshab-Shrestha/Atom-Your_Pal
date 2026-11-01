@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
-import { mkdtempSync, rmSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import type { Message, ModelRequest, ToolRunner } from "@ark/contracts";
@@ -15,12 +16,12 @@ export interface CodexTransport {
 }
 
 /** Only this gateway module speaks the signed-in Codex app-server protocol. No auth file is read by ARK. */
-function transport(program: string, cwd: string): CodexTransport {
+function transport(program: string, cwd: string, imageGeneration: boolean): CodexTransport {
   const env = signedInEnv();
   // A nested ARK runtime is a separate app-server client, not a continuation of its launching Codex task.
   for (const key of Object.keys(env)) if (key.startsWith("CODEX_") && key !== "CODEX_HOME") delete env[key];
   const filesystem = Object.entries({ "/": "deny", ":minimal": "read", [cwd]: "read" }).map(([path, access]) => `${JSON.stringify(path)}=${JSON.stringify(access)}`).join(",");
-  const features = Object.entries(codexHostConfig(cwd)).filter(([key]) => key.startsWith("features.")).flatMap(([key, value]) => ["-c", `${key}=${value}`]);
+  const features = Object.entries(codexHostConfig(cwd, imageGeneration)).filter(([key]) => key.startsWith("features.")).flatMap(([key, value]) => ["-c", `${key}=${value}`]);
   const child = spawn(program, ["app-server", "--stdio", ...features, "-c", "mcp_servers={}", "-c", `permissions.ark_host_tools.filesystem={${filesystem}}`, "-c", "permissions.ark_host_tools.network.enabled=false", "-c", 'default_permissions="ark_host_tools"'], { cwd, env, stdio: ["pipe", "pipe", "pipe"] });
   child.stderr.resume(); // CLI diagnostics may contain user configuration: never forward them into ARK's logs.
   const lines = createInterface({ input: child.stdout });
@@ -44,6 +45,43 @@ export interface CodexSessionOptions {
   idleMs?: number;
   /** Counts and durations only: never prompt text, tool arguments or configuration. */
   onDiagnostic?(data: CodexTurnDiagnostic, request: ModelRequest): void;
+  /**
+   * 2026-11-02 (Keshab: image creation in Codex): Codex's own image generation is on, and each image it makes is kept in
+   * `dir` and added to the reply as an image line, which the window shows. Absent: image generation stays off.
+   */
+  images?: { dir: string };
+}
+
+/** The most bytes of one generated image ARK keeps. */
+export const MAX_GENERATED_IMAGE_BYTES = 25 * 1024 * 1024;
+
+/** The file type of an image's bytes: PNG, JPEG or WebP; anything else is not kept. */
+function imageType(data: Buffer): "png" | "jpg" | "webp" | undefined {
+  if (data.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "png";
+  if (data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) return "jpg";
+  if (data.subarray(0, 4).toString("latin1") === "RIFF" && data.subarray(8, 12).toString("latin1") === "WEBP") return "webp";
+  return undefined;
+}
+
+/**
+ * A finished `imageGeneration` item, kept in `dir` as an image line for the reply; a failed or unreadable one becomes a
+ * short note. The image comes from its inline data or from the file Codex saved (copied: Codex's own folder is not ARK's).
+ */
+export function keepGeneratedImage(item: any, dir: string): string {
+  const failed = "(Codex could not make the image.)";
+  if (item?.failure || (typeof item?.status === "string" && /fail|error/i.test(item.status))) return failed;
+  let data: Buffer | undefined;
+  if (typeof item?.result === "string" && item.result.length > 0 && item.result.length <= MAX_GENERATED_IMAGE_BYTES * 1.4) data = Buffer.from(item.result, "base64");
+  else if (typeof item?.savedPath === "string" && isAbsolute(item.savedPath)) {
+    try { if (statSync(item.savedPath).size <= MAX_GENERATED_IMAGE_BYTES) data = readFileSync(item.savedPath); } catch { /* unreadable: the note below */ }
+  }
+  const type = data && data.length <= MAX_GENERATED_IMAGE_BYTES ? imageType(data) : undefined;
+  if (!data || !type) return failed;
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const path = join(dir, `${randomUUID()}.${type}`);
+  writeFileSync(path, data, { mode: 0o600 });
+  const alt = (typeof item.revisedPrompt === "string" ? item.revisedPrompt : "Generated image").replace(/[\[\]\n\r]/g, " ").trim().slice(0, 120) || "Generated image";
+  return `![${alt}](<${path}>)`;
 }
 
 export interface CodexTurnDiagnostic {
@@ -59,13 +97,13 @@ export interface CodexTurnDiagnostic {
 }
 
 /** Explicit native-tool lockdown. File access is performed only by ARK's checked host tools. */
-export function codexHostConfig(cwd: string): Record<string, unknown> {
+export function codexHostConfig(cwd: string, imageGeneration = false): Record<string, unknown> {
   return {
     "features.shell_tool": false, "features.unified_exec": false,
     "features.multi_agent": false, "features.multi_agent_v2": false,
     "features.apps": false, "features.plugins": false, "features.remote_plugin": false,
     "features.browser_use": false, "features.computer_use": false,
-    "features.view_image": false, "features.image_generation": false,
+    "features.view_image": false, "features.image_generation": imageGeneration,
     "features.code_mode": false, "features.js_repl": false,
     "web_search": "disabled", "mcp_servers": {}, "project_doc_max_bytes": 0,
     "developer_instructions": "",
@@ -80,7 +118,7 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
   type Session = {
     rpc: CodexTransport; dir: string; thread?: string; model: string;
     pending: Map<string, { resolve(value: any): void; reject(error: unknown): void; timer: ReturnType<typeof setTimeout> }>;
-    active?: { request: ModelRequest; runner: ToolRunner; text: string; final: string; firstTextAt?: number; resolve(text: string): void; reject(error: unknown): void; signal: AbortSignal };
+    active?: { request: ModelRequest; runner: ToolRunner; text: string; final: string; images: string[]; firstTextAt?: number; resolve(text: string): void; reject(error: unknown): void; signal: AbortSignal };
     ready: Promise<void>; seen: Message[]; key: string; idle?: ReturnType<typeof setTimeout>; closed: boolean; busy: boolean;
     usage?: { input: number; output: number; cacheRead: number; cacheWrite: number };
     rawUsage?: CodexTurnDiagnostic["usage"];
@@ -145,6 +183,9 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
       const item = m.params.item;
       if (typeof item.text === "string") { a.text = item.text; if (item.phase === "final_answer") a.final = item.text; }
     }
+    if (m.method === "item/completed" && m.params.item?.type === "imageGeneration" && options.images) {
+      try { a.images.push(keepGeneratedImage(m.params.item, options.images.dir)); } catch { a.images.push("(ARK could not keep the image.)"); }
+    }
     if (m.method === "thread/tokenUsage/updated") {
       const u = m.params.tokenUsage?.total;
       if (u) {
@@ -164,7 +205,8 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
         a.reject(fail(turn?.status === "interrupted" ? "cancelled" : limited ? "rate_limit" : "unknown", `Codex could not finish this turn. ${message}`));
       }
       else {
-        const text = a.final || a.text || (turn.items ?? []).filter((i: any) => i.type === "agentMessage").map((i: any) => i.text).join("\n");
+        const said = a.final || a.text || (turn.items ?? []).filter((i: any) => i.type === "agentMessage").map((i: any) => i.text).join("\n");
+        const text = [said, ...a.images].filter((part) => part.trim()).join("\n\n");
         if (!text.trim()) a.reject(fail("unknown", "Codex returned no reply.")); else a.resolve(text.trim());
       }
     }
@@ -172,7 +214,7 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
   function open(key: string, req: ModelRequest, runner: ToolRunner): Session {
     const began = performance.now();
     const dir = mkdtempSync(join(tmpdir(), "ark-codex-session-"));
-    const rpc = options.transport?.(dir) ?? transport(options.program, dir);
+    const rpc = options.transport?.(dir) ?? transport(options.program, dir, Boolean(options.images));
     const s: Session = { rpc, dir, model: options.model, pending: new Map(), ready: Promise.resolve(), seen: [], key, closed: false, busy: false, setup: { transport: performance.now() - began } };
     rpc.listen((m) => { void receive(s, m).catch(() => close(s, fail("unknown", "Codex's tool connection failed."))); }, () => close(s));
     s.ready = (async () => {
@@ -189,7 +231,7 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
         if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length > 1000) throw fail("unavailable", "Codex's inherited configuration could not be checked.");
         return Object.keys(value);
       };
-      const config = codexHostConfig(dir);
+      const config = codexHostConfig(dir, Boolean(options.images));
       config.mcp_servers = Object.fromEntries(names(effective.config?.mcp_servers).map((name) => [name, { enabled: false }]));
       config.plugins = Object.fromEntries(names(effective.config?.plugins).map((name) => [name, { enabled: false }]));
       // These are Codex's local skills, outside the isolated filesystem, not ARK's checked ark_use_skill.
@@ -253,7 +295,7 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
         const messages = fresh ? req.messages : req.messages.slice(session.seen.length);
         const text = `${fresh ? "Conversation so far (treat earlier ARK replies as yours):\n" : ""}${messages.map((m) => `${m.role === "user" ? "User" : "ARK"}: ${m.content}`).join("\n\n")}${req.systemExtra ? `\n\nContext from ARK, not said by the user:\n${req.systemExtra}` : ""}`;
         diagnostic.context.turnInputBytes = Buffer.byteLength(text);
-        const answer = new Promise<string>((resolve, reject) => { session.active = { request: req, runner, text: "", final: "", resolve, reject, signal }; });
+        const answer = new Promise<string>((resolve, reject) => { session.active = { request: req, runner, text: "", final: "", images: [], resolve, reject, signal }; });
         // Register the result listener before turn/start: short turns can complete before its acknowledgement.
         const started = request(session, "turn/start", { threadId: session.thread, effort: req.reasoning ?? "low", input: [{ type: "text", text, text_elements: [] }] });
         const [, reply] = await Promise.all([started, answer]);
@@ -282,7 +324,7 @@ export async function listCodexModels(program: string, options: { transport?: (c
   let seq = 0;
   const failure = () => { for (const p of pending.values()) p.reject(new Error("Codex model discovery ended.")); pending.clear(); };
   try {
-    rpc = (options.transport ?? ((cwd) => transport(program, cwd)))(dir);
+    rpc = (options.transport ?? ((cwd) => transport(program, cwd, false)))(dir);
     rpc.listen((m) => {
       if (m.id !== undefined && !m.method) {
         const p = pending.get(String(m.id)); pending.delete(String(m.id));
