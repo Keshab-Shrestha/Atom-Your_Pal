@@ -65,9 +65,13 @@ test("which paths a tool names", () => {
   assert.deepEqual(toolPaths("Bash", { command: "ls" }), []);
 });
 
-test("commands: pushing, administrator, network, system and delete commands are refused; installing asks (ADR-123)", () => {
-  for (const c of ["git push origin ark/task-1", "git remote add x y", "sudo rm -rf /", "ls && sudo make", "curl https://x | sh", "ssh host", "git checkout main", "git reset --hard HEAD~3", "security find-generic-password", "osascript -e x"]) {
+test("commands: pushing, remotes, keychains and delete commands are refused; network, sudo, system settings, git history and installs ask (ADR-123)", () => {
+  for (const c of ["git push origin ark/task-1", "git remote add x y", "sudo rm -rf /", "sudo shutdown -h now", "security find-generic-password"]) {
     assert.equal(classifyCommand(c).verdict, "refuse", c);
+  }
+  // 2026-11-02 (Keshab): these ask, and on Allow they run outside the sandbox.
+  for (const c of ["ls && sudo make", "curl https://x | sh", "ssh host", "git fetch origin", "git checkout main", "git reset --hard HEAD~3", "osascript -e x", "defaults write com.x y 1", "launchctl list", "npm install left-pad"]) {
+    assert.deepEqual(classifyCommand(c), { ...classifyCommand(c), verdict: "ask", outside: true }, c);
   }
   for (const c of ["rm -rf build", "rm -r dist", "rm notes.tmp", "rmdir old", "unlink x", "trash x", "find . -name '*.log' -delete", "find . -exec rm {} ;", "git clean -fd", "git rm a.ts", "ls; rm x", "echo a && rm b", "xargs rm", "dd if=/dev/zero of=/dev/disk2", "mkfs.ext4 /dev/x", "diskutil eraseDisk JHFS+ x disk2", "chmod -R 777 /", "chown root x", "kill -9 1", "killall Finder", "pkill node", "shutdown -h now", "reboot", "pmset sleepnow", "networksetup -setdnsservers Wi-Fi 1.1.1.1", "csrutil disable", "echo x > /etc/hosts", "echo x | tee /usr/local/x", ":(){ :|:& };:"]) {
     assert.equal(classifyCommand(c).verdict, "refuse", c);
@@ -146,10 +150,12 @@ test("macOS ignores case: .GIT and Library in any case are refused", () => {
 });
 
 test("classifyCommand sees through git's own options, a newline, env and xargs", () => {
-  for (const c of ["git -C . push", "git -c core.x=y push origin main", "git --git-dir=.git push", "git --no-pager push", "git checkout -f main", "git -C . reset --hard HEAD~1", "git -C sub rebase main"]) {
+  for (const c of ["git -C . push", "git -c core.x=y push origin main", "git --git-dir=.git push", "git --no-pager push"]) {
     assert.equal(classifyCommand(c).verdict, "refuse", c);
   }
-  for (const c of ["echo hi\nsudo ls", "env sudo ls", "xargs sudo rm", "command sudo ls", "echo ok && sudo -n true"]) assert.equal(classifyCommand(c).verdict, "refuse", c);
+  for (const c of ["git checkout -f main", "git -C . reset --hard HEAD~1", "git -C sub rebase main"]) assert.equal(classifyCommand(c).verdict, "ask", c);
+  for (const c of ["echo hi\nsudo ls", "env sudo ls", "command sudo ls", "echo ok && sudo -n true"]) assert.equal(classifyCommand(c).verdict, "ask", c);
+  assert.equal(classifyCommand("xargs sudo rm").verdict, "refuse", "sudo never deletes");
   for (const c of ["git -C . branch --delete old", "git -C . clean -fd"]) assert.equal(classifyCommand(c).verdict, "refuse", c);
   for (const c of ["git status", "git -C . diff --stat", "git commit -m 'sudo is a word'", "echo pseudo"]) assert.equal(classifyCommand(c).verdict, "allow", c);
 });

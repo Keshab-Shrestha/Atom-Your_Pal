@@ -30,6 +30,8 @@ export interface FolderCheckOptions {
   roots: string[];
   /** Explicit chat opt-in, rechecked at each call. Skips routine overwrite/command cards, never path/secret/undo checks. */
   fullAccess?(): boolean;
+  /** The task read web text (ADR-123): a command outside the sandbox then asks even in Full access, as an MCP call does. */
+  tainted?(): boolean;
   /** ADR-122: kept by the caller across the task's calls. A fresh one per call asks for every overwrite. */
   memory?: FolderMemory;
   cwd: string;
@@ -105,6 +107,12 @@ function preview(name: string, input: Record<string, unknown>): string {
 const shortPath = (real: string, home: string) => (isInside(realish(home), real) ? `~${real.slice(realish(home).length)}` : real);
 const oneLine = (s: string, max: number) => (s.replace(/\s+/g, " ").trim().length > max ? `${s.replace(/\s+/g, " ").trim().slice(0, max - 1)}…` : s.replace(/\s+/g, " ").trim());
 
+/** True when an allowed Bash call runs outside the sandbox (2026-11-02): its command needs it, or the agent asked for it. */
+export function runsOutsideSandbox(command: string, input: Record<string, unknown>): boolean {
+  const verdict = classifyCommand(command);
+  return input.dangerouslyDisableSandbox === true || (verdict.verdict === "ask" && verdict.outside === true);
+}
+
 /** The name `folderCheck` gets for the trash_file tool (2026-11-01). */
 export const TRASH_CALL = "Trash";
 
@@ -134,9 +142,12 @@ export function folderCheck(options: FolderCheckOptions) {
       }
       const verdict = classifyCommand(command);
       if (verdict.verdict === "refuse") return say(name, "refused"), verdict.reason;
-      if (verdict.verdict === "ask" && !options.fullAccess?.()) {
+      // 2026-11-02: an agent may ask to leave the sandbox itself (dangerouslyDisableSandbox), like Claude Code; that asks too.
+      const outside = runsOutsideSandbox(command, input);
+      if ((verdict.verdict === "ask" || outside) && (!options.fullAccess?.() || (outside && options.tainted?.()))) {
         say(name, "asked");
-        const ok = await options.approve({ summary: `${options.name} wants to run: ${oneLine(command, 120)}`, reason: `This command ${verdict.reason}.` });
+        const why = verdict.verdict === "ask" ? `This command ${verdict.reason}.` : "The agent asked to run it outside the sandbox.";
+        const ok = await options.approve({ summary: `${options.name} wants to run: ${oneLine(command, 120)}`, reason: outside ? `${why} It runs outside the sandbox: it can use the network and change files anywhere you can.` : why });
         if (options.cancelled?.()) return stopped;
         if (!ok) return say(name, "declined"), "Keshab did not allow this command. Do the job without it, or say in the report what is needed.";
       }

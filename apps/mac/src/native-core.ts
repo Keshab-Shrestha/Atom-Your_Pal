@@ -389,14 +389,15 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
       })(),
       ...(agents ? { agents, disallowedTools: BUILT_IN_AGENTS.map((a) => `Agent(${a})`) } : {}),
       ...(skills ? { plugins: [{ type: "local" as const, path: skills.pluginDir }] } : {}),
-      // Bash exists only for a project chat's agents: sandboxed, no network, writes in the project and the worktrees.
+      // Bash exists only for a project chat's agents: sandboxed, no network, writes in the project and the worktrees. Since 2026-11-02 a
+      // command Keshab allows on the card (network, sudo, system settings, git history) runs outside it: the gate sets dangerouslyDisableSandbox.
       ...(team && project
         ? {
             sandbox: {
               enabled: true,
               failIfUnavailable: true, // never silently unsandboxed
               autoAllowBashIfSandboxed: false, // every command still goes through the hook
-              allowUnsandboxedCommands: false,
+              allowUnsandboxedCommands: true,
               network: { allowedDomains: [], strictAllowlist: true },
               filesystem: { allowWrite: [project.cwd, team.worktrees], denyWrite: [join(project.cwd, ".git")], denyRead: denyRead() },
             },

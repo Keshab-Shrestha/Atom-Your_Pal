@@ -494,7 +494,12 @@ test("Full access skips overwrite, install and protected-place cards without cre
     assert.equal(asks, 0); assert.equal(checkpoints, 1); assert.deepEqual(memory.filePermissions.forChat("chat").list(), []);
     assert.equal(await check("Write", { file_path: join(home, ".ssh", "id_test"), content: "yes" }), undefined, "Keshab, 2026-11-01: Full access skips protected places too");
     assert.equal(checkpoints, 2);
-    assert.ok(await check("Bash", { command: "sudo true" })); assert.ok(await check("Bash", { command: "git push origin main" }));
+    assert.equal(await check("Bash", { command: "sudo true" }), undefined, "Keshab, 2026-11-02: Full access runs sudo with no card");
+    assert.equal(asks, 0);
+    const tainted = folderCheck({ roots: [], home, cwd: home, name: "Kame", fullAccess: () => true, tainted: () => true, approve: async () => { asks++; return false; } });
+    assert.ok(await tainted("Bash", { command: "curl https://x" }), "after web text, a command outside the sandbox asks even in Full access");
+    assert.equal(await tainted("Bash", { command: "pnpm test" }), undefined); asks = 0;
+    assert.ok(await check("Bash", { command: "git push origin main" }));
     assert.ok(await check("Bash", { command: "rm page.txt" })); assert.equal(asks, 0);
     state.written = new Set(Array.from({ length: MAX_OUTSIDE_WRITES }, (_, i) => join(home, `other-${i}`)));
     assert.ok(await check("Write", { file_path: join(home, "another.txt"), content: "new" })); assert.equal(asks, 1);

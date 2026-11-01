@@ -99,21 +99,36 @@ test("sub-agents (ADR-122, ADR-123): any agent writes a new file anywhere in hom
   done();
 });
 
-test("project chat: Bash runs sandboxed after the code check; a risky command asks Keshab; no unsandboxed command", async () => {
+test("project chat: Bash runs sandboxed after the code check; a risky or unsandboxed command asks Keshab", async () => {
   const { gate, asked, done } = setup({ project: true });
   assert.equal((await pre(gate, sub("kame", "Bash", { command: "ls -la" }))).decision, "allow");
-  assert.equal((await pre(gate, sub("kame", "Bash", { command: "ls", dangerouslyDisableSandbox: true }), "c2")).decision, "deny");
-  assert.equal((await pre(gate, sub("kame", "Bash", { command: "git push origin main" }), "c3")).decision, "deny", "the push asks (2026-11-02); Keshab said no");
+  assert.equal((await pre(gate, sub("kame", "Bash", { command: "ls", dangerouslyDisableSandbox: true }), "c2")).decision, "deny", "leaving the sandbox asks (2026-11-02); Keshab said no");
   assert.equal(asked.length, 1);
+  assert.equal((await pre(gate, sub("kame", "Bash", { command: "git push origin main" }), "c3")).decision, "deny", "the push asks (2026-11-02); Keshab said no");
+  assert.equal(asked.length, 2);
   const gone = await pre(gate, sub("kame", "Bash", { command: "rm -rf build" }), "c5");
   assert.equal(gone.decision, "deny", "deleting is refused with no card");
-  assert.equal(asked.length, 1);
+  assert.equal(asked.length, 2);
   const risky = await pre(gate, sub("kame", "Bash", { command: "npm install left-pad" }), "c4");
   assert.equal(risky.decision, "deny", "Keshab said no on the card");
-  assert.equal(asked.length, 2);
+  assert.equal(asked.length, 3);
   // canUseTool for the same call id never asks again.
   await gate.canUseTool("Bash", { command: "npm install left-pad" }, { toolUseID: "c4", agentID: "a-kame" });
-  assert.equal(asked.length, 2);
+  assert.equal(asked.length, 3);
+  done();
+});
+
+test("project chat: an allowed network, sudo or git-history command runs outside the sandbox; a plain one stays inside (2026-11-02)", async () => {
+  const { gate, asked, done } = setup({ project: true, approve: true });
+  for (const [i, command] of ["curl -sI https://example.com", "sudo -n true", "git reset --hard HEAD", "osascript -e 'beep'"].entries()) {
+    const v = await pre(gate, sub("kame", "Bash", { command }), `o${i}`);
+    assert.equal(v.decision, "allow", command);
+    assert.equal(v.input?.dangerouslyDisableSandbox, true, command);
+  }
+  assert.equal(asked.length, 4);
+  const plain = await pre(gate, sub("kame", "Bash", { command: "ls" }), "o9");
+  assert.equal(plain.input?.dangerouslyDisableSandbox, undefined);
+  assert.equal(asked.length, 4);
   done();
 });
 

@@ -8,7 +8,7 @@ import type { FilePermissionScope } from "@ark/memory";
 import type { FileApproval } from "./computer-bridge.ts";
 import { TOOL_SERVER, MAX_PROJECT_FILE_CALLS, redact } from "@ark/llm-gateway";
 import { BROWSER_SERVER, browserCheck } from "./browser.ts";
-import { TRASH_CALL, checkpointBefore, folderCheck, newFolderMemory, type FolderMemory } from "./folder-run.ts";
+import { TRASH_CALL, checkpointBefore, folderCheck, newFolderMemory, runsOutsideSandbox, type FolderMemory } from "./folder-run.ts";
 import { TRASH_TOOL } from "./trash-tool.ts";
 import { currentBranch, pushBranch } from "./git-branches.ts";
 import { mcpCheck } from "./mcp-servers.ts";
@@ -386,7 +386,6 @@ export function nativeGate(scope: NativeScope): NativeGate {
       if (problem) return say("refused"), deny(problem);
     }
     if (!FILE_TOOLS.includes(name) && !trash) return { allow: true, input }; // WebSearch, WebFetch, ToolSearch
-    if (name === "Bash" && input.dangerouslyDisableSandbox) return say("refused"), deny("Commands always run in the sandbox.");
     const tree = job !== undefined ? work.get(job) : undefined;
     // ADR-122: no per-agent folders. The task's own folder (a project, a worktree) is free to write; everywhere else follows the floor and the tiers.
     const roots = tree ? [tree.dir] : team.project ? [team.project.cwd] : [];
@@ -400,6 +399,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
       name: member.name,
       cancelled: () => !active(job),
       fullAccess: () => scope.access?.fullAccess(job !== undefined ? stopFor(job).signal : scope.accessSignal?.()) === true && active(job),
+      tainted: () => isTainted(agentId),
       approve,
       ...(team.approveFile ? { approveFile: (request: { summary: string; reason: string }) => taskApproval<FileApproval>(job, (signal) => team.approveFile!(request, signal), false) } : {}),
       ...(team.permissions ? { permissions: team.permissions } : {}),
@@ -414,7 +414,10 @@ export function nativeGate(scope: NativeScope): NativeGate {
         : {}),
     });
     const problem = await check(trash ? TRASH_CALL : name, input);
-    return problem ? deny(problem) : { allow: true, input };
+    if (problem) return deny(problem);
+    // 2026-11-02: an allowed network, sudo, system-settings or git-history command runs outside the sandbox.
+    const command = typeof input.command === "string" ? input.command : "";
+    return { allow: true, input: name === "Bash" && runsOutsideSandbox(command, input) ? { ...input, dangerouslyDisableSandbox: true } : input };
   };
 
   /** ADR-098 item 4: the browser, one task per worker at a time, each site on Keshab's card. */
