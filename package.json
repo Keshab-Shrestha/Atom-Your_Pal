@@ -12,6 +12,7 @@
     "test": "node --test \"apps/**/*.test.ts\" \"services/**/*.test.ts\" \"packages/**/*.test.ts\" \"tests/**/*.test.ts\"",
     "test:live": "ATOM_LIVE_TESTS=1 node --env-file-if-exists=.env --test \"apps/**/*.live.test.ts\" \"services/**/*.live.test.ts\" \"packages/**/*.live.test.ts\" \"tests/**/*.live.test.ts\"",
     "typecheck": "tsc",
+    "check": "pnpm typecheck && pnpm test && pnpm island:test",
     "island:build": "apps/mac/island/build-app.sh",
     "island:open": "apps/mac/island/build-app.sh --open",
     "island:test": "apps/mac/island/test.sh",
