@@ -3893,4 +3893,4 @@ Accepted. Keshab: "lets make it ask and give any permission .. like claude code 
 
 - In Full access, an agent can read keys and move files to the Trash with no question. Keshab accepts this risk for Full access only.
 - A web page can now ask an agent to touch a protected file; the card still names the exact path.
-- The other refused commands (git push, network commands, sudo, system settings) do not change. That is a separate decision.
+- 2026-11-02 (Keshab): an agent's `git push` asks too. Commands run in a sandbox with no network, so on Allow ARK pushes the task's own branch itself (`pushBranch`: task branches only, origin only, hooks off, never forced). Full access skips the question. Network commands, sudo, system settings and history rewrites stay refused.
