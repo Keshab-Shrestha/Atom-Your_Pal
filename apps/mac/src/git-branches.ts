@@ -165,6 +165,11 @@ export async function branchDiff(repo: string, branch: string, limit = 200_000, 
  * Pushes one of ARK's task branches to the repository's `origin`, as Keshab asked. Throws, with words for him, for
  * any other branch, a repository with no `origin`, or a push git refuses (it is never forced).
  */
+/** The branch a folder (a task's worktree) has checked out. */
+export async function currentBranch(dir: string): Promise<string> {
+  return git(dir, "rev-parse", "--abbrev-ref", "HEAD");
+}
+
 export async function pushBranch(repo: string, branch: string): Promise<void> {
   if (!BRANCH_PATTERN.test(branch)) throw new Error("Only ARK's task branches can be pushed from here.");
   await git(repo, "rev-parse", "--verify", "--quiet", `refs/heads/${branch}`).catch(() => {

@@ -504,3 +504,22 @@ test("Full access skips overwrite, install and protected-place cards without cre
     assert.ok(await check("Write", { file_path: path, content: "new" })); assert.equal(checkpoints, 2);
   } finally { memory.close(); rmSync(home, { recursive: true, force: true }); }
 });
+
+// 2026-11-02 (Keshab): the sandbox has no network, so an agent's git push asks, and on Allow ARK pushes the task's own branch itself.
+test("git push asks; Deny pushes nothing; Allow pushes from the task's folder; Full access skips the card; a failed push is reported", async () => {
+  const pushed: string[] = [];
+  let answer = false, full = false, fail = false;
+  const check = folderCheck({ roots: ["/r"], cwd: "/r", name: "Kame", fullAccess: () => full, approve: async () => answer,
+    push: async (cwd) => { if (fail) throw new Error("The push failed: rejected"); pushed.push(cwd); return "ARK pushed ark/task-7 to origin."; } });
+  assert.match((await check("Bash", { command: "git push origin HEAD" }))!, /did not allow the push/);
+  assert.deepEqual(pushed, []);
+  answer = true;
+  assert.match((await check("Bash", { command: "git -C . push" }))!, /^ARK pushed ark\/task-7 to origin\. Do not run git push yourself\.$/);
+  assert.deepEqual(pushed, ["/r"]);
+  answer = false; full = true;
+  assert.match((await check("Bash", { command: "git push" }))!, /ARK pushed/);
+  fail = true;
+  assert.match((await check("Bash", { command: "git push" }))!, /ARK could not push: The push failed: rejected/);
+  const noPush = folderCheck({ roots: ["/r"], cwd: "/r", name: "Kame", approve: async () => true });
+  assert.match((await noPush("Bash", { command: "git push" }))!, /never done/, "without a push helper the old refusal stays");
+});

@@ -216,6 +216,9 @@ const ASKED: [RegExp, string][] = [
 /** A command longer than this is refused unread: the checks below are regular expressions and the text comes from a model. */
 export const MAX_COMMAND_CHARS = 8_000;
 
+/** A `git push` in any of its spellings (2026-11-02): the safety gate asks, then ARK pushes the task's own branch outside the sandbox. */
+export const isPushCommand = (command: string): boolean => new RegExp(`${GIT}push\\b`).test(command);
+
 export function classifyCommand(command: string): CommandVerdict {
   if (command.length > MAX_COMMAND_CHARS) return { verdict: "refuse", reason: `The command is longer than ${MAX_COMMAND_CHARS} characters. Put it in a script file.` };
   for (const [re, reason] of REFUSED) if (re.test(command)) return { verdict: "refuse", reason };

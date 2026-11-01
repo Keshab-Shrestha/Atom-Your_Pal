@@ -6,7 +6,7 @@ import { homedir } from "node:os";
 import { isAbsolute, join, resolve, sep } from "node:path";
 import type { FilePermissionScope } from "@ark/memory";
 import type { FileApproval } from "./computer-bridge.ts";
-import { DENY_READ_DIRS, WRITE_TOOLS, classifyCommand, expandHome, floorProblem, folderForTask, hasGitPart, isInside, isSecretLike, pathProblem, realish, toolPaths } from "@ark/helpers";
+import { DENY_READ_DIRS, WRITE_TOOLS, classifyCommand, isPushCommand, expandHome, floorProblem, folderForTask, hasGitPart, isInside, isSecretLike, pathProblem, realish, toolPaths } from "@ark/helpers";
 
 /** Never readable by sandboxed commands: keys, tokens and other apps' secrets. */
 export function denyRead(home = homedir()): string[] {
@@ -23,6 +23,9 @@ export const newFolderMemory = (): FolderMemory => ({ approved: new Set(), writt
 export const MAX_OUTSIDE_WRITES = 200;
 
 export interface FolderCheckOptions {
+  /** 2026-11-02: pushes the task's own branch from `cwd` outside the sandbox (which has no network) and says what happened. With it, an agent's
+   *  `git push` asks Keshab instead of being refused. */
+  push?(cwd: string): Promise<string>;
   /** The task's own folders (a project's folder, a git worktree): writes inside them are free (git or the checkpoints keep the undo). May be empty. */
   roots: string[];
   /** Explicit chat opt-in, rechecked at each call. Skips routine overwrite/command cards, never path/secret/undo checks. */
@@ -115,6 +118,20 @@ export function folderCheck(options: FolderCheckOptions) {
     if (options.cancelled?.()) return stopped;
     if (name === "Bash") {
       const command = typeof input.command === "string" ? input.command : "";
+      if (options.push && isPushCommand(command)) {
+        // The sandbox has no network, so the command itself could never push: on Allow, ARK pushes the task's branch (origin only, never forced).
+        if (!options.fullAccess?.()) {
+          say(name, "asked");
+          const ok = await options.approve({ summary: `${options.name} wants to push its task branch to origin`, reason: `Command: ${oneLine(command, 120)}. ARK pushes only the task's own branch, to origin, never forced.` });
+          if (options.cancelled?.()) return stopped;
+          if (!ok) return say(name, "declined"), "Keshab did not allow the push. Leave the work on its branch and say in the report that it is ready to push.";
+        }
+        try {
+          return say(name, "refused"), `${await options.push(options.cwd)} Do not run git push yourself.`;
+        } catch (error) {
+          return say(name, "refused"), `ARK could not push: ${error instanceof Error ? error.message : String(error)}`;
+        }
+      }
       const verdict = classifyCommand(command);
       if (verdict.verdict === "refuse") return say(name, "refused"), verdict.reason;
       if (verdict.verdict === "ask" && !options.fullAccess?.()) {

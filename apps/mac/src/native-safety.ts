@@ -10,6 +10,7 @@ import { TOOL_SERVER, MAX_PROJECT_FILE_CALLS, redact } from "@ark/llm-gateway";
 import { BROWSER_SERVER, browserCheck } from "./browser.ts";
 import { TRASH_CALL, checkpointBefore, folderCheck, newFolderMemory, type FolderMemory } from "./folder-run.ts";
 import { TRASH_TOOL } from "./trash-tool.ts";
+import { currentBranch, pushBranch } from "./git-branches.ts";
 import { mcpCheck } from "./mcp-servers.ts";
 import { webFetchProblem } from "./web-guard.ts";
 import { grantedServers, kitTools, nativeMembers } from "./native-agents.ts";
@@ -403,6 +404,8 @@ export function nativeGate(scope: NativeScope): NativeGate {
       ...(team.approveFile ? { approveFile: (request: { summary: string; reason: string }) => taskApproval<FileApproval>(job, (signal) => team.approveFile!(request, signal), false) } : {}),
       ...(team.permissions ? { permissions: team.permissions } : {}),
       onCheck: (e) => say(e.verdict),
+      // 2026-11-02: an agent's git push asks, then ARK pushes the task's own branch outside the sandbox.
+      push: async (dir) => { const branch = await currentBranch(dir); await pushBranch(dir, branch); return `ARK pushed ${branch} to origin.`; },
       ...(job !== undefined
         ? {
             before: checkpointBefore({ roots: [...roots, team.home ?? homedir()], ...(tree?.tree ? { tree: tree.tree } : {}), keep: (r, p) => team.helpers.checkpoint(job, r, p) }),
