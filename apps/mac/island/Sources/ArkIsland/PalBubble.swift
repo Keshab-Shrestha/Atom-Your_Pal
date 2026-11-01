@@ -205,13 +205,8 @@ private struct BubbleContent: View {
             .animation(.easeOut(duration: 0.18), value: status.title)
 
             Spacer(minLength: 8)
-
-            if status.showsLevel {
-                BubbleMeter(levels: model.meter.history, color: theme.live.color)
-                    .transition(.opacity)
-            }
+            // 2026-11-02 (Keshab): the mic meter lives only in the voice pill under the menu bar.
         }
-        .animation(.easeOut(duration: 0.18), value: status.showsLevel)
     }
 
     private func title(_ text: String) -> some View {
@@ -247,28 +242,6 @@ private struct GlowDot: View {
     let color: Color
     var body: some View {
         Circle().fill(color).frame(width: 7, height: 7).shadow(color: color.opacity(0.8), radius: 3.5)
-    }
-}
-
-/// The microphone as Pal's light (ADR-084): bars that rise with the voice, brighter towards the newest on the right.
-struct BubbleMeter: View {
-    let levels: [Double]
-    let color: Color
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        let count = max(1, levels.count)
-        HStack(alignment: .center, spacing: 2.5) {
-            ForEach(levels.indices, id: \.self) { i in
-                Capsule()
-                    .fill(color.opacity(0.35 + 0.65 * Double(i + 1) / Double(count)))
-                    .frame(width: 2.5, height: 4 + 16 * min(1, max(0, levels[i])))
-            }
-        }
-        .frame(height: 22)
-        .shadow(color: color.opacity(theme.usesGlow ? 0.6 : 0), radius: 4)
-        .animation(.linear(duration: 0.05), value: levels)
-        .accessibilityHidden(true)
     }
 }
 
