@@ -57,6 +57,8 @@ struct BoardRow: View {
 /// Every worker's tasks in four groups: Needs you, Running, To do, Done.
 struct BoardPane: View {
     let model: IslandModel
+    /// The task shown in the inspector beside the Tasks list on a wide window (2026-11-02).
+    @State private var inspected: Int?
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -146,6 +148,24 @@ struct BoardPane: View {
                                    detail: "Choose a worker and give it a task, or ask ARK in chat to delegate one. Tasks show here by status, with a count for each.")
                 }
                 if let tasks = model.helpers.list?.paperclip { PaperclipSection(tasks: tasks) }
+                if model.boardView == .columns, viewport.size.width >= 1100, !board.isEmpty {
+                    // 2026-11-02 (the Linear reference): on a wide window, one list grouped by status and an inspector for the chosen task.
+                    let items = board.flatMap(\.items)
+                    let chosen = items.first { $0.id == inspected } ?? items.first
+                    HStack(alignment: .top, spacing: 24) {
+                        VStack(alignment: .leading, spacing: 16) {
+                            ForEach(board, id: \.column) { group in
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("\(group.column.title) · \(group.items.count)")
+                                        .appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
+                                    BoardWell(model: model, items: group.items, selected: chosen?.id) { inspected = $0 }
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        if let chosen { TaskInspector(model: model, item: chosen).frame(width: 340) }
+                    }
+                } else {
                 // Bento columns: status groups sit side by side when the Board is wide, stacked when it is narrow.
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 16, alignment: .top)], alignment: .leading, spacing: 16) {
                     ForEach(model.boardView == .floor ? [] : board, id: \.column) { group in
@@ -155,6 +175,7 @@ struct BoardPane: View {
                             BoardWell(model: model, items: group.items)
                         }
                     }
+                }
                 }
             }
             .padding(.horizontal, Spacing.panel)
@@ -180,6 +201,9 @@ struct BoardPane: View {
 struct BoardWell: View {
     let model: IslandModel
     let items: [BoardItem]
+    /// With an inspector (2026-11-02): the chosen task is shaded and a click chooses instead of opening the thread.
+    var selected: Int? = nil
+    var choose: ((Int) -> Void)? = nil
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -187,8 +211,12 @@ struct BoardWell: View {
         VStack(spacing: 0) {
             ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                 if index > 0 { Rectangle().fill(theme.separator.color).frame(height: theme.isFlat ? 1 : 0.5) }
-                Button { model.navigate { model.sendHelpers(model.helpers.openThread(item.id)) } } label: { BoardCard(model: model, item: item).hoverRow() }
-                    .buttonStyle(.pressable)
+                Button {
+                    if let choose { choose(item.id) } else { model.navigate { model.sendHelpers(model.helpers.openThread(item.id)) } }
+                } label: {
+                    BoardCard(model: model, item: item).hoverRow().background(item.id == selected ? theme.fill2.color : .clear)
+                }
+                .buttonStyle(.pressable)
             }
         }
         .clipShape(shape)

@@ -32,6 +32,8 @@ extension IslandGallery {
         // The Board's Team view: You, ARK, and the agents on one line, Sid working (2026-11-02).
         model.settings.theme = .ember; model.windowPage = .agents; model.helpers.selectBoard(); model.boardView = .team
         save(HelpersView(model: model).frame(width: 1200, height: 640).environment(\.islandSnapshot, true), name: "44-board-team", to: directory)
+        model.boardView = .columns // the Tasks list with its inspector on a wide window
+        save(HelpersView(model: model).frame(width: 1300, height: 640).environment(\.islandSnapshot, true), name: "44-board-tasks", to: directory)
         // The voice pill while ARK listens, with words heard so far and a moving meter.
         if let event = try? decodeEvent(#"{"type":"state","state":"listening"}"#) { model.status.apply(event) }
         model.status.setPreview("Draft a short note to Mira about the Cedar launch on Thursday")
