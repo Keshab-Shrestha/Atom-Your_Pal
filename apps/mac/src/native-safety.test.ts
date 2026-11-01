@@ -103,16 +103,17 @@ test("project chat: Bash runs sandboxed after the code check; a risky command as
   const { gate, asked, done } = setup({ project: true });
   assert.equal((await pre(gate, sub("kame", "Bash", { command: "ls -la" }))).decision, "allow");
   assert.equal((await pre(gate, sub("kame", "Bash", { command: "ls", dangerouslyDisableSandbox: true }), "c2")).decision, "deny");
-  assert.equal((await pre(gate, sub("kame", "Bash", { command: "git push origin main" }), "c3")).decision, "deny");
+  assert.equal((await pre(gate, sub("kame", "Bash", { command: "git push origin main" }), "c3")).decision, "deny", "the push asks (2026-11-02); Keshab said no");
+  assert.equal(asked.length, 1);
   const gone = await pre(gate, sub("kame", "Bash", { command: "rm -rf build" }), "c5");
   assert.equal(gone.decision, "deny", "deleting is refused with no card");
-  assert.equal(asked.length, 0);
+  assert.equal(asked.length, 1);
   const risky = await pre(gate, sub("kame", "Bash", { command: "npm install left-pad" }), "c4");
   assert.equal(risky.decision, "deny", "Keshab said no on the card");
-  assert.equal(asked.length, 1);
+  assert.equal(asked.length, 2);
   // canUseTool for the same call id never asks again.
   await gate.canUseTool("Bash", { command: "npm install left-pad" }, { toolUseID: "c4", agentID: "a-kame" });
-  assert.equal(asked.length, 1);
+  assert.equal(asked.length, 2);
   done();
 });
 
