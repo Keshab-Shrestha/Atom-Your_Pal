@@ -3978,3 +3978,24 @@ Keshab asked why ARK replies with "most likely". The case in the archive was a m
 - Replies name the source ("ESPN reports a 3-0 win") instead of "most likely".
 - ARK can sound sure about an answer that a later source corrects. The named source shows the user where the answer comes from.
 - The system prompt text changes once, so the prompt cache starts again for each chat.
+
+## ADR-220 — Codex gets the team guidance (2026-11-02)
+
+### Context
+
+Keshab asked why the team flow differs between Claude and Codex. Codex already received `ark_create_agent` and `ark_plan_work`, and `ark_delegate` uses the same gate and plan portions as Claude's Agent tool. But the Codex prompt only said to hand file changes or a named agent's request to `ark_delegate`. So Codex did not answer first, did not make a missing agent and did not plan big jobs.
+
+### Decision
+
+- `CODEX_SYSTEM_PROMPT` gets the same guidance as Claude's team prompt:
+  - Answer a known topic directly and offer an agent for depth.
+  - Use `ark_delegate` only when the user names an agent or asks for sources, when files change, or when the job needs many lookups or parts.
+  - If no agent fits, make one with `ark_create_agent`. It can take work from the user's next message.
+  - For a big job, call `ark_plan_work`, then start each portion with `ark_delegate` (description "P<n>", prompt "go").
+- The prompt also says that the chat waits for an agent's report.
+
+### Consequences
+
+- On Codex, agents still run in the turn: the chat waits until the report comes back. Background agents on Codex are a separate change.
+- A new agent still needs the user's approval on the card.
+- The Codex prompt text changes once, so each Codex chat starts a new prompt prefix.

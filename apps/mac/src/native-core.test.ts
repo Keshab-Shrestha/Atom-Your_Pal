@@ -655,6 +655,14 @@ test("the prompts with tools tell ARK to state facts plainly and name the source
   }
 });
 
+// 2026-11-02: Codex had ark_create_agent and ark_plan_work, but its prompt only said to hand file changes to ark_delegate.
+test("the Codex prompt carries the team guidance: answer first, delegate only when needed, make an agent if none fits, plan big jobs", () => {
+  assert.match(CODEX_SYSTEM_PROMPT, /Answer yourself, in a few sentences, any question or request to research or explain a topic you know well/);
+  assert.match(CODEX_SYSTEM_PROMPT, /Hand work to an agent with ark_delegate only when the user names one or asks for sources, when files change, or when it needs many separate lookups/);
+  assert.match(CODEX_SYSTEM_PROMPT, /If none fits, make one with ark_create_agent/);
+  assert.match(CODEX_SYSTEM_PROMPT, /call ark_plan_work first, then start each portion with ark_delegate: description "P<n>", prompt "go"/);
+});
+
 // 2026-10-16: the prompt tells the main agent when to offer a skill and when to improve one.
 test("the main agent's prompts tell it to offer a skill after a good agent task and to improve a skill the user complains about", () => {
   assert.match(NATIVE_SYSTEM_PROMPT, /call improve_skill with the whole improved steps; the user decides/);
