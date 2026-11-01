@@ -699,7 +699,7 @@ struct ConversationTab: View {
             RememberRows(model: model) // upgrades.md C2: facts the notes noticed, kept only on Remember
             Composer(model: model)
         }
-        .frame(maxWidth: 880)
+        .frame(maxWidth: ChatAppearance.readingWidth)
         .frame(maxWidth: .infinity)
         .padding(.horizontal, Spacing.conversation)
         .padding(.top, 8)
@@ -732,7 +732,7 @@ struct ConversationTab: View {
                             ChatAgentWorkView(model: model) // the agents this chat started, under its latest turn
                         }
                         .animation(Motion.arrive(reduceMotion), value: model.conversation.turns.count)
-                        .frame(maxWidth: 880)
+                        .frame(maxWidth: ChatAppearance.readingWidth)
                         .frame(maxWidth: .infinity)
                         .padding(.horizontal, Spacing.conversation)
                         .padding(.vertical, 12)
@@ -801,7 +801,7 @@ struct TurnView: View {
         let preview = UserMessagePreview.collapsed(turn.transcript)
         let collapsed = preview != nil && !messageExpanded.wrappedValue && findMatch?.user != true
         let copyTitle = preview == nil ? "Copy message" : "Copy full message"
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 16) {
             if !turn.transcript.isEmpty { // an answer ARK posted by itself has no question (ADR-109)
                 // 2026-11-01 (T3 Code and the Claude app): your words are a soft bubble on the right, at their natural width up to 80%; ARK answers
                 // in plain text across the column, so the chat reads as a conversation, not a log of boxes.
@@ -814,7 +814,7 @@ struct TurnView: View {
                             .accessibilityHint(collapsed ? "Message preview. Open Message actions and choose Show full message to read the rest." : "")
                             .appFont(.system(size: 14))
                             .foregroundStyle(theme.text.color)
-                            .lineSpacing(3)
+                            .lineSpacing(4)
                             .padding(.horizontal, 16).padding(.vertical, 8)
                             .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(theme.text.color.opacity(theme.isDark ? 0.08 : 0.05)))
                             .textSelection(.enabled)
@@ -980,7 +980,7 @@ private struct ReplyText: View {
                 .textSelection(.enabled)
         }
         .appFont(.system(size: 14))
-        .lineSpacing(3)
+        .lineSpacing(5)
         .fixedSize(horizontal: false, vertical: true)
         .animation(Motion.glow(reduceMotion), value: latest)
     }

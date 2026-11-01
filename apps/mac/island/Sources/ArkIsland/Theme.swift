@@ -197,8 +197,8 @@ enum Spacing {
     static let wells: CGFloat = 24
     /// The conversation's side margin.
     static let conversation: CGFloat = 24
-    /// Between turns: room enough that each exchange reads as one moment of a conversation.
-    static let turn: CGFloat = 24
+    /// Between turns: twice the space inside a turn (16), so each question and its answer read as one moment.
+    static let turn: CGFloat = 32
     /// The composer's distance from the panel's sides and bottom.
     static let composer: CGFloat = 12
 }

@@ -5,17 +5,25 @@ import ArkIslandCore
 /// Furniture anchors match OfficeMap so tasks, walking and click targets retain their meaning.
 enum OfficeDrawing {
     private static let width = CGFloat(OfficeMap.width), height = CGFloat(OfficeMap.height)
-    /// Set by the floor before it draws (2026-11-01): in a dark theme the studio is drawn in dark tones, so it sits in the app
-    /// instead of a light mint panel. ponytail: one global flag; the floor is the only caller and draws on the main thread.
-    nonisolated(unsafe) static var dark = false
+    /// Set by the floor before it draws (2026-11-01): in a dark theme, that theme's palette. The studio is then drawn in four of its
+    /// tones (floor, zones, furniture, desk tops) with no grid, strokes or shadows; only plants, alerts and notes keep their colour.
+    /// ponytail: one global; the floor is the only caller and draws on the main thread.
+    nonisolated(unsafe) static var tones: ThemePalette? = nil
+    static var dark: Bool { tones != nil }
 
     private static func c(_ value: UInt32, _ opacity: Double = 1) -> Color {
         let rgb = (Double((value >> 16) & 255) / 255, Double((value >> 8) & 255) / 255, Double(value & 255) / 255)
-        guard dark else { return Color(red: rgb.0, green: rgb.1, blue: rgb.2).opacity(opacity) }
+        guard let p = tones else { return Color(red: rgb.0, green: rgb.1, blue: rgb.2).opacity(opacity) }
         let (l, chroma, hue) = oklch(rgb)
-        // Light surfaces become the dark tone steps; dark objects (screens, the header) sink a little below them.
-        let lightness = l >= 0.6 ? 0.2 + (l - 0.6) * 0.3 : l * 0.72
-        return RGBA.oklch(lightness, chroma * 0.55, hue).color.opacity(opacity)
+        if chroma > 0.06 { return RGBA.oklch(min(l, 0.62), chroma * 0.7, hue).color.opacity(opacity) } // plants, alerts, notes
+        let tone: RGBA = switch l {
+        case 0.97...: .white(0.1).over(p.fill3)      // desk tops
+        case 0.935..<0.97: p.fill1                   // the floor
+        case 0.88..<0.935: p.fill2                   // rooms
+        case 0.7..<0.88: p.fill3                     // chairs, partitions, the sofa
+        default: RGBA(0, 0, 0, 0.35).over(p.surfaceSolid) // screens and the header
+        }
+        return tone.color.opacity(opacity)
     }
     /// Label text stays light in a dark theme so it reads on the dark tones.
     private static func ink(_ value: UInt32) -> Color {
@@ -39,9 +47,9 @@ enum OfficeDrawing {
     }
     private static func panel(_ g: GraphicsContext, _ rect: CGRect, fill: UInt32, edge: UInt32, radius: CGFloat = 6) {
         let shape = Path(roundedRect: rect, cornerRadius: radius, style: .continuous)
-        g.fill(shape.offsetBy(dx: 0, dy: 1.2), with: .color(.black.opacity(0.07)))
+        if !dark { g.fill(shape.offsetBy(dx: 0, dy: 1.2), with: .color(.black.opacity(0.07))) }
         g.fill(shape, with: .color(c(fill)))
-        g.stroke(shape, with: .color(c(edge)), lineWidth: 0.6)
+        if !dark { g.stroke(shape, with: .color(c(edge)), lineWidth: 0.6) }
     }
     private static func label(_ g: GraphicsContext, _ text: String, _ x: CGFloat, _ y: CGFloat, color: UInt32 = 0x667D80) {
         g.draw(Text(text).font(.system(size: 3.8, weight: .medium)).foregroundColor(ink(color)), at: CGPoint(x: x, y: y), anchor: .topLeading)
@@ -53,7 +61,7 @@ enum OfficeDrawing {
         var grid = Path()
         for x in stride(from: CGFloat(0), through: width, by: 16) { grid.move(to: CGPoint(x: x, y: 30)); grid.addLine(to: CGPoint(x: x, y: height)) }
         for y in stride(from: CGFloat(32), through: height, by: 16) { grid.move(to: CGPoint(x: 0, y: y)); grid.addLine(to: CGPoint(x: width, y: y)) }
-        g.stroke(grid, with: .color(c(0xC9D8D2, 0.4)), lineWidth: 0.4)
+        if !dark { g.stroke(grid, with: .color(c(0xC9D8D2, 0.4)), lineWidth: 0.4) }
         g.fill(box(0, 0, width, 29, 0), with: .color(c(0x183B3D)))
         label(g, "Studio", 9, 10, color: 0xCDECE1)
         // The attention display retains the original notes' coordinates and live count.
@@ -100,7 +108,7 @@ enum OfficeDrawing {
 
     private static func chair(_ g: GraphicsContext, x: CGFloat, y: CGFloat) {
         g.fill(box(x - 6, y - 6, 12, 11, 4), with: .color(c(0x9FB7B2)))
-        g.stroke(box(x - 6, y - 6, 12, 11, 4), with: .color(c(0x829E98)), lineWidth: 0.6)
+        if !dark { g.stroke(box(x - 6, y - 6, 12, 11, 4), with: .color(c(0x829E98)), lineWidth: 0.6) }
     }
     private static func desk(_ g: GraphicsContext, x: CGFloat, y: CGFloat, index: Int) {
         panel(g, CGRect(x: x - 1, y: y + 3, width: 34, height: 13), fill: index < 0 ? 0xC4DED2 : 0xFCFDF9, edge: 0xAEC6BF, radius: 4)

@@ -28,7 +28,7 @@ struct OfficeFloor: View {
             let size = CGSize(width: CGFloat(OfficeMap.width) * scale, height: CGFloat(OfficeMap.height) * scale)
             ticking { date in
                 Canvas { context, _ in
-                    OfficeDrawing.dark = theme.isDark
+                    OfficeDrawing.tones = theme.isDark ? theme : nil
                     scene.draw(in: &context, scale: scale, date: date)
                 }
                     .frame(width: size.width, height: size.height)

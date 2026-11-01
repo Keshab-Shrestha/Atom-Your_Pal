@@ -11,7 +11,7 @@ struct MarkdownReply: View {
 
     var body: some View {
         let blocks = MarkdownBlocks.parse(text)
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
             ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in MarkdownBlockView(block: block, latest: latest, copyEnabled: copyEnabled) }
         }
         .appFont(.system(size: 14))
@@ -31,7 +31,7 @@ private struct MarkdownBlockView: View {
     @ViewBuilder var body: some View {
         switch block {
         case .paragraph(let s):
-            inline(s).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
+            inline(s).lineSpacing(5).fixedSize(horizontal: false, vertical: true)
         case .heading(let level, let s):
             inline(s).appFont(.system(size: level <= 1 ? 16 : level == 2 ? 15 : 14, weight: .semibold))
         case .list(let items, let number):

@@ -7,6 +7,8 @@ import ArkIslandCore
 enum ChatAppearance {
     // T3's 46rem reading column plus 24pt gutters on each side.
     static let column: CGFloat = 784
+    /// The messages and the composer: T3's 46rem column (2026-11-01; it was 880, wider than a comfortable line).
+    static let readingWidth: CGFloat = 736
 
     /// Keep the desktop layout while honoring every color in the user's chosen theme.
     static func palette(theme: AppTheme, sidebar: Bool = false) -> ThemePalette {
