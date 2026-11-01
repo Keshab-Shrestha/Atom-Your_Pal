@@ -2,6 +2,19 @@
 
 This file records the R4 gate from `docs/sentient-parity-release-plan.md`. The goal is one signed build that a friend can install and open on their own Mac. The audit found four blockers. Two of them need a decision from Keshab.
 
+## Decision (2026-11-01)
+
+Keshab chose build from source. ATOM does not join the Apple Developer Program, and there is no downloadable app. A friend runs `sh scripts/setup.sh` in a clone of the repository. The script checks the requirements, installs the packages, makes the local signing identity on the friend's Mac, builds `ATOM.app` and opens it. A local build has no quarantine flag, so Gatekeeper does not stop it.
+
+Result for each blocker:
+
+- B1 is closed by this decision. Each Mac signs its own build with its own "ATOM Local Signing" identity.
+- B2 is not needed for a source build. The app runs from the friend's clone, with the friend's Node.js, and keeps data in the clone's `data/` folder.
+- B3 stays. The script checks for `claude` and tells the friend to sign in with their own account.
+- B4 stays. The models download on first use.
+
+Checked on 2026-11-01: `sh scripts/setup.sh --no-open` passed in a fresh clone on this Mac. With Node.js, pnpm and Claude Code hidden from `PATH`, the script listed each missing tool with how to get it, and stopped with exit code 1. Not checked: a Mac that has never had ATOM or its tools.
+
 ## Checks that pass
 
 - `pnpm typecheck` passes.
@@ -53,17 +66,6 @@ ATOM uses the Agent SDK with the user's own signed-in `claude` program (`~/.loca
 
 Parakeet (FluidAudio), Kokoro and the Whisper fallback are not in the app. The first run downloads them. The first-run setup must show this download and its size.
 
-## A path that works today
-
-A friend who is comfortable with the Terminal can build ATOM on their own Mac. A local build does not get the quarantine flag, so Gatekeeper does not stop it.
-
-1. Install Node.js 22 or later, pnpm and Claude Code. Sign in to Claude Code.
-2. Clone the repository.
-3. Run `pnpm install`.
-4. Run `pnpm island:open`.
-
-This is not R4. It is the fallback until B1 and B2 are done.
-
 ## Next step
 
-Keshab decides B1 (join the Apple Developer Program or not) and B2 (the data folder place). Then the next task is B2 only: a self-contained `ATOM.app`, tested on a new macOS user account with no repository and no Homebrew.
+Try `sh scripts/setup.sh` on a second Mac or a new macOS user account. Then record the result here.

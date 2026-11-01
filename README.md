@@ -96,6 +96,16 @@ Details: [SECURITY.md](SECURITY.md).
 
 ## Quick start
 
+ATOM is built from source on each Mac (R4, [docs/release-r4.md](docs/release-r4.md)). The fast way:
+
+```sh
+git clone <this repository>
+cd atom
+sh scripts/setup.sh
+```
+
+The script checks the requirements below and says how to get what is missing. Then it installs the packages, makes the local signing identity, builds the app and opens it. Run it again after each `git pull`. The steps below do the same by hand.
+
 ### Requirements
 
 - macOS 14 or later.
