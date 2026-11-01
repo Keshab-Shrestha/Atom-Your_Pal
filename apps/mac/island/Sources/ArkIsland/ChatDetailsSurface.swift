@@ -19,6 +19,14 @@ struct ChatDetailsSurface: View {
         let saved = model.chatControls.snapshot.flatMap { $0.id == model.savedChat?.id ? $0 : nil }
         Scrollable {
             VStack(alignment: .leading, spacing: 16) {
+                // 2026-11-02 (Keshab's own ATOM mock): what this chat works with, at a glance, before the details below.
+                section("This chat") {
+                    fact("Project", model.chats?.currentProject?.name ?? "None")
+                    fact("Model", model.status.shownModel)
+                    if let access = model.chats?.access { fact("Access", access.title) }
+                    fact("Memory", saved?.recall?.summary ?? "Not used yet")
+                    if let grants = saved?.info?.access?.fileGrants { fact("Files", grants == 0 ? "No saved file permissions" : "\(grants) \(grants == 1 ? "file" : "files") allowed for this chat") }
+                }
                 if let info = saved?.info {
                     let facts = ChatDetailsFacts(info: info)
                     section("Context") {
@@ -68,6 +76,13 @@ struct ChatDetailsSurface: View {
             .padding(.top, 4)
         }
         .sheet(item: $editing) { sheet in ChatBriefEditor(model: model, chat: sheet.id, initial: sheet.brief) }
+    }
+
+    private func fact(_ label: String, _ value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(label).foregroundStyle(theme.text3.color).frame(width: 64, alignment: .leading)
+            Text(value).foregroundStyle(theme.text.color).lineLimit(3).fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     private func section(_ title: String, @ViewBuilder _ content: () -> some View) -> some View {
