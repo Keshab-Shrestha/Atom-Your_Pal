@@ -3939,3 +3939,25 @@ Keshab asked for a different art style on the Board's Studio and a light bulb, b
 
 - A dark theme no longer makes the Studio near-black: the navy print has clear contrast in every theme.
 - The "+N" signs are white cards, so their dark text reads on both prints.
+
+## ADR-218 — New typefaces from Keshab's list (2026-11-02)
+
+### Context
+
+Keshab asked to remove all typefaces and use the best-looking fonts from his list of 22. Many fonts on the list have paid licences: Helvetica Now, Brandon Grotesque, Proxima Nova, Nexa, Gotham, FF Meta, Freight Text, GT America and Supria Sans. ARK cannot bundle them.
+
+### Decision
+
+- Settings → Appearance → Typeface offers eight faces:
+  - System (San Francisco), the default. It comes with macOS.
+  - Helvetica Neue. It comes with macOS.
+  - Source Sans 3, Work Sans, Nunito and Mulish (Muli): variable fonts.
+  - Lato and Poppins: four static weights each (Regular, Medium, SemiBold, Bold).
+- The six bundled families come from github.com/google/fonts under the SIL Open Font License 1.1. Each family's `*-OFL.txt` is in `assets/fonts`, and `build-app.sh` copies it into the app next to the font.
+- Rounded, Inter and Geist are removed, and their files are deleted. Their stored values (1–3) are not used again, so a Mac that chose one of them goes back to System.
+- These fonts from the list are not offered: Playfair Display, a display serif that is hard to read at 11–15 pt; Montserrat and Raleway, which are wide or thin at small sizes; and Open Sans, Roboto and Cabin, which look plain next to the faces chosen.
+
+### Consequences
+
+- The app is about 3.7 MB larger. Lato is 2.6 MB of that.
+- Monospaced text stays SF Mono in every typeface.

@@ -370,7 +370,7 @@ enum IslandGallery {
             for face in AppTypeface.allCases {
                 tabled.settings.typeface = face; dashing.settings.typeface = face
                 save(HStack(alignment: .top, spacing: 16) { window("Chat · \(face.title)", tabled); window("Dashboard · \(face.title)", dashing) }
-                    .padding(24).background(Color(red: 0.36, green: 0.42, blue: 0.52)), name: "44-typeface-\(face.title.lowercased())", to: directory)
+                    .padding(24).background(Color(red: 0.36, green: 0.42, blue: 0.52)), name: "44-typeface-\(face.title.lowercased().replacingOccurrences(of: " ", with: "-"))", to: directory)
             }
             tabled.settings.typeface = usual; dashing.settings.typeface = usual
         }

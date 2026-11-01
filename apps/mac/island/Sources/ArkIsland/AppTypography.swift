@@ -40,7 +40,7 @@ enum TypeScale {
 }
 
 /// The typefaces behind `AppFont` (Settings > Appearance > Typeface). Monospaced text stays SF Mono in every face.
-/// Inter and Geist are files in `assets/fonts` (SIL OFL), registered for this process at launch; a face whose file
+/// The bundled faces are files in `assets/fonts` (SIL OFL), registered for this process at launch; a face whose file
 /// is missing falls back to the system font, so text never disappears.
 enum AppFonts {
     /// Families registered from the bundled files. Written once at launch, before any view draws.
@@ -48,15 +48,10 @@ enum AppFonts {
 
     static func font(size: CGFloat, weight: Font.Weight, design: Font.Design, face: AppTypeface) -> Font {
         if design == .monospaced { return .system(size: size, weight: weight, design: .monospaced) }
-        switch face {
-        case .system: return .system(size: size, weight: weight, design: design)
-        case .rounded: return .system(size: size, weight: weight, design: design == .serif ? .serif : .rounded)
-        case .inter, .geist:
-            guard let family = face.family, registered.contains(family) else {
-                return .system(size: size, weight: weight, design: design)
-            }
-            return Font.custom(family, fixedSize: size).weight(weight)
+        guard let family = face.family, !face.bundled || registered.contains(family) else {
+            return .system(size: size, weight: weight, design: design)
         }
+        return Font.custom(family, fixedSize: size).weight(weight)
     }
 
     /// Registers the bundled font files once. In ARK.app they are in Resources/fonts (build-app.sh copies them);

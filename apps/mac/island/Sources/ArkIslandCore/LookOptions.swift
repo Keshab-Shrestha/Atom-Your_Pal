@@ -124,26 +124,40 @@ public enum BubbleOpacity: Int, SettingsChoice {
     }
 }
 
-/// Presentation only: the typeface of every sans text style (2026-10-31). Identifiers stay in SF Mono. Inter and Geist
-/// are bundled with the app (SIL Open Font License); without their files the system font is used. Default System.
+/// Presentation only: the typeface of every sans text style (2026-10-31). Identifiers stay in SF Mono. Default System.
+/// 2026-11-02 (Keshab: "remove all fonts and try to get best looking fonts from the list"): Rounded, Inter and Geist are gone.
+/// System (San Francisco) and Helvetica Neue come with macOS; the others are bundled in `assets/fonts` (SIL Open Font License,
+/// from github.com/google/fonts). Without a bundled file the system font is used. The removed faces' values (1-3) are not
+/// reused, so a Mac that chose one of them falls back to System.
 public enum AppTypeface: Int, SettingsChoice {
-    case system = 0, rounded, inter, geist
+    case system = 0, helvetica = 4, sourceSans, workSans, lato, poppins, nunito, mulish
     public var title: String {
         switch self {
         case .system: "System"
-        case .rounded: "Rounded"
-        case .inter: "Inter"
-        case .geist: "Geist"
+        case .helvetica: "Helvetica Neue"
+        case .sourceSans: "Source Sans"
+        case .workSans: "Work Sans"
+        case .lato: "Lato"
+        case .poppins: "Poppins"
+        case .nunito: "Nunito"
+        case .mulish: "Mulish"
         }
     }
-    /// The bundled font's family name; nil for Apple's own faces.
+    /// The font's family name; nil for the system font.
     public var family: String? {
         switch self {
-        case .system, .rounded: nil
-        case .inter: "Inter Variable"
-        case .geist: "Geist"
+        case .system: nil
+        case .helvetica: "Helvetica Neue"
+        case .sourceSans: "Source Sans 3"
+        case .workSans: "Work Sans"
+        case .lato: "Lato"
+        case .poppins: "Poppins"
+        case .nunito: "Nunito"
+        case .mulish: "Mulish"
         }
     }
+    /// Whether the font file ships in `assets/fonts` (false for the faces macOS provides).
+    public var bundled: Bool { self != .system && self != .helvetica }
 }
 
 /// Presentation only: proportional native workspace typography, independent of the selected theme.
