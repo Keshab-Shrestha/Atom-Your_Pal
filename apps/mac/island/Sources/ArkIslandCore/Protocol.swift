@@ -636,6 +636,7 @@ private struct Fields {
         return TokenUsageSummary(
             today: today, week: week,
             days: list("days").compactMap { d in (d as? [String: Any]).flatMap { m in totals(m).flatMap { t in (m["day"] as? String).map { DayTokens(day: $0, totals: t) } } } },
+            history: list("history").compactMap { d in (d as? [String: Any]).flatMap { m in totals(m).flatMap { t in (m["day"] as? String).map { DayTokens(day: $0, totals: t) } } } },
             byWorker: list("byWorker").compactMap { w in (w as? [String: Any]).flatMap { m in totals(m).map { WorkerTokens(helper: m["helper"] as? String, name: m["name"] as? String ?? "", totals: $0) } } },
             byModel: list("byModel").compactMap { x in (x as? [String: Any]).flatMap { m in totals(m).flatMap { t in (m["model"] as? String).map { ModelTokens(model: $0, totals: t) } } } },
             chatCacheCold: u["chatCacheCold"] as? Bool ?? false,

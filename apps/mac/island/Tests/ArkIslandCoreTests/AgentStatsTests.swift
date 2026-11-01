@@ -22,4 +22,11 @@ struct AgentStatsTests {
         guard case .git(let branches) = event else { Issue.record("not a git event"); return }
         #expect(branches.first?.changeLine == "+12 \u{2212}3 · 3 files")
     }
+
+    @Test func usageHistoryDecodesForTheRangeSwitch() throws {
+        let totals = #""input":1,"output":2,"cacheRead":3,"cacheWrite":4,"dollars":0.1,"runs":1"#
+        let line = #"{"type":"helpers","apps":[],"helpers":[],"usage":{"today":{"# + totals + #"},"week":{"# + totals + #"},"days":[],"history":[{"day":"2026-09-01","# + totals + #"},{"day":"2026-11-01","# + totals + #"}]}}"#
+        guard case .helpers(let list) = try decodeEvent(line) else { Issue.record("not a helpers event"); return }
+        #expect(list.usage?.history.map(\.day) == ["2026-09-01", "2026-11-01"])
+    }
 }

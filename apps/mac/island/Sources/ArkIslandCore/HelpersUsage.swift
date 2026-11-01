@@ -111,6 +111,8 @@ public struct TokenUsageSummary: Sendable, Equatable {
     public var today: TokenTotals
     public var week: TokenTotals
     public var days: [DayTokens]
+    /// 2026-11-02: the last 90 days, oldest first, for the Dashboard's range. Empty from an older runtime.
+    public var history: [DayTokens] = []
     public var byWorker: [WorkerTokens]
     public var byModel: [ModelTokens]
     /// ADR-098 item 9: ARK's last chat answers read nothing from the cache.
@@ -118,11 +120,12 @@ public struct TokenUsageSummary: Sendable, Equatable {
     /// Token cost, job 4: the newest calls, newest first; empty from an older runtime.
     public var recent: [RecentTokens]
 
-    public init(today: TokenTotals, week: TokenTotals, days: [DayTokens] = [], byWorker: [WorkerTokens] = [], byModel: [ModelTokens] = [], chatCacheCold: Bool = false, recent: [RecentTokens] = []) {
+    public init(today: TokenTotals, week: TokenTotals, days: [DayTokens] = [], history: [DayTokens] = [], byWorker: [WorkerTokens] = [], byModel: [ModelTokens] = [], chatCacheCold: Bool = false, recent: [RecentTokens] = []) {
         self.recent = recent
         self.today = today
         self.week = week
         self.days = days
+        self.history = history
         self.byWorker = byWorker
         self.byModel = byModel
         self.chatCacheCold = chatCacheCold

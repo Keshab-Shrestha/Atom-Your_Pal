@@ -148,6 +148,7 @@ struct DashboardTrend: View {
     let days: [DayTokens]
     let metric: Metric
     let color: Color
+    var rangeTitle = "7-day total"
     @Environment(\.theme) private var theme
     private func value(_ day: DayTokens) -> Int {
         switch metric { case .tokens: day.totals.io; case .cache: day.totals.cacheRead; case .runs: day.totals.runs }
@@ -157,7 +158,7 @@ struct DashboardTrend: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(TokenTotals.short(days.reduce(0) { $0 + value($1) })).appFont(.system(size: 18, weight: .semibold)).monospacedDigit().foregroundStyle(theme.text.color)
                 Spacer()
-                Text("7-day total").appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)
+                Text(rangeTitle).appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)
             }
             if days.isEmpty {
                 PanelNote(text: "No daily usage recorded yet.").frame(height: 100, alignment: .center)
@@ -177,13 +178,20 @@ struct DashboardTrend: View {
 private struct DashboardTrendsPanel: View {
     let usage: TokenUsageSummary
     @State private var kind = DashboardTrendKind.tokens
+    /// 2026-11-02: how many days the chart shows (7, 30 or 90; the runtime keeps 90).
+    @State private var range = 7
+    private static let ranges = [7, 30, 90]
     @Environment(\.theme) private var theme
 
     var body: some View {
+        let days = range == 7 || usage.history.isEmpty ? usage.days : Array(usage.history.suffix(range))
         DashboardPanel("Trends", detail: kind.detail, accessory: AnyView(
             DashboardTabStrip(titles: DashboardTrendKind.allCases.map(\.title), selected: kind.rawValue) { kind = DashboardTrendKind(rawValue: $0) ?? .tokens })) {
             VStack(alignment: .leading, spacing: 12) {
-                DashboardTrend(days: usage.days, metric: metric, color: kind == .cacheReuse ? theme.success.color : theme.live.color)
+                if !usage.history.isEmpty {
+                    DashboardTabStrip(titles: Self.ranges.map { "\($0)d" }, selected: Self.ranges.firstIndex(of: range) ?? 0) { range = Self.ranges[$0] }
+                }
+                DashboardTrend(days: days, metric: metric, color: kind == .cacheReuse ? theme.success.color : theme.live.color, rangeTitle: "\(days.count)-day total")
             }
         }
     }
