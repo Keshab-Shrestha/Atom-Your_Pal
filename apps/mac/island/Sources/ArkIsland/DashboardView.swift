@@ -40,6 +40,9 @@ struct DashboardPane: View {
                 summaryStrip(usage: usage, attention: attention, columns: 6).frame(minWidth: 900)
                 summaryStrip(usage: usage, attention: attention, columns: 3)
             }
+            if let list = model.helpers.list, case let hints = TeamHygiene.suggestions(list), !hints.isEmpty {
+                SuggestionsCard(hints: hints) { id in model.navigate { model.windowPage = .agents; model.helpers.selectHelper(id) } }
+            }
             if let usage {
                 DashboardOverviewGrid(model: model, usage: usage, width: width - 48, fitted: fitted)
                     .frame(maxHeight: fitted ? .infinity : nil, alignment: .top)
@@ -570,5 +573,34 @@ private struct DiffText: View {
         .padding(12)
         .textSelection(.enabled)
         .background(RoundedRectangle(cornerRadius: theme.radiusControl + 2, style: .continuous).fill(theme.fill1.color))
+    }
+}
+
+/// Small, true facts about the team that usually need a minute (TeamHygiene, 2026-11-02). A row about an agent opens its page.
+struct SuggestionsCard: View {
+    let hints: [TeamHygiene.Suggestion]
+    let open: (String) -> Void
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Suggestions").appFont(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
+            ForEach(hints) { hint in
+                Button { if let id = hint.helperId { open(id) } } label: {
+                    HStack(spacing: 8) {
+                        Glyph(systemName: "info.circle").foregroundStyle(theme.text3.color)
+                        Text(hint.text).foregroundStyle(theme.text2.color).frame(maxWidth: .infinity, alignment: .leading)
+                        if hint.helperId != nil { Glyph(systemName: "chevron.right").foregroundStyle(theme.text3.color) }
+                    }
+                    .appFont(.system(size: 13))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(hint.helperId == nil)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(theme.fill1.color))
     }
 }
