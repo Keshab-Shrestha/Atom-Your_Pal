@@ -56,6 +56,9 @@ struct AgentManagementRow: View {
                         let running = helper.jobs.filter { $0.state == .running }.count
                         Text(running > 0 ? "\(running) task\(running == 1 ? "" : "s") running" : helper.roleTitle)
                             .appFont(.system(size: 11)).foregroundStyle(running > 0 ? theme.live.color : theme.text3.color).lineLimit(1)
+                        if let record = AgentStats(jobs: helper.jobs).line { // 2026-11-02: runs, done share, typical time
+                            Text(record).appFont(.system(size: 11)).monospacedDigit().foregroundStyle(theme.text3.color).lineLimit(1)
+                        }
                     }
                     Spacer(minLength: 0)
                 }.contentShape(Rectangle())
