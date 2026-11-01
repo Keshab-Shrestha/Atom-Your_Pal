@@ -438,33 +438,60 @@ export function openBrain(db: DatabaseSync, now: () => Date): Brain {
     transaction(() => {
       dropAutoLinks.run();
       const notes = (allNotes.all() as unknown as Row[]).filter((r) => r.ghost === 0);
-      // 1. A note whose text names another note's title (3 or more letters) links to it.
+      // 1. A note whose text names another note's title (3 or more letters, as whole words) links to it. Titles are
+      // looked up by their first word, so the cost follows the amount of text, not notes × titles (1.4 s at 500 notes
+      // and 20 s at 2,000 before, 2026-11-01). A title that does not start with a letter or digit is searched directly.
       const titled = notes.filter((n) => [...n.title].length >= 3 && n.kind !== "memory" && n.kind !== "episode" && n.kind !== "entity");
+      // First word → title length → title → note ids: many titles can share a first word ("Meeting …"), few lengths.
+      const byFirstWord = new Map<string, Map<number, Map<string, number[]>>>();
+      const odd: { id: number; title: string }[] = [];
+      for (const other of titled) {
+        const title = other.title.toLowerCase();
+        const first = /^[\p{L}\p{N}]+/u.exec(title)?.[0];
+        if (!first) {
+          odd.push({ id: other.id, title });
+          continue;
+        }
+        const lengths = byFirstWord.get(first) ?? new Map<number, Map<string, number[]>>();
+        const titles = lengths.get(title.length) ?? new Map<string, number[]>();
+        titles.set(title, [...(titles.get(title) ?? []), other.id]);
+        lengths.set(title.length, titles);
+        byFirstWord.set(first, lengths);
+      }
+      const wordChar = (c: string | undefined) => c !== undefined && /[\p{L}\p{N}]/u.test(c);
       for (const note of notes) {
         const text = note.body.toLowerCase();
-        for (const other of titled) {
-          if (other.id === note.id) continue;
-          const t = other.title.toLowerCase();
-          const at = text.indexOf(t);
-          if (at < 0) continue;
-          const before = text[at - 1];
-          const after = text[at + t.length];
-          if ((before && /[\p{L}\p{N}]/u.test(before)) || (after && /[\p{L}\p{N}]/u.test(after))) continue; // inside a longer word
-          addLink.run(note.id, other.id, 1);
+        const found = new Set<number>();
+        for (const word of text.matchAll(/[\p{L}\p{N}]+/gu)) {
+          for (const [length, titles] of byFirstWord.get(word[0]) ?? []) {
+            if (wordChar(text[word.index + length])) continue; // the title would end inside a longer word
+            for (const id of titles.get(text.slice(word.index, word.index + length)) ?? []) found.add(id);
+          }
+        }
+        for (const other of odd) {
+          for (let at = text.indexOf(other.title); at >= 0 && !found.has(other.id); at = text.indexOf(other.title, at + 1)) {
+            if (!wordChar(text[at - 1]) && !wordChar(text[at + other.title.length])) found.add(other.id);
+          }
+        }
+        found.delete(note.id);
+        for (const id of found) {
+          addLink.run(note.id, id, 1);
           made++;
         }
       }
       // 2. A name that two or more notes share becomes an entity note they all link to.
       const holders = new Map<string, number[]>();
+      const display = new Map<string, string>();
       for (const note of notes) {
         if (note.kind === "entity") continue; // an entity is made from the names, never a holder of one
         for (const name of namesIn(`${note.title}. ${note.body}`)) {
           const key = name.toLowerCase();
-          holders.set(key, [...(holders.get(key) ?? []), note.id]);
+          const ids = holders.get(key);
+          if (ids) ids.push(note.id);
+          else holders.set(key, [note.id]);
+          display.set(key, name);
         }
       }
-      const display = new Map<string, string>();
-      for (const note of notes) if (note.kind !== "entity") for (const name of namesIn(`${note.title}. ${note.body}`)) display.set(name.toLowerCase(), name);
       for (const [key, ids] of holders) {
         const unique = [...new Set(ids)];
         if (unique.length < 2) continue;

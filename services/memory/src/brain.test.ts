@@ -103,6 +103,16 @@ test("autolink: a note that names another note's title links to it, and a name t
   assert.equal(brain.graph().edges.length, edges);
 });
 
+test("autolink matches a title only as whole words, in any case, wherever it appears", () => {
+  const brain = open();
+  for (const title of ["Mesh plan", "Eero", "C++ notes", "(draft) ideas", "Kyoto"]) brain.save({ title, body: "x" });
+  const note = brain.save({ title: "Diary", body: "The meshing went fine. Then the MESH PLAN, eero's router, c++ notes and (draft) ideas. Kyotofu, not Kyoto-" });
+  brain.save({ title: "Other", body: "Mesh planner only; eeros too." });
+  brain.autolink();
+  assert.deepEqual(brain.links(note.id).map((l) => l.title).sort(), ["(draft) ideas", "C++ notes", "Eero", "Kyoto", "Mesh plan"]);
+  assert.deepEqual(brain.links(brain.byTitle("Other")!.id), [], "a title inside a longer word is not a mention");
+});
+
 test("names: capitalised words that do not open a sentence, joined when they stand together", () => {
   assert.deepEqual(namesIn("Monday I met Mira Haugen in Oslo. The plan is good."), ["Mira Haugen", "Oslo"]);
   assert.deepEqual(namesIn("Eero is fast. Then Eero beats Orbi."), ["Eero", "Orbi"]);
