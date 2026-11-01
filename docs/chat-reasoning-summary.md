@@ -16,7 +16,7 @@ Facts from `@anthropic-ai/claude-agent-sdk` 0.3.296 (`sdk.d.ts`):
 - A `thinking` block in an assistant message holds the summary text when the display is `'summarized'`.
 - With `includePartialMessages: true`, the SDK also streams `thinking_delta` events. This design does not use them.
 - The gateway sets `thinking: { type: "adaptive" }` only when the chat has an effort level other than Off. It sets no `display` today.
-- The package range is `^0.3.287`. The lockfile has 0.3.287 and 0.3.296. Phase R1 checks both.
+- The package range is `^0.3.287`. The lockfile pins 0.3.287 for the gateway. The types of 0.3.287 also have `display` on `ThinkingAdaptive`. An older 0.3.296 copy exists in `node_modules` but the gateway does not use it.
 
 Not verified:
 

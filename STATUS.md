@@ -1,29 +1,5 @@
 # ARK Project Status
 
-## Reasoning summary event: decision and contract — 28 October 2026
-
-ADR-212 and [the contract](docs/chat-reasoning-summary.md) define a bounded reasoning summary: an optional `thinking` field on the `chat.work` event, one line per Claude `thinking` block, ephemeral and plain text. The installed Claude Agent SDK 0.3.296 supports `display: 'summarized'`. Not checked: what each model returns, and Codex (no binary here). No code changed. No tests ran. Next task: R1, a measured check of what the SDK returns, which needs real model calls and your approval for each.
-
-## Native Needs you filters (Phase 3, second item) — 28 October 2026
-
-The Needs you page in the app has filter chips from the HTML preview: All, Approvals, Plans, Suggestions, Held and Failed, each with a count. A filter only chooses what shows. The cards and their Approve, Reject, Allow and Retry buttons are unchanged, and the counts always show everything that waits. `NeedsYouFilter` in `ArkIslandCore` holds the grouping and the counts (5 new tests pass). Gallery captures show the chips in light and dark. Not done from the HTML design: the two-pane list and detail layout, and the inbox sort. Not checked in the running app. Next task: the chat list.
-
-## Native Token mix redesign (Phase 3, first item) — 28 October 2026
-
-The Dashboard Token mix in the app now follows the HTML preview. The ring is 112 points. Each legend row shows the kind, its count, its share and a thin share bar. `TokenTotals.sharePercent` formats the share ("1.5%", "17%", "<0.1%"). Three new tests pass. A sample fixture in the gallery renders light and dark, and the real Dashboard capture looks right. Not checked in the running app. Next task: the Needs you inbox.
-
-## Run panel (Phase 2) — 28 October 2026
-
-Added the Run surface to the workspace pane. It shows the tool calls, questions and state of the latest turn through the bundled Run panel (`apps/mac/island/Web/run/`). Pipeline, lanes and evidence show "Not available" because the runtime does not report them. The panel has no intents yet. A headless web view check passed: script text stays inert, stale data is ignored, reset works. 40 workspace and web panel tests pass. Not done: a check inside the built app, VoiceOver, and larger text. Next task: decide whether to add runtime events for pipeline and lanes, or a native highlight for `selectCall`.
-
-## Web panel host (Phase 1) — 28 October 2026
-
-Added the web panel host from [the plan](docs/html-to-native-plan.md). `ArkIslandCore` has the message parser, the navigation policy, the theme tokens and the Run panel payload builder (19 new tests pass). `ArkIsland` has `WebPanelView`, a locked web view. A probe panel in `apps/mac/island/Web/probe/` shows in Settings, Design. A headless web view check passed: the page loads under its CSP, the bridge works, bad tokens and network calls are refused, and later navigation is cancelled. Not done: a check inside the built app, VoiceOver, and larger text. The full test run has 9 failures in `SetupTests` and `ThemeTests`. Those tests are in code this change does not touch. Next task: Phase 2, the Run panel.
-
-## Web panels in the native app: decision and contract — 28 October 2026
-
-Phase 0 of [the HTML-to-native plan](docs/html-to-native-plan.md) is done. ADR-211 chooses a hybrid: a native SwiftUI shell and sandboxed web panels for read-only visuals. [The panel contract](docs/web-panel-contract.md) defines the messages, the checks and the Run panel data. No Swift code changed. No tests ran. Next task: Phase 1, the web panel host and its tests.
-
 ## Standalone current UI preview and Git checkpoint — 28 October 2026
 
 Created self-contained `design/current-ui.html` for Dashboard, Board, chat and ARK skills, with embedded native office/icon artwork, 151 packaged skill descriptions, local preview interactions, light/dark and text scaling. All data is fictional; no runtime/Git/model access. Manual browser wide/compact/theme/catalog inspection and TypeScript/whitespace checks passed; automated suites remain skipped. [Preview scope](docs/current-ui-preview.md). User authorized pushing the accumulated checkpoint and merging to main; unrelated graphify-out remains excluded.

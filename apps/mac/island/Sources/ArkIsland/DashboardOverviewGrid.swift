@@ -8,35 +8,29 @@ struct DashboardOverviewGrid: View {
     let width: CGFloat
     @Environment(\.theme) private var theme
 
+    var fitted = false
+
     var body: some View {
-        if width >= 1140 {
-            HStack(alignment: .top, spacing: 14) {
-                trends.frame(maxWidth: .infinity)
+        if width >= 852 {
+            HStack(alignment: .top, spacing: 12) {
+                trends.frame(width: max(0, (width - 24) * 1.1 / 3.1))
                 development.frame(maxWidth: .infinity)
-                briefs.frame(width: 280)
-            }
-        } else if width >= 760 {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .top, spacing: 14) {
-                    trends.frame(maxWidth: .infinity)
-                    development.frame(maxWidth: .infinity)
-                }
-                briefs
-            }
+                briefs.frame(maxWidth: .infinity)
+            }.frame(maxHeight: fitted ? .infinity : nil, alignment: .top)
         } else {
-            VStack(alignment: .leading, spacing: 14) { trends; development; briefs }
+            VStack(alignment: .leading, spacing: 12) { trends; development; briefs }
         }
     }
 
     private var trends: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 12) {
             DashboardTrendsPanel(usage: usage)
-            DashboardRecentTurns(usage: usage, plan: model.planUsage)
-        }
+            DashboardRecentTurns(usage: usage, plan: model.planUsage, fitted: fitted)
+        }.frame(maxHeight: fitted ? .infinity : nil, alignment: .top)
     }
 
     private var development: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 12) {
             DashboardPanel("Git activity") {
                 if let branches = model.helpers.git {
                     if branches.contains(where: { $0.commits.contains(where: { $0.at != nil }) }) {
@@ -48,24 +42,24 @@ struct DashboardOverviewGrid: View {
                     PanelNote(text: "Loading local branch activity…")
                 }
             }
-            DashboardPanel("Token mix", detail: "Last 7 days · includes cache") {
-                DashboardTokenMix(usage: usage)
-            }
-            DashboardPanel("Team branches") {
+            DashboardPanel("Team branches", detail: model.helpers.git.map { "\($0.count) branches · scroll for all" }, fillsHeight: fitted) {
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
-                // A fixed height with its own scroll, so a long list does not push the other panels down (from the HTML preview).
-                if width >= 760 { Scrollable { GitSection(model: model, compact: true) }.frame(height: 320) }
-                else { GitSection(model: model, compact: true) }
+                GitSection(model: model, compact: true, fitted: fitted, displayAll: true)
+                    .frame(maxHeight: fitted ? .infinity : nil, alignment: .top)
             }
-        }
+        }.frame(maxHeight: fitted ? .infinity : nil, alignment: .top)
     }
 
     private var briefs: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 12) {
             DashboardPanel("Your day") { DashboardBriefSummary(model: model) }
-            DashboardPanel("Brief archive") {
+            DashboardPanel("Token mix", detail: "Last 7 days · includes cache") { DashboardTokenMix(usage: usage) }
+            DashboardPanel("Brief archive", fillsHeight: fitted) {
                 if model.dailyBrief.history.count > 1 {
-                    BriefHistory(model: model, initiallyExpanded: true, compact: true)
+                    if fitted {
+                        Scrollable { BriefHistory(model: model, initiallyExpanded: true, compact: true) }
+                            .frame(maxHeight: .infinity)
+                    } else { BriefHistory(model: model, initiallyExpanded: true, compact: true) }
                 } else {
                     PanelNote(text: "Earlier briefs will appear here.")
                 }
@@ -76,7 +70,7 @@ struct DashboardOverviewGrid: View {
                         .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }
             }
-        }
+        }.frame(maxHeight: fitted ? .infinity : nil, alignment: .top)
     }
 }
 
@@ -84,23 +78,37 @@ struct DashboardPanel<Content: View>: View {
     let title: String
     let detail: String?
     let content: Content
+    let fillsHeight: Bool
+    let accessory: AnyView?
     @Environment(\.theme) private var theme
-    init(_ title: String, detail: String? = nil, @ViewBuilder content: () -> Content) {
-        self.title = title; self.detail = detail; self.content = content()
+    init(_ title: String, detail: String? = nil, fillsHeight: Bool = false, accessory: AnyView? = nil, @ViewBuilder content: () -> Content) {
+        self.title = title; self.detail = detail; self.fillsHeight = fillsHeight; self.accessory = accessory; self.content = content()
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center, spacing: 10) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title).appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color)
-                    if let detail { Text(detail).appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color) }
+            if let accessory {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 12) { labels; accessory }
+                        .fixedSize(horizontal: true, vertical: false).frame(maxWidth: .infinity, alignment: .leading)
+                    VStack(alignment: .leading, spacing: 8) { labels; accessory }
                 }
-            }
+            } else { labels }
             content
-        }.padding(12).frame(maxWidth: .infinity, alignment: .topLeading)
+        }.padding(.horizontal, 16).padding(.vertical, 12)
+            .frame(maxWidth: .infinity, maxHeight: fillsHeight ? .infinity : nil, alignment: .topLeading)
             .background(theme.isDark ? theme.fill2.color : Color.white, in: RoundedRectangle(cornerRadius: 12))
             .hoverLift(radius: 12)
     }
+    private var labels: some View {
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color)
+                if let detail { Text(detail).appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color) }
+            }
+        }
+    }
+
+
 }
 
 private struct DashboardBriefSummary: View {
@@ -172,9 +180,9 @@ private struct DashboardTrendsPanel: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        DashboardPanel("Trends", detail: kind.detail) {
+        DashboardPanel("Trends", detail: kind.detail, accessory: AnyView(
+            DashboardTabStrip(titles: DashboardTrendKind.allCases.map(\.title), selected: kind.rawValue) { kind = DashboardTrendKind(rawValue: $0) ?? .tokens })) {
             VStack(alignment: .leading, spacing: 10) {
-                DashboardTabStrip(titles: DashboardTrendKind.allCases.map(\.title), selected: kind.rawValue) { kind = DashboardTrendKind(rawValue: $0) ?? .tokens }
                 DashboardTrend(days: usage.days, metric: metric, color: kind == .cacheReuse ? theme.success.color : theme.live.color)
             }
         }
@@ -221,7 +229,7 @@ struct DashboardTabStrip: View {
 }
 
 /// The last turns as bars (Turns), or the week's accounting (Usage): the HTML preview's two views of one panel. The full
-/// breakdown stays below the page as "Usage details and accounting".
+/// complete accounting remains inside the Usage tab.
 struct DashboardRecentTurns: View {
     enum Mode: Int, CaseIterable {
         case turns, usage
@@ -230,21 +238,31 @@ struct DashboardRecentTurns: View {
     let usage: TokenUsageSummary
     let plan: PlanUsage?
     @State private var mode: Mode
+    let fitted: Bool
     @Environment(\.theme) private var theme
 
     /// `mode` is the tab shown first; the gallery uses it to capture the Usage view.
-    init(usage: TokenUsageSummary, plan: PlanUsage?, mode: Mode = .turns) {
-        self.usage = usage; self.plan = plan; _mode = State(initialValue: mode)
+    init(usage: TokenUsageSummary, plan: PlanUsage?, mode: Mode = .turns, fitted: Bool = false) {
+        self.usage = usage; self.plan = plan; self.fitted = fitted; _mode = State(initialValue: mode)
     }
 
     var body: some View {
         let bars = RecentTurnBar.bars(usage.recent)
         DashboardPanel(mode == .turns ? "Recent turns" : "Usage details",
-                       detail: mode == .turns ? "Last \(bars.count) · input and output tokens" : "Last 7 days · accounting") {
+                       detail: mode == .turns ? "Last \(bars.count) · input and output tokens" : "Last 7 days · accounting", fillsHeight: fitted,
+                       accessory: AnyView(DashboardTabStrip(titles: Mode.allCases.map(\.title), selected: mode.rawValue) { mode = Mode(rawValue: $0) ?? .turns })) {
             VStack(alignment: .leading, spacing: 10) {
-                DashboardTabStrip(titles: Mode.allCases.map(\.title), selected: mode.rawValue) { mode = Mode(rawValue: $0) ?? .turns }
-                if mode == .turns { turns(bars) } else { details }
-            }
+                if fitted {
+                    Scrollable { selectedBody(bars) }.frame(maxHeight: .infinity)
+                } else { selectedBody(bars) }
+            }.frame(maxHeight: fitted ? .infinity : nil, alignment: .top)
+        }
+    }
+
+    @ViewBuilder private func selectedBody(_ bars: [RecentTurnBar]) -> some View {
+        if mode == .turns { turns(bars) } else {
+            details
+            DashboardAccountingDetails(usage: usage, plan: plan).padding(.top, 12)
         }
     }
 
@@ -285,6 +303,10 @@ struct DashboardRecentTurns: View {
     private var details: some View {
         let facts = UsageDetailsFacts(summary: usage)
         return VStack(alignment: .leading, spacing: 12) {
+            if usage.chatCacheCold {
+                Label("Recent chat turns did not reuse cached input. Details show the recorded counts.", systemImage: "info.circle")
+                    .appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
+            }
             Text("Dollars are an API-equivalent at list prices, not a charge.").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(alignment: .top, spacing: 16) {
@@ -299,7 +321,7 @@ struct DashboardRecentTurns: View {
             shares("By model · 7 days", facts.models, more: facts.moreModels, identifier: true, color: theme.live.color)
             shares("By worker · 7 days", facts.workers, more: facts.moreWorkers, identifier: false, color: theme.accent.color)
             if facts.moreModels + facts.moreWorkers > 0 {
-                Text("The full list is under Usage details and accounting, below.").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                Text("Open Usage details and accounting for the full list.").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
             }
         }
     }

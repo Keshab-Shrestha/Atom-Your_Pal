@@ -8,6 +8,7 @@ struct WindowTopBar<Trailing: View>: View {
     let title: String
     let symbol: String
     var compact = false
+    var centeredTitle = false
     var context: String? = nil
     /// ADR-128: set while the sidebar is hidden: the button that shows it again sits at the bar's left end.
     var showSidebar: (() -> Void)? = nil
@@ -31,19 +32,14 @@ struct WindowTopBar<Trailing: View>: View {
                 .accessibilityLabel("Back")
             }
             if !compact { Image(systemName: symbol).appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color) }
-            VStack(alignment: .leading, spacing: 3) {
-                if compact, let context {
-                    Text(context).appFont(.system(size: 10.5, weight: .medium)).foregroundStyle(theme.text3.color).lineLimit(1)
-                }
-                Text(title).appFont(.system(size: compact ? 17 : 12.5, weight: .medium, design: compact ? .serif : .default))
-                    .foregroundStyle(theme.text.color).lineLimit(1)
-            }
+            if !centeredTitle { titleLabel }
             Spacer(minLength: 8)
             trailing()
         }
         .padding(.leading, 18)
         .padding(.trailing, 18)
-        .frame(height: compact ? 64 : HelpersView.titleBarRoom)
+        .frame(height: compact ? 52 : HelpersView.titleBarRoom)
+        .overlay { if centeredTitle { titleLabel.allowsHitTesting(false) } }
         // 2026-10-15: room above the bar, so the back arrow and the page's name sit level with the app name in the
         // sidebar and not up beside the window's buttons. It is part of the bar: it still moves the window.
         .padding(.top, compact ? 0 : HelpersView.topBarGap)
@@ -56,6 +52,16 @@ struct WindowTopBar<Trailing: View>: View {
             LinearGradient(colors: [.clear, theme.separator.color.opacity(0.4)], startPoint: .top, endPoint: .bottom).frame(height: 5)
         }
     }
+    private var titleLabel: some View {
+        VStack(alignment: .leading, spacing: 3) {
+                if compact, let context {
+                    Text(context).appFont(.system(size: 10.5, weight: .medium)).foregroundStyle(theme.text3.color).lineLimit(1)
+                }
+                Text(title).appFont(.system(size: compact ? 14 : 12.5, weight: compact ? .semibold : .medium))
+                    .foregroundStyle(theme.text.color).lineLimit(1)
+            }
+    }
+
 }
 
 extension WindowTopBar where Trailing == EmptyView {

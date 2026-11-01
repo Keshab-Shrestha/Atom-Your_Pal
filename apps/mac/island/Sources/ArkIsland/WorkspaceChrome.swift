@@ -219,17 +219,10 @@ struct WorkspacePressStyle: ButtonStyle {
     }
 }
 
+/// Joined workspace panes share one outer window outline; separators belong to their boundaries.
 private struct WorkspaceLane: ViewModifier {
     let color: RGBA
-    @Environment(\.theme) private var theme
-    @Environment(\.colorSchemeContrast) private var contrast
-    func body(content: Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
-        content.background(color.color)
-            .clipShape(shape)
-            .overlay(shape.strokeBorder(contrast == .increased ? theme.text3.color : theme.separator.color,
-                                       lineWidth: contrast == .increased ? 1.5 : 0.5))
-    }
+    func body(content: Content) -> some View { content.background(color.color) }
 }
 
 extension View {

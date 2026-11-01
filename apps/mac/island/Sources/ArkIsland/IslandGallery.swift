@@ -27,6 +27,7 @@ enum IslandGallery {
         if ArkEnv.read("ARK_ISLAND_GALLERY_ONLY") == "management" {
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             writeManagement(to: directory)
+            writeWorkspace(to: directory) // Include split/cover captures for joined-pane review.
             return
         }
         if ArkEnv.read("ARK_ISLAND_GALLERY_ONLY") == "chat" {

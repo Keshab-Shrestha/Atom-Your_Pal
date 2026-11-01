@@ -13,70 +13,41 @@ struct DashboardPane: View {
         let usage = model.helpers.list?.usage
         let attention = BoardAttention(list: model.helpers.list, approvalPending: model.approval.pending != nil)
         GeometryReader { viewport in
-        Scrollable {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .firstTextBaseline) {
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("Overview").appFont(.system(size: 20, weight: .medium)).foregroundStyle(theme.text.color)
-                        // Today's date under the title, as a calendar would show it.
-                        Text(Date().formatted(.dateTime.weekday(.wide).month(.wide).day())).appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
-                    }
-                    Spacer(minLength: 8)
-                    updated
-                    QuietButton(title: "Open Board", symbol: "rectangle.3.group") { openBoard(.floor) }
-                }
-                ViewThatFits(in: .horizontal) {
-                    summaryStrip(usage: usage, attention: attention, columns: 6).frame(minWidth: 1000)
-                    summaryStrip(usage: usage, attention: attention, columns: 3)
-                }
-                if let usage {
-                    DashboardOverviewGrid(model: model, usage: usage, width: viewport.size.width - 40)
-                    if usage.chatCacheCold {
-                        Label("Recent chat turns did not reuse cached input. Details show the recorded counts.", systemImage: "info.circle")
-                            .appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color)
-                    }
-                    DisclosureGroup("Recent turns") {
-                        ArkScrollView(.horizontal) {
-                            VStack(spacing: 0) {
-                                RecentHeader()
-                                ForEach(Array(usage.recent.enumerated()), id: \.offset) { _, run in RowDivider(); RecentRow(run: run) }
-                            }.frame(minWidth: 650)
-                        }.padding(.top, 12)
-                    }.appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
-                    DisclosureGroup("Usage details and accounting") {
-                        VStack(alignment: .leading, spacing: 18) {
-                            Text("Tokens used by ARK's chat and the team. On the Claude plan they count toward its limits; dollars are list prices for the calls counted here: tokens, Claude Code's own calls, and web searches at one cent each.")
-                                .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
-                            if let trend = usage.todayTrend?.text { Text(trend).appFont(.system(size: 12)).foregroundStyle(theme.text2.color) }
-                            HStack(spacing: 24) {
-                                DashboardMetric(value: TokenTotals.short(usage.week.cacheWrite), title: "Cache written, 7 days", detail: "\(TokenTotals.short(usage.today.cacheWrite)) today")
-                                DashboardMetric(value: TokenTotals.short(usage.week.cacheRead), title: "Cache read, 7 days", detail: "\(TokenTotals.short(usage.today.cacheRead)) today")
-                            }
-                            Text(Self.cacheHelp).appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
-                            if let plan = model.planUsage, !plan.isEmpty { section("Claude plan") { PlanMeters(plan: plan) } }
-                            section("By worker, 7 days") {
-                                if usage.byWorker.isEmpty { quiet("No worker usage recorded yet.") }
-                                ForEach(Array(usage.byWorker.enumerated()), id: \.offset) { index, worker in
-                                    if index > 0 { RowDivider() }
-                                    ShareRow(name: worker.name, totals: worker.totals, of: usage.week.total, identifier: false)
-                                }
-                            }
-                            section("By model, 7 days") {
-                                if usage.byModel.isEmpty { quiet("No model usage recorded yet.") }
-                                ForEach(Array(usage.byModel.enumerated()), id: \.offset) { index, value in
-                                    if index > 0 { RowDivider() }
-                                    ShareRow(name: value.model, totals: value.totals, of: usage.week.total, identifier: true)
-                                }
-                            }
-                        }.padding(.top, 14)
-                    }.appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+            let fitted = viewport.size.width >= 900 && viewport.size.height >= 620
+            Group {
+                if fitted {
+                    overview(usage: usage, attention: attention, width: viewport.size.width, fitted: true)
                 } else {
-                    LoadingStateView(text: "Loading workspace…", retry: { model.send(.helpersList) })
+                    Scrollable { overview(usage: usage, attention: attention, width: viewport.size.width, fitted: false) }
                 }
-            }.frame(maxWidth: .infinity, alignment: .leading)
-                .padding(20)
-        }
+            }
         }.onAppear { if !snapshot { model.loadBrief() } }
+    }
+
+    private func overview(usage: TokenUsageSummary?, attention: BoardAttention, width: CGFloat, fitted: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Overview").appFont(.system(size: 20, weight: .medium)).foregroundStyle(theme.text.color)
+                    // Today's date under the title, as a calendar would show it.
+                    Text(Date().formatted(.dateTime.weekday(.wide).month(.wide).day())).appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+                }
+                Spacer(minLength: 8)
+                updated
+                QuietButton(title: "Open Board", symbol: "rectangle.3.group") { openBoard(.floor) }
+            }
+            ViewThatFits(in: .horizontal) {
+                summaryStrip(usage: usage, attention: attention, columns: 6).frame(minWidth: 900)
+                summaryStrip(usage: usage, attention: attention, columns: 3)
+            }
+            if let usage {
+                DashboardOverviewGrid(model: model, usage: usage, width: width - 48, fitted: fitted)
+                    .frame(maxHeight: fitted ? .infinity : nil, alignment: .top)
+            } else {
+                LoadingStateView(text: "Loading workspace…", retry: { model.send(.helpersList) })
+            }
+        }.padding(.horizontal, 24).padding(.top, 8).padding(.bottom, 16)
+            .frame(maxWidth: .infinity, maxHeight: fitted ? .infinity : nil, alignment: .topLeading)
     }
 
     private func summaryStrip(usage: TokenUsageSummary?, attention: BoardAttention, columns: Int) -> some View {
@@ -92,10 +63,10 @@ struct DashboardPane: View {
     private func summaryValue(_ value: String, title: String, symbol: String) -> some View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(value).appFont(.system(size: 18, weight: .semibold)).monospacedDigit().foregroundStyle(theme.text.color)
+                Text(value).appFont(.system(size: 16, weight: .semibold)).monospacedDigit().foregroundStyle(theme.text.color)
                 Text(title).appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)
             }
-        }.padding(.vertical, 10).frame(maxWidth: .infinity, alignment: .leading).statTile()
+        }.padding(.vertical, 6).frame(maxWidth: .infinity, alignment: .leading).statTile()
     }
 
     private func usageMetrics(_ usage: TokenUsageSummary, columns: Int) -> some View {
@@ -117,12 +88,12 @@ struct DashboardPane: View {
                 // Needs attention: a small dot, not a coloured icon (unslop: stat cards are numbers).
                 if attention { StatusDot(color: theme.attention.color, size: 6) }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(value.map(String.init) ?? "—").appFont(.system(size: 18, weight: .semibold)).monospacedDigit().foregroundStyle(theme.text.color)
+                    Text(value.map(String.init) ?? "—").appFont(.system(size: 16, weight: .semibold)).monospacedDigit().foregroundStyle(theme.text.color)
                     Text(title).appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right").appFont(.system(size: 9)).foregroundStyle(theme.text3.color)
-            }.padding(.vertical, 12).contentShape(Rectangle()).statTile(attention: attention)
+            }.padding(.vertical, 6).contentShape(Rectangle()).statTile(attention: attention)
         }.buttonStyle(.pressable).disabled(model.helpers.list == nil).accessibilityLabel("\(value.map(String.init) ?? "Loading") \(title). Open Board.")
     }
 
@@ -147,6 +118,54 @@ struct DashboardPane: View {
     /// Matches COLD_CACHE_RUNS in services/helpers/src/usage.ts.
     static let coldRuns = 3
 
+    private func section(_ title: String, @ViewBuilder _ content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title).appFont(.system(size: 17, weight: .semibold)).foregroundStyle(theme.text.color)
+            Divider().overlay(theme.separator.color)
+            VStack(alignment: .leading, spacing: 0) { content() }.frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func quiet(_ text: String) -> some View {
+        Text(text).appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 16).padding(.vertical, 14)
+    }
+}
+
+/// Complete accounting moved into the existing Usage tab; no records or categories are dropped.
+struct DashboardAccountingDetails: View {
+    let usage: TokenUsageSummary
+    let plan: PlanUsage?
+    @Environment(\.theme) private var theme
+    var body: some View {
+                    DisclosureGroup("Usage details and accounting") {
+                        VStack(alignment: .leading, spacing: 18) {
+                            Text("Tokens used by ARK's chat and the team. On the Claude plan they count toward its limits; dollars are list prices for the calls counted here: tokens, Claude Code's own calls, and web searches at one cent each.")
+                                .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
+                            if let trend = usage.todayTrend?.text { Text(trend).appFont(.system(size: 12)).foregroundStyle(theme.text2.color) }
+                            HStack(spacing: 24) {
+                                DashboardMetric(value: TokenTotals.short(usage.week.cacheWrite), title: "Cache written, 7 days", detail: "\(TokenTotals.short(usage.today.cacheWrite)) today")
+                                DashboardMetric(value: TokenTotals.short(usage.week.cacheRead), title: "Cache read, 7 days", detail: "\(TokenTotals.short(usage.today.cacheRead)) today")
+                            }
+                            Text(DashboardPane.cacheHelp).appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+                            if let plan, !plan.isEmpty { section("Claude plan") { PlanMeters(plan: plan) } }
+                            section("By worker, 7 days") {
+                                if usage.byWorker.isEmpty { quiet("No worker usage recorded yet.") }
+                                ForEach(Array(usage.byWorker.enumerated()), id: \.offset) { index, worker in
+                                    if index > 0 { RowDivider() }
+                                    ShareRow(name: worker.name, totals: worker.totals, of: usage.week.total, identifier: false)
+                                }
+                            }
+                            section("By model, 7 days") {
+                                if usage.byModel.isEmpty { quiet("No model usage recorded yet.") }
+                                ForEach(Array(usage.byModel.enumerated()), id: \.offset) { index, value in
+                                    if index > 0 { RowDivider() }
+                                    ShareRow(name: value.model, totals: value.totals, of: usage.week.total, identifier: true)
+                                }
+                            }
+                        }.padding(.top, 14)
+                    }.appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+
+    }
     private func section(_ title: String, @ViewBuilder _ content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title).appFont(.system(size: 17, weight: .semibold)).foregroundStyle(theme.text.color)
@@ -341,13 +360,17 @@ struct PlanMeters: View {
 struct GitSection: View {
     let model: IslandModel
     let compact: Bool
+    let fitted: Bool
+    let displayAll: Bool
     /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
     private let confirming = State<GitBranch?>(initialValue: nil)
     private let showsAll = State(initialValue: false)
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
 
-    init(model: IslandModel, compact: Bool = false) { self.model = model; self.compact = compact }
+    init(model: IslandModel, compact: Bool = false, fitted: Bool = false, displayAll: Bool = false) {
+        self.model = model; self.compact = compact; self.fitted = fitted; self.displayAll = displayAll
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -361,8 +384,25 @@ struct GitSection: View {
                     Text("No task branches yet. Branches from active repository projects and granted repositories appear here. Subfolder projects use their own Git workspace.")
                         .appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 4)
                 }
+                if fitted {
+                    Scrollable { branchRows(branches) }.frame(maxHeight: .infinity)
+                } else { branchRows(branches) }
+            } else {
+                Text("Looking for branches…").appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 4)
+            }
+        }
+        .onAppear { if !snapshot { model.sendHelpers(model.helpers.gitCommand(.gitList)) } }
+        .alert("Push \(confirming.wrappedValue?.branch ?? "")?", isPresented: Binding(get: { confirming.wrappedValue != nil }, set: { if !$0 { confirming.wrappedValue = nil } }), presenting: confirming.wrappedValue) { branch in
+            Button("Push") { model.sendHelpers(model.helpers.gitCommand(.gitPush(repo: branch.repo, branch: branch.branch))) }
+            Button("Cancel", role: .cancel) {}
+        } message: { branch in
+            Text("Sends its \(branch.commits.count) commit\(branch.commits.count == 1 ? "" : "s") to origin (\(branch.remote ?? "")). Never forced. Workers never push; only you can, from here.")
+        }
+    }
+    private func branchRows(_ branches: [GitBranch]) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
                 if !compact { GitCommitActivity(branches: branches) }
-                let visible = compact && !showsAll.wrappedValue ? Array(branches.prefix(4)) : branches
+                let visible = compact && !displayAll && !showsAll.wrappedValue ? Array(branches.prefix(4)) : branches
                 ForEach(visible) { branch in
                     if compact {
                         DisclosureGroup {
@@ -380,22 +420,14 @@ struct GitSection: View {
                         GitBranchCard(model: model, branch: branch) { confirming.wrappedValue = branch }
                     }
                 }
-                if compact && branches.count > 4 {
+                if compact && !displayAll && branches.count > 4 {
                     Button(showsAll.wrappedValue ? "Show fewer branches" : "View all \(branches.count) branches") { showsAll.wrappedValue.toggle() }
                         .buttonStyle(SnapshotBorderlessButtonStyle()).appFont(.system(size: 11.5))
                 }
-            } else {
-                Text("Looking for branches…").appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 4)
-            }
-        }
-        .onAppear { if !snapshot { model.sendHelpers(model.helpers.gitCommand(.gitList)) } }
-        .alert("Push \(confirming.wrappedValue?.branch ?? "")?", isPresented: Binding(get: { confirming.wrappedValue != nil }, set: { if !$0 { confirming.wrappedValue = nil } }), presenting: confirming.wrappedValue) { branch in
-            Button("Push") { model.sendHelpers(model.helpers.gitCommand(.gitPush(repo: branch.repo, branch: branch.branch))) }
-            Button("Cancel", role: .cancel) {}
-        } message: { branch in
-            Text("Sends its \(branch.commits.count) commit\(branch.commits.count == 1 ? "" : "s") to origin (\(branch.remote ?? "")). Never forced. Workers never push; only you can, from here.")
+
         }
     }
+
 }
 
 struct GitBranchCard: View {

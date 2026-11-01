@@ -47,13 +47,16 @@ private struct WorkspaceDivider: View {
     let preview: (Double) -> Void
     let commit: (Double) -> Void
     @Environment(\.theme) private var theme
+    @Environment(\.colorSchemeContrast) private var contrast
     @State private var origin: Double?
     @State private var hovering = false
     private func bounded(_ value: Double) -> Double { min(maximum, WorkspacePaneLayout.preference(value)) }
     var body: some View {
-        Capsule().fill(hovering || origin != nil ? theme.accent.color : theme.separator.color)
-            .frame(width: 2, height: 48)
-            .frame(width: WorkspacePaneLayout.divider, height: nil).frame(maxHeight: .infinity)
+        Rectangle().fill(hovering || origin != nil ? theme.accent.color : contrast == .increased ? theme.text3.color : theme.separator.color)
+            .frame(width: 1).frame(maxHeight: .infinity)
+            // Paint the existing generous drag target as pane content, never as an empty gutter.
+            .frame(width: WorkspacePaneLayout.divider)
+            .background(theme.surfaceSolid.color)
             .contentShape(Rectangle())
             .onHover { hovering = $0; ($0 ? NSCursor.resizeLeftRight : NSCursor.arrow).set() }
             .gesture(DragGesture(minimumDistance: 1, coordinateSpace: .global).onChanged { value in

@@ -8,6 +8,7 @@ struct HelpersView: View {
     let model: IslandModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.islandSnapshot) private var snapshot
+    @Environment(\.colorSchemeContrast) private var contrast
 
     /// Room at the top of the sidebar for the window's buttons (the title bar is transparent over the content).
     static let titleBarRoom: CGFloat = 40
@@ -18,13 +19,15 @@ struct HelpersView: View {
         let chat = model.windowPage == .chat
         let palette = ChatAppearance.palette(theme: model.settings.theme)
         let sidebarHidden = model.settings.sidebarHidden || (model.windowPage != .chat && model.windowPage != .settings)
-        HStack(spacing: 8) {
+        HStack(spacing: 0) {
             WorkspaceNavigationRail(model: model)
                 .themed(WorkspaceColors.for(model.settings.theme).navigationPalette)
+                .overlay(alignment: .trailing) { Rectangle().fill(contrast == .increased ? palette.text3.color : palette.separator.color).frame(width: contrast == .increased ? 1.5 : 1) }
             if !sidebarHidden {
                 HelperSidebar(model: model).frame(width: 236)
                     .themed(ChatAppearance.palette(theme: model.settings.theme, sidebar: true))
                     .workspaceLane(color: WorkspaceColors.for(model.settings.theme).panel)
+                    .overlay(alignment: .trailing) { Rectangle().fill(contrast == .increased ? palette.text3.color : palette.separator.color).frame(width: contrast == .increased ? 1.5 : 1) }
                     .transition(reduceMotion ? .opacity : .move(edge: .leading).combined(with: .opacity))
             }
             if chat {
@@ -42,11 +45,15 @@ struct HelpersView: View {
                 ActivityPanel(model: model).frame(width: 300)
                     .themed(ChatAppearance.palette(theme: model.settings.theme, sidebar: true))
                     .workspaceLane(color: WorkspaceColors.for(model.settings.theme).panel)
+                    .overlay(alignment: .leading) { Rectangle().fill(contrast == .increased ? palette.text3.color : palette.separator.color).frame(width: contrast == .increased ? 1.5 : 1) }
                     .transition(reduceMotion ? .opacity : .move(edge: .trailing).combined(with: .opacity))
             }
         }
         .animation(Motion.workspace(reduceMotion), value: model.activityShown)
-        .padding(8).padding(.top, 30)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .strokeBorder(contrast == .increased ? palette.text3.color : palette.separator.color, lineWidth: contrast == .increased ? 1.5 : 0.5))
+        .padding(.horizontal, 8).padding(.bottom, 8).padding(.top, 30)
         .background(WorkspaceColors.for(model.settings.theme).frame.color.ignoresSafeArea())
         .background { if !snapshot { WindowDragArea() } }
         .background(DesktopWindowAppearance(palette: palette))
@@ -92,6 +99,7 @@ struct HelpersView: View {
         let settingsBack: (() -> Void)? = model.windowPage == .settings && model.settingsPage != nil
             ? { withAnimation(Motion.workspace(reduceMotion)) { model.settingsPage = nil } } : nil
         return WindowTopBar(title: page.title, symbol: page.symbol, compact: true,
+            centeredTitle: model.windowPage == .dashboard,
             context: model.windowPage == .chat ? chatMetaLine : model.windowPage == .settings ? SettingsHome.groupTitle(of: model.settingsPage) : (model.windowPage == .agents || model.windowPage == .dashboard) ? nil : "Workspace",
             showSidebar: model.settings.sidebarHidden && (model.windowPage == .chat || model.windowPage == .settings) ? { model.toggleSidebar() } : nil,
             back: model.windowPage == .dashboard ? nil : settingsBack ?? (model.history.canGoBack && !ownBack ? { model.goBack() } : nil)) {
