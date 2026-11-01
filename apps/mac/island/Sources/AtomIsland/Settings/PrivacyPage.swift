@@ -37,7 +37,7 @@ private struct ChatHistoryCard: View {
 
     var body: some View {
         let count = model.chats?.chats.count ?? 0
-        Card("Chat history", footer: "Export writes one Markdown file per chat into a new folder. Delete removes every chat, including project chats; facts and notes in Second brain stay.") {
+        Card("Chat history", footer: "Export writes one Markdown file per chat into a new folder. Delete removes every chat, including project chats, and their chat notes in Second brain. Facts and your own notes stay.") {
             Row(title: "Export all chats", detail: count == 1 ? "1 saved chat" : "\(count) saved chats") {
                 PillButton(title: "Export…", symbol: "square.and.arrow.up") { chooseFolder() }
                     .disabled(model.chatHistoryPending || count == 0)

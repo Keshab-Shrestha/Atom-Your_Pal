@@ -273,7 +273,7 @@ Commands. Every refusal is an `error` event with stage `settings`. Every success
 | `{"type":"chat.new"}` or `{"type":"chat.new","projectId":"…"}` | A new chat, in a project when `projectId` is given. An unknown or archived project is refused and nothing resets. `conversation.reset` is the same command without a project |
 | `{"type":"chat.rename","id":"…","title":"…"}` | Give a chat a title (1 to 60 characters, one line). The title stays when the chat is saved again. It works for every chat the window writes. The chats `telegram`, `api` and `api-<chatId>` are refused with the read-only message. A chat that is not saved yet is refused: send a message first |
 | `{"type":"chats.export","folder":"/full/path"}` | Write every saved chat as one Markdown file into a new folder `ATOM chats <date>` inside `folder`. The folder must be a full path that exists. The answer is `chats.history` |
-| `{"type":"chats.clear"}` | Delete every saved chat, project chats too. The open conversation starts again (`conversation.reset`). The window asks Keshab first. The answer is `chats.history` |
+| `{"type":"chats.clear"}` | Delete every saved chat, project chats too. The chat note and the kept copy of each chat go too, so the Second brain forgets them; facts and Keshab's own notes stay. The open conversation starts again (`conversation.reset`). The window asks Keshab first. The answer is `chats.history` |
 
 Events.
 

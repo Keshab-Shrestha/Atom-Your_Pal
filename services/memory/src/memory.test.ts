@@ -203,6 +203,15 @@ test("episodes and memories are deleted separately", () => {
   assert.equal(store.removeEpisode(e.id), false);
 });
 
+test("a deleted chat's note goes by the chat's id; other chats keep theirs", () => {
+  const store = openMemoryStore({ path: ":memory:" });
+  store.saveEpisode("chat-a", "We talked about the Cedar launch.", 2);
+  store.saveEpisode("chat-b", "We talked about Thursday.", 2);
+  assert.equal(store.removeSessionEpisode("chat-a"), true);
+  assert.equal(store.removeSessionEpisode("chat-a"), false);
+  assert.deepEqual(store.episodes().map((e) => e.sessionId), ["chat-b"]);
+});
+
 function fakeSummariser(reply: (req: ModelRequest) => string | Promise<string>) {
   const requests: ModelRequest[] = [];
   const model: LanguageModel = {

@@ -349,8 +349,12 @@ export function createRuntime(
       continuity?.forget(id);
       memory.recallReceipts?.forget(id);
       episodes?.discard(id); // ADR-108: no note for a deleted chat
+      // The note already written and a kept copy go too, so the Second brain forgets the chat (2026-11-01).
+      const forgotten = [memory.removeSessionEpisode(id), memory.chatIndex.drop(id)].some(Boolean);
       attachments?.remove(id); // ADR-113: and none of its files
-      return memory.chats.remove(id);
+      const removed = memory.chats.remove(id);
+      if (forgotten) for (const listener of memoryListeners) listener(); // Memory page and the Second brain follow
+      return removed;
     },
     modelOf: (id) => memory.chats.model(id) ?? projects?.modelOf(id), // ADR-107: the chat's own, else its project's
     rename: (id, title) => projects?.renameChat(id, title) ?? { error: "Projects are off." },

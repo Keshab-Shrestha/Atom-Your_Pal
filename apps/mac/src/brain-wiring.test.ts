@@ -30,6 +30,17 @@ test("sync mirrors facts and conversation notes, links the names they share, and
   assert.deepEqual(wiring.island.graph().nodes.map((n) => n.kind), ["episode"]);
 });
 
+test("a deleted chat's note and the names only it mentioned leave the second brain on the next sync", () => {
+  const { memory, wiring } = setup();
+  memory.add("My sister Mira Haugen lives in Oslo", { source: "voice" });
+  memory.saveEpisode("chat-a", "We planned a trip to see Mira Haugen.", 3);
+  wiring.sync();
+  assert.deepEqual(wiring.island.graph().nodes.map((n) => n.kind).sort(), ["entity", "episode", "memory"]);
+  memory.removeSessionEpisode("chat-a");
+  wiring.sync();
+  assert.deepEqual(wiring.island.graph().nodes.map((n) => n.kind), ["memory"], "the fact stays; the shared name has one note left");
+});
+
 test("brain_note writes a linked note; brain_open and brain_search read it back", async () => {
   const { tool, wiring } = setup();
   assert.match(await tool("brain_note").run({ title: "Mesh plan", body: "Use [[Eero]] #home" }), /Saved "Mesh plan" with 1 link\./);

@@ -105,6 +105,8 @@ export interface MemoryStore {
   /** The newest episodes first. */
   episodes(limit?: number): Episode[];
   removeEpisode(id: number): boolean;
+  /** Deletes the episode of one conversation (a deleted chat's note, 2026-11-01). */
+  removeSessionEpisode(sessionId: string): boolean;
   /** Deletes every episode of this owner. Returns how many were deleted. */
   clearEpisodes(): number;
   /** ADR-091: Keshab's chat sessions. */
@@ -280,6 +282,7 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
     "DELETE FROM episodes WHERE owner = ? AND id NOT IN (SELECT id FROM episodes WHERE owner = ? ORDER BY ended_at DESC, id DESC LIMIT ?)",
   );
   const deleteEpisode = db.prepare("DELETE FROM episodes WHERE owner = ? AND id = ?");
+  const deleteSessionEpisode = db.prepare("DELETE FROM episodes WHERE owner = ? AND session_id = ?");
   const clearAllEpisodes = db.prepare("DELETE FROM episodes WHERE owner = ?");
 
   const insert = db.prepare("INSERT INTO memories (text, owner, scope, source, request_id, created_at, expires_at) VALUES (?, ?, 'personal', ?, ?, ?, ?)");
@@ -448,6 +451,10 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
 
     removeEpisode(id) {
       return Number(deleteEpisode.run(owner, id).changes) > 0;
+    },
+
+    removeSessionEpisode(sessionId) {
+      return Number(deleteSessionEpisode.run(owner, sessionId).changes) > 0;
     },
 
     clearEpisodes() {
