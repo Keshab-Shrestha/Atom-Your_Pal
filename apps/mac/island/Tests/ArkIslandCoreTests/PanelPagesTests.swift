@@ -26,7 +26,7 @@ import Testing
         #expect(Set(pages) == Set(SettingsPage.allCases.filter { $0 != .design }))
         #expect(pages.count == SettingsPage.allCases.count - 1, "no page twice")
         #expect(SettingsHome.sidebar.map(\.title) == ["Preferences", "Companion", "Access", "Help"])
-        #expect(SettingsHome.sidebar[0].pages == [.general, .appearance, .model, .computer, .notifications, .shortcuts])
+        #expect(SettingsHome.sidebar[0].pages == [.general, .defaults, .appearance, .model, .computer, .notifications, .shortcuts])
         #expect(SettingsHome.sidebar[2].pages == [.connections, .privacy])
     }
 

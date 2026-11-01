@@ -11,7 +11,7 @@ import { createInterface } from "node:readline";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import type { Message } from "@ark/contracts";
+import type { ChatAccessMode, Message } from "@ark/contracts";
 import { clearChats, exportChats } from "./chat-export.ts";
 import { PROTOCOL_VERSION, createLevelThrottle, encodeEvent, parseCommand, planUsageEvent, type IslandCommand, type IslandEvent, type SearchHitItem } from "./island-protocol.ts";
 import { spokenDuration } from "@ark/tool-engine";
@@ -117,6 +117,8 @@ export function runIsland(options: IslandOptions): IslandSession {
     }
   }
   let accessActivation: AbortController | undefined;
+  /** Settings → Defaults (2026-11-02), sent by the window on start and on each change. Saved permissions and the model default until then. */
+  let newChatDefaults: { access: ChatAccessMode; effort: string } = { access: "checked", effort: "" };
   const pendingApprovals = new Map<string, Extract<IslandEvent, { type: "approval.request" }>>();
   options.computer?.attach((event) => {
     if (event.type === "approval.request") pendingApprovals.set(event.id, event);
@@ -386,6 +388,9 @@ export function runIsland(options: IslandOptions): IslandSession {
         return;
       case "conversation.reset":
         return newChat(undefined);
+      case "chat.defaults":
+        newChatDefaults = { access: command.access, effort: command.effort };
+        return;
       case "chat.new": {
         // ADR-107: a new chat, in a project when asked. The project is checked first, so a refusal resets nothing.
         if (command.projectId) {
@@ -1207,6 +1212,11 @@ export function runIsland(options: IslandOptions): IslandSession {
     rememberCurrentChat(); // explicit New chat must not resurrect the previously selected conversation
     options.screen?.clear();
     if (projectId && core.sessionId) options.projects?.assign(core.sessionId, projectId);
+    // Settings → Defaults (2026-11-02), after the project: a project chat's model decides which levels exist.
+    if (core.sessionId && (newChatDefaults.access !== "checked" || newChatDefaults.effort)) {
+      const problem = options.chats?.applyDefaults?.(core.sessionId, newChatDefaults);
+      if (problem) options.log?.warn("chat.defaults_skipped", { reason: problem });
+    }
     send({ type: "conversation.reset", ...(projectId ? { projectId } : {}) });
     if (chatsWatched) sendChats(); // ADR-091: a new chat is now the current one
   }

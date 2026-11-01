@@ -14,6 +14,10 @@ struct ResetPageTests {
         IslandSettings.palReactsKey, IslandSettings.palHomeDisplayKey,
         IslandSettings.bubbleSizeKey, IslandSettings.bubbleOpacityKey, IslandSettings.bubbleStayKey,
     ]
+    static let defaultsKeys: Set = [
+        IslandSettings.newChatAccessKey, IslandSettings.newChatEffortKey, IslandSettings.newChatPlaceKey,
+        IslandSettings.startPageKey, IslandSettings.dashboardRangeKey,
+    ]
     static var shortcutKeys: Set<String> { Set(ShortcutAction.allCases.map { IslandSettings.shortcutKey($0) }) }
 
     private func other<C: CaseIterable & Equatable>(_ value: C) -> C { C.allCases.first { $0 != value }! }
@@ -30,6 +34,8 @@ struct ResetPageTests {
         s.bubbleSize = other(s.bubbleSize); s.bubbleOpacity = other(s.bubbleOpacity); s.bubbleStay = other(s.bubbleStay)
         s.petEnabled.toggle(); s.soundsEnabled.toggle(); s.followUpEnabled.toggle(); s.tourDone.toggle()
         s.petSpot = PetSpot(x: 10, y: 20)
+        s.newChatAccess = other(s.newChatAccess); s.newChatEffort = other(s.newChatEffort); s.newChatPlace = other(s.newChatPlace)
+        s.startPage = other(s.startPage); s.dashboardRange = other(s.dashboardRange); s.lastWindowPage = .board
         for action in ShortcutAction.allCases { s.setShortcut(nil, for: action) }
         return (s, defaults, name)
     }
@@ -78,8 +84,16 @@ struct ResetPageTests {
         for action in ShortcutAction.allCases { #expect(s.shortcut(for: action) == action.defaultCombo) }
     }
 
+    @Test func defaultsResetTouchesOnlyDefaults() {
+        let (s, fresh, changed) = run { $0.resetDefaults() }
+        #expect(changed == Self.defaultsKeys)
+        #expect(s.newChatAccess == fresh.newChatAccess && s.newChatEffort == fresh.newChatEffort && s.newChatPlace == fresh.newChatPlace)
+        #expect(s.startPage == fresh.startPage && s.dashboardRange == fresh.dashboardRange)
+        #expect(s.lastWindowPage == .board, "the last page is a record, not a choice")
+    }
+
     @Test func pagesDoNotShareKeys() {
-        let all = [Self.appearanceKeys, Self.dictationKeys, Self.palKeys, Self.shortcutKeys]
+        let all = [Self.appearanceKeys, Self.dictationKeys, Self.palKeys, Self.shortcutKeys, Self.defaultsKeys]
         // Two simple lines: the one-line form is too much for the type checker of newer Swift compilers (CI failed with "unable to type-check in reasonable time").
         let total: Int = all.reduce(0) { $0 + $1.count }
         let distinct: Int = all.reduce(into: Set<String>()) { $0.formUnion($1) }.count

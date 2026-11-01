@@ -16,12 +16,15 @@ extension IslandModel {
             self.send(.projectCreateCancel(request: request.request)); self.projectSource.expire(request.request)
         }
     }
-    /// A new chat in the selected project, or a plain one: the sidebar's button and ⌘N (2026-11-02).
-    var canStartNewChat: Bool { chats?.projects?.first(where: { $0.id == sidebarProjectFilter })?.archived != true }
+    /// The sidebar's button and ⌘N (2026-11-02): a chat where Settings → Defaults says (the sidebar's project unless changed).
+    var canStartNewChat: Bool {
+        settings.newChatPlace != .selectedProject || chats?.projects?.first(where: { $0.id == sidebarProjectFilter })?.archived != true
+    }
     func startNewChat() {
         guard canStartNewChat else { return }
+        let project = settings.newChatPlace.project(filter: sidebarProjectFilter, chats: chats?.chats ?? [], projects: chats?.projects ?? [])
         navigate {
-            if let id = self.sidebarProjectFilter { self.newChat(inProject: id) } else { self.newConversation() }
+            if let project { self.newChat(inProject: project) } else { self.newConversation() }
             self.windowPage = .chat
         }
     }

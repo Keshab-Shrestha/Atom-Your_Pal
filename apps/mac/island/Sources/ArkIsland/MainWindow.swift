@@ -24,7 +24,10 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSMenuItemValidati
 
     /// Opens the window on `page` (nil keeps the page it shows).
     func show(page: WindowPage? = nil) {
-        if let page, page != model.windowPage { model.navigate { [model] in model.windowPage = page } }
+        // Settings → Defaults (2026-11-02): a plain open (Chat, the default page) shows the start page instead.
+        if !model.helpersWindowOpen, page == nil || page == .chat {
+            model.navigate { [model] in model.goToStartPage() }
+        } else if let page, page != model.windowPage { model.navigate { [model] in model.windowPage = page } }
         let window = self.window ?? makeWindow()
         self.window = window
         if !model.helpersWindowOpen {
@@ -121,6 +124,7 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSMenuItemValidati
     func windowWillClose(_ notification: Notification) {
         model.cancelProjectSource()
         model.workspaceTerminal.reset()
+        model.rememberWindowPage()
         model.helpersWindowOpen = false
         model.recorder.stop() // a shortcut recording left open keeps every global shortcut paused and takes ARK's keys (onDisappear does not fire here)
         model.permissions.stopPolling() // the window is closed, not destroyed, so Settings' onDisappear never fires: the 1.5 s permission checks ran for ever

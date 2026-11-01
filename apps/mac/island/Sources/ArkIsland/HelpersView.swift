@@ -200,7 +200,7 @@ private struct HelperSidebar: View {
                     Button { model.startNewChat() } label: {
                         Glyph(systemName: "square.and.pencil").appFont(.system(size: 13)).foregroundStyle(theme.text2.color)
                             .frame(width: 28, height: 30).contentShape(Rectangle())
-                    }.buttonStyle(.plain).help(model.sidebarProjectFilter == nil ? "Start a new chat" : "New chat in the selected project")
+                    }.buttonStyle(.plain).help(model.settings.newChatPlace != .selectedProject ? "New chat: " + model.settings.newChatPlace.title.lowercased() : model.sidebarProjectFilter == nil ? "Start a new chat" : "New chat in the selected project")
                         .accessibilityLabel("New chat")
                         .disabled(!model.canStartNewChat)
                 }.padding(.bottom, 8)

@@ -1061,6 +1061,7 @@ final class IslandModel {
             computerRestarting = false
             computerTimeout?.cancel()
             send(.telegramSet(push: settings.telegramPush))
+            sendChatDefaults() // Settings → Defaults (2026-11-02)
             send(.apiSet(on: settings.localApi)) // ADR-098 item 5
             send(.computerMode(foreground: settings.computerForeground))
             computerDecisions.onChange = { [weak self] provider, backup in self?.send(.computerDecisions(provider: provider, backup: backup)) }

@@ -179,6 +179,8 @@ export interface IslandChats {
   confirmFullAccess?(id: string, expected: import("@ark/contracts").ChatAccessMode, signal: AbortSignal): Promise<boolean>;
   accessOf?(id: string): import("@ark/contracts").ChatAccessMode;
   setAccess?(id: string, mode: import("@ark/contracts").ChatAccessMode, expected: import("@ark/contracts").ChatAccessMode): { ok: true } | { error: string };
+  /** 2026-11-02 (Settings → Defaults): a new chat's access and thinking level. Returns what could not be applied, if anything. */
+  applyDefaults?(id: string, defaults: { access: import("@ark/contracts").ChatAccessMode; effort: string }): string | undefined;
   reasoningOf?(id: string): import("./model-settings.ts").ChatReasoning;
   setReasoning?(id: string, provider: string, model: string, effort: string): { ok: true } | { error: string };
   lastOpened?(): string | undefined;

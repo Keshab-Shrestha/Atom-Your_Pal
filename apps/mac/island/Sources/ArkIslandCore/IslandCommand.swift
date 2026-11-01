@@ -12,6 +12,8 @@ public enum IslandCommand: Sendable, Equatable {
     /// ADR-097: a chat's own model (`id` "" for the chat in use; provider and model "" for the default again).
     case chatModel(id: String, provider: String, model: String)
     case chatAccess(id: String, mode: ChatAccessMode, expected: ChatAccessMode)
+    /// Settings → Defaults (2026-11-02): a new chat's access and thinking level (empty: the model's default).
+    case chatDefaults(access: ChatAccessMode, effort: String)
     case chatReasoning(id: String, provider: String, model: String, effort: String)
     /// The user's answer to an `approval.request` (ADR-054).
     case approvalAnswer(id: String, approved: Bool, rememberFile: Bool = false, reviewToken: String? = nil)
@@ -207,6 +209,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .modelRefresh: "model.refresh"
         case .chatModel: "chat.model"
         case .chatAccess: "chat.access"
+        case .chatDefaults: "chat.defaults"
         case .chatReasoning: "chat.reasoning"
         case .approvalAnswer: "approval.answer"
         case .memoryList: "memory.list"
@@ -489,6 +492,9 @@ public enum IslandCommand: Sendable, Equatable {
             fields["id"] = id
             fields["mode"] = mode.rawValue
             fields["expected"] = expected.rawValue
+        case .chatDefaults(let access, let effort):
+            fields["access"] = access.rawValue
+            fields["effort"] = effort
         case .chatReasoning(let id, let provider, let model, let effort):
             fields["id"] = id
             fields["provider"] = provider

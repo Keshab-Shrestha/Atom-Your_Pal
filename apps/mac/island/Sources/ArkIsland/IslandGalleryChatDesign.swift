@@ -47,6 +47,9 @@ extension IslandGallery {
                 model.settingsPage = .general
                 save(HelpersView(model: model).frame(width: 1080, height: 820).environment(\.islandSnapshot, true),
                      name: theme == .void ? "32-shell-settings-general-dark" : "32-shell-settings-general-light", to: directory)
+                model.settingsPage = .defaults // 2026-11-02
+                save(HelpersView(model: model).frame(width: 1080, height: 820).environment(\.islandSnapshot, true),
+                     name: theme == .void ? "32-shell-settings-defaults-dark" : "32-shell-settings-defaults-light", to: directory)
             }
 
         }

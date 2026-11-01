@@ -19,6 +19,8 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Sendable {
     case pal = "ARK"
     case sounds = "Sounds"
     case general = "General"
+    /// 2026-11-02: what new chats and the window start with.
+    case defaults = "Defaults"
     /// General was one long page; its cards now sit under the page that names their purpose.
     case computer = "Computer"
     case notifications = "Notifications"
@@ -38,6 +40,7 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Sendable {
         case .pal: "The companion on your screen: size, movement and rest"
         case .sounds: "What ARK says aloud and the sounds it plays"
         case .general: "Start-up, voice turns and the tour"
+        case .defaults: "What new chats and the window start with"
         case .computer: "What ARK can do on this Mac"
         case .notifications: "Which events tell you, and how"
         case .connections: "The local API and other apps that connect to ARK"
@@ -57,6 +60,7 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Sendable {
         case .pal: "face.smiling"
         case .sounds: "speaker.wave.2"
         case .general: "gearshape"
+        case .defaults: "switch.2"
         case .computer: "desktopcomputer"
         case .notifications: "bell"
         case .connections: "link"
@@ -70,11 +74,11 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Sendable {
 public enum SettingsHome {
     public static let groups: [[SettingsPage]] = [
         [.examples, .shortcuts, .dictation, .notifications],
-        [.appearance, .pal, .sounds, .general, .computer, .connections, .privacy], // Developer-only design previews stay in the gallery.
+        [.appearance, .pal, .sounds, .general, .defaults, .computer, .connections, .privacy], // Developer-only design previews stay in the gallery.
     ]
     /// The window's Settings sidebar: every page once, grouped by purpose. Design previews stay in the gallery.
     public static let sidebar: [(title: String, pages: [SettingsPage])] = [
-        ("Preferences", [.general, .appearance, .model, .computer, .notifications, .shortcuts]),
+        ("Preferences", [.general, .defaults, .appearance, .model, .computer, .notifications, .shortcuts]),
         ("Companion", [.dictation, .sounds, .pal]),
         ("Access", [.connections, .privacy]),
         ("Help", [.examples]),

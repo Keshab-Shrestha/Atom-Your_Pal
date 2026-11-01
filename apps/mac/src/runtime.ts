@@ -381,6 +381,22 @@ export function createRuntime(
       } catch { return { error: "Could not save this chat's access preference." }; }
       return { ok: true };
     },
+    applyDefaults: (id, defaults) => {
+      const problems: string[] = [];
+      if (defaults.access !== "checked") {
+        const choice = chatChoice(id, "text");
+        if (defaults.access === "full" && ![CLAUDE_PLAN, "codex"].includes(choice.provider)) problems.push("Full access needs Claude or Codex");
+        else try { memory.chats.setAccess(id, defaults.access); } catch { problems.push("access was not saved"); }
+      }
+      if (defaults.effort) {
+        const choice = chatChoice(id, "text");
+        // A level this model does not have is skipped: the chat uses the model's own default.
+        if (settings.reasoning!(choice.provider, choice.model).levels.includes(defaults.effort)) {
+          try { memory.chats.setReasoning(id, choice.provider, choice.model, defaults.effort); } catch { problems.push("thinking level was not saved"); }
+        }
+      }
+      return problems.length ? problems.join("; ") : undefined;
+    },
     reasoningOf: (id) => {
       const choice = chatChoice(id, "text");
       const capability = settings.reasoning!(choice.provider, choice.model);

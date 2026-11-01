@@ -14,6 +14,12 @@ public final class IslandSettings {
     private static let clearedMarker = "cleared"
     static func shortcutKey(_ action: ShortcutAction) -> String { "ark.shortcut.\(action.rawValue)" }
     static let petKey = "ark.petEnabled"
+    static let newChatAccessKey = "ark.defaults.chatAccess"
+    static let newChatEffortKey = "ark.defaults.chatEffort"
+    static let newChatPlaceKey = "ark.defaults.chatPlace"
+    static let startPageKey = "ark.defaults.startPage"
+    static let lastWindowPageKey = "ark.defaults.lastPage"
+    static let dashboardRangeKey = "ark.defaults.dashboardRange"
     static let soundsKey = "ark.soundsEnabled"
     static let speakReportsKey = "ark.speech.reports"
     static let speakUpdatesKey = "ark.speech.updates"
@@ -142,6 +148,15 @@ public final class IslandSettings {
     public var typeface: AppTypeface { didSet { store(typeface.rawValue, Self.typefaceKey) } }
     public var theme: AppTheme { didSet { store(theme.rawValue, Self.themeKey) } }
 
+    // Settings → Defaults (2026-11-02). The runtime applies the first two to a chat started in the ARK window.
+    public var newChatAccess: ChatAccessMode { didSet { saveText(newChatAccess.rawValue, Self.newChatAccessKey) } }
+    public var newChatEffort: DefaultEffort { didSet { saveText(newChatEffort.rawValue, Self.newChatEffortKey) } }
+    public var newChatPlace: NewChatPlace { didSet { saveText(newChatPlace.rawValue, Self.newChatPlaceKey) } }
+    public var startPage: StartPage { didSet { saveText(startPage.rawValue, Self.startPageKey) } }
+    /// For `StartPage.last`: chat, board or dashboard, kept when the window closes. Not a choice, so no revision.
+    public var lastWindowPage: StartPage { didSet { defaults.set(lastWindowPage.rawValue, forKey: Self.lastWindowPageKey) } }
+    public var dashboardRange: DashboardRange { didSet { store(dashboardRange.rawValue, Self.dashboardRangeKey) } }
+
     /// Start and stop sounds. Default on.
     public var soundsEnabled: Bool {
         didSet { save(soundsEnabled, Self.soundsKey) }
@@ -251,6 +266,12 @@ public final class IslandSettings {
         bubbleSize = Self.choice(defaults, Self.bubbleSizeKey, .normal)
         bubbleOpacity = Self.choice(defaults, Self.bubbleOpacityKey, .normal)
         textSize = Self.choice(defaults, Self.textSizeKey, .standard)
+        newChatAccess = defaults.string(forKey: Self.newChatAccessKey).flatMap(ChatAccessMode.init(rawValue:)) ?? .checked
+        newChatEffort = defaults.string(forKey: Self.newChatEffortKey).flatMap(DefaultEffort.init(rawValue:)) ?? .model
+        newChatPlace = defaults.string(forKey: Self.newChatPlaceKey).flatMap(NewChatPlace.init(rawValue:)) ?? .selectedProject
+        startPage = defaults.string(forKey: Self.startPageKey).flatMap(StartPage.init(rawValue:)) ?? .chat
+        lastWindowPage = defaults.string(forKey: Self.lastWindowPageKey).flatMap(StartPage.init(rawValue:)).flatMap { $0 == .last ? nil : $0 } ?? .chat
+        dashboardRange = Self.choice(defaults, Self.dashboardRangeKey, .week)
         typeface = Self.choice(defaults, Self.typefaceKey, .system)
         theme = Self.choice(defaults, Self.themeKey, .void)
         sidebar = SidebarLayout(storage: defaults.string(forKey: Self.sidebarKey))
@@ -348,6 +369,11 @@ public final class IslandSettings {
         typeface = .system
     }
 
+    /// Defaults: new chats, the start page and the Dashboard range.
+    public func resetDefaults() {
+        newChatAccess = .checked; newChatEffort = .model; newChatPlace = .selectedProject; startPage = .chat; dashboardRange = .week
+    }
+
     /// Dictation: how it starts and stops, the live preview and filler removal.
     public func resetDictation() {
         dictationMode = .automatic; livePreview = true; removeFillers = true
@@ -359,6 +385,11 @@ public final class IslandSettings {
         palSize = .medium; palWander = .normal; palNap = .minutes3
         palReacts = true; palHomeDisplay = .main
         bubbleStay = .seconds2; bubbleSize = .normal; bubbleOpacity = .normal
+    }
+
+    private func saveText(_ value: String, _ key: String) {
+        defaults.set(value, forKey: key)
+        revision += 1
     }
 
     private func save(_ value: Bool, _ key: String) {

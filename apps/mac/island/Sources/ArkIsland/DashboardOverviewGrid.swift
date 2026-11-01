@@ -24,7 +24,7 @@ struct DashboardOverviewGrid: View {
 
     private var trends: some View {
         VStack(spacing: 12) {
-            DashboardTrendsPanel(usage: usage)
+            DashboardTrendsPanel(usage: usage, settings: model.settings)
             DashboardRecentTurns(usage: usage, plan: model.planUsage, fitted: fitted)
         }.frame(maxHeight: fitted ? .infinity : nil, alignment: .top)
     }
@@ -177,10 +177,10 @@ struct DashboardTrend: View {
 /// One chart at a time, chosen by tabs (from the HTML preview), in place of three stacked ones.
 private struct DashboardTrendsPanel: View {
     let usage: TokenUsageSummary
+    /// 2026-11-02: how many days the chart shows (7, 30 or 90; the runtime keeps 90), saved as a default.
+    let settings: IslandSettings
     @State private var kind = DashboardTrendKind.tokens
-    /// 2026-11-02: how many days the chart shows (7, 30 or 90; the runtime keeps 90).
-    @State private var range = 7
-    private static let ranges = [7, 30, 90]
+    private var range: Int { settings.dashboardRange.rawValue }
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -189,7 +189,7 @@ private struct DashboardTrendsPanel: View {
             DashboardTabStrip(titles: DashboardTrendKind.allCases.map(\.title), selected: kind.rawValue) { kind = DashboardTrendKind(rawValue: $0) ?? .tokens })) {
             VStack(alignment: .leading, spacing: 12) {
                 if !usage.history.isEmpty {
-                    DashboardTabStrip(titles: Self.ranges.map { "\($0)d" }, selected: Self.ranges.firstIndex(of: range) ?? 0) { range = Self.ranges[$0] }
+                    DashboardTabStrip(titles: DashboardRange.allCases.map { "\($0.rawValue)d" }, selected: DashboardRange.allCases.firstIndex(of: settings.dashboardRange) ?? 0) { settings.dashboardRange = DashboardRange.allCases[$0] }
                 }
                 DashboardTrend(days: days, metric: metric, color: kind == .cacheReuse ? theme.success.color : theme.live.color, rangeTitle: "\(days.count)-day total")
             }

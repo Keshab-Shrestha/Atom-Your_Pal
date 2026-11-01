@@ -25,6 +25,8 @@ export type IslandCommand =
   | WorkspaceRequest
   | ForegroundCommand
   | { type: "chat.access"; id: string; mode: ChatAccessMode; expected: ChatAccessMode }
+  /** 2026-11-02: Settings → Defaults. A chat started in the ARK window gets this access and thinking level (empty: the model's default). */
+  | { type: "chat.defaults"; access: ChatAccessMode; effort: string }
   | { type: "chat.work.watch" }
   | { type: "chat.question.answer"; chat: string; turn: string; id: string; text?: string }
   | ChatControlRequest
@@ -184,6 +186,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "model.refresh",
   "chat.reasoning",
   "chat.access",
+  "chat.defaults",
   "chat.model",
   "approval.answer",
   "memory.list",
@@ -381,6 +384,12 @@ export function parseCommand(line: string): ParsedLine {
     const v = value as Record<string, unknown>;
     if (Object.keys(v).some((k) => !["type", "id", "mode", "expected"].includes(k)) || typeof v.id !== "string" || !/^[\w-]{1,100}$/.test(v.id) || !isChatAccessMode(v.mode) || !isChatAccessMode(v.expected)) return { error: "Invalid chat access preference." };
     return { command: v as unknown as Extract<IslandCommand, { type: "chat.access" }> };
+  }
+  if (type === "chat.defaults") {
+    const v = value as Record<string, unknown>;
+    if (Object.keys(v).some((k) => !["type", "access", "effort"].includes(k)) || !isChatAccessMode(v.access)
+        || typeof v.effort !== "string" || (v.effort !== "" && !/^[a-z][a-z0-9_-]{0,31}$/.test(v.effort))) return { error: "Invalid new chat defaults." };
+    return { command: { type, access: v.access, effort: v.effort } };
   }
   if (type === "chat.reasoning") {
     const v = value as Record<string, unknown>;

@@ -3895,3 +3895,27 @@ Accepted. Keshab: "lets make it ask and give any permission .. like claude code 
 - A web page can now ask an agent to touch a protected file; the card still names the exact path.
 - 2026-11-02 (Keshab): an agent's `git push` asks too. Commands run in a sandbox with no network, so on Allow ARK pushes the task's own branch itself (`pushBranch`: task branches only, origin only, hooks off, never forced). Full access skips the question. Network commands, sudo, system settings and history rewrites stay refused.
 - 2026-11-02 (Keshab: "allow ark network commands, sudo, system settings and history rewrites"): those ask too. On Allow the gate sets `dangerouslyDisableSandbox`, so the command runs outside the sandbox (`allowUnsandboxedCommands: true`). The groups: network (`curl`, `wget`, `ssh`, `scp`, `rsync` to a host, `nc`, `git fetch/pull/clone/ls-remote`, installs), sudo (works only where no password is needed: the agent has no terminal), `defaults write`, `launchctl`, `osascript`, and git history rewrites (`reset --hard`, `rebase`, `filter-branch`, `update-ref`, checkout of main). An agent that sets `dangerouslyDisableSandbox` itself also asks. Full access skips the question. After web text (taint) it asks even in Full access. Still refused: deletes, system-changing commands, remote changes and keychain reads.
+
+## ADR-216 — Settings → Defaults, model logos and a steady model picker (2026-11-02)
+
+### Context
+
+Keshab asked for three things: the model picker scrolled badly, the models had no icons, and Settings needed a place to choose defaults and save them as preferences. He chose four defaults: new chat access, new chat model, where ⌘N opens and the start page.
+
+### Decision
+
+- The picker scrolls only for the arrow keys. A hover moves the highlight but does not scroll. Before, each hover moved the keyboard cursor and centred that row, so the list jumped under the mouse wheel.
+- The picker, the chat's model button and the provider rail show the provider's logo. The path data comes from lobe-icons 1.71.0 (MIT, Copyright (c) 2023 LobeHub), drawn as one-colour template images in Claude orange, Gemini blue and the theme's text for OpenAI. The marks belong to their owners and only name the provider. Gemini's arc flags are written out, because AppKit's SVG reader misreads the packed form. A provider with no logo keeps its symbol.
+- Settings → Defaults (`SettingsPage.defaults`, in Preferences after General) holds:
+  - New chat model: the app default model, chosen with the same picker. New chats and voice use it.
+  - Thinking: Model default, Low, Medium, High, Extra high or Max. A new chat uses it only when its model has that level.
+  - Access: Saved permissions (default), Ask before changes, Chat only or Full access. Full access asks for confirmation in Settings first. It needs Claude or Codex; with another model a new chat keeps Saved permissions.
+  - New chat goes to: the sidebar's project (the behaviour before), a plain chat, or the last project used. This is for ⌘N and the sidebar's button.
+  - Opens on: Chat, Board, Dashboard or the last page used, for a plain open of the window.
+  - Dashboard trends: 7, 30 or 90 days. The Dashboard's switch saves the same value.
+- The window sends `chat.defaults { access, effort }` on ready and on each change. The runtime keeps it in memory and applies it in `newChat`, after the project is set, through `chats.applyDefaults`. Only chats started in the ARK window get these defaults. Telegram, routines and the API keep Saved permissions.
+
+### Consequences
+
+- With Full access as the default, every new chat from the window starts without routine prompts. Keshab confirms this once in Settings, not per chat. External-content taint still asks.
+- Forked chats still start in Saved permissions.

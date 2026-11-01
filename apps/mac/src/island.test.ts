@@ -2363,6 +2363,23 @@ test("thinking commands refuse stale, shared, archived and busy chats before rea
   } finally { await h.send({ type: "quit" }); }
 });
 
+test("chat.defaults: a new chat started in the window gets the saved access and thinking; a bad command changes nothing (2026-11-02)", async () => {
+  let n = 0, current = "c0";
+  const applied: unknown[] = [];
+  const h = islandHarness({ core: { get sessionId() { return current; }, get busy() { return false; }, handle: async () => ({ text: "ok", requestId: "r" }), reset() { current = `c${++n}`; } },
+    chats: { list: () => [], messages: () => [], remove: () => false, onChange: () => () => {}, applyDefaults: (id, defaults) => { applied.push([id, defaults]); return undefined; } } });
+  try {
+    await h.send({ type: "conversation.reset" });
+    assert.deepEqual(applied, [], "Saved permissions and the model's thinking need nothing");
+    await h.send({ type: "chat.defaults", access: "ask-changes", effort: "high" });
+    await h.send({ type: "conversation.reset" });
+    assert.deepEqual(applied, [["c2", { access: "ask-changes", effort: "high" }]]);
+    for (const bad of [{ access: "root", effort: "" }, { access: "full", effort: "High!" }, { access: "full", effort: "", grant: "all" }]) await h.send({ type: "chat.defaults", ...bad });
+    await h.send({ type: "conversation.reset" });
+    assert.deepEqual(applied.at(-1), ["c3", { access: "ask-changes", effort: "high" }]);
+  } finally { await h.send({ type: "quit" }); }
+});
+
 test("access commands refuse stale, shared, archived and busy chats before storage", async () => {
   let current = "cedar", busy = false, archived = false, writes = 0, tasks = false;
   const h = islandHarness({ core: { get sessionId() { return current; }, get busy() { return busy; }, handle: async () => ({ text: "ok", requestId: "r" }), reset() {} },

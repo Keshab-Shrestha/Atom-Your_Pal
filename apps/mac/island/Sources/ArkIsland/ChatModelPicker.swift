@@ -14,7 +14,7 @@ struct ChatModelMenu: View {
             let value = model.chats?.currentModel.map { info.modelName(provider: provider, model: $0) } ?? info.currentModelName
             Button { presentation = Presentation(id: model.chats?.current ?? "") } label: {
                 HStack(spacing: 4) {
-                    Glyph(systemName: ModelProviderSymbol.name(provider)).appFont(.system(size: 11))
+                    ProviderIcon(provider: provider, size: 12)
                     Text(value + "  ⌄").appFont(.system(size: 12)).lineLimit(1)
                 }.foregroundStyle(theme.text2.color)
             }
@@ -46,10 +46,14 @@ struct ChatModelPicker: View {
     let model: IslandModel
     let info: ModelInfo
     var chat: String? = nil
+    /// Settings → Defaults: choosing sets the app default model (what new chats use) instead of this chat's.
+    var setsDefault = false
     var close: () -> Void
     @State private var query = ""
     @State private var filter = "all"
     @State private var cursor = 0
+    /// Set only by the arrow keys: a hover moves the highlight but never scrolls (Keshab, 2026-11-02: the list jumped while scrolling).
+    @State private var scrollTarget: String?
     @State private var custom = false
     @State private var customId = ""
     @FocusState private var focused: Field?
@@ -57,8 +61,8 @@ struct ChatModelPicker: View {
     @Environment(\.islandSnapshot) private var snapshot
     private enum Field: Hashable { case search, custom }
 
-    private var currentProvider: String { model.chats?.currentProvider ?? info.provider }
-    private var currentModel: String { model.chats?.currentModel ?? info.model }
+    private var currentProvider: String { setsDefault ? info.provider : model.chats?.currentProvider ?? info.provider }
+    private var currentModel: String { setsDefault ? info.model : model.chats?.currentModel ?? info.model }
     private var entries: [ModelPickerEntry] {
         ModelPickerCatalog.filtered(ModelPickerCatalog.entries(info: info, currentProvider: currentProvider, currentModel: currentModel),
                                     query: query, provider: ["all", "favorites"].contains(filter) ? nil : filter,
@@ -71,11 +75,11 @@ struct ChatModelPicker: View {
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
             VStack(spacing: 8) {
-                providerButton("all", name: "All models", symbol: "square.grid.2x2")
-                providerButton("favorites", name: "Favorites", symbol: "star.fill")
+                providerButton("all", name: "All models") { Glyph(systemName: "square.grid.2x2") }
+                providerButton("favorites", name: "Favorites") { Glyph(systemName: "star.fill") }
                 Rectangle().fill(theme.border.color).frame(height: 1).padding(.vertical, 2)
                 ForEach(info.providers) { provider in
-                    providerButton(provider.id, name: provider.name, symbol: ModelProviderSymbol.name(provider.id))
+                    providerButton(provider.id, name: provider.name) { ProviderIcon(provider: provider.id, size: 16) }
                 }
                 Spacer(minLength: 0)
             }.padding(8).frame(width: 44).background(theme.fill1.color)
@@ -106,8 +110,8 @@ struct ChatModelPicker: View {
             else {
                 TextField("Search models…", text: $query).textFieldStyle(.plain).focused($focused, equals: .search)
                     .onSubmit { if !entries.isEmpty { choose(entries[min(cursor, entries.count - 1)]) } }
-                    .onKeyPress(.downArrow) { cursor = min(cursor + 1, max(0, entries.count - 1)); return .handled }
-                    .onKeyPress(.upArrow) { cursor = max(0, cursor - 1); return .handled }
+                    .onKeyPress(.downArrow) { moveCursor(to: cursor + 1); return .handled }
+                    .onKeyPress(.upArrow) { moveCursor(to: cursor - 1); return .handled }
                     .accessibilityLabel("Search models")
             }
             if !query.isEmpty {
@@ -125,8 +129,9 @@ struct ChatModelPicker: View {
                 ArkScrollView {
                     LazyVStack(alignment: .leading, spacing: 2) { modelRows }.padding(8)
                 }
-                .onChange(of: cursor) {
-                    if entries.indices.contains(cursor) { proxy.scrollTo(entries[cursor].id, anchor: .center) }
+                .onChange(of: scrollTarget) {
+                    // No anchor: scroll only as far as needed to show the row.
+                    if let scrollTarget { proxy.scrollTo(scrollTarget) }
                 }
             }
         }
@@ -149,6 +154,7 @@ struct ChatModelPicker: View {
         return HStack(spacing: 4) {
             Button { choose(entry) } label: {
                 HStack(spacing: 8) {
+                    ProviderIcon(provider: entry.provider, size: 16).frame(width: 20)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(entry.name).appFont(.system(size: 12.5, weight: selected ? .medium : .regular)).foregroundStyle(theme.text.color).lineLimit(2)
                         Text(entry.providerName + (entry.available ? "" : " · Unavailable on this Mac"))
@@ -170,9 +176,14 @@ struct ChatModelPicker: View {
         .background(selected ? theme.fill2.color : highlighted ? theme.fill1.color : .clear, in: RoundedRectangle(cornerRadius: Radius.card))
     }
 
-    private func providerButton(_ id: String, name: String, symbol: String) -> some View {
+    private func moveCursor(to index: Int) {
+        cursor = min(max(0, index), max(0, entries.count - 1))
+        if entries.indices.contains(cursor) { scrollTarget = entries[cursor].id }
+    }
+
+    private func providerButton(_ id: String, name: String, @ViewBuilder icon: () -> some View) -> some View {
         Button { filter = id; query = "" } label: {
-            Glyph(systemName: symbol).appFont(.system(size: 15)).foregroundStyle(filter == id ? theme.accent.color : theme.text2.color)
+            icon().appFont(.system(size: 15)).foregroundStyle(filter == id ? theme.accent.color : theme.text2.color)
                 .frame(width: 32, height: 30).background(filter == id ? theme.fill3.color : .clear, in: RoundedRectangle(cornerRadius: Radius.card))
         }.buttonStyle(.plain).help(name).accessibilityLabel("Show " + name)
             .accessibilityAddTraits(filter == id ? .isSelected : [])
@@ -180,16 +191,18 @@ struct ChatModelPicker: View {
 
     private var footer: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Button {
-                guard isCurrentChat else { close(); return }
-                model.chooseChatModel(provider: nil, model: nil); close()
-            } label: {
-                Label("Use app / project default", systemImage: "arrow.uturn.backward")
-            }.buttonStyle(.plain).accessibilityLabel("Use default model for this chat")
+            if !setsDefault {
+                Button {
+                    guard isCurrentChat else { close(); return }
+                    model.chooseChatModel(provider: nil, model: nil); close()
+                } label: {
+                    Label("Use app / project default", systemImage: "arrow.uturn.backward")
+                }.buttonStyle(.plain).accessibilityLabel("Use default model for this chat")
+            }
             if !custom {
                 Button { custom = true; focused = .custom } label: { Label("Custom model…", systemImage: "plus") }.buttonStyle(.plain)
             }
-            Text("Applies to the next turn in this chat.").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+            Text(setsDefault ? "New chats and voice use this model." : "Applies to the next turn in this chat.").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
         }.appFont(.system(size: 12)).foregroundStyle(theme.text2.color).padding(12)
     }
 
@@ -212,6 +225,7 @@ struct ChatModelPicker: View {
     private func choose(_ entry: ModelPickerEntry) {
         guard isCurrentChat else { close(); return }
         guard entry.available else { return }
+        if setsDefault { model.chooseModel(provider: entry.provider, model: entry.model); close(); return }
         model.chooseChatModel(provider: entry.provider, model: entry.model); close()
     }
 
@@ -219,6 +233,7 @@ struct ChatModelPicker: View {
         guard isCurrentChat else { close(); return }
         let id = customId.trimmingCharacters(in: .whitespaces)
         guard let provider = customProvider, provider.available, ModelInfo.isValidModelId(id) else { return }
+        if setsDefault { model.chooseModel(provider: provider.id, model: id); close(); return }
         model.chooseChatModel(provider: provider.id, model: id); close()
     }
 }
