@@ -197,8 +197,8 @@ test("splitMessage never cuts between the two halves of an emoji and never makes
   assert.ok(lines.every((p) => p.trim().length > 0), "no part that is only blank");
 });
 
-// 2026-10-16: texts and button presses that wait while ATOM is closed must not run when it starts.
-test("the backlog from while ATOM was closed is skipped and counted, then new messages are served", async () => {
+// 2026-10-16: texts and button presses that wait while ARK is closed must not run when it starts.
+test("the backlog from while ARK was closed is skipped and counted, then new messages are served", async () => {
   const counts: number[] = [];
   let n = 0;
   const h = harness(async (c) => {
@@ -260,7 +260,7 @@ test("a 401 or a 409 from getUpdates waits five minutes and logs what is wrong o
   }
 });
 
-// 2026-10-16: ATOM obeyed anyone in the configured chat, so in a group any member could send commands and press Allow. It checks who sent it too.
+// 2026-10-16: ARK obeyed anyone in the configured chat, so in a group any member could send commands and press Allow. It checks who sent it too.
 test("only the one person is obeyed: another member of the same chat is ignored, a missing sender too; a group needs userId", async () => {
   const sender = (update_id: number, chat: number, from: number | undefined, text: string) => ({ update_id, message: { chat: { id: chat }, ...(from === undefined ? {} : { from: { id: from } }), text } });
   const button = (update_id: number, chat: number, from: number) => ({ update_id, callback_query: { id: `q${update_id}`, from: { id: from }, data: "p:1:1", message: { chat: { id: chat } } } });

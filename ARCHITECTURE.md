@@ -1,4 +1,4 @@
-# ATOM Architecture
+# ARK Architecture
 
 Native text sizing (2026-10-25, ADR-202): IslandSettings validates/persists AppTextSize; native roots pass it through the appTextSize environment. AppTypography resolves original system and identifier type sizes proportionally, including explicit Text/Canvas paths and native terminal fonts, without window zoom or runtime/data changes.
 
@@ -40,7 +40,7 @@ Codex public pages (2026-10-18, ADR-159): NativeCore supplies a host-only ModelR
 
 Codex worker instructions/activity (2026-10-18, ADR-158): NativeTeamDeps supplies an optional bounded local skill reader. The Codex router exposes Skill for assigned names, rechecks current assignment/active-task policy, budgets returned text and records use at successful return. NativeGate skips SDK preload/authorization accounting for this host-managed path; Claude accounting is unchanged. Worker identity instructions use a Codex host contract, and main delegation describes actual limits. A worker-only observer writes fresh-id start/end events to the existing Board timeline, retaining bounded/redacted file targets and fixed outcomes. No schema, provider endpoint, plugin execution or native Codex privilege change. Typecheck/static review only; tests/live checks skipped. [Details](docs/codex-worker-capabilities.md).
 
-Durable foreground recovery (2026-10-18, ADR-157): memory owns foreground_attempts/foreground_answers; the private island command handler claims typed delivery before attachment preparation, then passes its chat-bound identity through VoiceLoop/ZenoInput into Core. NativeCore's successful exchange callback supplies completion metadata; ChatStore saves history and its reply sequence/hash pointer in one transaction. Host question settlement persists an answer before model delivery. ChatInput v3 retains outbound input and question intents until matching receipts/fingerprints; no restored item auto-dispatches. Recovery list/read/dismiss/ack stays private-pipe only; normal archived acknowledgement scrubs redundant payloads, while unknown attempts remain retained. Retention excludes unreviewed source chats, and explicit deletion scrubs journal payloads. Composed cores/worker recovery are separate; no provider endpoint/dependency or generic effect ledger added. Compile/static review only; tests/migration/live checks skipped. [Details](docs/foreground-recovery.md).
+Durable foreground recovery (2026-10-18, ADR-157): memory owns foreground_attempts/foreground_answers; the private island command handler claims typed delivery before attachment preparation, then passes its chat-bound identity through VoiceLoop/ArkInput into Core. NativeCore's successful exchange callback supplies completion metadata; ChatStore saves history and its reply sequence/hash pointer in one transaction. Host question settlement persists an answer before model delivery. ChatInput v3 retains outbound input and question intents until matching receipts/fingerprints; no restored item auto-dispatches. Recovery list/read/dismiss/ack stays private-pipe only; normal archived acknowledgement scrubs redundant payloads, while unknown attempts remain retained. Retention excludes unreviewed source chats, and explicit deletion scrubs journal payloads. Composed cores/worker recovery are separate; no provider endpoint/dependency or generic effect ledger added. Compile/static review only; tests/migration/live checks skipped. [Details](docs/foreground-recovery.md).
 
 Chat work visibility (2026-10-18, ADR-156): runtime ChatWorkBridge brackets the primary window Core with monotonic foreground timing and bounded snapshots. NativeCore observes main Claude SDK tool blocks only during send; Codex wraps its checked foreground runner with a captured run identity. Composed cores/worker internals are excluded. Main-only ask_user joins the existing host tool runner and uses a separate private-pipe question response command, cancellation and expiry. Successful Core records append labeled clarification JSON to the saved user text, retaining cross-provider/restart context without a second archive writer; failed-turn delivery remains unchanged. Swift attaches snapshots to matching visible turns, interpolates elapsed time and renders folded logs/question cards. Existing inspect responses gain read-only host access metadata. A host-only ModelRequest.interactionTools runner keeps clarification separate from read-only history; native chat.work.watch opts a card-capable UI into waiting. No new DB schema, provider endpoint or dependency. Compile/static review only; tests/live checks skipped. [Details](docs/chat-work-visibility.md).
 
@@ -60,11 +60,11 @@ Richer Markdown blocks (2026-10-18, ADR-145): Core `MarkdownBlock` adds recursiv
 
 Reply copying (2026-10-18, ADR-144): Core `MarkdownCopy.ReplyFormat` separates exact original Markdown, block-based plain text and rich HTML with plain fallback. `ChatCopyControl` accepts explicit content choices for either table or reply menus; user messages use exact plain-text payloads. `Conversation.lastFinishedReply` selects from current visible turns only. MainWindow's native Edit menu validates ⌘⇧C against the active main Chat window/no sheet/no recorder and reads the latest finished reply at invocation. No global shortcut, model/archive lookup or protocol/storage change. Compilation/static review only; tests and live checks skipped. Supersedes ADR-143's whole-reply default of publishing Markdown and HTML together. [Details](docs/chat-copying.md).
 
-Block copying (2026-10-18, ADR-143): pure `MarkdownCopy` in AtomIslandCore serializes code, selected tables (Markdown/HTML, TSV or CSV), and the existing whole-reply payload. Parsed table blocks now retain alignment and escaped pipes. Native `ChatCopyControl` handles the persistent Button/Menu, brief feedback and checked single-item pasteboard writes via `ChatClipboard`. Reply/code/table groups expose accessibility copy actions; copy controls no longer depend on pointer hover. No model/runtime/wire/storage change. Compilation/static review only; tests and interactive acceptance skipped. [Details](docs/chat-copying.md).
+Block copying (2026-10-18, ADR-143): pure `MarkdownCopy` in ArkIslandCore serializes code, selected tables (Markdown/HTML, TSV or CSV), and the existing whole-reply payload. Parsed table blocks now retain alignment and escaped pipes. Native `ChatCopyControl` handles the persistent Button/Menu, brief feedback and checked single-item pasteboard writes via `ChatClipboard`. Reply/code/table groups expose accessibility copy actions; copy controls no longer depend on pointer hover. No model/runtime/wire/storage change. Compilation/static review only; tests and interactive acceptance skipped. [Details](docs/chat-copying.md).
 
 Separate queue entries (2026-10-18, ADR-142): native `MessageQueue` is a bounded FIFO of stable-id messages; each has independent text and attachments. `ChatInput` version 2 stores ordered waiting arrays, migrates version-1 single messages in memory, and persists on subsequent saves. Live ids distinguish auto-draining entries from held input; storage never reconstructs the live queue. One active-turn completion advances one message, with a start barrier against duplicate idle events and repeated immediate sends. Stop/navigation/failure/restart hold the entire remaining tail. No turn-id acknowledgement protocol or exactly-once delivery is added. Compiled only; tests skipped. [Details](docs/chat-input-recovery.md).
 
-Native input persistence (2026-10-18, ADR-141): `IslandModel` owns each chat's composer; both native views bind to that shared state. `ChatInputStore` writes a versioned atomic local JSON snapshot under Application Support/ATOM/ChatInput. It stores unsent text and attachment references plus one waiting message per chat. The transient `MessageQueue` is never reconstructed from storage; a restored message needs explicit review/edit/send. Existing chats reopen in their context; orphaned unfinished input moves only by explicit click into an empty writable chat. No backend schema/wire/provider change or turn-delivery journal. Tests skipped by request; compilation only. [Details](docs/chat-input-recovery.md).
+Native input persistence (2026-10-18, ADR-141): `IslandModel` owns each chat's composer; both native views bind to that shared state. `ChatInputStore` writes a versioned atomic local JSON snapshot under Application Support/ARK/ChatInput. It stores unsent text and attachment references plus one waiting message per chat. The transient `MessageQueue` is never reconstructed from storage; a restored message needs explicit review/edit/send. Existing chats reopen in their context; orphaned unfinished input moves only by explicit click into an empty writable chat. No backend schema/wire/provider change or turn-delivery journal. Tests skipped by request; compilation only. [Details](docs/chat-input-recovery.md).
 
 Task lifetime and status (2026-10-18, ADR-140): host policy gates own per-job cancellation for native/Codex approvals; Stop no longer depends on SDK task-id delivery. The file policy checks cancellation again before lasting grants/checkpoints. The window task dispatcher publishes queue activity, and the island combines it with worker/foreground state and pending approval ids to restore existing asking/idle states safely. No new Swift/wire shape or persistence layer. [Scope and checks](docs/task-state-lifecycle.md).
 
@@ -80,7 +80,7 @@ Long-chat recovery (2026-10-18, ADR-138): `apps/mac/src/chat-history.ts` separat
 
 ## 1. Architectural Vision
 
-ATOM is a distributed-capable intelligence system.
+ARK is a distributed-capable intelligence system.
 
 The architecture must eventually support:
 
@@ -107,7 +107,7 @@ USER
   ↓
 Voice / Text / UI / API
   ↓
-ATOM CORE
+ARK CORE
   ↓
 Identity / Context / Events
   ↓
@@ -129,7 +129,7 @@ Mac / iPhone / Windows Nodes
   ↓
 Tasks / Events / Results
   ↓
-ATOM
+ARK
 ```
 
 ---
@@ -143,7 +143,7 @@ Audio Input
     ↓
 Whisper Adapter
     ↓
-ATOM Core
+ARK Core
     ↓
 LLM Gateway
     ↓
@@ -161,7 +161,7 @@ Audio Output
 Phase 0.5 adds an interface process in front of the same pipeline (ADR-033 to ADR-038):
 
 ```text
-ATOM Island (Swift app)                      ATOM runtime (Node)
+ARK Island (Swift app)                      ARK runtime (Node)
   hover reveal, Ctrl+Option, panel UI          voice loop → Core → LLM Gateway
         │  commands: talk.start, talk.send…         ▲
         └──────── stdin (JSON lines) ───────────────┘
@@ -189,11 +189,11 @@ Input sources may eventually include:
 - API
 - external events
 
-All input should eventually enter a normalized ATOM request model.
+All input should eventually enter a normalized ARK request model.
 
 ---
 
-## 5. ATOM Core
+## 5. ARK Core
 
 The Core is the central orchestration boundary.
 
@@ -295,7 +295,7 @@ The Decision Engine must be replaceable.
 
 ## 10. LLM Gateway
 
-The LLM Gateway isolates ATOM from model providers.
+The LLM Gateway isolates ARK from model providers.
 
 ```text
 LLM Gateway
@@ -334,7 +334,7 @@ Memory is separate from raw conversation history.
 
 ## 12. Knowledge
 
-Knowledge represents information available to ATOM.
+Knowledge represents information available to ARK.
 
 Knowledge may be:
 
@@ -435,7 +435,7 @@ Policy decisions must not depend solely on an LLM.
 
 ## 17. Device Manager
 
-The Device Manager maintains information about ATOM nodes.
+The Device Manager maintains information about ARK nodes.
 
 Example:
 
@@ -549,7 +549,7 @@ Example:
 ```text
 iPhone
  ↓
-ATOM
+ARK
  ↓
 Capability Registry
  ↓
@@ -559,7 +559,7 @@ Action
  ↓
 Result
  ↓
-ATOM
+ARK
  ↓
 iPhone
 ```
@@ -571,7 +571,7 @@ iPhone
 Future:
 
 ```text
-          ATOM CLOUD
+          ARK CLOUD
                │
   ┌────────────┼────────────┐
   │            │            │
@@ -678,7 +678,7 @@ Sensitive data should not be logged unnecessarily.
 
 Do not implement an architectural component until the current capability requires it.
 
-The architecture describes where ATOM is going.
+The architecture describes where ARK is going.
 
 The task system determines what is built now.
 
@@ -707,7 +707,7 @@ The composer access menu writes an additive chat-scoped preference through a str
 
 ## Full access admission (ADR-181, 2026-10-21)
 
-Full access is a host-confirmed per-chat mode, not a global setting or new provider tool. The current/idle/writable/expected-mode check runs before and after consent; cancellation, navigation/new input and provider/task changes refuse stale activation. The complete scope appears on an expanded native approval card. Ordinary-file overwrite/classified-command/site-opening/already-granted-plugin confirmations can be skipped; path/secret/kit/sandbox/macOS/external-content/undo/cancellation/resource checks and protected action approvals remain. A granted plugin may operate outside ATOM's file sandbox. Full access persists only for its chat; new and forked chats remain checked. Exact-file grants and history are unchanged. [Detailed boundary and verification](docs/chat-full-access.md).
+Full access is a host-confirmed per-chat mode, not a global setting or new provider tool. The current/idle/writable/expected-mode check runs before and after consent; cancellation, navigation/new input and provider/task changes refuse stale activation. The complete scope appears on an expanded native approval card. Ordinary-file overwrite/classified-command/site-opening/already-granted-plugin confirmations can be skipped; path/secret/kit/sandbox/macOS/external-content/undo/cancellation/resource checks and protected action approvals remain. A granted plugin may operate outside ARK's file sandbox. Full access persists only for its chat; new and forked chats remain checked. Exact-file grants and history are unchanged. [Detailed boundary and verification](docs/chat-full-access.md).
 
 
 ADR-184: sidebar navigation has one Projects filter/settings entry, one source chooser and one scoped New chat. A unified active chat list replaces the permanent project tree. Project source operations cross the private pipe as correlated create/cancel/created messages; the host validates canonical exclusive destinations, runs bounded fixed-argv Git with isolated configuration, then calls existing checked project registration. Cancellation/quit abort the process group; native state rejects unmatched completions. No provider/model tool route or transcript/access migration. [Contract](docs/project-sources.md).
@@ -718,7 +718,7 @@ ADR-185: Workspace Browser is a native user-operated WebKit session owned by the
 ADR-186: Workspace Terminal embeds a pinned SwiftTerm native emulator with an explicit delegate over the testable WorkspaceTerminalProcess PTY transport and a small POSIX C launch/cleanup target. Launch is user-only and explicit, starts in a rechecked project root with a minimal environment, and has no host/model command route. The pane owns presentation; Stop/surface exit/window closure/scope/runtime/quit own termination. A process exit monitor reaps the exact child after session cleanup. The stopped buffer is memory-only; only surface preference persists. Compact panes use a surface menu. The distributed app includes the upstream license/resource bundle. [Scope and limits](docs/workspace-terminal.md).
 
 
-ADR-194 (23 October 2026): reviewed personal-source expansion reuses Second brain with per-source format metadata, preserving the original folder table and existing text-only scopes. A private bounded AtomDocuments executable reads PDF text layers or validated main Word XML via stdin. Explicit saved-note selections extend the existing brief preparation flow with bounded source snapshots and revision/profile checks. Private note-bearing cards and ordinary deliverable brief lines use separate isolated selected-profile requests. No new content store, account connector, automatic scan, agent permission or primary local-model route. See [scope and validation](docs/everyday-assistant-polish.md).
+ADR-194 (23 October 2026): reviewed personal-source expansion reuses Second brain with per-source format metadata, preserving the original folder table and existing text-only scopes. A private bounded ArkDocuments executable reads PDF text layers or validated main Word XML via stdin. Explicit saved-note selections extend the existing brief preparation flow with bounded source snapshots and revision/profile checks. Private note-bearing cards and ordinary deliverable brief lines use separate isolated selected-profile requests. No new content store, account connector, automatic scan, agent permission or primary local-model route. See [scope and validation](docs/everyday-assistant-polish.md).
 
 
 ADR-195/196 (23 October 2026): the main AppKit window owns user sizing; the title-bar drag view has one owner for dragging/zoom. Orbit is an additive avatar drawing family shared across companion, portraits, icon and floor, with legacy/custom fallback. Studio preserves workstation anchors, seat capacity and pathfinding while spreading lounge anchors into three rows, and retains existing task/approval navigation; canvas accessibility actions open the same routes. Reduced motion uses a stationary scene. No runtime execution, permission or database changes. [Scope and evidence](docs/studio-redesign.md).

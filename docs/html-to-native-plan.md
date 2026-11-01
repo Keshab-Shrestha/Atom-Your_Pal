@@ -9,7 +9,7 @@ Use HTML in a web view for read-only visuals that change often.
 ## Facts
 
 - The app is SwiftUI, macOS 14, built with SwiftPM (`apps/mac/island/Package.swift`).
-- `AtomIsland` has 139 Swift files (25,495 lines). `AtomIslandCore` has 109 files (14,734 lines) and is testable without a screen.
+- `ArkIsland` has 139 Swift files (25,495 lines). `ArkIslandCore` has 109 files (14,734 lines) and is testable without a screen.
 - The app talks to a Node runtime. The runtime is a child process. Messages are JSON over stdin and stdout (`RuntimeSupervisor.swift`, `Protocol.swift`).
 - One web view exists: `WorkspaceBrowserSession.swift`. It uses a non-persistent store and a navigation delegate.
 - The preview is one file of 3.5 MB. It holds fictional data and a simulated chat engine.
@@ -56,8 +56,8 @@ Status: done on 28 October 2026. Option A is chosen. See ADR-211 and [the panel 
 
 ### Phase 1 — Web panel host
 
-- Add `WebPanelView` in `AtomIsland`.
-- Add `WebPanelPolicy` in `AtomIslandCore`. It holds the navigation rules and the intent parser.
+- Add `WebPanelView` in `ArkIsland`.
+- Add `WebPanelPolicy` in `ArkIslandCore`. It holds the navigation rules and the intent parser.
 - Put the page files in a SwiftPM resource folder. Update `build-app.sh` to copy them.
 - Send the theme from `Theme.swift` to the page as CSS variables. Send the text scale too.
 - Add a probe panel to Settings, Design. The native gallery cannot render a web view, so it is not used.

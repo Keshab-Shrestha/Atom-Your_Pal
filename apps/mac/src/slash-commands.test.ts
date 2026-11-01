@@ -6,10 +6,10 @@ import { join } from "node:path";
 import { COMMAND_BODY_CHARS, expandCommand, listCommands, readCommand, useCommand } from "./slash-commands.ts";
 import { useSkill } from "./skills.ts";
 
-// 2026-10-15 (ADR-117): Claude Code's custom commands run in ATOM's chat as prompts.
+// 2026-10-15 (ADR-117): Claude Code's custom commands run in ARK's chat as prompts.
 
 function commandsDir() {
-  const dir = mkdtempSync(join(tmpdir(), "atom-commands-"));
+  const dir = mkdtempSync(join(tmpdir(), "ark-commands-"));
   writeFileSync(join(dir, "build-fix.md"), "---\ndescription: Fix build errors with minimal changes.\n---\n\n# Build and Fix\n\nRun the build, then fix what fails.\n");
   writeFileSync(join(dir, "review.md"), '---\ndescription: "Review a file."\nargument-hint: [file]\nallowed-tools: Read, Grep\n---\n\nReview $ARGUMENTS and list problems.\n');
   writeFileSync(join(dir, "compare.md"), "Compare $1 with $2, then say which is better.\n");
@@ -56,7 +56,7 @@ test("$ARGUMENTS and $1..$9 take the words; a command with no placeholder keeps 
 
 test("a line that starts with ! stays text and the model is told it was not run", () => {
   const out = expandCommand("Check the tree:\n!git status\nThen report.", "");
-  assert.match(out, /^Lines that start with "!" are shell commands in Claude Code\. ATOM did not run them/);
+  assert.match(out, /^Lines that start with "!" are shell commands in Claude Code\. ARK did not run them/);
   assert.match(out, /!git status/);
 });
 
@@ -77,7 +77,7 @@ test("a message that starts with /command becomes the prompt; an unknown name, p
 
 test("a skill of the same name wins over a command", () => {
   const commands = commandsDir();
-  const skills = mkdtempSync(join(tmpdir(), "atom-skills-"));
+  const skills = mkdtempSync(join(tmpdir(), "ark-skills-"));
   try {
     mkdirSync(join(skills, "review"));
     writeFileSync(join(skills, "review", "SKILL.md"), "---\nname: review\ndescription: A skill.\n---\n\nThe skill's steps.\n");

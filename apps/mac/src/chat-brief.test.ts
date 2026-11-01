@@ -4,9 +4,9 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openMemoryStore, validChatBrief } from "@atom/memory";
-import type { Message, ToolRunner } from "@atom/contracts";
-import type { SessionSdk } from "@atom/llm-gateway";
+import { openMemoryStore, validChatBrief } from "@ark/memory";
+import type { Message, ToolRunner } from "@ark/contracts";
+import type { SessionSdk } from "@ark/llm-gateway";
 import { createNativeCore } from "./native-core.ts";
 import { parseChatControl, runChatControl } from "./chat-controls.ts";
 
@@ -15,7 +15,7 @@ const request = "a5122207-a70e-45f9-8060-a9b40d912e98";
 const messages: Message[] = [{ role: "user", content: "Fictional launch discussion" }, { role: "assistant", content: "Ready" }];
 
 test("brief migration, Unicode persistence, stale-save conflicts and clearing preserve the archive and grants", () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-chat-brief-")), path = join(dir, "memory.db");
+  const dir = mkdtempSync(join(tmpdir(), "ark-chat-brief-")), path = join(dir, "memory.db");
   const old = new DatabaseSync(path);
   old.exec("CREATE TABLE chats (id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)");
   old.exec("INSERT INTO chats VALUES ('cedar', 'Legacy Cedar', '2026-01-01', '2026-01-01')"); old.close();

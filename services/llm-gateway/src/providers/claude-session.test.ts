@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { ToolRunner } from "@atom/contracts";
+import type { ToolRunner } from "@ark/contracts";
 import { modelTotalsOf, openChatSession, prefixHash, type ChatSessionOptions, type SessionSdk } from "./claude-session.ts";
 import { ProviderError } from "../gateway.ts";
 
@@ -88,10 +88,10 @@ const options = (sdk: SessionSdk, over: Partial<ChatSessionOptions> = {}): ChatS
   chatId: "c1",
   claudePath: "/bin/claude",
   model: "claude-sonnet-5-5",
-  systemPrompt: "You are ATOM.",
+  systemPrompt: "You are ARK.",
   tools: ["WebSearch", "WebFetch"],
   gate,
-  atomTools: runner,
+  arkTools: runner,
   env: { PATH: "/bin", HOME: "/h", ANTHROPIC_API_KEY: "sk-x", ANTHROPIC_BASE_URL: "http://x", OPENAI_API_KEY: "o" },
   sdk,
   ...over,
@@ -107,7 +107,7 @@ test("three turns go into one query: one process, one prefix, each answer in tur
   s.close();
 });
 
-test("options: no ANTHROPIC_* or other keys, no settings, strict MCP, permissionMode default, nothing pre-allowed, the atom agent, tool search flags", async () => {
+test("options: no ANTHROPIC_* or other keys, no settings, strict MCP, permissionMode default, nothing pre-allowed, the ark agent, tool search flags", async () => {
   const { sdk, queries } = fakeSdk();
   const s = await openChatSession(options(sdk, { resume: "old-sess", cwd: "/p" }));
   const o = queries[0]!.options;
@@ -125,16 +125,16 @@ test("options: no ANTHROPIC_* or other keys, no settings, strict MCP, permission
   assert.equal(o.resume, "old-sess");
   assert.equal(o.cwd, "/p");
   assert.equal(o.includePartialMessages, true);
-  assert.equal(o.systemPrompt, "You are ATOM.");
-  assert.equal(o.agent, "atom");
+  assert.equal(o.systemPrompt, "You are ARK.");
+  assert.equal(o.agent, "ark");
   assert.deepEqual(o.tools, ["WebSearch", "WebFetch", "ToolSearch"]);
-  assert.deepEqual(o.agents.atom.tools, ["WebSearch", "WebFetch", "ToolSearch", "mcp__atom__weather"]);
-  assert.equal(o.agents.atom.prompt, "You are ATOM.");
-  assert.deepEqual(Object.keys(o.mcpServers), ["atom"]);
-  assert.equal(o.mcpServers.atom.alwaysLoad, undefined, "ATOM tools stay deferred behind tool search");
+  assert.deepEqual(o.agents.ark.tools, ["WebSearch", "WebFetch", "ToolSearch", "mcp__ark__weather"]);
+  assert.equal(o.agents.ark.prompt, "You are ARK.");
+  assert.deepEqual(Object.keys(o.mcpServers), ["ark"]);
+  assert.equal(o.mcpServers.ark.alwaysLoad, undefined, "ARK tools stay deferred behind tool search");
   assert.equal(o.canUseTool, gate.canUseTool);
   assert.equal(o.hooks, gate.hooks);
-  assert.equal(s.prefix, prefixHash("You are ATOM.", ["WebSearch", "WebFetch", "weather"], options(sdk).atomTools!.specs()));
+  assert.equal(s.prefix, prefixHash("You are ARK.", ["WebSearch", "WebFetch", "weather"], options(sdk).arkTools!.specs()));
   s.close();
 });
 
@@ -142,9 +142,9 @@ test("changed tool definitions change MCP version and diagnostics while retainin
   const { sdk, queries } = fakeSdk();
   const original = options(sdk);
   const first = await openChatSession({ ...original, resume: "kept-chat" });
-  const definitions = original.atomTools!.specs().map((spec) => ({ ...spec, description: spec.description + " Updated capabilities." }));
-  const second = await openChatSession({ ...original, resume: "kept-chat", atomTools: { specs: () => definitions, run: original.atomTools!.run } });
-  assert.notEqual(queries[0]!.options.mcpServers.atom.version, queries[1]!.options.mcpServers.atom.version);
+  const definitions = original.arkTools!.specs().map((spec) => ({ ...spec, description: spec.description + " Updated capabilities." }));
+  const second = await openChatSession({ ...original, resume: "kept-chat", arkTools: { specs: () => definitions, run: original.arkTools!.run } });
+  assert.notEqual(queries[0]!.options.mcpServers.ark.version, queries[1]!.options.mcpServers.ark.version);
   assert.notEqual(first.prefix, second.prefix);
   assert.equal(queries[1]!.options.resume, "kept-chat");
   first.close(); second.close();
@@ -237,11 +237,11 @@ test("text streams as it is written, without a Sources list; setModel switches t
 test("N2: sub-agents, sandbox and skills plugin go into the options; the main agent keeps its own entry and loads no skill", async () => {
   const { sdk, queries } = fakeSdk();
   const s = await openChatSession(
-    options(sdk, { agents: { sid: { description: "Sid: researcher" }, atom: { description: "imposter" } }, sandbox: { enabled: true }, plugins: [{ type: "local", path: "/p" }] }),
+    options(sdk, { agents: { sid: { description: "Sid: researcher" }, ark: { description: "imposter" } }, sandbox: { enabled: true }, plugins: [{ type: "local", path: "/p" }] }),
   );
   const o = queries[0]!.options;
   assert.equal(o.agents.sid.description, "Sid: researcher");
-  assert.equal(o.agents.atom.description, "ATOM, the user's assistant.", "an agent can never replace the main agent");
+  assert.equal(o.agents.ark.description, "ARK, the user's assistant.", "an agent can never replace the main agent");
   assert.deepEqual(o.sandbox, { enabled: true });
   assert.deepEqual(o.plugins, [{ type: "local", path: "/p" }]);
   assert.deepEqual(o.skills, []);
@@ -343,7 +343,7 @@ test("the session's tools include the built-in tools of the sub-agents, and the 
   for (const tool of ["Read", "Glob", "Grep", "Write", "Edit", "WebSearch", "WebFetch", "ToolSearch"]) assert.ok(o.tools.includes(tool), tool);
   assert.ok(!o.tools.includes("mcp__github"), "MCP servers are not session tools");
   assert.equal(new Set(o.tools).size, o.tools.length, "no repeats");
-  assert.ok(!o.agents.atom.tools.includes("Write"), "the main thread still cannot write");
+  assert.ok(!o.agents.ark.tools.includes("Write"), "the main thread still cannot write");
   s.close();
 });
 
@@ -353,7 +353,7 @@ test("a session that closes mid-turn after a tool ran is not 'unavailable' (so i
   const s = await openChatSession(options(sdk));
   const sending = s.send("do it").then(() => "answered", (e: { kind?: string }) => e.kind);
   await new Promise((r) => setTimeout(r, 20));
-  queries[0]!.inject({ type: "assistant", message: { content: [{ type: "tool_use", id: "t1", name: "mcp__atom__reminder_add", input: {} }] } });
+  queries[0]!.inject({ type: "assistant", message: { content: [{ type: "tool_use", id: "t1", name: "mcp__ark__reminder_add", input: {} }] } });
   await new Promise((r) => setTimeout(r, 20));
   s.close();
   assert.equal(await sending, "unknown");

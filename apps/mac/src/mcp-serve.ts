@@ -1,12 +1,12 @@
-// ADR-098 item 5: ATOM as an MCP server over stdio, for Claude Code, Hermes and other MCP clients. A thin client of the
-// local HTTP API (api-server.ts): it reads the token in data/api-token and calls http://127.0.0.1:<ATOM_API_PORT>.
-// ATOM must be running with Settings → General → "Local API" on.
-//   claude mcp add atom -- node /path/to/atom/apps/mac/src/mcp-serve.ts
+// ADR-098 item 5: ARK as an MCP server over stdio, for Claude Code, Hermes and other MCP clients. A thin client of the
+// local HTTP API (api-server.ts): it reads the token in data/api-token and calls http://127.0.0.1:<ARK_API_PORT>.
+// ARK must be running with Settings → General → "Local API" on.
+//   claude mcp add ark -- node /path/to/ark/apps/mac/src/mcp-serve.ts
 // stdout carries only MCP messages; nothing else is written there.
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { readEnv } from "@atom/shared";
+import { readEnv } from "@ark/shared";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
@@ -14,8 +14,8 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 /** The same default as api-server.ts (not imported, so this entry loads nothing of the runtime). */
 const DEFAULT_API_PORT = 4790;
 const TOKEN_FILE = fileURLToPath(new URL("../../../data/api-token", import.meta.url));
-const BASE = `http://127.0.0.1:${readEnv(process.env, "ATOM_API_PORT")?.trim() || DEFAULT_API_PORT}`;
-/** An ATOM turn can take minutes (it may hand work to the team first). */
+const BASE = `http://127.0.0.1:${readEnv(process.env, "ARK_API_PORT")?.trim() || DEFAULT_API_PORT}`;
+/** An ARK turn can take minutes (it may hand work to the team first). */
 const CALL_TIMEOUT_MS = 10 * 60_000;
 
 interface ToolDef {
@@ -34,7 +34,7 @@ async function api(method: "GET" | "POST", path: string, body?: object): Promise
   try {
     token = readFileSync(TOKEN_FILE, "utf8").trim();
   } catch {
-    throw new Error(`No token in ${TOKEN_FILE}. Turn on Settings → General → "Local API" in ATOM first.`);
+    throw new Error(`No token in ${TOKEN_FILE}. Turn on Settings → General → "Local API" in ARK first.`);
   }
   let response: Response;
   try {
@@ -45,31 +45,31 @@ async function api(method: "GET" | "POST", path: string, body?: object): Promise
       signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
     });
   } catch {
-    throw new Error(`ATOM does not answer at ${BASE}. Start ATOM and turn on Settings → General → "Local API".`);
+    throw new Error(`ARK does not answer at ${BASE}. Start ARK and turn on Settings → General → "Local API".`);
   }
-  const json = (await response.json().catch(() => ({ ok: false, error: `ATOM answered ${response.status}.` }))) as { ok: boolean; data?: unknown; error?: string };
-  if (!json.ok) throw new Error(json.error ?? `ATOM answered ${response.status}.`);
+  const json = (await response.json().catch(() => ({ ok: false, error: `ARK answered ${response.status}.` }))) as { ok: boolean; data?: unknown; error?: string };
+  if (!json.ok) throw new Error(json.error ?? `ARK answered ${response.status}.`);
   return json.data;
 }
 
 const TOOLS: ToolDef[] = [
   {
-    name: "atom_give_goal",
-    description: "Give a goal to ATOM. ATOM hands it to its team of workers, who work in the background. Returns goalId (null when ATOM answered without handing it out) and ATOM's answer.",
+    name: "ark_give_goal",
+    description: "Give a goal to ARK. ARK hands it to its team of workers, who work in the background. Returns goalId (null when ARK answered without handing it out) and ARK's answer.",
     properties: { goal: { type: "string", description: "What to get done, in plain words" } },
     required: ["goal"],
     call: (a) => api("POST", "/v1/goals", { goal: str(a.goal) }),
   },
   {
-    name: "atom_goal_status",
+    name: "ark_goal_status",
     description: "A goal's status (running or ended), its tasks and, once it has ended, its combined report.",
-    properties: { goalId: { type: "number", description: "The goalId from atom_give_goal" } },
+    properties: { goalId: { type: "number", description: "The goalId from ark_give_goal" } },
     required: ["goalId"],
     call: (a) => api("GET", `/v1/goals/${id(a.goalId)}`),
   },
   {
-    name: "atom_chat",
-    description: "Say one thing to ATOM and get its answer. Turns with the same chatId continue one conversation.",
+    name: "ark_chat",
+    description: "Say one thing to ARK and get its answer. Turns with the same chatId continue one conversation.",
     properties: {
       text: { type: "string", description: "What to say" },
       chatId: { type: "string", description: "Optional: 1 to 40 letters, digits, - or _ that name the conversation" },
@@ -78,29 +78,29 @@ const TOOLS: ToolDef[] = [
     call: (a) => api("POST", "/v1/chat", { text: str(a.text), ...(a.chatId ? { chatId: str(a.chatId) } : {}) }),
   },
   {
-    name: "atom_list_tasks",
-    description: "ATOM's tasks, newest first. Optionally only those in one state.",
+    name: "ark_list_tasks",
+    description: "ARK's tasks, newest first. Optionally only those in one state.",
     properties: { state: { type: "string", description: "Optional state", enum: ["queued", "running", "done", "failed", "stopped"] } },
     call: (a) => api("GET", `/v1/tasks${a.state ? `?state=${encodeURIComponent(str(a.state))}` : ""}`),
   },
   {
-    name: "atom_task_report",
+    name: "ark_task_report",
     description: "One task and its report (title, summary, body and sources), when it has one.",
     properties: { taskId: { type: "number", description: "The task's number" } },
     required: ["taskId"],
     call: (a) => api("GET", `/v1/tasks/${id(a.taskId)}`),
   },
   {
-    name: "atom_needs_you",
-    description: "What waits for Keshab's answer in ATOM (questions, plans, proposals, held and failed tasks), with the actions each one takes. Keshab answers them in ATOM or on Telegram.",
+    name: "ark_needs_you",
+    description: "What waits for Keshab's answer in ARK (questions, plans, proposals, held and failed tasks), with the actions each one takes. Keshab answers them in ARK or on Telegram.",
     properties: {},
     call: () => api("GET", "/v1/needs"),
   },
   {
-    name: "atom_answer_need",
-    description: "Answer one thing that waits in ATOM (see atom_needs_you). Give its key and one of its actions. Only plans (approve, reject) and retries can be answered here; every other card (a risky action, a skill, a soul change) is answered in the ATOM window or on Telegram, and atom_needs_you marks it answerable: false.",
+    name: "ark_answer_need",
+    description: "Answer one thing that waits in ARK (see ark_needs_you). Give its key and one of its actions. Only plans (approve, reject) and retries can be answered here; every other card (a risky action, a skill, a soul change) is answered in the ARK window or on Telegram, and ark_needs_you marks it answerable: false.",
     properties: {
-      key: { type: "string", description: "The key from atom_needs_you" },
+      key: { type: "string", description: "The key from ark_needs_you" },
       action: { type: "string", description: "One of the actions listed for that key" },
     },
     required: ["key", "action"],
@@ -108,7 +108,7 @@ const TOOLS: ToolDef[] = [
   },
 ];
 
-const server = new Server({ name: "atom", version: "1.0.0" }, { capabilities: { tools: {} } });
+const server = new Server({ name: "ark", version: "1.0.0" }, { capabilities: { tools: {} } });
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: TOOLS.map((t) => ({ name: t.name, description: t.description, inputSchema: { type: "object" as const, properties: t.properties, ...(t.required ? { required: t.required } : {}) } })),

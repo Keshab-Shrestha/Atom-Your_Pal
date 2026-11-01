@@ -5,8 +5,8 @@ import type { Dirent } from "node:fs";
 import { basename, extname, isAbsolute, join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { createHash, randomUUID } from "node:crypto";
-import { checkGrant, floorProblem, isSecretLike } from "@atom/helpers";
-import { looksSecret, type BrainSources, type SourceFile, type SourceSummary } from "@atom/memory";
+import { checkGrant, floorProblem, isSecretLike } from "@ark/helpers";
+import { looksSecret, type BrainSources, type SourceFile, type SourceSummary } from "@ark/memory";
 
 export interface BrainSourceRequest {
   type: "brain.source"; request: string;

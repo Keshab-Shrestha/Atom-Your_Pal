@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { ToolRunner } from "@atom/contracts";
+import type { ToolRunner } from "@ark/contracts";
 import { ProviderError, emptyReplyReason, redactSecrets } from "../gateway.ts";
 import {
   classify,
@@ -58,9 +58,9 @@ export function modelTotalsOf(result: Record<string, any>): Record<string, Model
 }
 
 /** The main-thread agent of every session. Its tool list limits what the model sees. */
-export const MAIN_AGENT = "atom";
-/** The one in-process MCP server that holds every ATOM tool. */
-export const TOOL_SERVER = "atom";
+export const MAIN_AGENT = "ark";
+/** The one in-process MCP server that holds every ARK tool. */
+export const TOOL_SERVER = "ark";
 /** Claude Code's tool search: loads a deferred tool's schema when the model asks for it. */
 export const TOOL_SEARCH = "ToolSearch";
 /** One hour, as long as the 1 h prompt cache lasts: a chat kept longer than the cache would pay the memory for no saving. */
@@ -93,13 +93,13 @@ export interface ChatSessionOptions {
   claudePath: string;
   model: string;
   reasoning?: string;
-  /** Byte-stable for the session: who ATOM is and how it works. Dynamic context goes in the user message. */
+  /** Byte-stable for the session: who ARK is and how it works. Dynamic context goes in the user message. */
   systemPrompt: string;
   /** Claude Code's own tools for the main thread (e.g. WebSearch, or Read, Glob, Grep in a project chat). */
   tools: readonly string[];
   gate: SessionGate;
-  /** ATOM's tools, all in the one `atom` server, deferred behind tool search. */
-  atomTools?: ToolRunner;
+  /** ARK's tools, all in the one `ark` server, deferred behind tool search. */
+  arkTools?: ToolRunner;
   /**
    * Phase N2: the chat's sub-agents (Claude Code AgentDefinitions by name). Claude Code lists them to the model in an
    * agent_listing_delta message, not in the system prompt, so they do not change the cached prefix.
@@ -125,7 +125,7 @@ export interface ChatSessionOptions {
    * owner books what no row holds yet. `resumed`: the totals may include earlier processes; `first`: the first result of this one.
    */
   onModelTotals?: (totals: Record<string, ModelTotal>, meta: { chatId: string; resumed: boolean; first: boolean; background: number }) => void;
-  /** A reply Claude Code gave with no turn of ATOM's waiting: it woke itself, e.g. when a background agent finished. */
+  /** A reply Claude Code gave with no turn of ARK's waiting: it woke itself, e.g. when a background agent finished. */
   onUnprompted?: (text: string, tasks?: readonly SessionTaskNotification[]) => void;
   /** Called once when the session has closed (idle, error or `close`). */
   onClose?: (reason: string) => void;
@@ -152,7 +152,7 @@ export interface ChatSessionHandle {
   readonly closed: boolean;
   /** Claude Code's session id, once known. */
   readonly sessionId: string | undefined;
-  /** Diagnostic hash of the system prompt, tool names and ATOM tool definitions. Not a provider cache guarantee. */
+  /** Diagnostic hash of the system prompt, tool names and ARK tool definitions. Not a provider cache guarantee. */
   readonly prefix: string;
   /** Background tasks (sub-agents, commands) that run now. */
   readonly background: number;
@@ -166,7 +166,7 @@ export interface ChatSessionHandle {
   onEvent(listener: (message: Record<string, any>) => void): () => void;
 }
 
-/** Diagnostics for ATOM's prefix inputs. A change can explain a cache miss; it cannot prove provider cache behavior. */
+/** Diagnostics for ARK's prefix inputs. A change can explain a cache miss; it cannot prove provider cache behavior. */
 export function prefixHash(systemPrompt: string, toolNames: readonly string[], definitions: unknown = []): string {
   return createHash("sha256").update(JSON.stringify([systemPrompt, toolNames, definitions])).digest("hex").slice(0, 12);
 }
@@ -199,24 +199,24 @@ function inputQueue() {
 
 /** ADR-110: Claude Code's options for one chat session. Exported for the options test. */
 export function sessionOptions(sdk: SessionSdk, o: ChatSessionOptions, controller: AbortController, toolSignal: () => AbortSignal): Record<string, unknown> {
-  const specs = o.atomTools?.specs() ?? [];
-  const atomNames = specs.map((s) => `mcp__${TOOL_SERVER}__${s.name}`);
+  const specs = o.arkTools?.specs() ?? [];
+  const arkNames = specs.map((s) => `mcp__${TOOL_SERVER}__${s.name}`);
   return {
     model: o.model,
     pathToClaudeCodeExecutable: o.claudePath,
     ...(o.cwd ? { cwd: o.cwd } : {}),
     systemPrompt: o.systemPrompt,
-    // The main thread runs as the `atom` agent: only its tools reach the model.
+    // The main thread runs as the `ark` agent: only its tools reach the model.
     agent: MAIN_AGENT,
-    // ToolSearch must be listed: without it Claude Code cannot defer the ATOM tools and sends every schema.
-    agents: { ...(o.agents ?? {}), [MAIN_AGENT]: { description: "ATOM, the user's assistant.", prompt: o.systemPrompt, tools: [...o.tools, TOOL_SEARCH, ...atomNames] } },
+    // ToolSearch must be listed: without it Claude Code cannot defer the ARK tools and sends every schema.
+    agents: { ...(o.agents ?? {}), [MAIN_AGENT]: { description: "ARK, the user's assistant.", prompt: o.systemPrompt, tools: [...o.tools, TOOL_SEARCH, ...arkNames] } },
     // The session's tool set is also the ceiling for every sub-agent: a tool that is not here can never reach an agent, whatever its definition lists.
     // It held only the main thread's tools, so a folders agent (Kame, Puff) never had Write, Edit, Read, Glob or Grep in a normal chat and said "no
-    // file-writing tool" (2026-10-16). The sub-agents' built-in tools are added; the main thread still gets only its own list (the `atom` agent's
+    // file-writing tool" (2026-10-16). The sub-agents' built-in tools are added; the main thread still gets only its own list (the `ark` agent's
     // `tools` above, and the gate's hook refuses anything else).
     tools: [...new Set([...o.tools, ...Object.values(o.agents ?? {}).flatMap((a) => (Array.isArray((a as { tools?: unknown }).tools) ? ((a as { tools: string[] }).tools) : [])).filter((t) => !t.startsWith("mcp__")), TOOL_SEARCH])],
     ...(specs.length
-      ? { mcpServers: { [TOOL_SERVER]: sdk.createSdkMcpServer({ name: TOOL_SERVER, version: `1.0.0-${prefixHash("", [], specs)}`, tools: sdkToolsFor(sdk, specs, o.atomTools!, toolSignal) }) } }
+      ? { mcpServers: { [TOOL_SERVER]: sdk.createSdkMcpServer({ name: TOOL_SERVER, version: `1.0.0-${prefixHash("", [], specs)}`, tools: sdkToolsFor(sdk, specs, o.arkTools!, toolSignal) }) } }
       : {}),
     // Nothing is allowed without the gate: every call goes through canUseTool and the PreToolUse hook.
     ...(o.sandbox ? { sandbox: o.sandbox } : {}),
@@ -231,7 +231,7 @@ export function sessionOptions(sdk: SessionSdk, o: ChatSessionOptions, controlle
     permissionMode: "default",
     persistSession: true,
     // A fixed title: otherwise a new session spends an extra model call (~1.2k tokens) to name itself.
-    title: `ATOM chat ${o.chatId}`,
+    title: `ARK chat ${o.chatId}`,
     ...(o.resume ? { resume: o.resume } : {}),
     maxTurns: o.maxTurns ?? DEFAULT_MAX_TURNS,
     thinking: o.reasoning && o.reasoning !== "off" ? { type: "adaptive" } : { type: "disabled" },
@@ -282,12 +282,12 @@ export async function openChatSession(o: ChatSessionOptions): Promise<ChatSessio
   };
 
   const options = sessionOptions(sdk, o, controller, () => turnSignal ?? controller.signal);
-  const specs = o.atomTools?.specs() ?? [];
+  const specs = o.arkTools?.specs() ?? [];
   const toolNames = [...o.tools, ...specs.map((s) => s.name)];
   const prefix = prefixHash(o.systemPrompt, toolNames, specs);
   // Sizes only, never content, to attribute the fixed prefix (R3). Claude Code's own built-in tool schemas are not counted here.
   log("session.open", { sdk: sdkVersion(), prefix, model, resume: Boolean(o.resume), tools: toolNames.length,
-    systemBytes: Buffer.byteLength(o.systemPrompt), atomToolBytes: Buffer.byteLength(JSON.stringify(specs)) });
+    systemBytes: Buffer.byteLength(o.systemPrompt), arkToolBytes: Buffer.byteLength(JSON.stringify(specs)) });
   const q = sdk.query({ prompt: input.messages, options });
 
   const end = (t: Turn, outcome: { text: string; sessionId?: string } | { error: unknown }) => {

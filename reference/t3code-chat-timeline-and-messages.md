@@ -1,17 +1,17 @@
 # T3 Code: chat timeline and message rendering
 
-> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ATOM status. Detailed observations below retain the earlier snapshot unless updated explicitly.
+> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ARK status. Detailed observations below retain the earlier snapshot unless updated explicitly.
 
 Source: github.com/pingdotgg/t3code (MIT licence). Read on 2026-10-17 from the shallow clone at commit `2fbd4318`.
 Also read: the mobile package `react-native-enriched-markdown` (MIT, Software Mansion; T3 fork), unpacked from `apps/mobile/deps/*.tgz` into a scratch folder.
-A claim marked "unverified" was not checked in code or by a test. Nobody ran T3 Code or ATOM for this file.
+A claim marked "unverified" was not checked in code or by a test. Nobody ran T3 Code or ARK for this file.
 Paths without a prefix are under `apps/web/src/`.
 
 Summary:
 - T3 Code draws a reply as real HTML. The browser handles selection. A copy handler turns the selected HTML back into Markdown.
-- ATOM draws a reply as separate SwiftUI blocks. SwiftUI cannot select across blocks. This is the root of the copy complaint.
+- ARK draws a reply as separate SwiftUI blocks. SwiftUI cannot select across blocks. This is the root of the copy complaint.
 - T3 mobile uses native text views with the same limit: selection cannot cross a table or a code block. Its tables have their own copy menu.
-- The best first fix for ATOM is copy actions on each block, plus a copy menu for the whole reply. It is small and safe.
+- The best first fix for ARK is copy actions on each block, plus a copy menu for the whole reply. It is small and safe.
 
 ---
 
@@ -187,7 +187,7 @@ Performance rules:
 - `docs/user/keyboard-focus.md` is short. It covers only the palette and the composer. I found no key to move between messages (unverified).
 - Key commands for the thread: `chat.find` (mod+f), `thread.copyReference` (mod+shift+c). I saw no "copy last reply" command (unverified: only part of the list was read).
 
-### 1.11 T3 mobile: native text (important for ATOM)
+### 1.11 T3 mobile: native text (important for ARK)
 
 The mobile app does not use a web view. It uses `react-native-enriched-markdown` (T3 fork `fork/t3-mobile`, file `apps/mobile/src/native/EnrichedMarkdownText.tsx`, `flavor="github"`, `selectable`).
 Facts from its docs and sources (unpacked scratch copy):
@@ -235,52 +235,52 @@ Facts from its docs and sources (unpacked scratch copy):
 
 ---
 
-## 3. What ATOM has today, and the gap
+## 3. What ARK has today, and the gap
 
-ATOM files read: `ConversationView.swift` (`TurnView`, `ReplyText`, `ConversationTab`), `MarkdownReply.swift`, `MarkdownBlocks.swift`, `MarkdownHTML.swift`, `Conversation.swift`, `ComposerPaste.swift` (all under `apps/mac/island/Sources/`).
+ARK files read: `ConversationView.swift` (`TurnView`, `ReplyText`, `ConversationTab`), `MarkdownReply.swift`, `MarkdownBlocks.swift`, `MarkdownHTML.swift`, `Conversation.swift`, `ComposerPaste.swift` (all under `apps/mac/island/Sources/`).
 
-How ATOM draws a turn: a user bubble (`Text`, 12.5 pt) and a reply. A plain reply is one `Text` with a glow caret while spoken. A rich reply is `MarkdownReply`: a `VStack` of blocks, one `Text` or grid per block.
+How ARK draws a turn: a user bubble (`Text`, 12.5 pt) and a reply. A plain reply is one `Text` with a glow caret while spoken. A rich reply is `MarkdownReply`: a `VStack` of blocks, one `Text` or grid per block.
 The reply arrives as one event, `reply(String)`, and replaces the text of the turn (`Conversation.apply`). Token streaming is unverified.
 
-| Feature | ATOM today | T3 Code | Gap |
+| Feature | ARK today | T3 Code | Gap |
 | --- | --- | --- | --- |
 | Parser | Own `MarkdownBlocks.parse`: paragraph, heading, list, code, table. Inline marks by `AttributedString(markdown:)` | remark with GFM and many plugins | No blockquote, rule, nested list, task list, image, code language |
 | Selection | `.textSelection(.enabled)` on the block stack. One `Text` at a time | Browser selection over the whole reply | Cannot select across blocks. A table cannot be selected as a whole |
-| Copy a reply | One hover button, top right. Plain text = Markdown. HTML if rich | Button on the last reply of a turn, Markdown only | ATOM is already richer here. No feedback after the click |
+| Copy a reply | One hover button, top right. Plain text = Markdown. HTML if rich | Button on the last reply of a turn, Markdown only | ARK is already richer here. No feedback after the click |
 | Copy a user message | None (select only) | Button on hover | Missing |
 | Copy code | None | Header button | Missing |
 | Copy table | None. Only the whole-reply HTML has a table | Menu: Markdown, CSV | Missing |
 | Copy of a selection | System default, plain text of one `Text` | Rebuilt Markdown plus clean HTML | Large. Needs an AppKit text view |
 | HTML flavour | `MarkdownBlocks.html`: bold, italic, code only | Full HTML from the DOM | Links, code language, quotes lost |
 | Code block | Mono text, sideways scroll, grey box | Language label, colour, wrap toggle, copy, run | No label, colour, wrap, copy |
-| Table look | `Grid` when it fits, else one card per row. Cell max width 260 | Scroll table with fade, expand cells | ATOM cards are a good fit for a narrow window. No horizontal scroll option |
+| Table look | `Grid` when it fits, else one card per row. Cell max width 260 | Scroll table with fade, expand cells | ARK cards are a good fit for a narrow window. No horizontal scroll option |
 | Links | Inline links by `AttributedString` (opening: unverified) | Favicon, menu, preview | No menu, no copy link |
 | File paths | Plain text | Chips with open and reveal | Missing |
 | Images in a reply | None | Expand, zoom, save, copy | Missing |
 | Attachments in a turn | Not in the turn model (`Turn` holds text only) | Thumbnails and file rows | Missing in the turn |
 | Hover actions | Copy (finished reply only). Timings line: "heard … · AI … · first sound …" | Copy, fork, edit, time | No keyboard or VoiceOver way to Copy: the button is only in the tree while hovered |
 | Long user message | Always full | Collapse at 600 characters or 8 lines | Missing |
-| Reasoning, tools, work log | Not in the chat. `WorkStrip.swift` shows ATOM work at the Dock (ADR-056) | Grouped, folded, "Worked for 22s" | Needs runtime events. Large |
+| Reasoning, tools, work log | Not in the chat. `WorkStrip.swift` shows ARK work at the Dock (ADR-056) | Grouped, folded, "Worked for 22s" | Needs runtime events. Large |
 | Working indicator | `ThinkingDots` while no reply. Glow caret while spoken | "Working for N s" row | Equal in spirit. No elapsed time |
-| Scroll | `LazyVStack` in a `ScrollView`. Every change of `turns` animates to the last turn | Follow only at the end. Pill "Scroll to end". New message anchors near top | ATOM pulls the view down even when the reader scrolled up |
+| Scroll | `LazyVStack` in a `ScrollView`. Every change of `turns` animates to the last turn | Follow only at the end. Pill "Scroll to end". New message anchors near top | ARK pulls the view down even when the reader scrolled up |
 | Long chats | `Conversation` keeps 50 turns. `LazyVStack` | Virtual list, paging | Fine for now |
 | Find in chat | None in the chat (global search exists) | mod+f, highlight | Missing |
-| Empty state | Pal, hint, brief card, examples | One muted line | ATOM is richer |
-| Failed turn | Reply (if any), red line, "Try again" button | Banner, row. No retry for a reply | ATOM is ahead |
+| Empty state | Pal, hint, brief card, examples | One muted line | ARK is richer |
+| Failed turn | Reply (if any), red line, "Try again" button | Banner, row. No retry for a reply | ARK is ahead |
 | Notices | `.notice` line with icon | System divider | Equal |
 | Accessibility | `ThinkingDots` label. Timings hidden when not hovered | Hidden headings, `aria-expanded`, focus-visible actions | Add turn labels and a Copy action |
 | Quote in composer | None | Cite button on selection | Needs selection access (AppKit) |
 
 ---
 
-## 4. Ideas for ATOM, ranked
+## 4. Ideas for ARK, ranked
 
-Rules for every idea: one capability, one ADR, one TASK entry (CLAUDE.md section 3). Deterministic code goes in `AtomIslandCore`. No new dependency without a reason (section 18). I could not compile Swift here. Each first step is small so a Mac build can check it.
+Rules for every idea: one capability, one ADR, one TASK entry (CLAUDE.md section 3). Deterministic code goes in `ArkIslandCore`. No new dependency without a reason (section 18). I could not compile Swift here. Each first step is small so a Mac build can check it.
 
 What is hard in SwiftUI (macOS 14 target, `Package.swift`):
 - `.textSelection(.enabled)` works inside one `Text`. There is no API to read the selection or to catch Copy (unverified: `onCopyCommand` may work only on a focused view).
 - A `Text` cannot show a table. `Grid` cells are separate `Text` views.
-- Hover buttons need state. ATOM writes `State(initialValue:)` because the Command Line Tools have no macro plugin. Keep that style.
+- Hover buttons need state. ARK writes `State(initialValue:)` because the Command Line Tools have no macro plugin. Keep that style.
 - A view that appears only on hover is missing from the accessibility tree.
 
 ### Idea 1: Copy actions on code blocks and tables (size S to M)
@@ -296,14 +296,14 @@ What is hard in SwiftUI (macOS 14 target, `Package.swift`):
 
 - What: Right-click on a reply gives "Copy as Markdown", "Copy as plain text", "Copy as rich text". The user bubble gets a hover Copy button. Add a key (for example Cmd+Shift+C) for "Copy last reply".
 - Why: Today there is one Copy, and only for finished replies. T3 Code has Copy on user messages too.
-- How it fits: `TurnView.copy` already writes Markdown and HTML. Move it into one helper in the `AtomIsland` target (`ReplyClipboard`) and call it from the button, the menu and the key. The key goes into `ShortcutEngine` with the window shortcuts (check ADR rules first).
+- How it fits: `TurnView.copy` already writes Markdown and HTML. Move it into one helper in the `ArkIsland` target (`ReplyClipboard`) and call it from the button, the menu and the key. The key goes into `ShortcutEngine` with the window shortcuts (check ADR rules first).
 - Hard part: `.contextMenu` on a view that has `.textSelection` may replace the system Copy item (unverified). Test on a Mac. If it does, put the menu on the turn frame, not on the text.
 - First step: Add the helper and the user-bubble button. Add the menu after.
 
 ### Idea 3: Make the Copy button reachable without the mouse (size S)
 
-- What: Add `.accessibilityAction(named: "Copy reply")` on each turn. Show the hover buttons also on keyboard focus. Label the turns "You said" and "ATOM said".
-- Why: T3 Code shows actions on hover, on focus inside, and always on touch. In ATOM the button does not exist for VoiceOver until hover.
+- What: Add `.accessibilityAction(named: "Copy reply")` on each turn. Show the hover buttons also on keyboard focus. Label the turns "You said" and "ARK said".
+- Why: T3 Code shows actions on hover, on focus inside, and always on touch. In ARK the button does not exist for VoiceOver until hover.
 - How it fits: Small change in `TurnView`. No new data.
 - First step: Add the accessibility action to `TurnView`, and keep the button in the layout with `opacity` instead of an `if`.
 
@@ -334,7 +334,7 @@ What is hard in SwiftUI (macOS 14 target, `Package.swift`):
 
 - What: Draw each run of paragraphs, headings, lists and quotes as one `NSTextView` (`NSAttributedString`). Keep code blocks and tables as their own SwiftUI blocks with their own copy buttons (idea 1).
 - Why: This is the exact model of T3 mobile (`flavor="github"`). Users there accept "selection stops at a table". It also allows "Cite" and "copy selection as Markdown" later, because AppKit can read the selection.
-- How it fits: `NSViewRepresentable`. ATOM has three simple ones already. The hard part is height: the view must report its height for a given width. Use `sizeThatFits` (macOS 13+) and `layoutManager` used rect (unverified).
+- How it fits: `NSViewRepresentable`. ARK has three simple ones already. The hard part is height: the view must report its height for a given width. Use `sizeThatFits` (macOS 13+) and `layoutManager` used rect (unverified).
 - Risk: High without a compiler. Do it only after ideas 1 to 4 are shipped and a Mac is at hand.
 - First step: A one-day spike in the gallery (`IslandGallery.swift`): one reply as an attributed string in a non-scrolling `NSTextView`, with the theme colours. Measure height, selection and VoiceOver.
 
@@ -348,7 +348,7 @@ What is hard in SwiftUI (macOS 14 target, `Package.swift`):
 ### Idea 9: File path chips in replies (size M)
 
 - What: Inline code that looks like a file path (`path/file.swift:12`) becomes a small chip. Click reveals it in Finder or opens it. Right-click: Copy path.
-- Why: T3 Code does this for every project reply. ATOM project chats (ADR-107) talk about files.
+- Why: T3 Code does this for every project reply. ARK project chats (ADR-107) talk about files.
 - How it fits: Core: a path detector with tests (copy the idea of `inlineCodeFilePathCandidate`). The runtime must confirm the file exists in the project. Policy applies: open only inside the project folder (CLAUDE.md section 12).
 - First step: The detector and its tests. No UI.
 
@@ -362,7 +362,7 @@ What is hard in SwiftUI (macOS 14 target, `Package.swift`):
 ### Not recommended now
 
 - A `WKWebView` for the whole chat (see the comparison below). Large rewrite.
-- Mermaid, math, citations toolbar, minimap, fork buttons on every reply. Low value or covered in other files (`t3code-ideas-for-atom.md`, ideas 24 and 25).
+- Mermaid, math, citations toolbar, minimap, fork buttons on every reply. Low value or covered in other files (`t3code-ideas-for-ark.md`, ideas 24 and 25).
 - Syntax colour with a library. Wait until idea 4 is shipped.
 
 ### The three ways to get good selection and copy
@@ -374,7 +374,7 @@ What is hard in SwiftUI (macOS 14 target, `Package.swift`):
 | Criterion | (a) SwiftUI blocks + buttons | (b) One NSTextView per message | (c) WKWebView per message |
 | --- | --- | --- | --- |
 | Drag-select over a whole message | No. One `Text` at a time | Yes, including table text if the table is text | Yes, everything |
-| Copy of a selection as Markdown | No (plain text of one `Text`) | Yes. ATOM can catch `copy:` and write Markdown, RTF and HTML | Browser gives plain text and HTML. Markdown needs a script like T3's `markdown-clipboard.ts` |
+| Copy of a selection as Markdown | No (plain text of one `Text`) | Yes. ARK can catch `copy:` and write Markdown, RTF and HTML | Browser gives plain text and HTML. Markdown needs a script like T3's `markdown-clipboard.ts` |
 | Tables | Grid or cards, as now. Copy button gives exact Markdown, TSV, HTML | `NSTextTable` (TextKit 1 only, unverified) or tab-aligned text. No horizontal scroll. Wide tables wrap or break. T3 mobile did not do this: it uses a separate grid view | Real `<table>`. Scroll, wrap, copy all work. Same as T3 web |
 | Streaming | Not needed today (one `reply` event). Easy later | Replacing the string resets the selection unless handled. Fine for whole replies | DOM patch by script. Selection can survive |
 | Theme (6 themes, glow) | Native. No change | Map theme colours to attributes. Code box and quote bar need custom drawing | CSS variables set by Swift. Pal glow caret is hard |
@@ -391,7 +391,7 @@ What is hard in SwiftUI (macOS 14 target, `Package.swift`):
 Recommendation:
 1. Do (a) now: ideas 1, 2, 3 and 4. They are small, they fix the table and copy complaint, and they keep the build safe.
 2. Then run the (b) spike as a segmented design (idea 7): text views for prose, SwiftUI blocks for code and tables. That is how T3 mobile solved the same problem. Do not put tables into the text view.
-3. Do not choose (c) unless ATOM later wants whole-chat find, selection across turns and Markdown copy of any selection in one step. T3 web shows (c) works, but it costs memory, a bridge and a security review.
+3. Do not choose (c) unless ARK later wants whole-chat find, selection across turns and Markdown copy of any selection in one step. T3 web shows (c) works, but it costs memory, a bridge and a security review.
 4. Whatever the choice, keep the Markdown-to-clipboard code in Core. All three options need it.
 
 ### Decisions I need from you

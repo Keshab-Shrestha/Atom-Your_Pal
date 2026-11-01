@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
-import type { ToolCall, ToolResult, ToolSpec } from "@atom/contracts";
-import { redact } from "@atom/llm-gateway";
+import type { ToolCall, ToolResult, ToolSpec } from "@ark/contracts";
+import { redact } from "@ark/llm-gateway";
 import { BROWSER_SERVER } from "./browser.ts";
 import { SECRET_SHAPES } from "./folder-run.ts";
 
@@ -80,7 +80,7 @@ export function codexWorkerBrowser(options: {
   monitor?.unref(); options.signal.addEventListener("abort", abort, { once: true });
   const specs: ToolSpec[] = options.config ? [{
     name: "Browser",
-    description: "Use ATOM's separate worker browser profile with current browser/site grants. Actions: navigate {url}, snapshot {}, click/hover {target}, type {target,text,submit?}, fill_form {fields:[{name,target,type,value}]}, select_option {target,values}, press_key {key}, wait_for {time?,text?,textGone?}. Pass arguments_json as a JSON object string <=8,000 bytes. Start with navigate to an http(s) URL. Targets must be exact refs from the last returned snapshot, never selectors. Twenty attempts/task, one browser call at a time. Fresh interaction cards, plan-first approval, bounded text snapshots; no tabs, uploads, screenshots, file paths, page code, arbitrary keys or automatic retries.",
+    description: "Use ARK's separate worker browser profile with current browser/site grants. Actions: navigate {url}, snapshot {}, click/hover {target}, type {target,text,submit?}, fill_form {fields:[{name,target,type,value}]}, select_option {target,values}, press_key {key}, wait_for {time?,text?,textGone?}. Pass arguments_json as a JSON object string <=8,000 bytes. Start with navigate to an http(s) URL. Targets must be exact refs from the last returned snapshot, never selectors. Twenty attempts/task, one browser call at a time. Fresh interaction cards, plan-first approval, bounded text snapshots; no tabs, uploads, screenshots, file paths, page code, arbitrary keys or automatic retries.",
     inputSchema: { type: "object", properties: { action: { type: "string", description: ACTIONS.join(", ") }, arguments_json: { type: "string", description: "JSON object using only the fields listed for that action. Keys: arrows, PageUp/PageDown, Home/End, Tab/Shift+Tab, Escape, Enter, Backspace, Delete, Space. wait time <=5s. type text <=2,000 characters; at most eight form fields/options." } }, required: ["action", "arguments_json"] },
   }] : [];
 
@@ -105,7 +105,7 @@ export function codexWorkerBrowser(options: {
     if (client) return;
     const config = options.config!;
     if (config.type !== "stdio" || !small(config.command, 500) || !Array.isArray(config.args) || config.args.length > 30 || !config.args.every((a) => typeof a === "string" && a.length <= 2_000 && !a.includes("\0"))) throw new Error("browser configuration");
-    const owned = new Client({ name: "atom-codex-browser", version: "1.0.0" });
+    const owned = new Client({ name: "ark-codex-browser", version: "1.0.0" });
     client = owned; // Stop can close a handshake that has not finished.
     const transport = new StdioClientTransport({ command: config.command, args: [...config.args as string[], "--codegen", "none", "--image-responses", "omit", "--timeout-action", "10000", "--timeout-navigation", "15000"], env: getDefaultEnvironment(), stderr: "ignore" });
     await bounded(signal, 15_000, async (current) => {

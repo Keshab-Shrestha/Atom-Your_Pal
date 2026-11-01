@@ -15,19 +15,19 @@ export function chatFileName(index: number, title: string): string {
 export function chatMarkdown(title: string, updatedAt: string, messages: { role: string; content: string }[]): string {
   const lines = [`# ${title}`, "", `Last updated ${updatedAt}`, ""];
   for (const message of messages) {
-    lines.push(message.role === "user" ? "## You" : "## ATOM", "", message.content.trim(), "");
+    lines.push(message.role === "user" ? "## You" : "## ARK", "", message.content.trim(), "");
   }
   return lines.join("\n");
 }
 
 /**
- * Writes every chat into `<parent>/ATOM chats <date>` (a new folder; "-2", "-3"… when one exists already).
+ * Writes every chat into `<parent>/ARK chats <date>` (a new folder; "-2", "-3"… when one exists already).
  * `parent` is a full path the window chose. Returns the folder and how many chats were written.
  */
 export function exportChats(chats: IslandChats, parent: string, now = new Date()): { folder: string; count: number } {
   if (!parent.startsWith("/") || parent.split("/").includes("..") || /[\x00-\x1f\x7f]/.test(parent)) throw new Error("Choose a folder on this Mac.");
   if (!existsSync(parent)) throw new Error("That folder no longer exists.");
-  const base = join(parent, `ATOM chats ${now.toISOString().slice(0, 10)}`);
+  const base = join(parent, `ARK chats ${now.toISOString().slice(0, 10)}`);
   let folder = base;
   for (let n = 2; existsSync(folder); n += 1) folder = `${base}-${n}`;
   mkdirSync(folder);

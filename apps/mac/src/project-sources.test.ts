@@ -8,7 +8,7 @@ import { createProjectSource, repositoryURL, type ProjectSourceOptions, type Pro
 import { parseCommand } from "./island-commands.ts";
 
 function setup() {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "atom-project-source-"))), home = join(root, "home"), parent = join(home, "Developer");
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "ark-project-source-"))), home = join(root, "home"), parent = join(home, "Developer");
   mkdirSync(parent, { recursive: true });
   const registered: string[] = [];
   const options: ProjectSourceOptions = { home, signal: new AbortController().signal, validate() {}, register(name, path) { registered.push(name + ":" + path); return { project: "p-created" }; } };

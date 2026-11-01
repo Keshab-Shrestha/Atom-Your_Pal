@@ -10,8 +10,8 @@ import { commitWork, prepareWorkdir, worktreeIntact } from "./worktree.ts";
 
 const sh = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
 
-test("a repository gets a worktree on atom/task-N; the work is committed there and the current branch is untouched", async () => {
-  const root = mkdtempSync(join(tmpdir(), "atom-wt-"));
+test("a repository gets a worktree on ark/task-N; the work is committed there and the current branch is untouched", async () => {
+  const root = mkdtempSync(join(tmpdir(), "ark-wt-"));
   try {
     const repo = join(root, "repo");
     mkdirSync(join(repo, "app"), { recursive: true });
@@ -20,14 +20,14 @@ test("a repository gets a worktree on atom/task-N; the work is committed there a
     sh(repo, "add", "-A");
     sh(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "first");
     const work = await prepareWorkdir(join(repo, "app"), 12, join(root, "worktrees"));
-    assert.deepEqual([work.branch, work.dir], ["atom/task-12", join(root, "worktrees", "task-12", "app")]);
+    assert.deepEqual([work.branch, work.dir], ["ark/task-12", join(root, "worktrees", "task-12", "app")]);
     assert.equal(work.repo, realpathSync(repo));
     writeFileSync(join(work.dir, "a.txt"), "two\n");
-    assert.equal(await commitWork(work.dir, "ATOM task 12: change a"), true);
+    assert.equal(await commitWork(work.dir, "ARK task 12: change a"), true);
     assert.equal(await commitWork(work.dir, "again"), false, "nothing changed");
     assert.equal(sh(repo, "rev-parse", "--abbrev-ref", "HEAD"), "main");
     assert.equal(readFileSync(join(repo, "app", "a.txt"), "utf8"), "one\n", "the current branch's files are untouched");
-    assert.equal(sh(repo, "log", "-1", "--format=%an %s", "atom/task-12"), "ATOM ATOM task 12: change a");
+    assert.equal(sh(repo, "log", "-1", "--format=%an %s", "ark/task-12"), "ARK ARK task 12: change a");
     assert.equal(sh(repo, "remote"), "", "no remote was added, nothing pushed");
     const again = await prepareWorkdir(join(repo, "app"), 12, join(root, "worktrees"));
     assert.equal(again.dir, work.dir, "a second run reuses the worktree");
@@ -37,7 +37,7 @@ test("a repository gets a worktree on atom/task-N; the work is committed there a
 });
 
 test("a plain folder is worked in directly", async () => {
-  const root = mkdtempSync(join(tmpdir(), "atom-wt-"));
+  const root = mkdtempSync(join(tmpdir(), "ark-wt-"));
   try {
     assert.deepEqual(await prepareWorkdir(root, 3, join(root, "wt")), { dir: root });
   } finally {
@@ -45,8 +45,8 @@ test("a plain folder is worked in directly", async () => {
   }
 });
 
-test("a task that already has a zeno/task-N branch keeps it; a new task gets atom/task-N (ADR-105)", async () => {
-  const root = mkdtempSync(join(tmpdir(), "atom-wt-"));
+test("a task that already has an atom/task-N or zeno/task-N branch keeps it; a new task gets ark/task-N", async () => {
+  const root = mkdtempSync(join(tmpdir(), "ark-wt-"));
   try {
     const repo = join(root, "repo");
     mkdirSync(repo, { recursive: true });
@@ -54,21 +54,23 @@ test("a task that already has a zeno/task-N branch keeps it; a new task gets ato
     writeFileSync(join(repo, "a.txt"), "one\n");
     sh(repo, "add", "-A");
     sh(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "first");
-    sh(repo, "branch", "zeno/task-13");
+    sh(repo, "branch", "atom/task-13");
+    sh(repo, "branch", "zeno/task-15");
     const old = await prepareWorkdir(repo, 13, join(root, "worktrees"));
-    assert.equal(old.branch, "zeno/task-13");
-    assert.equal(sh(repo, "branch", "--list", "atom/task-13"), "", "the old branch is not replaced by a new one");
+    assert.equal(old.branch, "atom/task-13");
+    assert.equal(sh(repo, "branch", "--list", "ark/task-13"), "", "the old branch is not replaced by a new one");
+    assert.equal((await prepareWorkdir(repo, 15, join(root, "worktrees"))).branch, "zeno/task-15");
     const fresh = await prepareWorkdir(repo, 14, join(root, "worktrees"));
-    assert.equal(fresh.branch, "atom/task-14");
-    assert.equal((await prepareWorkdir(repo, 14, join(root, "worktrees"))).branch, "atom/task-14", "a second run keeps it");
+    assert.equal(fresh.branch, "ark/task-14");
+    assert.equal((await prepareWorkdir(repo, 14, join(root, "worktrees"))).branch, "ark/task-14", "a second run keeps it");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
 
-// macOS ignores letter case in paths: a folder granted as ~/Documents/ZENO whose repository git reports as ~/Documents/zeno is inside it.
+// macOS ignores letter case in paths: a folder granted as ~/Documents/ARK whose repository git reports as ~/Documents/ark is inside it.
 test("a folder written in a different letter case than its repository is still inside it", async (t) => {
-  const root = mkdtempSync(join(tmpdir(), "atom-wt-"));
+  const root = mkdtempSync(join(tmpdir(), "ark-wt-"));
   try {
     const repo = join(root, "Repo");
     mkdirSync(join(repo, "app"), { recursive: true });
@@ -80,17 +82,17 @@ test("a folder written in a different letter case than its repository is still i
     sh(repo, "add", "-A");
     sh(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "first");
     const work = await prepareWorkdir(join(root, "REPO", "app"), 13, join(root, "worktrees"));
-    assert.equal(work.branch, "atom/task-13");
+    assert.equal(work.branch, "ark/task-13");
     assert.equal(work.dir, join(root, "worktrees", "task-13", "app"));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
 
-// 2026-10-16 (security review): an agent in its worktree could `rm .git; git init`, set core.fsmonitor in the new .git/config, and ATOM's
-// `git add -A` ran that command outside the sandbox. ATOM now commits only when the worktree's .git is still its link into the repository.
+// 2026-10-16 (security review): an agent in its worktree could `rm .git; git init`, set core.fsmonitor in the new .git/config, and ARK's
+// `git add -A` ran that command outside the sandbox. ARK now commits only when the worktree's .git is still its link into the repository.
 test("a worktree whose .git link was replaced by the agent's own repository is never committed, and its commands never run", async () => {
-  const root = mkdtempSync(join(tmpdir(), "atom-wt-"));
+  const root = mkdtempSync(join(tmpdir(), "ark-wt-"));
   try {
     const repo = join(root, "repo");
     mkdirSync(repo, { recursive: true });
@@ -120,7 +122,7 @@ test("a worktree whose .git link was replaced by the agent's own repository is n
 });
 
 test("a worktree whose .git file points somewhere else, or is a symlink, is not intact", async () => {
-  const root = mkdtempSync(join(tmpdir(), "atom-wt-"));
+  const root = mkdtempSync(join(tmpdir(), "ark-wt-"));
   try {
     const repo = join(root, "repo");
     mkdirSync(repo, { recursive: true });
@@ -143,7 +145,7 @@ test("a worktree whose .git file points somewhere else, or is a symlink, is not 
 // 2026-10-16 (review of the fixes): the guard looked only at the worktree's top .git, but git ran in the project's subfolder. An agent
 // could `git init` inside that subfolder; git then used that repository (and its core.fsmonitor) first.
 test("a repository the agent makes in the project's subfolder is not used: git runs from the verified top of the worktree", async () => {
-  const root = mkdtempSync(join(tmpdir(), "atom-wt-"));
+  const root = mkdtempSync(join(tmpdir(), "ark-wt-"));
   try {
     const repo = join(root, "repo");
     mkdirSync(join(repo, "app"), { recursive: true });
@@ -156,7 +158,7 @@ test("a repository the agent makes in the project's subfolder is not used: git r
     const guard = { tree: work.tree!, repo: work.repo! };
     const marker = join(root, "ran-marker");
     sh(work.dir, "init", "-q"); // the agent's own repository inside the subfolder
-    // A clean filter runs at `git add` and fsmonitor is already overridden on ATOM's command line, so the live route is a filter driver.
+    // A clean filter runs at `git add` and fsmonitor is already overridden on ARK's command line, so the live route is a filter driver.
     writeFileSync(join(work.dir, "hook.sh"), `#!/bin/sh\necho ran > ${marker}\ncat\n`, { mode: 0o755 });
     sh(work.dir, "config", "filter.evil.clean", join(work.dir, "hook.sh"));
     writeFileSync(join(work.dir, ".gitattributes"), "* filter=evil\n");

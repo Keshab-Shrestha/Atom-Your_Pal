@@ -57,7 +57,7 @@ import {
 // are the user's own: kept here, never logged (callers log the change events, which carry ids and states only).
 
 export const JOBS_PER_HELPER = 20;
-export const CLOSED_WHILE_RUNNING = "ATOM closed before this attempt's outcome was confirmed. Files may already have changed. Review the last step, tool history and file changes before trying again.";
+export const CLOSED_WHILE_RUNNING = "ARK closed before this attempt's outcome was confirmed. Files may already have changed. Review the last step, tool history and file changes before trying again.";
 /** Soul versions listed per worker (all are kept). */
 export const SOUL_VERSIONS_LISTED = 10;
 
@@ -76,9 +76,9 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   db.exec("BEGIN");
   try {
     db.exec("UPDATE jobs SET retry_next = (SELECT child.id FROM jobs child WHERE child.retry_of = jobs.id) WHERE retry_next IS NULL AND EXISTS (SELECT 1 FROM jobs child WHERE child.retry_of = jobs.id)");
-    db.prepare("UPDATE jobs SET recovery_needed = 1, error = ? WHERE state = 'failed' AND error = 'ATOM was closed while this job ran' AND recovery_needed IS NULL").run(CLOSED_WHILE_RUNNING);
+    db.prepare("UPDATE jobs SET recovery_needed = 1, error = ? WHERE state = 'failed' AND error = 'ARK was closed while this job ran' AND recovery_needed IS NULL").run(CLOSED_WHILE_RUNNING);
     db.prepare("INSERT INTO job_events(job_id, kind, at) SELECT id, 'interrupted', ? FROM jobs WHERE state = 'running' OR (state = 'queued' AND retry_of IS NOT NULL)").run(opened.toISOString());
-    db.prepare("UPDATE jobs SET state = 'failed', recovery_needed = 1, error = CASE WHEN native_scope = 'advisory' THEN 'ATOM closed before this advisory report completed. Request another review from its parent; this child cannot be retried on its own.' ELSE ? END, ended_at = ?, wake_pending = 0 WHERE state = 'running' OR (state = 'queued' AND retry_of IS NOT NULL)").run(CLOSED_WHILE_RUNNING, opened.toISOString());
+    db.prepare("UPDATE jobs SET state = 'failed', recovery_needed = 1, error = CASE WHEN native_scope = 'advisory' THEN 'ARK closed before this advisory report completed. Request another review from its parent; this child cannot be retried on its own.' ELSE ? END, ended_at = ?, wake_pending = 0 WHERE state = 'running' OR (state = 'queued' AND retry_of IS NOT NULL)").run(CLOSED_WHILE_RUNNING, opened.toISOString());
     db.exec("COMMIT");
   } catch (error) { db.exec("ROLLBACK"); db.close(); throw error; }
 
@@ -367,7 +367,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       return wake(get(job.id)!);
     }
     if (to !== "failed" && to !== "stopped") return;
-    // ADR-094: a failure a retry does not fix, in a task that used one of ATOM's skills, asks Tinker to improve it.
+    // ADR-094: a failure a retry does not fix, in a task that used one of ARK's skills, asks Tinker to improve it.
     if (to === "failed" && job.helper !== "tinker") skills.askEdits(job);
     for (const { id } of dependents.all(job.id) as { id: number }[]) {
       const waiting = get(id);
@@ -597,7 +597,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     },
 
     createAgent(input) {
-      if (!agentsDir) throw new HelperError("New agents need ATOM's agents folder.");
+      if (!agentsDir) throw new HelperError("New agents need ARK's agents folder.");
       const team = roster();
       if (team.filter((m) => m.custom).length >= MAX_AGENTS) throw new HelperError(`There are already ${MAX_AGENTS} agents.`);
       const role = cleanRole(input.role);

@@ -1,6 +1,6 @@
 # T3 Code: the composer and the controls around it
 
-> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ATOM status. Detailed observations below retain the earlier snapshot unless updated explicitly.
+> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ARK status. Detailed observations below retain the earlier snapshot unless updated explicitly.
 
 Source: github.com/pingdotgg/t3code (MIT licence). Read on 2026-10-17 from a shallow clone at commit `2fbd4318`.
 Nobody ran T3 Code. All facts come from reading files. A claim that I did not check in code is marked "unverified".
@@ -261,12 +261,12 @@ See `t3code-sessions-and-providers.md` (queue, compact, plan mode, depth, long p
 
 ---
 
-## 3. What ATOM has today and the gap
+## 3. What ARK has today and the gap
 
-I read `ConversationView.swift`, `ComposerPaste.swift`, `AtomIslandCore/ComposerInput.swift`, `MentionMenu.swift`, `SlashMenu.swift`,
+I read `ConversationView.swift`, `ComposerPaste.swift`, `ArkIslandCore/ComposerInput.swift`, `MentionMenu.swift`, `SlashMenu.swift`,
 `MessageQueue.swift`, `ComposerDraft.swift`, `WindowTopBar.swift` (`ChatModelMenu`) and ADR-113, 117, 125, 126, 127.
 
-| Feature | T3 Code | ATOM today | Gap |
+| Feature | T3 Code | ARK today | Gap |
 | --- | --- | --- | --- |
 | Editor | Tiptap, Markdown, chips inside text | SwiftUI `TextField` with `axis: .vertical`, plain text | Large. A rich editor needs an `NSTextView` wrapper (L). Not recommended now |
 | Auto-grow | 78 to 208 px | 1 to 8 lines, then scrolls | None |
@@ -282,7 +282,7 @@ I read `ConversationView.swift`, `ComposerPaste.swift`, `AtomIslandCore/Composer
 | Drop files | Yes, folders become a path | Yes, files only (`dropDestination`) | Small |
 | `@` menu | Files, threads, search on server | Helpers, Second brain pages, "A file..." chooser | No project file search (ADR-126 left it out) |
 | Inline chips | In the text | A chip row above the field | Large (L); the row is fine |
-| `/` menu | Commands, skills | ATOM commands, skills, Claude commands (ADR-117) | No `/usage`, no `/plan` |
+| `/` menu | Commands, skills | ARK commands, skills, Claude commands (ADR-117) | No `/usage`, no `/plan` |
 | `#` and `$` triggers | Yes | No | Not needed |
 | Quote a reply | "Cite in composer" | No | Gap (idea 9) |
 | Prompt links | Yes | No URL scheme found in `apps/mac` | Gap (idea 10) |
@@ -295,24 +295,24 @@ I read `ConversationView.swift`, `ComposerPaste.swift`, `AtomIslandCore/Composer
 | Queue | List with edit, reorder, steer, remove | One "Next" row; messages join (ADR-127) | Gap (idea 4) |
 | Steer | Yes | No. Cmd+Return stops and sends | Unverified whether the SDK allows it |
 | Context meter, Compact | Ring and chip | None | In sessions file |
-| Voice | iPhone only | Hold-to-talk and dictation (strong) | ATOM is ahead |
+| Voice | iPhone only | Hold-to-talk and dictation (strong) | ARK is ahead |
 | Attachments | Chips, preview, retry | Name chip with X; 5 files, 10 MB | Gap (idea 6) |
 | Drafts | Per thread, saved to disk | Per chat, in memory, 20 chats, lost at quit (ADR-125) | Gap (idea 5) |
 | Prompt stash | Cmd+S, 24 hours | None | Part of idea 5 |
 | Prompt recall | ArrowUp | ArrowUp, 50 messages (`MessageRecall`) | None |
 | Question card | Yes | None found. Tools outside the chat's set are denied (`native-safety.ts` line 25) | Gap (idea 7). Unverified: I did not test `AskUserQuestion` itself |
 | Approval card | Composer-side card, 4 buttons | Needs-you card, Allow or Decline (`ApprovalState.swift`) | Fine. No "allow for this session" by design |
-| Typing guard | Holds new cards 1.5 s | None found | Low value in ATOM (idea 12) |
+| Typing guard | Holds new cards 1.5 s | None found | Low value in ARK (idea 12) |
 | Shortcuts in the window | Data table, hints | Global keys only; Escape; Cmd+Return | Gap (command table idea in settings file) |
 | Type-to-focus | Yes | No | Gap (idea 11) |
 | Collapse on scroll | Yes | No | Low value (idea 12) |
 | Disabled-state reasons | Placeholder, tooltip, aria | Read-only notice (ADR-098); send tooltip "Send (Return)" | Gap (idea 1) |
-| Empty state | Hero headline, project picker | Pal, "Ask ATOM anything", brief card, example chips | ATOM is richer. Project picker is a small gap (idea 12) |
+| Empty state | Hero headline, project picker | Pal, "Ask ARK anything", brief card, example chips | ARK is richer. Project picker is a small gap (idea 12) |
 | First-run wizard | Computers, agents, projects | `FirstRunTour`, setup cards | Different job |
 
 ---
 
-## 4. Ideas for ATOM, ranked
+## 4. Ideas for ARK, ranked
 
 Rules used to judge each idea: it runs on the user's Claude plan with no billed key; code decides permissions, never the model;
 minimal change; no heavy dependency; native SwiftUI.
@@ -323,10 +323,10 @@ minimal change; no heavy dependency; native SwiftUI.
 - **What.** One pure function returns the placeholder, the button tooltip and the button icon from the state.
   States: idle, answering with text (queue), answering and empty (stop), file limit reached, runtime not ready, read-only chat.
   While answering, the tooltip says "Return: wait for the answer. Cmd+Return: send now." The icon shows a queue mark.
-- **Why.** T3 Code tells the user why a control is off and what a key does now. ATOM's tooltip says only "Send (Return)" (`ConversationView.swift` line 479).
+- **Why.** T3 Code tells the user why a control is off and what a key does now. ARK's tooltip says only "Send (Return)" (`ConversationView.swift` line 479).
   ADR-127 added a second meaning for Return that nothing shows.
 - **Fit.** Pure Swift. No runtime change. Uses facts that the model already has (`answering`, `queue`).
-- **First step.** Add `ComposerHint` in `AtomIslandCore` with tests. Use it for `placeholder` and `.help` in `Composer`.
+- **First step.** Add `ComposerHint` in `ArkIslandCore` with tests. Use it for `placeholder` and `.help` in `Composer`.
 
 #### 2. Native Quick Look and thumbnails on attached files (size S to M)
 - **What.** An image chip shows a 24 px thumbnail. A click on any file chip opens Quick Look (`QLPreviewPanel`). Pasted screenshots get a real preview.
@@ -338,22 +338,22 @@ minimal change; no heavy dependency; native SwiftUI.
 #### 3. Remove hidden characters from pasted text, with a notice (size S)
 - **What.** On paste and on send, drop zero-width, bidi, tag-block and similar characters. Show "Removed N hidden characters" once.
   Keep emoji joiners that sit between emoji.
-- **Why.** Hidden text can carry instructions that the user cannot see. ATOM gives Claude tools. T3 Code does this for prompt links
-  (`sanitizeLinkedPrompt`, `packages/shared/src/promptLinks.ts`). I found no call in its paste path, so ATOM can go one step further.
+- **Why.** Hidden text can carry instructions that the user cannot see. ARK gives Claude tools. T3 Code does this for prompt links
+  (`sanitizeLinkedPrompt`, `packages/shared/src/promptLinks.ts`). I found no call in its paste path, so ARK can go one step further.
 - **Fit.** Deterministic code, not the model. Small pure function. No new permission. Reversible by one setting if needed.
-- **First step.** `HiddenCharacters.strip(_:)` in `AtomIslandCore` with tests built from the T3 Code character ranges (read the ranges, write ATOM's own code).
+- **First step.** `HiddenCharacters.strip(_:)` in `ArkIslandCore` with tests built from the T3 Code character ranges (read the ranges, write ARK's own code).
 
 #### 4. A list of waiting messages instead of one joined message (size M)
 - **What.** Show each waiting message as a row with Edit, Send now and Remove. Keep the join as an option, not the only way.
   Later: drag to reorder. Later still: Steer (see the note below).
 - **Why.** T3 Code has this (`QueuedRunsControl.tsx`). ADR-127 listed it as left out. Today two messages merge into one turn, and the user cannot remove one.
-- **Fit.** `MessageQueue` is pure and tested, so the change is local. Steer into a running turn is unverified for ATOM's one-session-per-chat design (ADR-110).
+- **Fit.** `MessageQueue` is pure and tested, so the change is local. Steer into a running turn is unverified for ARK's one-session-per-chat design (ADR-110).
   Do not promise it. "Send now" already exists.
 - **First step.** Change `MessageQueue.next` to an array. Keep the rule "stopped or failed turn puts all back in the box". Add a row view per message.
 
 #### 5. Drafts saved to disk, then a stash (size S, then M)
 - **What.** Step 1: write each chat's unsent text to a small JSON file so a quit does not lose it. Step 2: a stash with a shortcut and a menu.
-- **Why.** ADR-125 says drafts are gone when ATOM quits. T3 Code stores drafts (`composerDraftStore.ts`) and stashes for 24 hours.
+- **Why.** ADR-125 says drafts are gone when ARK quits. T3 Code stores drafts (`composerDraftStore.ts`) and stashes for 24 hours.
 - **Fit.** Text only. Files stay as paths and are checked again on restore (ADR-113 refuses secret files). Store in the app data folder with mode 0600.
   A draft may hold a secret. Add it to the list of things that "Forget" clears.
 - **First step.** Persist `ChatDrafts` text on change (debounced) and load at start. Keep the 20 chat limit. Add a test.
@@ -368,7 +368,7 @@ minimal change; no heavy dependency; native SwiftUI.
 #### 7. A question card for the model (size M, needs an ADR)
 - **What.** Let Claude ask one question with 2 to 4 options. The card shows number badges. Keys 1 to 9 pick. The user may type an own answer.
   The answer goes back as the tool result.
-- **Why.** T3 Code turns `AskUserQuestion` into a card (`ComposerPendingUserInputPanel.tsx`). ATOM denies tools outside the chat's set, so helpers must guess or stop.
+- **Why.** T3 Code turns `AskUserQuestion` into a card (`ComposerPendingUserInputPanel.tsx`). ARK denies tools outside the chat's set, so helpers must guess or stop.
 - **Fit.** Code decides: the gate allows only this tool, returns only the user's text, and times out like approvals (60 s, ADR-054).
   No file or command access. The card is not an approval. It must not look like one.
 - **First step.** Read how `canUseTool` in `native-safety.ts` answers an unknown tool. Write the ADR. Build the card with `ApprovalState` as the model.
@@ -376,19 +376,19 @@ minimal change; no heavy dependency; native SwiftUI.
 #### 8. A read-only "Access" pill that shows the policy (size S, then M)
 - **What.** A small pill near the model menu: "Asks before changes". The tooltip lists in plain words what the gate allows in this chat.
   Later: 2 or 3 levels per chat, each enforced by the gate.
-- **Why.** T3 Code shows its mode with an icon and one line per option (`runtimeModeConfig.ts`). ATOM's policy is strict but invisible.
+- **Why.** T3 Code shows its mode with an icon and one line per option (`runtimeModeConfig.ts`). ARK's policy is strict but invisible.
 - **Fit.** Never copy the T3 default `full-access`. Never offer a bypass mode. Show only what code enforces. Step 1 changes no behaviour.
 - **First step.** Build the sentence from the same rules `native-safety.ts` uses, in one tested function. Show it in the pill tooltip.
 
 #### 9. "Reply to this" quote (size S)
 - **What.** A button on a reply inserts its first lines as a Markdown quote ("> ...") at the end of the box, with the caret below.
 - **Why.** T3 Code lets the user cite part of a reply with a comment. The full version needs a text selection toolbar.
-  The small version works with ATOM's `ReplyText` and a button next to "Copy the reply".
+  The small version works with ARK's `ReplyText` and a button next to "Copy the reply".
 - **Fit.** Pure text. No model change. The quote counts toward the 4000 character limit.
 - **First step.** Add `ComposerDraft.quoting(_:)` and an `IconButton` in `TurnView`.
 
-#### 10. Prompt links with an `atom://` scheme (size M)
-- **What.** `atom://new?prompt=...` opens the window with the text in the box. It never sends. It strips hidden characters (idea 3).
+#### 10. Prompt links with an `ark://` scheme (size M)
+- **What.** `ark://new?prompt=...` opens the window with the text in the box. It never sends. It strips hidden characters (idea 3).
   It cannot change the model, a permission or a project.
 - **Why.** Useful for notes, Shortcuts app, Raycast and pull request comments. T3 Code's rules are good: draft only, length limit 8,000, warn on hidden text.
 - **Fit.** Needs a URL scheme in `Info.plist`; I found none in `apps/mac` (unverified for the packaged app). It is a new way in, so it needs an ADR and a security note.
@@ -402,9 +402,9 @@ minimal change; no heavy dependency; native SwiftUI.
 
 #### 12. Three small, low-value ideas (size S each)
 - **Hold new cards while the user types.** T3 Code holds a card for 1.5 s (`composerTypingGuard.ts`) so a stray Enter cannot answer it.
-  ATOM answers cards by click, as far as I read (unverified for every card). Skip unless a key can answer a card.
-- **Shrink the box when the user scrolls up** (`composerCollapseOnScroll`). Gain is larger in ATOM's small panel. Make it opt-in. Measure first.
-- **Project name in the empty chat** ("in <project>" with a small picker, like `DraftHeroHeadline.tsx`). ATOM chats are not per project by default. Ask Keshab first.
+  ARK answers cards by click, as far as I read (unverified for every card). Skip unless a key can answer a card.
+- **Shrink the box when the user scrolls up** (`composerCollapseOnScroll`). Gain is larger in ARK's small panel. Make it opt-in. Measure first.
+- **Project name in the empty chat** ("in <project>" with a small picker, like `DraftHeroHeadline.tsx`). ARK chats are not per project by default. Ask Keshab first.
 
 ### 4.2 Suggested order
 
@@ -430,16 +430,16 @@ minimal change; no heavy dependency; native SwiftUI.
 - **A rich Markdown editor with inline chips.** Needs an `NSTextView` wrapper and a document model (T3 Code uses about 3,500 lines for it).
   A chat to Claude gains little. The chip row above the field works.
 - **Code blocks and list continuation in the draft.** SwiftUI's field does not tell the caret position (ADR-126), so only end-of-text rules are possible.
-- **`#` pull request and `$` skill triggers.** ATOM already has "/" for skills. Pull requests belong to the project pages.
-- **Branch and host pickers in the chat box.** ATOM chats are not tied to a branch.
+- **`#` pull request and `$` skill triggers.** ARK already has "/" for skills. Pull requests belong to the project pages.
+- **Branch and host pickers in the chat box.** ARK chats are not tied to a branch.
 - **Typed send shortcut (Enter, Cmd+Enter).** Keshab sends with Return and talks with a hold key. Add it only if asked.
-- **Voice button parity.** ATOM is ahead. Take one rule only: if dictation ever writes into the box, check that the text did not change before inserting
-  (`controller.ts` keeps a revision number). Unverified whether ATOM's dictation targets the box.
+- **Voice button parity.** ARK is ahead. Take one rule only: if dictation ever writes into the box, check that the text did not change before inserting
+  (`controller.ts` keeps a revision number). Unverified whether ARK's dictation targets the box.
 
 ## 5. Not checked
 
 - I did not run T3 Code or read all 7369 lines of `ChatComposer.tsx`. I read the parts named above.
 - I did not read the server code that turns file links into model text. Only the thread and context projection is read.
 - I did not read mobile composer code beyond voice input.
-- Steer into a running Claude turn in ATOM: unverified.
-- Whether ATOM's packaged app registers a URL scheme: unverified.
+- Steer into a running Claude turn in ARK: unverified.
+- Whether ARK's packaged app registers a URL scheme: unverified.

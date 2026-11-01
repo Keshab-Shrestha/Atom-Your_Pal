@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { openMemoryStore } from "@atom/memory";
+import { openMemoryStore } from "@ark/memory";
 import { createBrainWiring } from "./brain-wiring.ts";
 
 // The second brain in the runtime: memory mirrored into notes, the agent's tools, and the window's view.

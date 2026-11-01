@@ -5,13 +5,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openHelperStore, parseSkillFile, skillDraftBrief, skillEditBrief, skillFile } from "./index.ts";
 
-// ADR-094 part A: drafts from good tasks, approved into ATOM's folder; edits to ATOM's skills after bad ones.
+// ADR-094 part A: drafts from good tasks, approved into ARK's folder; edits to ARK's skills after bad ones.
 
 const report = { title: "Laptops compared", summary: "Three picks.", body: "Body.", sources: [] };
 
 function setup() {
-  const home = mkdtempSync(join(tmpdir(), "atom-home-"));
-  const skillsDir = mkdtempSync(join(tmpdir(), "atom-skills-"));
+  const home = mkdtempSync(join(tmpdir(), "ark-home-"));
+  const skillsDir = mkdtempSync(join(tmpdir(), "ark-skills-"));
   const store = openHelperStore({ path: ":memory:", home, skillsDir });
   const done = (task = "Compare three laptops") => {
     const { id } = store.addJob("sid", task);
@@ -24,11 +24,11 @@ function setup() {
     mkdirSync(join(home, ".claude", "skills", name), { recursive: true });
     writeFileSync(join(home, ".claude", "skills", name, "SKILL.md"), skillFile(name, "Keshab's own.", "Mine."));
   };
-  const zenoSkill = (name: string, body = "1. Search.\n2. Compare.") => {
+  const arkSkill = (name: string, body = "1. Search.\n2. Compare.") => {
     mkdirSync(join(skillsDir, name), { recursive: true });
     writeFileSync(join(skillsDir, name, "SKILL.md"), skillFile(name, "Compare products.", body));
   };
-  return { home, skillsDir, store, done, tinkerJobs, userSkill, zenoSkill };
+  return { home, skillsDir, store, done, tinkerJobs, userSkill, arkSkill };
 }
 
 const draft = { name: "compare-laptops", description: "Use when comparing laptops.", body: "1. List needs.\n2. Compare three." };
@@ -76,10 +76,10 @@ test("approving writes data/skills/<name>/SKILL.md; rejecting only marks it", ()
   assert.deepEqual(store.skillDrafts().map((x) => x.state), ["rejected", "approved"]);
 });
 
-test("a draft whose name is taken by one of Keshab's skills or ATOM's is refused", () => {
-  const { store, done, tinkerJobs, userSkill, zenoSkill, home } = setup();
+test("a draft whose name is taken by one of Keshab's skills or ARK's is refused", () => {
+  const { store, done, tinkerJobs, userSkill, arkSkill, home } = setup();
   userSkill("pdf");
-  zenoSkill("compare-laptops");
+  arkSkill("compare-laptops");
   const a = done();
   store.makeSkill(a);
   const tinker = tinkerJobs()[0]!.id;
@@ -90,13 +90,13 @@ test("a draft whose name is taken by one of Keshab's skills or ATOM's is refused
   const b = done("b");
   store.makeSkill(b);
   const ours = store.addSkillDraft(tinkerJobs().find((j) => j.reviews === b)!.id, draft);
-  assert.throws(() => store.approveSkillDraft(ours.id), /ATOM already has a skill called "compare-laptops"/);
+  assert.throws(() => store.approveSkillDraft(ours.id), /ARK already has a skill called "compare-laptops"/);
   assert.equal(store.skillDrafts().filter((x) => x.state === "pending").length, 2);
 });
 
-test("a bad rating of a task that used a ATOM skill asks for an edit; accept writes it, undo restores the old steps", () => {
-  const { store, done, tinkerJobs, zenoSkill, skillsDir } = setup();
-  zenoSkill("compare-laptops");
+test("a bad rating of a task that used a ARK skill asks for an edit; accept writes it, undo restores the old steps", () => {
+  const { store, done, tinkerJobs, arkSkill, skillsDir } = setup();
+  arkSkill("compare-laptops");
   const id = done();
   store.recordSkillUse(id, "compare-laptops");
   store.recordSkillUse(id, "compare-laptops");
@@ -122,8 +122,8 @@ test("a bad rating of a task that used a ATOM skill asks for an edit; accept wri
 });
 
 test("undo is refused when the skill changed since the edit, so newer steps are never overwritten", () => {
-  const { store, done, tinkerJobs, zenoSkill, skillsDir } = setup();
-  zenoSkill("compare-laptops");
+  const { store, done, tinkerJobs, arkSkill, skillsDir } = setup();
+  arkSkill("compare-laptops");
   const id = done();
   store.recordSkillUse(id, "compare-laptops");
   store.rate(id, false, "Only two laptops.");
@@ -137,8 +137,8 @@ test("undo is refused when the skill changed since the edit, so newer steps are 
 });
 
 test("a rejected edit changes nothing; a failure a retry does not fix asks for an edit, a retryable one does not yet", () => {
-  const { store, tinkerJobs, zenoSkill, skillsDir } = setup();
-  zenoSkill("compare-laptops");
+  const { store, tinkerJobs, arkSkill, skillsDir } = setup();
+  arkSkill("compare-laptops");
   const { id } = store.addJob("sid", "Compare");
   store.start(id);
   store.recordSkillUse(id, "compare-laptops");
@@ -156,34 +156,34 @@ test("a rejected edit changes nothing; a failure a retry does not fix asks for a
 });
 
 test("skills from ~/.claude/skills are never edited", () => {
-  const { store, done, tinkerJobs, userSkill, zenoSkill } = setup();
+  const { store, done, tinkerJobs, userSkill, arkSkill } = setup();
   userSkill("pdf");
   const id = done();
   store.recordSkillUse(id, "pdf");
   store.rate(id, false);
   assert.deepEqual(tinkerJobs().map((j) => j.reviewKind), [undefined], "only the soul review");
-  zenoSkill("notes");
+  arkSkill("notes");
   const other = done("b");
   store.recordSkillUse(other, "notes");
   store.rate(other, false);
   const edit = tinkerJobs().find((j) => j.reviewKind === "edit")!;
   userSkill("notes"); // Keshab now has one of the same name: his wins, and his is never edited
   assert.equal(store.skillEditTarget(edit.id), undefined);
-  assert.throws(() => store.addSkillEdit(edit.id, { body: "x", reason: "y" }), /Only ATOM's own skills are edited/);
+  assert.throws(() => store.addSkillEdit(edit.id, { body: "x", reason: "y" }), /Only ARK's own skills are edited/);
 });
 
-// 2026-10-16: the user says in a chat that one of ATOM's skills did not work well; the main agent proposes the edit itself (no task, job 0).
+// 2026-10-16: the user says in a chat that one of ARK's skills did not work well; the main agent proposes the edit itself (no task, job 0).
 test("proposeSkillEdit: a pending edit from a chat (job 0); accepting writes the skill, undo restores it; yours and a second pending edit are refused", () => {
-  const { store, done, userSkill, zenoSkill, skillsDir } = setup();
-  zenoSkill("compare-laptops", "1. Search.\n2. Compare.");
+  const { store, done, userSkill, arkSkill, skillsDir } = setup();
+  arkSkill("compare-laptops", "1. Search.\n2. Compare.");
   userSkill("my-own");
   const edit = store.proposeSkillEdit("compare-laptops", { body: "1. Search.\n2. Compare at least three.", reason: "It stopped at two." });
   assert.equal(edit.jobId, 0);
   assert.equal(edit.state, "pending");
   assert.equal(store.skillEdits().find((e) => e.id === edit.id)!.state, "pending");
   assert.throws(() => store.proposeSkillEdit("compare-laptops", { body: "Other.", reason: "x" }), /already waits/);
-  assert.throws(() => store.proposeSkillEdit("my-own", { body: "x", reason: "y" }), /Only ATOM's own skills/);
-  assert.throws(() => store.proposeSkillEdit("nothing-here", { body: "x", reason: "y" }), /Only ATOM's own skills/);
+  assert.throws(() => store.proposeSkillEdit("my-own", { body: "x", reason: "y" }), /Only ARK's own skills/);
+  assert.throws(() => store.proposeSkillEdit("nothing-here", { body: "x", reason: "y" }), /Only ARK's own skills/);
   store.acceptSkillEdit(edit.id);
   assert.match(readFileSync(join(skillsDir, "compare-laptops", "SKILL.md"), "utf8"), /Compare at least three/);
   store.undoSkillEdit(edit.id);

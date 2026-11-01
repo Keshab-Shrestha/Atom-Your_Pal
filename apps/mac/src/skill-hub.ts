@@ -1,8 +1,8 @@
 // B3.5, ADR-102: the only network code of the skills hub. It reads from a pinned list of public repos on two GitHub
 // hosts, with no account and no token. It fetches ONE file per skill (SKILL.md at a pinned commit), never a script, and
-// never runs anything. The text is checked, previewed and approved by the store (@atom/helpers skill-hub).
+// never runs anything. The text is checked, previewed and approved by the store (@ark/helpers skill-hub).
 
-import { HUB_PATH, SKILL_DRAFT_NAME, parseSkillFile } from "@atom/helpers";
+import { HUB_PATH, SKILL_DRAFT_NAME, parseSkillFile } from "@ark/helpers";
 
 /** Adding a source needs a code change. */
 export const HUB_SOURCES: readonly { repo: string }[] = [{ repo: "anthropics/skills" }];
@@ -64,25 +64,25 @@ export function createHubClient(options: HubClientOptions = {}) {
 
   async function getWithin(url: string, maxBytes: number, signal: AbortSignal): Promise<string> {
     const u = new URL(url);
-    if (u.protocol !== "https:" || !HUB_HOSTS.includes(u.hostname) || u.username || u.password) throw new HubError("ATOM only reads from api.github.com and raw.githubusercontent.com.");
+    if (u.protocol !== "https:" || !HUB_HOSTS.includes(u.hostname) || u.username || u.password) throw new HubError("ARK only reads from api.github.com and raw.githubusercontent.com.");
     const t = now();
     while (stamps.length && t - stamps[0]! >= 60_000) stamps.shift();
-    if (stamps.length >= HUB_FETCHES_PER_MINUTE) throw new HubError("ATOM already made many requests this minute. Try again in a minute.");
+    if (stamps.length >= HUB_FETCHES_PER_MINUTE) throw new HubError("ARK already made many requests this minute. Try again in a minute.");
     stamps.push(t);
     let res: Response;
     try {
-      res = await doFetch(u.href, { redirect: "error", signal, headers: { accept: "application/vnd.github+json, text/plain", "user-agent": "atom-skills-hub" } });
+      res = await doFetch(u.href, { redirect: "error", signal, headers: { accept: "application/vnd.github+json, text/plain", "user-agent": "ark-skills-hub" } });
     } catch (error) {
       if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) throw new HubError("GitHub did not answer in time.");
       throw new HubError("GitHub could not be reached, or it redirected the request.");
     }
-    if (res.status >= 300 && res.status < 400) throw new HubError("GitHub redirected the request, so ATOM stopped.");
+    if (res.status >= 300 && res.status < 400) throw new HubError("GitHub redirected the request, so ARK stopped.");
     if (res.status === 429 || (res.status === 403 && res.headers.get("x-ratelimit-remaining") === "0")) throw new HubError("GitHub's limit for requests without an account is reached. Try again later.");
     if (res.status === 404) throw new HubError("GitHub has no such file.");
     if (!res.ok) throw new HubError(`GitHub answered with an error (${res.status}).`);
     const type = res.headers.get("content-type") ?? "";
     if (!/^(text\/|application\/json)/i.test(type)) throw new HubError("GitHub sent something that is not text.");
-    if (Number(res.headers.get("content-length") ?? 0) > maxBytes) throw new HubError("That file is too big for ATOM.");
+    if (Number(res.headers.get("content-length") ?? 0) > maxBytes) throw new HubError("That file is too big for ARK.");
     const reader = res.body?.getReader();
     if (!reader) throw new HubError("GitHub sent an empty answer.");
     const chunks: Uint8Array[] = [];
@@ -94,7 +94,7 @@ export function createHubClient(options: HubClientOptions = {}) {
         size += value.byteLength;
         if (size > maxBytes) {
           void reader.cancel().catch(() => undefined);
-          throw new HubError("That file is too big for ATOM.");
+          throw new HubError("That file is too big for ARK.");
         }
         chunks.push(value);
       }
@@ -116,18 +116,18 @@ export function createHubClient(options: HubClientOptions = {}) {
     } catch (error) {
       if (error instanceof HubError) throw error;
     }
-    throw new HubError("GitHub sent an answer ATOM cannot read.");
+    throw new HubError("GitHub sent an answer ARK cannot read.");
   };
 
   const source = (index: number) => {
     const s = Number.isInteger(index) ? HUB_SOURCES[index] : undefined;
-    if (!s) throw new HubError("That source is not in ATOM's list.");
+    if (!s) throw new HubError("That source is not in ARK's list.");
     return s.repo;
   };
 
   async function headSha(repo: string): Promise<string> {
     const sha = (await json(`https://api.github.com/repos/${repo}/commits/HEAD`, HUB_FILE_BYTES)).sha;
-    if (typeof sha !== "string" || !SHA.test(sha)) throw new HubError("GitHub sent an answer ATOM cannot read.");
+    if (typeof sha !== "string" || !SHA.test(sha)) throw new HubError("GitHub sent an answer ARK cannot read.");
     return sha;
   }
 
@@ -138,7 +138,7 @@ export function createHubClient(options: HubClientOptions = {}) {
     const repo = source(index);
     const sha = await headSha(repo);
     const tree = await json(`https://api.github.com/repos/${repo}/git/trees/${sha}?recursive=1`, HUB_TREE_BYTES);
-    if (tree.truncated === true) throw new HubError("That repository is too big for ATOM to search.");
+    if (tree.truncated === true) throw new HubError("That repository is too big for ARK to search.");
     const entries = Array.isArray(tree.tree) ? (tree.tree as { path?: unknown; type?: unknown }[]) : [];
     const paths = entries
       .filter((e) => e.type === "blob" && typeof e.path === "string" && HUB_PATH.test(e.path) && SKILL_DRAFT_NAME.test(HUB_PATH.exec(e.path)![1]!))
@@ -177,7 +177,7 @@ export function createHubClient(options: HubClientOptions = {}) {
     /** One skill's SKILL.md at the newest commit (a fresh look when `fresh`, as for an update). Nothing else is read. */
     async fetchSkill(index: number, path: string, fresh = false): Promise<HubFileResult> {
       const repo = source(index);
-      if (!HUB_PATH.test(path) || path.includes("..") || path.includes("\\") || !SKILL_DRAFT_NAME.test(folder(path))) throw new HubError("That is not a skill ATOM can take.");
+      if (!HUB_PATH.test(path) || path.includes("..") || path.includes("\\") || !SKILL_DRAFT_NAME.test(folder(path))) throw new HubError("That is not a skill ARK can take.");
       const sha = fresh ? await headSha(repo) : (await listing(index)).sha;
       return { repo, path, sha, text: await get(rawUrl(repo, sha, path), HUB_FILE_BYTES) };
     },

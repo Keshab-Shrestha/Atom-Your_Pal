@@ -3,8 +3,8 @@ import { open, lstat, realpath, mkdtemp, mkdir, writeFile, rm, opendir } from "n
 import { dirname, join, resolve, relative, sep } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
-import { isInside } from "@atom/helpers";
-import { redact, runCodexShellPreview } from "@atom/llm-gateway";
+import { isInside } from "@ark/helpers";
+import { redact, runCodexShellPreview } from "@ark/llm-gateway";
 import { SECRET_SHAPES } from "./folder-run.ts";
 
 const FILE_BYTES = 256 * 1024;
@@ -78,7 +78,7 @@ export async function previewProjectShell(options: {
   try {
     const [base, root] = await Promise.all([realpath(tmpdir()), realpath(options.cwd)]);
     if (!allowed() || root === "/" || /[*?\[\]{}]/.test(root) || base === root || base.startsWith(root + sep)) throw new Error("unsupported project");
-    stage = await mkdtemp(join(base, "atom-shell-preview-"));
+    stage = await mkdtemp(join(base, "ark-shell-preview-"));
     const before = join(stage, "before"), work = join(stage, "work");
     await Promise.all([before, work].map((p) => mkdir(p, { mode: 0o700 })));
     const manifest: PreviewInput[] = [];

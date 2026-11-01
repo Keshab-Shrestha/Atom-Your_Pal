@@ -2,10 +2,10 @@
 // dry run (no tools, effort low): once with the old text, once with the new; then a judge compares both answers with
 // the saved report. Results go to the store; nothing here accepts or rejects the change.
 
-import { runTestAnswer, runTestJudge, type ClaudeSdk, type PlanUsage, type TokenUsage } from "@atom/llm-gateway";
-import { testAnswerBrief, testJudgeBrief, type HelperStore, type TestKind } from "@atom/helpers";
+import { runTestAnswer, runTestJudge, type ClaudeSdk, type PlanUsage, type TokenUsage } from "@ark/llm-gateway";
+import { testAnswerBrief, testJudgeBrief, type HelperStore, type TestKind } from "@ark/helpers";
 
-/** Claude's own rate limit stopped the rest (ADR-110 N4: ATOM sets no limit of its own). */
+/** Claude's own rate limit stopped the rest (ADR-110 N4: ARK sets no limit of its own). */
 export const NOT_RUN_PLAN_LIMIT = "Not run: plan limit";
 
 export interface TestRun {
@@ -20,7 +20,7 @@ export interface TestRun {
   onEvent?(event: Record<string, string | number>): void;
 }
 
-const JUDGE = "You are ATOM's test judge.";
+const JUDGE = "You are ARK's test judge.";
 
 /** Runs the test cases; returns the counts (none when the target has no test cases). */
 export async function runTestCases({ store, kind, id, run, count, onEvent }: TestRun) {

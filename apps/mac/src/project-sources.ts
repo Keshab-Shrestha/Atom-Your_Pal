@@ -1,8 +1,8 @@
 import { spawn } from "node:child_process";
 import { lstat, mkdir, opendir, realpath } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
-import { checkGrant } from "@atom/helpers";
-import { cleanProjectName } from "@atom/memory";
+import { checkGrant } from "@ark/helpers";
+import { cleanProjectName } from "@ark/memory";
 
 export type ProjectSource = "folder" | "new" | "git" | "github";
 export interface ProjectSourceRequest { type: "project.create"; request: string; source: ProjectSource; name: string; path: string; remote?: string }

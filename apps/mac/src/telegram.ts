@@ -1,7 +1,7 @@
-// ADR-098: ATOM's own Telegram bot, over the Bot API with Node's fetch. One chat only (ATOM_TELEGRAM_CHAT_ID); every
+// ADR-098: ARK's own Telegram bot, over the Bot API with Node's fetch. One chat only (ARK_TELEGRAM_CHAT_ID); every
 // other chat is ignored. The log gets method names, error codes and counts: never message text, never the token.
 
-import type { Logger } from "@atom/shared";
+import type { Logger } from "@ark/shared";
 
 const API = "https://api.telegram.org";
 /** Telegram's limit for one message. */
@@ -43,16 +43,16 @@ export interface TelegramClient {
 
 export interface TelegramOptions {
   /**
-   * Skip what was sent while ATOM was closed (default true). A command or a button press that is hours old must not run unattended on start.
-   * `onBacklog` gets the number of skipped updates from the served chat, so ATOM can tell the user once. Tests of the polling itself turn it off.
+   * Skip what was sent while ARK was closed (default true). A command or a button press that is hours old must not run unattended on start.
+   * `onBacklog` gets the number of skipped updates from the served chat, so ARK can tell the user once. Tests of the polling itself turn it off.
    */
   skipBacklog?: boolean;
   onBacklog?(count: number): void;
   token: string;
-  /** The one chat ATOM serves. */
+  /** The one chat ARK serves. */
   chatId: string;
   /**
-   * The one person ATOM obeys in that chat (ATOM_TELEGRAM_USER_ID). Default: the chat id, which is the person's own id in a private chat. In a group the
+   * The one person ARK obeys in that chat (ARK_TELEGRAM_USER_ID). Default: the chat id, which is the person's own id in a private chat. In a group the
    * chat id is a negative number that is nobody's, so a group needs this; without it nobody is obeyed there. Before 2026-10-16 any member of a group
    * could send commands and press Allow.
    */
@@ -189,7 +189,7 @@ export function startTelegram(options: TelegramOptions): TelegramClient {
         const wait = stuck ? STUCK_BACKOFF_MS : backoff;
         if (stuck && !warnedStuck.has(code)) {
           warnedStuck.add(code);
-          log.warn(code === 401 ? "telegram.token_rejected" : "telegram.conflict", { hint: code === 401 ? "make a new token with BotFather" : "another program reads this bot: give ATOM its own bot" });
+          log.warn(code === 401 ? "telegram.token_rejected" : "telegram.conflict", { hint: code === 401 ? "make a new token with BotFather" : "another program reads this bot: give ARK its own bot" });
         }
         log.warn("telegram.poll_failed", { code, retryMs: wait });
         await new Promise((resolve) => setTimeout(resolve, wait).unref());

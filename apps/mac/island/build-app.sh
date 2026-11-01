@@ -1,7 +1,7 @@
 #!/bin/sh
-# Builds ATOM.app from the Swift package: a background app (no Dock icon) that runs the ATOM runtime.
+# Builds ARK.app from the Swift package: a background app (no Dock icon) that runs the ARK runtime.
 #
-#   apps/mac/island/build-app.sh            → apps/mac/island/build/ATOM.app
+#   apps/mac/island/build-app.sh            → apps/mac/island/build/ARK.app
 #   apps/mac/island/build-app.sh --open     → build, then launch it
 #
 # The app records this project folder and the Node.js it found, so it can start the runtime when
@@ -10,12 +10,12 @@ set -eu
 
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/../../.." && pwd)
-app="$here/build/ATOM.app"
+app="$here/build/ARK.app"
 version=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$root/package.json" | head -1)
 version=${version:-0.5.0}
 
 # Prefer a system-wide Node (Homebrew) over one inside another tool's folder, which can move on update.
-node=${ATOM_NODE:-${ZENO_NODE:-}}
+node=${ARK_NODE:-${ATOM_NODE:-${ZENO_NODE:-}}} # the old names still work
 if [ -z "$node" ]; then
   for candidate in /opt/homebrew/bin/node /usr/local/bin/node "$(command -v node || true)"; do
     if [ -n "$candidate" ] && [ -x "$candidate" ]; then node=$candidate; break; fi
@@ -27,12 +27,12 @@ if [ -z "$node" ]; then
 fi
 node=$(cd "$(dirname "$node")" && pwd)/$(basename "$node")
 
-echo "Building AtomIsland (release)…"
+echo "Building ArkIsland (release)…"
 # Copy SwiftTerm's optional shader source without requiring the separately installed Metal compiler.
-(cd "$here" && swift build --build-system native -c release --product AtomIsland 2>&1 | grep -v "search path '/Library/Developer/CommandLineTools" || true)
-(cd "$here" && swift build --build-system native -c release --product AtomCalendar 2>&1 | grep -v "search path '/Library/Developer/CommandLineTools" || true)
-(cd "$here" && swift build --build-system native -c release --product AtomDocuments)
-binary="$here/.build/release/AtomIsland"
+(cd "$here" && swift build --build-system native -c release --product ArkIsland 2>&1 | grep -v "search path '/Library/Developer/CommandLineTools" || true)
+(cd "$here" && swift build --build-system native -c release --product ArkCalendar 2>&1 | grep -v "search path '/Library/Developer/CommandLineTools" || true)
+(cd "$here" && swift build --build-system native -c release --product ArkDocuments)
+binary="$here/.build/release/ArkIsland"
 [ -x "$binary" ] || { echo "Build failed: $binary not found" >&2; exit 1; }
 # Fail if the binary is older than any source file (the build above failed but left an old one).
 if [ -n "$(find "$here/Sources" "$here/Package.swift" -newer "$binary" 2>/dev/null | head -1)" ]; then
@@ -40,18 +40,18 @@ if [ -n "$(find "$here/Sources" "$here/Package.swift" -newer "$binary" 2>/dev/nu
   exit 1
 fi
 
-# Quit a running ATOM first. Without this, `open` only brings the old process forward, and its files are about to go.
+# Quit a running ARK first. Without this, `open` only brings the old process forward, and its files are about to go.
 # The build above worked, so a failed build never closes the app that runs. It asks the app to quit, waits up to
 # five seconds (an unsaved edit can ask first), then ends it.
-if pgrep -x ATOM >/dev/null 2>&1; then
-  echo "Quitting the running ATOM…"
-  osascript -e 'tell application id "dev.atom.island" to quit' >/dev/null 2>&1 || true
+if pgrep -x ARK >/dev/null 2>&1; then
+  echo "Quitting the running ARK…"
+  osascript -e 'tell application id "dev.ark.island" to quit' >/dev/null 2>&1 || true
   waited=0
-  while pgrep -x ATOM >/dev/null 2>&1 && [ "$waited" -lt 20 ]; do
+  while pgrep -x ARK >/dev/null 2>&1 && [ "$waited" -lt 20 ]; do
     sleep 0.25
     waited=$((waited + 1))
   done
-  if pgrep -x ATOM >/dev/null 2>&1; then pkill -x ATOM >/dev/null 2>&1 || true; sleep 0.5; fi
+  if pgrep -x ARK >/dev/null 2>&1; then pkill -x ARK >/dev/null 2>&1 || true; sleep 0.5; fi
 fi
 
 rm -rf "$app"
@@ -70,17 +70,17 @@ cp -R "$root/assets/skills/omh" "$app/Contents/Resources/skills/omh"
 cp -R "$here/.build/release/SwiftTerm_SwiftTerm.bundle" "$app/Contents/Resources/"
 # Web panels (ADR-211): apps/mac/island/Web/<panel>/ -> Resources/web/<panel>/. Bundled files only; no network.
 cp -R "$here/Web" "$app/Contents/Resources/web"
-cp "$binary" "$app/Contents/MacOS/ATOM"
-# Calendar and Reminders helper (ADR-060). Inside the app so macOS attributes its permission to ATOM.
-helper="$here/.build/release/AtomCalendar"
-[ -x "$helper" ] && cp "$helper" "$app/Contents/MacOS/atom-calendar" || echo "warning: calendar helper not built" >&2
+cp "$binary" "$app/Contents/MacOS/ARK"
+# Calendar and Reminders helper (ADR-060). Inside the app so macOS attributes its permission to ARK.
+helper="$here/.build/release/ArkCalendar"
+[ -x "$helper" ] && cp "$helper" "$app/Contents/MacOS/ark-calendar" || echo "warning: calendar helper not built" >&2
 # Bounded PDF/Word text extraction; no file paths or network access are passed to the helper.
-cp "$here/.build/release/AtomDocuments" "$app/Contents/MacOS/atom-documents"
-# The app's icon (ADR-091): assets/icon/ATOM.icns (scripts/make-icon.sh makes it).
+cp "$here/.build/release/ArkDocuments" "$app/Contents/MacOS/ark-documents"
+# The app's icon (ADR-091): assets/icon/ARK.icns (scripts/make-icon.sh makes it).
 icon=""
-if [ -f "$root/assets/icon/ATOM.icns" ]; then
-  cp "$root/assets/icon/ATOM.icns" "$app/Contents/Resources/ATOM.icns"
-  icon="<key>CFBundleIconFile</key><string>ATOM</string>"
+if [ -f "$root/assets/icon/ARK.icns" ]; then
+  cp "$root/assets/icon/ARK.icns" "$app/Contents/Resources/ARK.icns"
+  icon="<key>CFBundleIconFile</key><string>ARK</string>"
 fi
 
 # Pal characters (ADR-089): assets/pals/<id>.json → Resources/pals/.
@@ -99,10 +99,10 @@ cat > "$app/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>ATOM</string>
-  <key>CFBundleDisplayName</key><string>ATOM</string>
-  <key>CFBundleIdentifier</key><string>dev.atom.island</string>
-  <key>CFBundleExecutable</key><string>ATOM</string>
+  <key>CFBundleName</key><string>ARK</string>
+  <key>CFBundleDisplayName</key><string>ARK</string>
+  <key>CFBundleIdentifier</key><string>dev.ark.island</string>
+  <key>CFBundleExecutable</key><string>ARK</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$version</string>
   <key>CFBundleVersion</key><string>$(date +%Y%m%d%H%M)</string>
@@ -110,30 +110,30 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>LSUIElement</key><true/>
   $icon
   <key>NSHighResolutionCapable</key><true/>
-  <key>NSCalendarsFullAccessUsageDescription</key><string>ATOM reads your calendar only when you ask about your schedule.</string>
-  <key>NSCalendarsUsageDescription</key><string>ATOM reads your calendar only when you ask about your schedule.</string>
-  <key>NSRemindersFullAccessUsageDescription</key><string>ATOM reads your reminders when you ask, and adds one when you ask it to.</string>
-  <key>NSRemindersUsageDescription</key><string>ATOM reads your reminders when you ask, and adds one when you ask it to.</string>
+  <key>NSCalendarsFullAccessUsageDescription</key><string>ARK reads your calendar only when you ask about your schedule.</string>
+  <key>NSCalendarsUsageDescription</key><string>ARK reads your calendar only when you ask about your schedule.</string>
+  <key>NSRemindersFullAccessUsageDescription</key><string>ARK reads your reminders when you ask, and adds one when you ask it to.</string>
+  <key>NSRemindersUsageDescription</key><string>ARK reads your reminders when you ask, and adds one when you ask it to.</string>
   <key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict>
-  <key>NSMicrophoneUsageDescription</key><string>ATOM listens only while you hold its talk or dictate key, to hear you. Speech is transcribed on this Mac and never recorded.</string>
-  <key>NSAppleEventsUsageDescription</key><string>ATOM controls Music or Spotify (play, pause, skip) and adds notes to Notes, only when you ask.</string>
-  <key>AtomProjectRoot</key><string>$root</string>
-  <key>AtomNodePath</key><string>$node</string>
+  <key>NSMicrophoneUsageDescription</key><string>ARK listens only while you hold its talk or dictate key, to hear you. Speech is transcribed on this Mac and never recorded.</string>
+  <key>NSAppleEventsUsageDescription</key><string>ARK controls Music or Spotify (play, pause, skip) and adds notes to Notes, only when you ask.</string>
+  <key>ArkProjectRoot</key><string>$root</string>
+  <key>ArkNodePath</key><string>$node</string>
 </dict>
 </plist>
 PLIST
 
-identity="ATOM Local Signing"
-keychain="$HOME/Library/Keychains/atom-signing.keychain-db"
-secret="$HOME/.config/atom/signing-keychain-password"
+identity="ARK Local Signing"
+keychain="$HOME/Library/Keychains/ark-signing.keychain-db"
+secret="$HOME/.config/ark/signing-keychain-password"
 if [ -f "$keychain" ] && [ -f "$secret" ]; then
   # Stable signature: permissions survive rebuilds (ADR-040).
   security unlock-keychain -p "$(cat "$secret")" "$keychain"
-  codesign --force --sign "$identity" --keychain "$keychain" --identifier dev.atom.island "$app" \
+  codesign --force --sign "$identity" --keychain "$keychain" --identifier dev.ark.island "$app" \
     || { echo "Signing with \"$identity\" failed" >&2; exit 1; }
   signed="$identity"
 else
-  codesign --force --sign - --identifier dev.atom.island "$app" >/dev/null 2>&1 || echo "warning: ad hoc signing failed" >&2
+  codesign --force --sign - --identifier dev.ark.island "$app" >/dev/null 2>&1 || echo "warning: ad hoc signing failed" >&2
   signed="ad hoc (permissions are asked for again after each rebuild; run make-signing-identity.sh once to fix)"
 fi
 
@@ -142,7 +142,7 @@ echo "  project: $root"
 echo "  node:    $node ($("$node" --version))"
 echo "  signed:  $signed"
 echo "  pals:    $pals character(s)"
-if [ -n "$icon" ]; then echo "  icon:    ATOM.icns"; else echo "  icon:    none (run scripts/make-icon.sh)"; fi
+if [ -n "$icon" ]; then echo "  icon:    ARK.icns"; else echo "  icon:    none (run scripts/make-icon.sh)"; fi
 
 if [ "${1:-}" = "--open" ]; then
   open "$app"

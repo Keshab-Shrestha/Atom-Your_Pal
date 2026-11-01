@@ -1,4 +1,4 @@
-/* ZENO · Direction A · Quiet Native — components (inlined into each page at build time) */
+/* ARK · Direction A · Quiet Native — components (inlined into each page at build time) */
 const Z = (() => {
   let uid = 0;
   const TEAL = '#5BD6E8', AMBER = '#FFB547';
@@ -53,7 +53,7 @@ const Z = (() => {
   const icon = (n, s = 16, extra = '') =>
     `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" ${extra}>${I[n]}</svg>`;
 
-  /* --------------- ZENO glyph (menu bar / avatar), template-style --------------- */
+  /* --------------- ARK glyph (menu bar / avatar), template-style --------------- */
   const GHOST = 'M3.5 8.6C3.5 4.9 6 2.2 9 2.2s5.5 2.7 5.5 6.4v5.9c0 .9-.6 1.5-1.4 1.5-.7 0-1.3-.5-1.8-1-.5.5-1.3 1-2.3 1s-1.8-.5-2.3-1c-.5.5-1.1 1-1.8 1-.8 0-1.4-.6-1.4-1.5z';
   const EYES = 'M7.2 7.4c.5 0 .85.38.85.85v1.3c0 .47-.35.85-.85.85s-.85-.38-.85-.85v-1.3c0-.47.35-.85.85-.85zM10.8 7.4c.5 0 .85.38.85.85v1.3c0 .47-.35.85-.85.85s-.85-.38-.85-.85v-1.3c0-.47.35-.85.85-.85z';
   function glyph(state = 'idle', size = 18) {
@@ -330,8 +330,8 @@ const Z = (() => {
           ${nav('panel', 'Panel', 'Glass')}
         </div>
       </div>
-      <div class="pfoot"><div class="hint">ZENO 2.0</div>
-        <div style="margin-left:auto" class="btn plain">Quit ZENO <span class="kbd" style="margin-left:4px">⌘Q</span></div></div>`);
+      <div class="pfoot"><div class="hint">ARK 2.0</div>
+        <div style="margin-left:auto" class="btn plain">Quit ARK <span class="kbd" style="margin-left:4px">⌘Q</span></div></div>`);
   }
   I.ghost = `<path fill-rule="evenodd" fill="currentColor" stroke="none" transform="translate(-1 -1)" d="${GHOST}${EYES}"/>`;
 
@@ -359,7 +359,7 @@ const Z = (() => {
     const r = (lb, keys, mod, rec) => `<div class="row"><div class="lb">${lb}</div><div class="vl"><div class="recorder ${rec ? 'rec' : ''}">${rec ? 'Press new keys…' : keys.map(k => `<span class="kbd">${k}</span>`).join('') + (mod ? `<span class="mod">${mod}</span>` : '')}</div></div></div>`;
     return sub('Shortcuts', `
       <div class="card noic">
-        ${r('Talk to ZENO', ['⌃', '⌥'], 'hold')}
+        ${r('Talk to ARK', ['⌃', '⌥'], 'hold')}
         ${r('Dictate', ['Right ⌥', '⌘'], 'hold')}
         ${r('Show or hide panel', ['⌃', '⌥', 'Z'], '', true)}
         ${r('Cancel', ['esc'], '')}
@@ -388,7 +388,7 @@ const Z = (() => {
     switch (state) {
       case 'step': return b(`<div class="line">${progress(.5)}<span class="st">Step 2 of 4</span><span class="sd">Opening the Format menu in TextEdit</span>
         <div class="push"><div class="btn">${icon('stopf', 12)}Stop</div></div></div>`);
-      case 'ask': return b(`<div class="kicker"><span style="color:var(--amber);display:flex">${icon('shield', 13)}</span>Step 3 of 3 · ZENO needs your OK</div>
+      case 'ask': return b(`<div class="kicker"><span style="color:var(--amber);display:flex">${icon('shield', 13)}</span>Step 3 of 3 · ARK needs your OK</div>
         <div class="line"><span class="q">Press Return in TextEdit?</span>
         <div class="push"><div class="btn">Decline</div><div class="btn prim">Allow</div></div></div>`);
       case 'done': return b(`<div class="line"><span style="color:${TEAL}">${icon('checkc', 18)}</span><span class="st">Done</span><span class="sd">Pressed Return in TextEdit</span>
@@ -408,7 +408,7 @@ const Z = (() => {
     if (state === 'thinking') return c(`<div class="top">${glyph('thinking', 16)}<span class="nm">Thinking</span><span class="md">Sonnet 5.5</span></div>
       <div class="mid"><div style="flex:1;height:4px;border-radius:2px;background:linear-gradient(90deg,rgba(91,214,232,0) 0%,rgba(91,214,232,.15) 30%,${TEAL} 62%,rgba(91,214,232,.15) 80%,rgba(91,214,232,0) 100%)"></div><span style="font-size:11px;color:var(--t2)" class="num">1.2 s</span></div>`);
     if (state === 'problem') return c(`<div class="top">${glyph('problem', 16)}<span class="nm" style="color:${AMBER}">No internet</span><span class="md">Sonnet 5.5</span></div>
-      <div class="mid" style="font-size:12px;color:var(--t2)">ZENO will answer again once you’re back online.</div>`);
+      <div class="mid" style="font-size:12px;color:var(--t2)">ARK will answer again once you’re back online.</div>`);
   }
 
   /* ------------------------------- speech bubble ------------------------------ */

@@ -1,15 +1,15 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, extname, isAbsolute, join } from "node:path";
-import type { ProjectFiles } from "@atom/contracts";
-import { isInside, isSecretLike, realish } from "@atom/helpers";
+import type { ProjectFiles } from "@ark/contracts";
+import { isInside, isSecretLike, realish } from "@ark/helpers";
 import { denyRead, projectReadCheck } from "./folder-run.ts";
 
 /**
- * Files in a chat, not only words. A file the user attaches is copied into ATOM's own folder for that chat, after
+ * Files in a chat, not only words. A file the user attaches is copied into ARK's own folder for that chat, after
  * checks (a real file, not a secret, a type a model can read, a size limit). Claude then reads it with Read, which the
  * gate confines to that folder; another provider (Codex, the Gemini CLI) is given small text files inline. The copy is
- * the only thing ATOM ever reads: the original is untouched. Logs counts, never names or contents.
+ * the only thing ARK ever reads: the original is untouched. Logs counts, never names or contents.
  */
 
 export const MAX_ATTACH_BYTES = 10 * 1024 * 1024;
@@ -29,7 +29,7 @@ export type AttachmentKind = "text" | "image" | "pdf";
 
 export interface Attached {
   name: string;
-  /** The copy in ATOM's folder: the only path a model is given. */
+  /** The copy in ARK's folder: the only path a model is given. */
   path: string;
   kind: AttachmentKind;
   size: number;
@@ -102,10 +102,10 @@ export function createAttachments(options: { dir: string; home?: string; log?: {
         if (info.size === 0) return { error: `${label} is empty.` };
         if (info.size > MAX_ATTACH_BYTES) return { error: `${label} is over ${MAX_ATTACH_BYTES / 1024 / 1024} MB, too big to attach.` };
         if (isSecretLike(from, home) || isSecretLike(given, home) || denyRead(realish(home)).some((d) => isInside(d, from)) || isInside(root, from)) {
-          return { error: `${label} looks like a secret or a key file, so ATOM will not read it.` };
+          return { error: `${label} looks like a secret or a key file, so ARK will not read it.` };
         }
         const kind = kindOf(from);
-        if (!kind) return { error: `${label}: ATOM reads text, code, PDFs and images (png, jpg, gif, webp).` };
+        if (!kind) return { error: `${label}: ARK reads text, code, PDFs and images (png, jpg, gif, webp).` };
         checked.push({ from, kind, size: info.size });
       }
       const dir = folder(chatId);

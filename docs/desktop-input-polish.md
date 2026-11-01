@@ -20,7 +20,7 @@ Empty/type/format validation, hidden-control rejection, stale-version/current-ch
 
 - TypeScript checking passes. 256 targeted helper/memory/wire/native/brief/question/skill tests pass. A schedule with over 50,000 Unicode characters survives create, edit, database close/reopen and task creation exactly. A long human answer survives recovery with the same content hash; changing it cannot reuse the old receipt. Skill source/read/edit/backup and long note/name/fact/brief paths are checked without provider calls.
 - 752 Swift tests in 138 suites pass, including long prompts, briefs, names and complete search serialization; the Design system page is absent from user Settings/search.
-- Signed release build with ATOM Local Signing passes. Live inspection confirmed all seven palettes visibly change the same open window; Warm was restored. No Design system entry remains in the Settings sidebar or Overview.
+- Signed release build with ARK Local Signing passes. Live inspection confirmed all seven palettes visibly change the same open window; Warm was restored. No Design system entry remains in the Settings sidebar or Overview.
 - The Chats plus opens the fresh-chat start screen. Reopening the existing notebook conversation retains its table and replies with the denser spacing.
 - A fictional 22-line schedule draft exceeding 1,000 characters was pasted through the real editor. The field grew, retained all lines, showed no counter and enabled Create; Undo cleared it. Canceled without creating a schedule or running an agent. Original conversation, empty composer, Warm theme and sidebar order were restored.
 

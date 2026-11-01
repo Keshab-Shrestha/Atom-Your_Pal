@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { mkdtempSync, mkdirSync, writeFileSync, realpathSync, rmSync, symlinkSync, linkSync, readFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { openMemoryStore } from "@atom/memory";
+import { openMemoryStore } from "@ark/memory";
 import { createBrainSourceFolder } from "./brain-source-folder.ts";
 import { createReplyDrafts, type ReplyDraftInput } from "./reply-drafts.ts";
 import { createChatContinuity } from "./chat-continuity.ts";
@@ -26,7 +26,7 @@ function fixture() {
 }
 
 test("notes scanner previews without writes, refuses stale/cancelled tokens and imports only checked text", async () => {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), "atom-source-check-"))), home = join(dir, "home"), notes = join(home, "Notes");
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), "ark-source-check-"))), home = join(dir, "home"), notes = join(home, "Notes");
   mkdirSync(notes, { recursive: true });
   const m = openMemoryStore({ path: ":memory:" });
   try {
@@ -56,7 +56,7 @@ test("notes scanner previews without writes, refuses stale/cancelled tokens and 
 });
 
 test("a notes folder over the old 500-note budget imports and links in full", async () => {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), "atom-source-big-"))), home = join(dir, "home"), notes = join(home, "Notes");
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), "ark-source-big-"))), home = join(dir, "home"), notes = join(home, "Notes");
   for (let folder = 0; folder < 6; folder++) mkdirSync(join(notes, `part ${folder}`), { recursive: true });
   for (let i = 0; i < 600; i++) writeFileSync(join(notes, `part ${i % 6}`, `note ${i}.md`), `# Fixture ${i}\nSee [[Fixture ${(i + 1) % 600}]].\n`);
   const m = openMemoryStore({ path: ":memory:" });
@@ -71,7 +71,7 @@ test("a notes folder over the old 500-note budget imports and links in full", as
 });
 
 test("source replacement cannot convert all existing notes to missing copies", async () => {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), "atom-source-swap-"))), home = join(dir, "home"), notes = join(home, "Notes"); mkdirSync(notes, { recursive: true });
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), "ark-source-swap-"))), home = join(dir, "home"), notes = join(home, "Notes"); mkdirSync(notes, { recursive: true });
   const m = openMemoryStore({ path: ":memory:" });
   try {
     writeFileSync(join(notes, "cedar.md"), "Cedar");

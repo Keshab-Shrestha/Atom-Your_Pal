@@ -1,10 +1,10 @@
 import type { Tool, ToolOutput } from "../engine.ts";
-import type { ToolImage } from "@atom/contracts";
+import type { ToolImage } from "@ark/contracts";
 import type { CuaTransport } from "./cua-client.ts";
 import { appBlock, deleteDenial, deleteKeyDenial, isSearchField, keyApproval, labelApproval, secretField, typeApproval } from "./policy.ts";
 
 export interface ApprovalRequest {
-  /** What ATOM is about to do, in words for the user: "Click \"Send\" in Mail". */
+  /** What ARK is about to do, in words for the user: "Click \"Send\" in Mail". */
   summary: string;
   /** Why it is asking. */
   reason: string;
@@ -16,7 +16,7 @@ export interface ComputerAction {
   action: string;
   app?: string;
   ok: boolean;
-  /** Set when ATOM refused or the user declined. Never contains typed text. */
+  /** Set when ARK refused or the user declined. Never contains typed text. */
   reason?: string;
 }
 
@@ -31,7 +31,7 @@ export interface ComputerToolOptions {
    * island to show it. Coordinates are screen points, origin at the top-left of the main display, as Cua reports them.
    */
   onPoint?: (target: { x: number; y: number; w: number; h: number; label: string }) => boolean | void;
-  /** Called as an action begins, so the user can see what ATOM is doing. Carries the action and app only. */
+  /** Called as an action begins, so the user can see what ARK is doing. Carries the action and app only. */
   onStep?: (step: { action: string; app?: string }) => void;
   /** Progress within one action; does not begin another action or extend its authority. */
   onProgress?: (step: { action: string; app: string; current: number; total: number }) => void;
@@ -76,7 +76,7 @@ class Refused extends Error {}
 
 /**
  * Drops the app menu bar and everything under it. It is a long list (the whole Apple menu) that crowds out the window, and
- * ATOM has no menu action. Elements keep Cua's own numbers, so a dropped element simply cannot be picked.
+ * ARK has no menu action. Elements keep Cua's own numbers, so a dropped element simply cannot be picked.
  */
 function withoutMenuBar(elements: Element[]): Element[] {
   const kept: Element[] = [];
@@ -190,7 +190,7 @@ function screenTexts(tree: string): string[] {
 
 /**
  * The one computer-control tool the model sees (ADR-054). It exposes a small set of actions on top of Cua Driver,
- * and enforces ATOM's rules around every one: blocked apps, approval for risky clicks and keys, no typing into
+ * and enforces ARK's rules around every one: blocked apps, approval for risky clicks and keys, no typing into
  * secret fields, and only elements from the latest `look`. The model chooses actions; it never touches Cua directly.
  */
 export function createComputerTool(options: ComputerToolOptions): Tool<string | ToolOutput> {
@@ -249,7 +249,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
     // this Space (true): reading one returned an empty window, and input then blamed "another Space" (live baseline 2026-10-23).
     // Older drivers do not report the field (undefined) and keep the earlier fallback.
     const win = windowId === undefined ? wins.find((w) => w.is_on_screen) ?? wins.find((w) => w.on_current_space === false || w.on_current_space === undefined) : wins.find((w) => w.window_id === windowId);
-    if (!win) throw new Refused(`${app.name} has no window open (no document) that ATOM can see. Open, unhide or create one, or ask the user to, then look again.`);
+    if (!win) throw new Refused(`${app.name} has no window open (no document) that ARK can see. Open, unhide or create one, or ask the user to, then look again.`);
     return readWindow(app, pid, win.window_id, win.title, signal, undefined, query);
   }
 
@@ -310,7 +310,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
     } catch (error) {
       // A cancel is not "could not read": Cua's cancel is a plain Error("Cancelled."), not an AbortError, so the name alone never caught it.
       if (signal?.aborted || (error as Error)?.name === "AbortError" || /^cancel/i.test((error as Error)?.message ?? "")) throw error;
-      return "\n\nATOM could not read the window again. Look again.";
+      return "\n\nARK could not read the window again. Look again.";
     }
   }
 
@@ -339,14 +339,14 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
   function explain(code: string | undefined, app: string): string | undefined {
     switch (code) {
       case "same_pid_keyboard_ambiguity":
-        return `${app} has more than one window open, so ATOM cannot type or press keys there without risking the wrong window. Ask the user to close the other ${app} windows. Clicking still works. ${FINAL}`;
+        return `${app} has more than one window open, so ARK cannot type or press keys there without risking the wrong window. Ask the user to close the other ${app} windows. Clicking still works. ${FINAL}`;
       case "minimized_or_hidden_window":
         return `The ${app} window is minimized or hidden. Ask the user to bring it back. ${FINAL}`;
       case "off_space_or_ax_unresolved":
-        return `The ${app} window is on another desktop (Space) or ATOM cannot read it. Ask the user to switch to it. ${FINAL}`;
+        return `The ${app} window is on another desktop (Space) or ARK cannot read it. Ask the user to switch to it. ${FINAL}`;
       case "window_not_found":
       case "owner_pid_mismatch":
-        return `ATOM lost track of the ${app} window. Look again; if that fails, ${FINAL.toLowerCase()}`;
+        return `ARK lost track of the ${app} window. Look again; if that fails, ${FINAL.toLowerCase()}`;
       default:
         return undefined;
     }
@@ -392,7 +392,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
     }
     lastNoop = undefined;
     if (effect === "confirmed") return " (confirmed)";
-    if (effect === "unverifiable") return " ATOM could not confirm it worked; look to check.";
+    if (effect === "unverifiable") return " ARK could not confirm it worked; look to check.";
     return "";
   }
 
@@ -435,7 +435,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
       const state = (on: boolean) => (on ? "granted" : "missing");
       const who = typeof d.source?.bundle_id === "string" ? ` for ${d.source.bundle_id}` : "";
       const fix = d.accessibility && d.screen_recording ? "" : " To grant, open System Settings → Privacy & Security, or run `cua-driver permissions grant` in Terminal.";
-      return `Permissions${who} (read-only check, no prompt): Accessibility: ${state(d.accessibility)}; Screen Recording: ${state(d.screen_recording)}.${fix} ATOM did not change any permission.`;
+      return `Permissions${who} (read-only check, no prompt): Accessibility: ${state(d.accessibility)}; Screen Recording: ${state(d.screen_recording)}.${fix} ARK did not change any permission.`;
     } catch (error) {
       if (signal?.aborted) throw error;
       return "The driver's permission status could not be read; Accessibility and Screen Recording are unknown, not confirmed.";
@@ -585,7 +585,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
         const t = need();
         const el = pick(t, input.element);
         const secret = secretField(el);
-        if (secret) throw new Refused(`ATOM never types into ${secret}. Ask the user to type it themselves.`);
+        if (secret) throw new Refused(`ARK never types into ${secret}. Ask the user to type it themselves.`);
         if (typeof input.text !== "string" || !input.text) throw new Refused('"text" is required.');
         const lineBreak = typeApproval(input.text);
         if (lineBreak) await ask(`Type text with a line break into ${t.app}`, `it has ${lineBreak}`, signal);
@@ -617,7 +617,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
         const t = need();
         const el = pick(t, input.element);
         const box = usableFrame(el.frame);
-        if (!box) throw new Refused(`ATOM cannot show where [${el.element_index}] is: it has no place on screen. Describe it in words instead.`);
+        if (!box) throw new Refused(`ARK cannot show where [${el.element_index}] is: it has no place on screen. Describe it in words instead.`);
         if (!onPoint) throw new Refused("Pointing is not available right now. Describe where it is in words instead.");
         const label = (typeof input.text === "string" && input.text.trim() ? input.text : el.label ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
         if (onPoint({ ...box, label }) === false) throw new Refused("Pointing is not available right now. Describe where it is in words instead.");
@@ -639,7 +639,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
         const t = need();
         const el = pick(t, input.element);
         const secret = secretField(el);
-        if (secret) throw new Refused(`ATOM never types into ${secret}. Ask the user to type it themselves.`);
+        if (secret) throw new Refused(`ARK never types into ${secret}. Ask the user to type it themselves.`);
         if (typeof input.text !== "string" || !input.text) throw new Refused('"text" is required: the value to set.');
         // A value of a setting ("Delete files after: 30 days") is not a delete: it asks, like a click on a risky control, and is never refused outright.
         const why = labelApproval(el.label, el.role);
@@ -669,9 +669,9 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
         "For a known short button task prefer click_sequence with 1–8 steps {button, expect:{label,value}}: exact unique AXButton labels from the observed window, and an exact labelled AXStaticText value expected after EACH click. The host re-resolves each button from a fresh same-window snapshot, applies ordinary click policy, observes the complete window after every click, and stops at any mismatch, ambiguity, failure or cancellation. Approval-requiring buttons are excluded. For unconfirmed input the expected value must newly appear/change; unchanged values cannot verify it. Only the final observation reaches the model. Never invent labels, batch unknown UI transitions, or replay a stopped sequence. Use individual actions where these checks are unavailable. " +
         "Only when the latest look reports a fast decision provider enabled and a genuine choice between prepared button sequences is needed, use choose_sequence with goal and plans:[{description,steps:[{button,expect:{label,value}}]}] (2–4 plans, each 1–8 steps). The Settings-selected Jev/Laya decider chooses one or returns review; off/low confidence/failure sends no input. The main model still prepares the plans and reviews outcomes. Do not use this for a single deterministic path or retry uncertain decisions. It shares bounded goal, button/read-only labels and prepared plans only, never images or editable-field values. " +
         "Unconfirmed input includes a fresh observation of the same window when available; inspect it before taking another step. A changed screen alone does not prove the intended outcome. Never replay uncertain input automatically. " +
-        "Use `point` with an element number (and a short label) to show the user where something is: ATOM flies to it. " +
+        "Use `point` with an element number (and a short label) to show the user where something is: ARK flies to it. " +
         "Point when the user asks where something is or how to do it, instead of doing it for them. " +
-        "ATOM asks the user before sending, buying, deleting or changing anything, and never types passwords. " +
+        "ARK asks the user before sending, buying, deleting or changing anything, and never types passwords. " +
         "If the user declines, stop and say so. " +
         'Set `mode: "foreground"` on a click, type, key or scroll only when the user asks for it to happen in the foreground (it briefly brings the window to the front), and `mode: "background"` only when they ask for background; otherwise leave it out. Never switch mode by yourself to retry.',
       inputSchema: {

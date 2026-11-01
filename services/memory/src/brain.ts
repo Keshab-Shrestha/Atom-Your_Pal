@@ -4,8 +4,8 @@ import type { DatabaseSync } from "node:sqlite";
  * The second brain: notes that link to each other, as in Obsidian. A note has a title, a Markdown body, a kind and
  * tags. `[[Title]]` in a body links to another note (a title nobody wrote yet makes a ghost note, drawn dim), and
  * `#tag` tags it. The graph is the notes and their links. Notes come from three places: Keshab and the agent write
- * them (`save`), ATOM's memory is mirrored into them (`sync`: facts, conversation notes, projects, kept chats), and
- * ATOM links what it can find by itself (`autolink`: a note that names another note's title, or a name that two notes
+ * them (`save`), ARK's memory is mirrored into them (`sync`: facts, conversation notes, projects, kept chats), and
+ * ARK links what it can find by itself (`autolink`: a note that names another note's title, or a name that two notes
  * share). Note text is the user's own: never logged.
  */
 
@@ -54,7 +54,7 @@ export interface BrainNode {
 export interface BrainEdge {
   a: number;
   b: number;
-  /** Found by ATOM, not written in a note. */
+  /** Found by ARK, not written in a note. */
   auto: boolean;
 }
 
@@ -72,7 +72,7 @@ export interface BrainHit {
   snippet: string;
 }
 
-/** A note to mirror from ATOM's memory. */
+/** A note to mirror from ARK's memory. */
 export interface BrainSource {
   ref: string;
   title: string;
@@ -100,7 +100,7 @@ export interface Brain {
   tags(): { tag: string; count: number }[];
   /** Makes the mirrored notes of the given `ref` prefixes equal to `items`: adds, updates and drops. */
   sync(items: readonly BrainSource[], prefixes: readonly string[]): { added: number; updated: number; removed: number };
-  /** Rebuilds ATOM's own links: title mentions and shared names. Returns how many it made. */
+  /** Rebuilds ARK's own links: title mentions and shared names. Returns how many it made. */
   autolink(): number;
   count(): number;
 }
@@ -137,7 +137,7 @@ export function tagsOf(body: string): string[] {
 
 /** Words that start a sentence or name a day or month: never a name on their own. */
 const NOT_NAMES = new Set(
-  "the a an and but or so if when then this that these those it its i we you he she they my our your his her their there here what which who how why monday tuesday wednesday thursday friday saturday sunday january february march april may june july august september october november december keshab user atom pal".split(" "),
+  "the a an and but or so if when then this that these those it its i we you he she they my our your his her their there here what which who how why monday tuesday wednesday thursday friday saturday sunday january february march april may june july august september october november december keshab user ark pal".split(" "),
 );
 
 /** Capitalised names in a text: one or more capitalised words, not at the start of a sentence unless two words long. */

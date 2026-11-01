@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "od-design-system-project/v1",
+  "id": "ark",
+  "name": "ARK",
+  "category": "Productivity & SaaS",
+  "description": "ARK's own system for a Mac assistant window: flat surfaces with hairlines, one accent, status as small dots, monospaced identifiers. Void (dark) and Daylight (light).",
+  "source": {
+    "type": "bundled",
+    "origin": "ARK repository: apps/mac/island/Sources/ArkIslandCore/Theme.swift"
+  },
+  "files": {
+    "design": "DESIGN.md",
+    "tokens": "tokens.css"
+  }
+}

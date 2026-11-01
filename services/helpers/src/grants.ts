@@ -80,11 +80,11 @@ export function checkGrant(path: string, home: string): string {
 /** Words in a task that mean files are to be saved, so a file worker without a folder asks for one. */
 /**
  * ADR-090: the folder to offer a file worker that has none: a path the task names inside the home folder ("~/Notes",
- * "/Users/me/Notes"), a folder it names ("a folder named ZenoDoc", in Documents or on the Desktop if it says so,
- * else in the home folder), or ~/Documents/ATOM. Never the home folder itself, ~/Library or a hidden folder.
+ * "/Users/me/Notes"), a folder it names ("a folder named ArkDoc", in Documents or on the Desktop if it says so,
+ * else in the home folder), or ~/Documents/ARK. Never the home folder itself, ~/Library or a hidden folder.
  */
 export function folderForTask(task: string, home: string): string {
-  const fallback = join(home, "Documents", "ATOM");
+  const fallback = join(home, "Documents", "ARK");
   const allowed = (p: string) => {
     const real = resolve(p);
     if (!isInside(home, real) || real === resolve(home)) return false;
@@ -108,7 +108,7 @@ export function folderForTask(task: string, home: string): string {
 
 /**
  * Why a file tool's path is refused, or undefined when it is inside one of the run's folders. A change inside a `.git`
- * folder or file is refused too: git's own data is ATOM's to write (commits require explicit user action), never the worker's.
+ * folder or file is refused too: git's own data is ARK's to write (commits require explicit user action), never the worker's.
  */
 export function pathProblem(roots: readonly string[], cwd: string, p: string, writing = false): string | undefined {
   const real = realish(isAbsolute(p) ? p : resolve(cwd, p));

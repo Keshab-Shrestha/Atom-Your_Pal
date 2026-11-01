@@ -1,17 +1,17 @@
-// Pieces of the island's helper wiring, moved out of runtime.ts without changes: ATOM's task branches (ADR-091) and
+// Pieces of the island's helper wiring, moved out of runtime.ts without changes: ARK's task branches (ADR-091) and
 // the board's Paperclip section (Task 3.16).
 
 import { realpathSync } from "node:fs";
-import type { HelperStore } from "@atom/helpers";
+import type { HelperStore } from "@ark/helpers";
 import type { IslandGit, IslandHelpers } from "./island.ts";
-import { branchDiff, pushBranch, repositoriesOf, zenoBranches, taskWorkingCopy } from "./git-branches.ts";
+import { branchDiff, pushBranch, repositoriesOf, arkBranches, taskWorkingCopy } from "./git-branches.ts";
 import { workingCopyDirty } from "./git-review.ts";
 import type { createPaperclip, issueTracker } from "./paperclip.ts";
 
-/** The Paperclip connection createRuntime builds when ATOM_PAPERCLIP_URL is set. */
+/** The Paperclip connection createRuntime builds when ARK_PAPERCLIP_URL is set. */
 export type Paperclip = { client: ReturnType<typeof createPaperclip>; tracker: ReturnType<typeof issueTracker> };
 
-/** ADR-091: ATOM's task branches in the repositories Keshab granted; pushing one is his alone, asked from the window. */
+/** ADR-091: ARK's task branches in the repositories Keshab granted; pushing one is his alone, asked from the window. */
 export function createIslandGit(helpers: HelperStore, options: { worktrees?: string; projectFolders?: () => readonly string[] } = {}): IslandGit {
   const grantedRepos = () => repositoriesOf([...new Set((helpers?.list() ?? []).flatMap((h) => h.grants ?? []))]);
   const readableRepos = async () => {
@@ -30,7 +30,7 @@ export function createIslandGit(helpers: HelperStore, options: { worktrees?: str
   };
   return {
     list: async () => {
-      const branches = (await Promise.all((await readableRepos()).map((r) => zenoBranches(r, options.worktrees)))).flat();
+      const branches = (await Promise.all((await readableRepos()).map((r) => arkBranches(r, options.worktrees)))).flat();
       const pushAllowed = await grantedRepos();
       const stillAllowed = await readableRepos();
       return branches.filter((b) => stillAllowed.includes(b.repo)).map((b) => {
@@ -40,7 +40,7 @@ export function createIslandGit(helpers: HelperStore, options: { worktrees?: str
     },
     push: async (repo, branch) => {
       await allowedRepo(repo);
-      const review = (await zenoBranches(repo, options.worktrees)).find((b) => b.branch === branch);
+      const review = (await arkBranches(repo, options.worktrees)).find((b) => b.branch === branch);
       if (review?.baseSource === "unavailable") throw new Error("The task comparison is unavailable. Repair or refresh the review before pushing.");
       const tree = await taskWorkingCopy(repo, branch, options.worktrees);
       if (tree && await workingCopyDirty(tree)) throw new Error("This task has uncommitted changes. Review and commit them explicitly in Terminal before pushing.");

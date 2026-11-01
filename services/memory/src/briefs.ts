@@ -1,7 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import { checkedBriefPreparation, type BriefPreparation, type PreparationBudget } from "./brief-preparation.ts";
 
-// Daily brief (upgrades.md C3): the briefs ATOM wrote and the settings for writing them. A brief holds a few short lines made
+// Daily brief (upgrades.md C3): the briefs ARK wrote and the settings for writing them. A brief holds a few short lines made
 // from the user's day (events, reminders, weather, tasks, what needs him). It stays on this Mac. The log never has its text.
 
 /** The brief history keeps this many days. */
@@ -24,7 +24,7 @@ export interface BriefSettings {
   notify: boolean;
   /** A message to the Telegram chat, when Telegram is set up. */
   telegram: boolean;
-  /** ATOM says the brief aloud (default off). */
+  /** ARK says the brief aloud (default off). */
   spoken: boolean;
   /** Opt-in read-only prepared cards; shares this brief's selected sources and schedule. */
   preparation?: boolean;

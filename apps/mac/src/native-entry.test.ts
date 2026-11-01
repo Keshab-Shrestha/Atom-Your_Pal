@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { Routine } from "@atom/helpers";
+import type { Routine } from "@ark/helpers";
 import { nativeSteering, routeWake, routineChat, routineStarter, taskStarter, type WakeTargets } from "./native-entry.ts";
 
 // ADR-110 (Phase N3): where a reply the native session gave by itself goes, and routines as main-agent turns. Fakes only.

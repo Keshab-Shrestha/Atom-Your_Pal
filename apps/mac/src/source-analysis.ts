@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { isDue } from "@atom/helpers";
+import { isDue } from "@ark/helpers";
 import { analysisHash, defaultAnalysisSettings, looksSecret, validAnalysisProfile, validChatBrief,
-  type AnalysisJob, type AnalysisPart, type AnalysisProfile, type AnalysisRecord, type MemoryStore } from "@atom/memory";
+  type AnalysisJob, type AnalysisPart, type AnalysisProfile, type AnalysisRecord, type MemoryStore } from "@ark/memory";
 import { excerpt } from "./chat-history.ts";
 import { localDay } from "./brief-due.ts";
 import { cleanEditReply } from "./text-edit.ts";

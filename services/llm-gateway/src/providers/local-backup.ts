@@ -1,5 +1,5 @@
 import { request as httpRequest } from "node:http";
-import type { ModelRequest } from "@atom/contracts";
+import type { ModelRequest } from "@ark/contracts";
 import { ProviderError, type ProviderAdapter } from "../gateway.ts";
 
 export interface LocalBackupConfig { endpoint: string; model: string }
@@ -46,7 +46,7 @@ function json(config: LocalBackupConfig, path: string, signal: AbortSignal, body
     // Covers connection and response stalls as well as the caller's overall deadline.
     req.setTimeout(60_000, () => req.destroy(new Error("timeout")));
     req.on("error", () => reject(new ProviderError(signal.aborted ? "cancelled" : "unavailable", signal.aborted
-      ? "Local backup stopped. Nothing was retried." : "Could not reach the local server. Start it yourself and check its address; ATOM does not install or start it.")));
+      ? "Local backup stopped. Nothing was retried." : "Could not reach the local server. Start it yourself and check its address; ARK does not install or start it.")));
     req.end(bytes);
   });
 }

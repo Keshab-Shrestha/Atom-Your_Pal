@@ -4,8 +4,8 @@
 import { execFile } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { webSources, type Report } from "@atom/helpers";
-import { appleScriptString, noteHtml } from "@atom/tool-engine";
+import { webSources, type Report } from "@ark/helpers";
+import { appleScriptString, noteHtml } from "@ark/tool-engine";
 
 export const BROWSERS: readonly string[] = [
   "Safari", "Brave Browser", "Google Chrome", "Arc", "Firefox", "Microsoft Edge", "Chromium", "Opera", "Vivaldi", "Orion", "Zen Browser", "Dia",

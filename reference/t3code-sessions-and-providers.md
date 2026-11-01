@@ -1,10 +1,10 @@
 # T3 Code: sessions and the provider layer
 
-> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ATOM status. Detailed observations below retain the earlier snapshot unless updated explicitly.
+> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ARK status. Detailed observations below retain the earlier snapshot unless updated explicitly.
 
 Source: github.com/pingdotgg/t3code (MIT licence). Read on 2026-10-17 from a shallow clone at commit `2fbd4318`.
 Scope: sessions (threads), models, the provider layer, approvals, resume, fork, history, attachments, composer.
-Paths are relative to the T3 Code repository unless they name an ATOM folder.
+Paths are relative to the T3 Code repository unless they name an ARK folder.
 
 Marks used in this file:
 
@@ -134,7 +134,7 @@ The order comes from file names, docs and types. The author did not trace `RunEx
 | `auto` | Auto | `auto` |
 | `full-access` | Full access | `bypassPermissions` |
 
-- The T3 default is `full-access` (`DEFAULT_RUNTIME_MODE`). ATOM must not copy this default.
+- The T3 default is `full-access` (`DEFAULT_RUNTIME_MODE`). ARK must not copy this default.
 - `providerRuntimeMode` in `RuntimePolicy.ts`: if a provider does not list the mode in `supportedRuntimeModes`, the server runs the thread as `approval-required`. Code decides. The model does not.
 - `adding-a-provider.md` forbids faking a missing mode in the app. A provider offers only modes it enforces itself.
 - Interaction mode is `default` or `plan`. Plan maps to Claude `permissionMode: "plan"` and read-only tools.
@@ -251,7 +251,7 @@ Client side (verified, `apps/web/src/providerInstances.ts`):
 | Any | `customModels` in the instance config: `{ slug, name, capabilities }` |
 
 - A model that needs a newer CLI is listed in `updateRequiredModels` (`minVersion`). The picker says which update unlocks it.
-- T3 Code does not call the SDK `supportedModels()`. A search of `apps/server/src` found no use. ATOM does call it.
+- T3 Code does not call the SDK `supportedModels()`. A search of `apps/server/src` found no use. ARK does call it.
 - The user can hide, reorder and favorite models (`providerModelPreferences`, `favorites` in `settings.ts`).
 - "default" is a sentinel. The adapter must never send it to the provider.
 
@@ -270,7 +270,7 @@ Where the secret goes (verified):
 - The store is `ServerSecretStore` (`auth/ServerSecretStore.ts`): one file per secret at `<stateDir>/secrets/<name>.bin`. The folder has mode 0700. The second source review verified explicit mode 0600 on secret files in `ServerSecretStore.ts`; this does not establish encryption at rest.
 - `redactServerSettingsForClient` sends an empty value and a "redacted" flag to clients. `SECRET_REDACTED` is six bullet characters.
 - The server does not use the macOS Keychain for these secrets.
-- The second review confirms that the Claude probe labels API-key auth as "Claude API Key". It did not verify an enforced spending cap. API-key and proxy configurations can bill separately; ATOM keeps its own plan-only rule.
+- The second review confirms that the Claude probe labels API-key auth as "Claude API Key". It did not verify an enforced spending cap. API-key and proxy configurations can bill separately; ARK keeps its own plan-only rule.
 
 ### 2.7 Health checks and sign-in status
 
@@ -333,20 +333,20 @@ Where the secret goes (verified):
 
 ---
 
-## 4. What ATOM has today, and the gap
+## 4. What ARK has today, and the gap
 
 The author read the files named below on 2026-10-17.
 
-| Topic | ATOM today | Gap |
+| Topic | ARK today | Gap |
 | --- | --- | --- |
 | Chat model | A chat is a list of turns plus a `ChatSessionRef` (`id`, `model`, `tail`) in `services/memory/src/chats.ts`. A chat and a project each have a model | No run or node objects. Not needed now |
 | Session per chat | One long-lived Claude Code session per chat. Closes after 60 minutes idle. Reopens with `resume` (`services/llm-gateway/src/providers/claude-session.ts`, ADR-110) | Same idea as T3 |
 | Providers | `PROVIDERS` in `packages/shared/src/config.ts`: `claude-plan`, `codex`, `gemini-cli`. Codex and Gemini answer as plain text (ADR-113) | No capability table. The UI learns limits from refusals |
 | Auto selection | `createModelSettings` (`apps/mac/src/model-settings.ts`). A saved choice is read from `config/island.json`. A choice whose program is missing is ignored with a warning | No "first ready provider" rule |
 | Model list | Claude: live `supportedModels()` (`plan-support.ts`, ADR-097). Others: a fixed table plus a typed custom id | Better than T3 for Claude. No per-model option data |
-| API key | None by design (ADR-092). `scrubbedEnv` removes `ANTHROPIC_*` and other keys. `planGuard` stops a run when `apiKeySource` is not `none` or `oauth` | T3 allows a typed key. ATOM must not, unless Keshab decides (idea 10) |
+| API key | None by design (ADR-092). `scrubbedEnv` removes `ANTHROPIC_*` and other keys. `planGuard` stops a run when `apiKeySource` is not `none` or `oauth` | T3 allows a typed key. ARK must not, unless Keshab decides (idea 10) |
 | Health and sign-in | `scanAiTools` (`apps/mac/src/ai-tools.ts`) runs `claude auth status` and `codex login status`. It reads only `loggedIn` | No account name or credential kind before the first turn |
-| Runtime modes | `permissionMode: "default"` is fixed. `canUseTool` and a PreToolUse hook run ATOM's own gate (`native-safety.ts`). Code decides | No mode per chat. A safe default |
+| Runtime modes | `permissionMode: "default"` is fixed. `canUseTool` and a PreToolUse hook run ARK's own gate (`native-safety.ts`). Code decides | No mode per chat. A safe default |
 | Approvals | `approval.request` and `approval.answer`. One at a time. Auto-decline after 60 s | Only Allow or Decline |
 | Plan mode | A plan-first agent starts in `plan` mode (`native-agents.ts`). `plan.approve` | None for a plain chat |
 | Queue | One "Next" row. Messages join into one turn (ADR-127) | No list, no reorder, no steer |
@@ -362,7 +362,7 @@ The author read the files named below on 2026-10-17.
 
 ---
 
-## 5. Ideas for ATOM, ranked
+## 5. Ideas for ARK, ranked
 
 Size: S is under one day, M is a few days, L is a week or more.
 CLAUDE.md section 3 says one capability at a time. Each idea needs its own ADR and task.
@@ -371,16 +371,16 @@ CLAUDE.md section 3 says one capability at a time. Each idea needs its own ADR a
 
 - What: Copy T3's Claude probe. Start the SDK `query()` with a prompt that never yields. Call `initializationResult()`. Read `account` (email, subscription type, `tokenSource`, `apiKeySource`).
 - Why: Settings can say "Signed in as you, Max plan" or "Not signed in". It can warn at once if a credential would bill per token. Today `planGuard` finds this only after a turn starts.
-- Fit: It strengthens the money rule. No model request is sent. ATOM does not read or store a login.
-- Caution: Unverified whether ATOM's SDK version has `initializationResult()`. T3 Code uses it. Check `ClaudeSdk` in `claude-session.ts` first.
+- Fit: It strengthens the money rule. No model request is sent. ARK does not read or store a login.
+- Caution: Unverified whether ARK's SDK version has `initializationResult()`. T3 Code uses it. Check `ClaudeSdk` in `claude-session.ts` first.
 - First step: Add `probePlanAccount(claudePath)` in `plan-support.ts` with a fake-SDK test. Show the result in the `info` event only.
 
 ### 2. Context meter and Compact (M)
 
 - What: Show how full the chat's session is. Offer a Compact button that sends `/compact` into the session.
 - Why: A long chat grows its prompt and costs plan tokens each turn. T3 shows a meter and a Compact chip.
-- Fit: Token discipline (ADR-118). No money change. The meter needs only numbers ATOM already reads (`tokensOf`).
-- Caution: Unverified that `/compact` works through ATOM's streaming-input `prompt`. T3's docs say Claude accepts it.
+- Fit: Token discipline (ADR-118). No money change. The meter needs only numbers ARK already reads (`tokensOf`).
+- Caution: Unverified that `/compact` works through ARK's streaming-input `prompt`. T3's docs say Claude accepts it.
 - First step: A pure Swift function from last-result tokens to a percent of the model window. Show one small line. Add Compact later.
 
 ### 3. Edit an earlier message and ask again (S to M)
@@ -396,7 +396,7 @@ CLAUDE.md section 3 says one capability at a time. Each idea needs its own ADR a
 - What: Make a new chat that holds the turns up to a chosen message.
 - Why: Try another path and keep the first. T3 records `forkedFrom` and `lineage`.
 - Fit: Reuses the transcript reopen of idea 3. The new chat has no session. Its first turn costs one cold start of plan tokens.
-- Alternative: The SDK `forkSession(sessionId, { upToMessageId })`, as T3 does. ATOM does not store SDK message ids. Skip at first.
+- Alternative: The SDK `forkSession(sessionId, { upToMessageId })`, as T3 does. ARK does not store SDK message ids. Skip at first.
 - First step: `ChatStore.fork(id, upToIndex)` that copies turns and project. Store `forkedFrom` in the chat row.
 
 ### 5. Long paste becomes a file (S)
@@ -410,7 +410,7 @@ CLAUDE.md section 3 says one capability at a time. Each idea needs its own ADR a
 ### 6. A provider capability table in `info` (S)
 
 - What: A fixed table per provider: `tools`, `attachments`, `projectChats`, `resume`. Send it in the `info` event.
-- Why: T3's rule: clients read capabilities, never the driver name. ATOM refuses a Codex project chat with words today. The UI could hide the option first.
+- Why: T3's rule: clients read capabilities, never the driver name. ARK refuses a Codex project chat with words today. The UI could hide the option first.
 - Fit: Deterministic data. A small step toward the Provider boundary in CLAUDE.md section 2.
 - First step: Add `caps` to each `PROVIDERS` entry. Add it to `InfoEvent`. Test in `model-settings.test.ts`.
 
@@ -424,7 +424,7 @@ CLAUDE.md section 3 says one capability at a time. Each idea needs its own ADR a
 ### 8. Continue after a usage limit (M)
 
 - What: When the plan limit stops a turn, show the reset time. Offer "Send again after the reset". Hold the message until then.
-- Why: Plan limits are ATOM's real cost limit. T3 has failure class `usage_limit`, `limitRecovery` and a worker.
+- Why: Plan limits are ARK's real cost limit. T3 has failure class `usage_limit`, `limitRecovery` and a worker.
 - Fit: Safe for the money rule. It never switches to a key. It only waits.
 - First step: Parse the reset time from the rate-limit event that `planGuard` already reads. Show it in the error line. Add the timer later.
 
@@ -432,7 +432,7 @@ CLAUDE.md section 3 says one capability at a time. Each idea needs its own ADR a
 
 - What: An optional `effort` for a chat. It maps to the SDK `effort` option and `thinking`.
 - Why: T3's `TraitsPicker` shows effort and thinking from model data.
-- Fit: The default stays as today (thinking off), so ADR-118 holds. A deeper choice uses more plan tokens, never money. T3 passes `effort` in its query options (verified). ATOM's SDK version is unverified.
+- Fit: The default stays as today (thinking off), so ADR-118 holds. A deeper choice uses more plan tokens, never money. T3 passes `effort` in its query options (verified). ARK's SDK version is unverified.
 - Caution: A changed option may change the cached prompt prefix. Measure `cacheWrite` before and after.
 - First step: Add an optional `options` list to `chat.model` and `ChatSessionRef`. Pass `effort` only when set.
 
@@ -453,20 +453,20 @@ CLAUDE.md section 3 says one capability at a time. Each idea needs its own ADR a
 ### 11. Plan mode for a plain chat (M)
 
 - What: A `/plan` switch. The next turn runs with `permissionMode: "plan"`. A plan card shows an "Implement" button.
-- Why: T3 uses `interactionMode` and `sourcePlanRef`. ATOM has it only for plan-first agents.
+- Why: T3 uses `interactionMode` and `sourcePlanRef`. ARK has it only for plan-first agents.
 - Fit: Code sets the mode, not the model. Plan mode is stricter, so the risk is low.
-- Caution: Unverified that ATOM can change `permissionMode` in a live session. T3 calls `setPermissionMode` on the query (verified). The `ClaudeSdk` interface in `claude-session.ts` showed only `interrupt`.
+- Caution: Unverified that ARK can change `permissionMode` in a live session. T3 calls `setPermissionMode` on the query (verified). The `ClaudeSdk` interface in `claude-session.ts` showed only `interrupt`.
 - First step: A pure rule `modeFor(chat)` with a test. Then wire `/plan` in `slash-commands.ts`.
 
 ### 12. Later, lower value
 
-- History paging (M). T3 caps a page at 10 user turns, 75 items or 1 MiB. ATOM sends the whole chat. First measure the largest `chat.opened` event.
+- History paging (M). T3 caps a page at 10 user turns, 75 items or 1 MiB. ARK sends the whole chat. First measure the largest `chat.opened` event.
 - "Allow for this chat" on approvals (S to M). T3 has `acceptForSession`. It widens permissions, so it needs an ADR. Scope by chat and exact target. Never apply it to blocked apps or secret fields.
-- Steer a running turn (M). T3 has `steer_active`. ADR-127 chose stop and send. Unverified that ATOM's session takes a message mid-turn. Probe with a fake SDK first.
+- Steer a running turn (M). T3 has `steer_active`. ADR-127 chose stop and send. Unverified that ARK's session takes a message mid-turn. Probe with a fake SDK first.
 
 ### Not recommended now
 
 - The V2 objects (runs, attempts, nodes, context transfers). They serve many providers and a remote server. CLAUDE.md section 22 says do not build them before they are needed.
-- Many instances of one provider. ATOM has one user and one plan.
+- Many instances of one provider. ARK has one user and one plan.
 - One prompt to several models. It multiplies plan use.
-- A model manifest with remote fetch. ATOM reads the live list from the SDK.
+- A model manifest with remote fetch. ARK reads the live list from the SDK.

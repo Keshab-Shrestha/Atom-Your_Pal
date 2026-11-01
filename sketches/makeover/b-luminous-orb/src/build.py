@@ -28,5 +28,5 @@ def build(name, title, width, height):
 
 if __name__ == "__main__":
     bh = int(sys.argv[1]) if len(sys.argv) > 1 else 3200
-    build("desktop", "ZENO · B Luminous Orb · Desktop", 1440, 900)
-    build("board", "ZENO · B Luminous Orb · Board", 1440, bh)
+    build("desktop", "ARK · B Luminous Orb · Desktop", 1440, 900)
+    build("board", "ARK · B Luminous Orb · Board", 1440, bh)

@@ -1,6 +1,6 @@
 # T3 Code: settings screens and key bindings
 
-> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ATOM status. Detailed observations below retain the earlier snapshot unless updated explicitly.
+> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ARK status. Detailed observations below retain the earlier snapshot unless updated explicitly.
 
 Research date: 2026-10-17. Source: shallow clone of `pingdotgg/t3code` (MIT licence), commit `2fbd4318`. The clone is read only.
 Paths are relative to the clone root unless they start with `/home/user/Atom-Your_Pal`. "Unverified" or "not checked" marks a claim I did not confirm in code.
@@ -11,7 +11,7 @@ Summary:
 - A provider is an "instance" with an enable switch, binary path, sign-in row, env variables and model list.
 - Secrets never go back to the client. The server keeps them in files and sends a "redacted" flag.
 - Key bindings are one JSON array of `key`, `command`, `when`. The last matching rule wins.
-- ATOM must not copy "type an API key for the model". It breaks the money rule. Section 7 gives a safe variant.
+- ARK must not copy "type an API key for the model". It breaks the money rule. Section 7 gives a safe variant.
 
 ## 1. Map of the settings screen
 
@@ -208,7 +208,7 @@ I found no global "auto select provider" control. "Auto" appears in four places 
 - A plain value found in `settings.json` moves to the store on load (`moveInlineSettingsSecrets`). The file keeps a redaction mark.
 - I found no encryption in `ServerSecretStore.ts`. Protection is file mode. On a Mac, Keychain is stronger.
 - Scopes: provider changes need `AuthProvidersManageScope`. Other settings need `AuthSettingsWriteScope`.
-- Example (`docs/user/providers-claude.md`): a router such as OpenRouter uses a new Claude instance with `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` (Sensitive) and an empty `ANTHROPIC_API_KEY`. ATOM must never allow this (ADR-092).
+- Example (`docs/user/providers-claude.md`): a router such as OpenRouter uses a new Claude instance with `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` (Sensitive) and an empty `ANTHROPIC_API_KEY`. ARK must never allow this (ADR-092).
 
 ## 3. The key binding system
 
@@ -321,32 +321,32 @@ By file:
 | Mobile settings | `apps/mobile/src/features/settings/` |
 | User docs | `docs/user/keybindings.md`, `install.md`, `providers-claude.md`, `providers-codex.md`, `appearance.md`, `remote-access.md`, `source-control.md` |
 
-## 6. What ATOM has today, and the gap
+## 6. What ARK has today, and the gap
 
-Files read in `/home/user/Atom-Your_Pal/apps/mac/island/Sources/`: `AtomIsland/Settings/*.swift`, `AtomIslandCore/IslandSettings.swift`, `Shortcuts.swift`, `ShortcutMatcher.swift`, `PanelPages.swift`, `AtomIsland/PluginsView.swift`, `SearchViews.swift`. Also `apps/mac/src/model-settings.ts` and `ai-tools.ts`.
+Files read in `/home/user/Atom-Your_Pal/apps/mac/island/Sources/`: `ArkIsland/Settings/*.swift`, `ArkIslandCore/IslandSettings.swift`, `Shortcuts.swift`, `ShortcutMatcher.swift`, `PanelPages.swift`, `ArkIsland/PluginsView.swift`, `SearchViews.swift`. Also `apps/mac/src/model-settings.ts` and `ai-tools.ts`.
 
-### 6.1 ATOM settings today
+### 6.1 ARK settings today
 
-Pages (`SettingsPage` in `PanelPages.swift`): What can I ask?, Appearance, Design system, AI model, Shortcuts, Dictation, ATOM (pal), Sounds, General.
+Pages (`SettingsPage` in `PanelPages.swift`): What can I ask?, Appearance, Design system, AI model, Shortcuts, Dictation, ARK (pal), Sounds, General.
 Home shows a "now" card and two groups. AI model opens from the now card.
 
-| Area | ATOM page and rows |
+| Area | ARK page and rows |
 | --- | --- |
 | General (`GeneralPage.swift`) | Open at login; Answer without keys; daily brief; Suggest things to remember; Notifications (one switch per `AppNotice.Kind`); Telegram status and push; Local API (switch, Copy token, Regenerate, Phone command); Computer control; Permissions; Replay the tour. |
 | AI model (`ModelPage.swift`) | Provider menu; Model menu; Custom model field (`isValidModelId`); Model list Refresh; error line; Allow the large model for helpers; plan meters; "Found on this Mac" list with status dots and Scan. |
 | Shortcuts (`ShortcutsPage.swift`) | 5 global actions (`ShortcutAction`: talk, dictate, toggleIsland, cancel, quickAction). Recorder button, per-row reset, reset page, Input Monitoring card. |
-| Dictation, Sounds, ATOM, Appearance | Mode, live preview, filler words; spoken and tone switches; pal size, movement, naps, bubble; theme cards. |
+| Dictation, Sounds, ARK, Appearance | Mode, live preview, filler words; spoken and tone switches; pal size, movement, naps, bubble; theme cards. |
 | Plugins (`PluginsView.swift`) | MCP servers (paste config or by hand; command or URL; Streamable HTTP or SSE; test; per-helper on), Skills (drafts, edits, editor), Find skills. |
 | Search (`SearchViews.swift`) | Window search, Cmd+F, over chats, tasks, reports, notes, projects, agents, skills. I found no code that searches Settings pages. |
-| Slash picker (`SlashMenu.swift`) | `/` in chat lists ATOM commands (new chat, model, skills, memory, help), skills and Claude commands. |
+| Slash picker (`SlashMenu.swift`) | `/` in chat lists ARK commands (new chat, model, skills, memory, help), skills and Claude commands. |
 
-Storage: island settings in `UserDefaults` (keys such as `atom.petEnabled`, `atom.look.theme`). Each shortcut is `KeyCombo` JSON under its own key, with a "cleared" marker.
+Storage: island settings in `UserDefaults` (keys such as `ark.petEnabled`, `ark.look.theme`). Each shortcut is `KeyCombo` JSON under its own key, with a "cleared" marker.
 The model choice is in `config/island.json` (`model-settings.ts`). Telegram values are in `.env`. The API token is in `data/api-token`.
 Shortcut rules (`validateShortcut`): a strong modifier or an F key; modifier-only only for holds; reserved Cmd keys; a clash between actions is refused (`.inUse`).
 
 ### 6.2 Gap table
 
-| Topic | T3 Code | ATOM | Gap |
+| Topic | T3 Code | ARK | Gap |
 | --- | --- | --- | --- |
 | Settings search | Box; about 110 rows plus one item per key command | Not found for Settings pages | Add |
 | Per-row reset | Reset button when value differs | Per-page reset card; per-shortcut reset | Small |
@@ -364,40 +364,40 @@ Shortcut rules (`validateShortcut`): a strong modifier or an F key; modifier-onl
 | Theme editor, diagnostics | Full editor; process and trace pages | 3 looks (ADR-057); Dashboard | Skip |
 | Notifications | One mode select | Per-kind switches (better) | None |
 
-## 7. Ideas for ATOM, ranked
+## 7. Ideas for ARK, ranked
 
 Rules used: one capability at a time; no heavy dependency; secrets never in code or logs; money rule (ADR-092, ADR-093).
 
 **1. Settings search (S to M).**
 - What: a box on Settings home. It filters rows of all pages and opens the page.
-- Why: ATOM has 9 pages and many cards. T3 uses a flat catalog and `searchSettings`.
-- Fit: pure Swift in `AtomIslandCore`. No model call. No dependency.
+- Why: ARK has 9 pages and many cards. T3 uses a flat catalog and `searchSettings`.
+- Fit: pure Swift in `ArkIslandCore`. No model call. No dependency.
 - First step: a `SettingsCatalog` array (id, title, page, terms) and a tested `search(query)`.
 
 **2. Masked secret fields in Keychain, with a money-rule guard (M).**
 - What: a `SecretField` row. It shows "Stored secret, enter a new value to replace" and never the value. Empty input keeps the old value.
 - Why: Telegram needs a hand edit of `.env` today (footer in `GeneralPage.swift`).
 - Fit: Keychain is stronger than T3's 0600 files. Never log the value.
-- Money rule: NOT for model API keys. Safe variant: Telegram, GitHub token and MCP env values only. Add a warning row on AI model: "ANTHROPIC_API_KEY found in your environment. ATOM removes it before it runs Claude." Show the name, never the value.
+- Money rule: NOT for model API keys. Safe variant: Telegram, GitHub token and MCP env values only. Add a warning row on AI model: "ANTHROPIC_API_KEY found in your environment. ARK removes it before it runs Claude." Show the name, never the value.
 - First step: a `SecretStore` protocol with a Keychain and a fake class. Move only the Telegram bot token. Test that no log holds the value.
 
 **3. Tool health card (S).**
 - What: per tool, show version, a sign-in label, last check time, a Check button, and a background re-check (5 minutes, 0 = off).
 - Why: `getProviderSummary` gives one clear headline per tool.
-- Fit: ATOM already asks `claude auth status` and `codex login status`. It never reads a login file. Keep that.
+- Fit: ARK already asks `claude auth status` and `codex login status`. It never reads a login file. Keep that.
 - First step: add `version` and `checkedAt` to `AiToolItem` in `apps/mac/src/ai-tools.ts`. Show them in `ModelPage.swift`.
 
 **4. "Auto" chat tool when the plan runs out (M).**
 - What: a new Provider entry "Auto". It uses Claude Code. If the plan is used up, it answers a chat as plain text on Codex or the Gemini CLI. It says which tool answered.
 - Why: the user asked for "auto select". T3's nearest feature is load balancing with weights.
 - Money rule: safe. All three are subscription tools with API keys removed (ADR-093). It must never fall back to a key or to extra usage.
-- Needs an ADR: ADR-093 says Codex and Gemini run no ATOM tools. Auto covers plain chat only.
+- Needs an ADR: ADR-093 says Codex and Gemini run no ARK tools. Auto covers plain chat only.
 - First step: a pure `AutoChoice` function (tools found, signed in, plan state in; tool out) with unit tests. No UI.
 
 **5. In-window command table with shortcut hints (S, then M).**
 - What: one table of in-window commands (new chat, search, open settings, send). Each has an id, a title and a default key. Menus and tooltips show the key.
-- Why: T3 uses one source for dispatch, hints and the editor. ATOM hard-codes `keyboardShortcut` calls.
-- First step: a `WindowCommand` enum in `AtomIslandCore` with `defaultCombo` and `display`. Use it for the Cmd+F tooltip.
+- Why: T3 uses one source for dispatch, hints and the editor. ARK hard-codes `keyboardShortcut` calls.
+- First step: a `WindowCommand` enum in `ArkIslandCore` with `defaultCombo` and `display`. Use it for the Cmd+F tooltip.
 - Later: user overrides in `UserDefaults`, a "Window keys" card on Shortcuts, a conflict note.
 
 **6. Command palette on Cmd+K (M).**
@@ -407,13 +407,13 @@ Rules used: one capability at a time; no heavy dependency; secrets never in code
 
 **7. Shortcut file with `when` contexts (L).**
 - What: `config/keybindings.json` with `{ key, command, when }`, last match wins, defaults merged at start, file watched.
-- ATOM contexts: `islandOpen`, `chatFocus`, `composerFocus`, `dictating`, `listening`, `speaking`, `mainWindowKey`.
+- ARK contexts: `islandOpen`, `chatFocus`, `composerFocus`, `dictating`, `listening`, `speaking`, `mainWindowKey`.
 - Fit: an invalid rule is ignored with a visible note. A bad file keeps defaults and stays on disk, as in T3.
 - First step: only the `when` parser (T3 grammar) with tests. Do not wire it.
 
 **8. Model list: favourite and hide (S).** Star and eye buttons per model. Favourites first. First step: a set of ids in `UserDefaults`, used in `ModelSection`.
 
-**9. Tool path override (S).** Optional "Program path" per tool. Empty = automatic. Reuse `RuntimeLocator`. Keep `scrubbedEnv` and add no env editor. First step: a read-only row with the path ATOM found.
+**9. Tool path override (S).** Optional "Program path" per tool. Empty = automatic. Reuse `RuntimeLocator`. Keep `scrubbedEnv` and add no env editor. First step: a read-only row with the path ARK found.
 
 **10. Per-row reset (S).** A reset button on rows that differ from the default. First step: a `SettingDefault` helper in `IslandSettings.swift`, used on three rows.
 
@@ -421,9 +421,9 @@ Rules used: one capability at a time; no heavy dependency; secrets never in code
 
 **12. Confirmations and storage cleanup (S each, optional).** Confirm before deleting a chat. Clean old logs and reports with a "Delete now" report. Do only on request (CLAUDE.md section 22).
 
-Not recommended: theme editor and VS Code import, SnapShots, machine load balancing, T3 Connect, pairing links (ATOM uses Tailscale, ADR-121), project scope sentence (wait for per-project settings).
+Not recommended: theme editor and VS Code import, SnapShots, machine load balancing, T3 Connect, pairing links (ARK uses Tailscale, ADR-121), project scope sentence (wait for per-project settings).
 
-### 7.1 Proposed ATOM settings layout (one option)
+### 7.1 Proposed ARK settings layout (one option)
 
 General now holds 8 unrelated cards. Re-group after search exists. Do it as its own small task.
 
@@ -434,7 +434,7 @@ General now holds 8 unrelated cards. Re-group after search exists. Do it as its 
 | AI | Plugins | MCP servers; Skills; Find skills (as now) |
 | Input | Shortcuts | Global (5 actions); Window keys (idea 5); Reset all |
 | Input | Dictation, Sounds | As now |
-| Look | Appearance, ATOM (pal), Design system | As now |
+| Look | Appearance, ARK (pal), Design system | As now |
 | Connections | Connections | Telegram (masked token); Local API (switch, copy token, regenerate); Phone (Tailscale command); Computer control with Permissions |
 | System | General | Open at login; Answer without keys; Notifications; Daily brief; Suggest things to remember; Confirmations (optional); Replay the tour |
 
@@ -452,5 +452,5 @@ Layout rules: one idea per page; row names stay the same; search covers every ro
 - SnapShots platform limits: not checked.
 - Encryption of secrets at rest: none found in `ServerSecretStore.ts`. Not traced further.
 - The count of about 110 search rows is from my own parse of `SETTINGS_SEARCH_ITEMS`. Treat it as approximate.
-- ATOM: how MCP env values are stored on disk is not checked. `McpConfigImport.swift` says "private values kept on this Mac".
-- ATOM: the main menu in `MainWindow.swift` was not read in full.
+- ARK: how MCP env values are stored on disk is not checked. `McpConfigImport.swift` says "private values kept on this Mac".
+- ARK: the main menu in `MainWindow.swift` was not read in full.

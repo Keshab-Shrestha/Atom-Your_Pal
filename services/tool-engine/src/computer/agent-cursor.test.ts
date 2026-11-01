@@ -8,7 +8,7 @@ function fake(size: Record<string, unknown> = { width: 1920, height: 1080 }) {
   return { cua, calls };
 }
 
-test("the agent cursor glides with actions and rests at ATOM's island when the task ends", async () => {
+test("the agent cursor glides with actions and rests at ARK's island when the task ends", async () => {
   const { cua, calls } = fake();
   const cursor = createAgentCursor(cua, async () => {});
   await cursor.start();

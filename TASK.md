@@ -1,4 +1,4 @@
-# ZENO Task Plan
+# ARK Task Plan
 
 ## Reasoning summary event: decision and contract — 28 October 2026
 
@@ -6,7 +6,7 @@ ADR-212 and [the contract](docs/chat-reasoning-summary.md) define a bounded reas
 
 ## Native Needs you filters (Phase 3, second item) — 28 October 2026
 
-The Needs you page in the app has filter chips from the HTML preview: All, Approvals, Plans, Suggestions, Held and Failed, each with a count. A filter only chooses what shows. The cards and their Approve, Reject, Allow and Retry buttons are unchanged, and the counts always show everything that waits. `NeedsYouFilter` in `AtomIslandCore` holds the grouping and the counts (5 new tests pass). Gallery captures show the chips in light and dark. Not done from the HTML design: the two-pane list and detail layout, and the inbox sort. Not checked in the running app. Next task: the chat list.
+The Needs you page in the app has filter chips from the HTML preview: All, Approvals, Plans, Suggestions, Held and Failed, each with a count. A filter only chooses what shows. The cards and their Approve, Reject, Allow and Retry buttons are unchanged, and the counts always show everything that waits. `NeedsYouFilter` in `ArkIslandCore` holds the grouping and the counts (5 new tests pass). Gallery captures show the chips in light and dark. Not done from the HTML design: the two-pane list and detail layout, and the inbox sort. Not checked in the running app. Next task: the chat list.
 
 ## Native Token mix redesign (Phase 3, first item) — 28 October 2026
 
@@ -18,7 +18,7 @@ Added the Run surface to the workspace pane. It shows the tool calls, questions 
 
 ## Web panel host (Phase 1) — 28 October 2026
 
-Added the web panel host from [the plan](docs/html-to-native-plan.md). `AtomIslandCore` has the message parser, the navigation policy, the theme tokens and the Run panel payload builder (19 new tests pass). `AtomIsland` has `WebPanelView`, a locked web view. A probe panel in `apps/mac/island/Web/probe/` shows in Settings, Design. A headless web view check passed: the page loads under its CSP, the bridge works, bad tokens and network calls are refused, and later navigation is cancelled. Not done: a check inside the built app, VoiceOver, and larger text. The full test run has 9 failures in `SetupTests` and `ThemeTests`. Those tests are in code this change does not touch. Next task: Phase 2, the Run panel.
+Added the web panel host from [the plan](docs/html-to-native-plan.md). `ArkIslandCore` has the message parser, the navigation policy, the theme tokens and the Run panel payload builder (19 new tests pass). `ArkIsland` has `WebPanelView`, a locked web view. A probe panel in `apps/mac/island/Web/probe/` shows in Settings, Design. A headless web view check passed: the page loads under its CSP, the bridge works, bad tokens and network calls are refused, and later navigation is cancelled. Not done: a check inside the built app, VoiceOver, and larger text. The full test run has 9 failures in `SetupTests` and `ThemeTests`. Those tests are in code this change does not touch. Next task: Phase 2, the Run panel.
 
 ## Web panels in the native app: decision and contract — 28 October 2026
 
@@ -26,7 +26,7 @@ Phase 0 of [the HTML-to-native plan](docs/html-to-native-plan.md) is done. ADR-2
 
 ## Standalone current UI preview and Git checkpoint — 28 October 2026
 
-Created self-contained `design/current-ui.html` for Dashboard, Board, chat and ATOM skills, with embedded native office/icon artwork, 151 packaged skill descriptions, local preview interactions, light/dark and text scaling. All data is fictional; no runtime/Git/model access. Manual browser wide/compact/theme/catalog inspection and TypeScript/whitespace checks passed; automated suites remain skipped. [Preview scope](docs/current-ui-preview.md). User authorized pushing the accumulated checkpoint and merging to main; unrelated graphify-out remains excluded.
+Created self-contained `design/current-ui.html` for Dashboard, Board, chat and ARK skills, with embedded native office/icon artwork, 151 packaged skill descriptions, local preview interactions, light/dark and text scaling. All data is fictional; no runtime/Git/model access. Manual browser wide/compact/theme/catalog inspection and TypeScript/whitespace checks passed; automated suites remain skipped. [Preview scope](docs/current-ui-preview.md). User authorized pushing the accumulated checkpoint and merging to main; unrelated graphify-out remains excluded.
 
 ## Reference-led Dashboard activity and scalable Board — 27 October 2026
 
@@ -38,19 +38,19 @@ Added visible Add agent, direct Edit and persisted Ready/Paused controls to the 
 
 ## Compact scrollbar and sidebar presentation — 27 October 2026
 
-Replaced the wide scroll chrome on ATOM-owned SwiftUI surfaces with a shared small overlay style, keeping native axes/scrolling/accessibility. Removed implicit live list gaps and centering, reduced sidebar inset 12 → 8 points, and made the hidden delete-control reserve conditional. Chat rows retain a 30-point minimum target. Signed release build/signature/diff checks pass. Live sidebar, Settings and transcript/Scroll to end checks passed; final direct scrollbar drag remains unverified because app replacement interrupted the attempt and later automation exposed only the pet window. No suites/model calls, commit or push; other pending work preserved. [Scope and verification](docs/compact-scrolling.md).
+Replaced the wide scroll chrome on ARK-owned SwiftUI surfaces with a shared small overlay style, keeping native axes/scrolling/accessibility. Removed implicit live list gaps and centering, reduced sidebar inset 12 → 8 points, and made the hidden delete-control reserve conditional. Chat rows retain a 30-point minimum target. Signed release build/signature/diff checks pass. Live sidebar, Settings and transcript/Scroll to end checks passed; final direct scrollbar drag remains unverified because app replacement interrupted the attempt and later automation exposed only the pet window. No suites/model calls, commit or push; other pending work preserved. [Scope and verification](docs/compact-scrolling.md).
 
-## ATOM-owned OMH skills — 27 October 2026
+## ARK-owned OMH skills — 27 October 2026
 
-Added the pinned 151-skill OMH library as ATOM-owned copies, preserving all 96 global Claude Code skill entries unchanged. Bundle retains supporting materials/licenses/provenance and seeds missing own folders without replacing edits. Added source counts/groups and bounded searchable/paged skill/resource reading. TypeScript/diff and actual catalog integrity checks pass: 247 discovered, all 151 complete instructions readable across 258 pages, all 252 materials readable, repeat import preserves 151, traversal refused. Signed release/signature and live Plugins count/selection review passed; app returned to the original chat, Ready. No suites/model calls. Existing review/Undo governs improvements; this is guidance availability, not full runtime parity. No commit/push. [Details](docs/omh-skill-library.md).
+Added the pinned 151-skill OMH library as ARK-owned copies, preserving all 96 global Claude Code skill entries unchanged. Bundle retains supporting materials/licenses/provenance and seeds missing own folders without replacing edits. Added source counts/groups and bounded searchable/paged skill/resource reading. TypeScript/diff and actual catalog integrity checks pass: 247 discovered, all 151 complete instructions readable across 258 pages, all 252 materials readable, repeat import preserves 151, traversal refused. Signed release/signature and live Plugins count/selection review passed; app returned to the original chat, Ready. No suites/model calls. Existing review/Undo governs improvements; this is guidance availability, not full runtime parity. No commit/push. [Details](docs/omh-skill-library.md).
 
 ## OMH catalog gap confirmed — 27 October 2026
 
-The intended scope includes the 151-skill OMH catalog and improvement features. Actual discovery returns 96 global Claude skills and zero ATOM-owned/OMH entries; data/skills is absent. Native architectural guides are separate. Existing reviewed Tinker proposal code is present, but the local proposal/draft/edit tables are empty; no new live improvement acceptance was performed. Prioritize a pinned ATOM-owned catalog with honest provenance/readiness, compatible on-demand guidance and versioned reviewed improvements. No catalog installation or product-code change in this diagnostic step. [Findings and remaining work](docs/omh-skill-catalog-gap.md).
+The intended scope includes the 151-skill OMH catalog and improvement features. Actual discovery returns 96 global Claude skills and zero ARK-owned/OMH entries; data/skills is absent. Native architectural guides are separate. Existing reviewed Tinker proposal code is present, but the local proposal/draft/edit tables are empty; no new live improvement acceptance was performed. Prioritize a pinned ARK-owned catalog with honest provenance/readiness, compatible on-demand guidance and versioned reviewed improvements. No catalog installation or product-code change in this diagnostic step. [Findings and remaining work](docs/omh-skill-catalog-gap.md).
 
 ## Quieter foreground chat — 27 October 2026
 
-Implement the requested Codex-inspired presentation using ATOM's live window and previously supplied references; Codex self-inspection is blocked by Computer Use. Compact the composer and group optional files/skills under +; keep model/thinking/access and Stop reachable. Use neutral user bubbles, tighter reply rhythm and a shared wide-window reading column. Move task reports/evidence/diff review into Chat options → Task results, and omit the completed no-tools timing row. Preserve saved history, drafts, permissions and the earlier local stopped-summary correction. Final signed release build/signature and diff checks pass; 13 isolated visual scenes rendered and representative light/dark/narrow/larger-text/draft layouts reviewed. Live menus and task/evidence/working-copy review passed, with selected chat and draft surviving relaunch. No new model calls, suites, commit or push. [Scope and verification](docs/chat-foreground-simplification.md).
+Implement the requested Codex-inspired presentation using ARK's live window and previously supplied references; Codex self-inspection is blocked by Computer Use. Compact the composer and group optional files/skills under +; keep model/thinking/access and Stop reachable. Use neutral user bubbles, tighter reply rhythm and a shared wide-window reading column. Move task reports/evidence/diff review into Chat options → Task results, and omit the completed no-tools timing row. Preserve saved history, drafts, permissions and the earlier local stopped-summary correction. Final signed release build/signature and diff checks pass; 13 isolated visual scenes rendered and representative light/dark/narrow/larger-text/draft layouts reviewed. Live menus and task/evidence/working-copy review passed, with selected chat and draft surviving relaunch. No new model calls, suites, commit or push. [Scope and verification](docs/chat-foreground-simplification.md).
 
 ## Stopped-task summary correction — 27 October 2026
 
@@ -86,11 +86,11 @@ Added host-owned attempt identities/lifecycle and bounded read-only Codex Projec
 
 ## Native OMH orchestration — first slice, 26 October 2026
 
-Keshab chose ATOM-native integration. Added versioned task contracts to existing work-plan portions, durable through the existing JSON store, revalidated before worker admission and compiled into that portion's brief. Compact status supports explicit single-portion inspection; completion wording distinguishes requested checks from observed results. No second runtime, storage migration or authority changes. Typecheck and diff checks pass; no suites, build, restart, live acceptance, commit or push. Next bounded slice: revision/attempt-bound host evidence; broader routing, budgets, scheduling/repair and memory receipts remain planned. [Integration design and scope](docs/omh-native-orchestration.md).
+Keshab chose ARK-native integration. Added versioned task contracts to existing work-plan portions, durable through the existing JSON store, revalidated before worker admission and compiled into that portion's brief. Compact status supports explicit single-portion inspection; completion wording distinguishes requested checks from observed results. No second runtime, storage migration or authority changes. Typecheck and diff checks pass; no suites, build, restart, live acceptance, commit or push. Next bounded slice: revision/attempt-bound host evidence; broader routing, budgets, scheduling/repair and memory receipts remain planned. [Integration design and scope](docs/omh-native-orchestration.md).
 
 ## Oh My Hermes source inquiry — 26 October 2026
 
-Inspected OMH at `171ccfa698fd94b6ec23a8940f9658556b430351` against ATOM main `1b6cc685`. Saved a 30-area comparison, execution/guidance boundaries and proposed additions to the release/Sentient roadmap. Prioritize release acceptance, then memory explanations, revision-bound task evidence, measured context reduction and stronger existing dependency handling. Automatic memory admission, provider switching, worker commits and destructive rewind are conflicts requiring a separate decision before adoption. No framework installation, app changes, suites, model calls or performance claims. [Inquiry and proposed order](docs/oh-my-hermes-feature-inquiry.md).
+Inspected OMH at `171ccfa698fd94b6ec23a8940f9658556b430351` against ARK main `1b6cc685`. Saved a 30-area comparison, execution/guidance boundaries and proposed additions to the release/Sentient roadmap. Prioritize release acceptance, then memory explanations, revision-bound task evidence, measured context reduction and stronger existing dependency handling. Automatic memory admission, provider switching, worker commits and destructive rewind are conflicts requiring a separate decision before adoption. No framework installation, app changes, suites, model calls or performance claims. [Inquiry and proposed order](docs/oh-my-hermes-feature-inquiry.md).
 
 ## Rail selection polish and requested push — 26 October 2026
 
@@ -106,7 +106,7 @@ Hide shared-history Back on Home, narrow the rail 68 → 51 points, and add pers
 
 ## App-icon Home shortcut — 25 October 2026
 
-Replace the rail mark with ATOM’s actual app icon opening Dashboard as Home; remove the duplicate Dashboard and Companion buttons, keeping Companion in Settings. Rebuilt and running. Verified app-icon → Dashboard, no duplicate rail shortcuts, and Settings → ATOM access with Settings selected. Release compilation, strict signature verification, 16 visual renders and diff checks pass. No unit-test suite, commit or push. [Details](docs/workspace-reference-redesign.md#app-icon-home-shortcut--25-october-2026).
+Replace the rail mark with ARK’s actual app icon opening Dashboard as Home; remove the duplicate Dashboard and Companion buttons, keeping Companion in Settings. Rebuilt and running. Verified app-icon → Dashboard, no duplicate rail shortcuts, and Settings → ARK access with Settings selected. Release compilation, strict signature verification, 16 visual renders and diff checks pass. No unit-test suite, commit or push. [Details](docs/workspace-reference-redesign.md#app-icon-home-shortcut--25-october-2026).
 
 ## Contextual panels and full-width pages — 25 October 2026
 
@@ -126,7 +126,7 @@ Added a bounded 1–8-button sequence with a fresh whole-window read and exact l
 
 ## Final three-workflow walkthrough — functional pass, 24 October 2026
 
-Daily chat recalled corrected facts with zero calls and kept memory details collapsed. New developer task 36 respected no-commit/isolation, exposed its report/diff beside chat, and passed both fixture checks independently in ATOM's Terminal; original and earlier task states were independently verified. Calculator reached 42 with Stop/Queue and an unsent draft visible while acting; independent native inspection matched. However, seven clicks took 53.232 seconds and all remained driver-unconfirmed. Timed driver work totalled 20.734 seconds (17.248 clicking), leaving 32.498 seconds in model/dispatch/other orchestration. No app-code/build/general-suite/commit/push in this walkthrough. [Evidence and timing](docs/final-workflow-walkthrough-2026-10-24.md). Next bounded work: reduce computer round trips and overly detailed final reports while retaining observation, ownership, approval and Stop behavior. Keep cursor usefulness/physical acceptance deferred; no overall 8/10 certification.
+Daily chat recalled corrected facts with zero calls and kept memory details collapsed. New developer task 36 respected no-commit/isolation, exposed its report/diff beside chat, and passed both fixture checks independently in ARK's Terminal; original and earlier task states were independently verified. Calculator reached 42 with Stop/Queue and an unsent draft visible while acting; independent native inspection matched. However, seven clicks took 53.232 seconds and all remained driver-unconfirmed. Timed driver work totalled 20.734 seconds (17.248 clicking), leaving 32.498 seconds in model/dispatch/other orchestration. No app-code/build/general-suite/commit/push in this walkthrough. [Evidence and timing](docs/final-workflow-walkthrough-2026-10-24.md). Next bounded work: reduce computer round trips and overly detailed final reports while retaining observation, ownership, approval and Stop behavior. Keep cursor usefulness/physical acceptance deferred; no overall 8/10 certification.
 
 ## Fresh-chat speed and provider-process recovery — live pass, 24 October 2026
 
@@ -142,7 +142,7 @@ An intentionally unavailable per-chat model produced a real `model_not_found` re
 
 ## Unexpected runtime recovery and saved file grant — live pass, 24 October 2026
 
-Force-stopped only the verified ATOM runtime through Activity Monitor: idle and in-flight runs automatically recovered in 3.033/2.848 seconds. The unfinished request became Interrupted; the draft, chat settings and held queue survived without replay or settings blame. A real exact-file grant authorized task 33, then task 34 reused it after recovery without another approval; independent file/permission checks matched. Corrected stale Recovery success/detail feedback, rebuilt/signed, and live-verified review/unsent restoration. No test suites or commit/push. [Evidence](docs/live-recovery-acceptance-2026-10-24.md). Next: provider failures, longer recovery cycles and fixed repeated latency acceptance. Cursor stays last.
+Force-stopped only the verified ARK runtime through Activity Monitor: idle and in-flight runs automatically recovered in 3.033/2.848 seconds. The unfinished request became Interrupted; the draft, chat settings and held queue survived without replay or settings blame. A real exact-file grant authorized task 33, then task 34 reused it after recovery without another approval; independent file/permission checks matched. Corrected stale Recovery success/detail feedback, rebuilt/signed, and live-verified review/unsent restoration. No test suites or commit/push. [Evidence](docs/live-recovery-acceptance-2026-10-24.md). Next: provider failures, longer recovery cycles and fixed repeated latency acceptance. Cursor stays last.
 
 ## Daily chat and interruption recovery — live pass, 24 October 2026
 
@@ -176,7 +176,7 @@ Review of PR #4 found that a cached process ID could be reused by another app wh
 
 Keshab asked for two things. Build them one at a time.
 
-A. Agent cursor. During a computer task, show the Cua Driver's agent cursor (`set_agent_cursor_enabled`, session-owned). It moves with ATOM's actions, separate from the user's real cursor, which ATOM never moves. When the task ends, the agent cursor glides back to the ATOM pal or island and then hides (`end_session` runs the cursor cleanup once). Decision: "Fly back to ATOM".
+A. Agent cursor. During a computer task, show the Cua Driver's agent cursor (`set_agent_cursor_enabled`, session-owned). It moves with ARK's actions, separate from the user's real cursor, which ARK never moves. When the task ends, the agent cursor glides back to the ARK pal or island and then hides (`end_session` runs the cursor cleanup once). Decision: "Fly back to ARK".
 
 B. Background or foreground. Today every action uses `delivery_mode: "background"`, so the user can keep working. Add a Settings default (background) and a per-request override: the user can ask for foreground in a request. Foreground briefly fronts the target window, so shortcuts and sheets work. Decision: "Both".
 
@@ -188,7 +188,7 @@ Committed without a live check, at Keshab's request. Next: a live check of the f
 
 ## Current capability — Computer control 4/4: visible current step (2026-10-23)
 
-While ATOM uses the Mac, the chat's work row now names the current step, for example "Working for 13s · 9 observed calls · Clicking in Calculator". Live captures confirm it. Action and app only, no typed text. One new core test; 791 Swift tests pass; release build passes; goldens unchanged. Computer control steps 1–4 are done. Next: contextual drafting.
+While ARK uses the Mac, the chat's work row now names the current step, for example "Working for 13s · 9 observed calls · Clicking in Calculator". Live captures confirm it. Action and app only, no typed text. One new core test; 791 Swift tests pass; release build passes; goldens unchanged. Computer control steps 1–4 are done. Next: contextual drafting.
 
 ## Current capability — Computer control 3b: look shows read-only on-screen text (2026-10-23)
 
@@ -204,7 +204,7 @@ A live, model-free baseline on a fictional TextEdit task found two defects, and 
 
 ## Current capability — Computer control 1/4: read-only permission status (2026-10-23)
 
-Keshab asked to improve Computer control in four steps: permissions and setup, reliability, speed, visibility. Step 1 is done. The `computer` tool's `status` action now also reports Accessibility and Screen Recording through the driver's read-only `check_permissions` (`prompt: false`). It names the grant holder and gives grant guidance when a permission is missing; ATOM changes no permission. Two new tests; 94 computer and transport tests pass; typecheck passes. A live read-only check reports both permissions granted for `com.trycua.driver`. Not covered: the native app flow with a revoked permission. See [computer readiness](docs/computer-readiness.md). Next: step 2, reliability baseline.
+Keshab asked to improve Computer control in four steps: permissions and setup, reliability, speed, visibility. Step 1 is done. The `computer` tool's `status` action now also reports Accessibility and Screen Recording through the driver's read-only `check_permissions` (`prompt: false`). It names the grant holder and gives grant guidance when a permission is missing; ARK changes no permission. Two new tests; 94 computer and transport tests pass; typecheck passes. A live read-only check reports both permissions granted for `com.trycua.driver`. Not covered: the native app flow with a revoked permission. See [computer readiness](docs/computer-readiness.md). Next: step 2, reliability baseline.
 
 ## PR autofix — Reviewed reply insertion (23 October 2026)
 
@@ -212,11 +212,11 @@ PR #5 review found an unreadable selection was treated as empty, and selection w
 
 ## Current capability — Contextual drafting: reviewed Insert (2026-10-23)
 
-The reply-draft panel now has an explicit "Insert into ‹App›" button. It is enabled only for a finished draft while the source app runs. It inserts at that app's cursor through ATOM's existing inserter: a password field gets the clipboard instead, and nothing is ever sent or Return pressed. A selection guard refuses to overwrite selected text. Two new core tests; Swift tests pass; release build passes; goldens unchanged. Live check with Keshab: the guard refused while the source line was selected, and Insert placed the draft at the cursor with the original line intact and nothing sent. See [contextual reply drafts](docs/contextual-reply-drafts.md).
+The reply-draft panel now has an explicit "Insert into ‹App›" button. It is enabled only for a finished draft while the source app runs. It inserts at that app's cursor through ARK's existing inserter: a password field gets the clipboard instead, and nothing is ever sent or Return pressed. A selection guard refuses to overwrite selected text. Two new core tests; Swift tests pass; release build passes; goldens unchanged. Live check with Keshab: the guard refused while the source line was selected, and Insert placed the draft at the cursor with the original line intact and nothing sent. See [contextual reply drafts](docs/contextual-reply-drafts.md).
 
 ## Current step — R3 first pass: context and cache from existing usage (2026-10-22)
 
-Existing usage rows show a fixed prefix of about 10.3k tokens. It is identical across chats and restarts. Follow-ups cache correctly, and cache misses come from the 1-hour TTL. The "16,700-token first turn" was a turn that reused a stopped attempt. Found and fixed one bookkeeping defect: after a resume, `dollars_sdk` counted the whole restored session. `session.open` now logs system-prompt and ATOM tool-schema byte sizes to attribute the prefix. Typecheck passes; no local tests ran, as requested. A live turn after restart confirms the fix and logs 3,164 system-prompt bytes and 17,721 ATOM tool-schema bytes: about 5.2k of the ~10.3k-token prefix is ATOM's own. Only about half the prefix is cached across chats. PR #1 and PR #2 are merged; PR #3 carries this work. Details are in the [plan](docs/sentient-parity-release-plan.md) under R3.
+Existing usage rows show a fixed prefix of about 10.3k tokens. It is identical across chats and restarts. Follow-ups cache correctly, and cache misses come from the 1-hour TTL. The "16,700-token first turn" was a turn that reused a stopped attempt. Found and fixed one bookkeeping defect: after a resume, `dollars_sdk` counted the whole restored session. `session.open` now logs system-prompt and ARK tool-schema byte sizes to attribute the prefix. Typecheck passes; no local tests ran, as requested. A live turn after restart confirms the fix and logs 3,164 system-prompt bytes and 17,721 ARK tool-schema bytes: about 5.2k of the ~10.3k-token prefix is ARK's own. Only about half the prefix is cached across chats. PR #1 and PR #2 are merged; PR #3 carries this work. Details are in the [plan](docs/sentient-parity-release-plan.md) under R3.
 
 ## Current capability — R2 long-chat continuity acceptance (2026-10-22, completed with two observations)
 
@@ -284,7 +284,7 @@ This is acceptance work only; no app source/build/automated-test change in this 
 
 ## Current capability — Native contextual reply workflow and activation fix (2026-10-22, completed batch)
 
-Exercised the signed running app with a fictional Cedar conversation in TextEdit. Keshab physically invokes Quick actions because automated Control–Option–K inserts a control character. Fixed the reopen handler to explicitly reveal the main window only when hasVisibleWindows is false, preserving an existing page/panel instead of forcing chat. Release build passes (41.18 seconds), existing ATOM Local Signing and strict codesign verification pass. Native checks cover hidden-window reopening, Board retention on repeated Open and actual access to the floating Quick actions/reply panels after rebuild.
+Exercised the signed running app with a fictional Cedar conversation in TextEdit. Keshab physically invokes Quick actions because automated Control–Option–K inserts a control character. Fixed the reopen handler to explicitly reveal the main window only when hasVisibleWindows is false, preserving an existing page/panel instead of forcing chat. Release build passes (41.18 seconds), existing ARK Local Signing and strict codesign verification pass. Native checks cover hidden-window reopening, Board retention on repeated Open and actual access to the floating Quick actions/reply panels after rebuild.
 
 The reply panel shows the active Opus 5.5 at Low effort while main-chat thinking stays Off. Empty-query opening selects no saved content. Explicit lookup for the removed unique fixture note returns no candidates. Edit intent/background and a fictional writing example, verify inclusion starts Off, opt in manually, and generate an actual isolated reply. Editing the output works; changed inputs show the stale-input notice. Copy stays in the panel and matches exactly when manually pasted into a separate blank TextEdit document; the original conversation is unchanged. Save both fictional TextEdit artifacts in the private acceptance folder and close their windows without deleting them.
 
@@ -308,7 +308,7 @@ Hosted run 39727840071 for a095a04 passes TypeScript/Swift but still fails compa
 
 ## Current capability — Signed restart and native backup acceptance (2026-10-22)
 
-Pushed the adaptation to origin/main as `4251304`, then replaced the repository app bundle with a release build signed by the existing ATOM Local Signing identity; strict signature verification passes. Fixed Launch Services reopen handling so opening the already-running menu-bar app reliably shows the full window and repeated Open does not toggle it closed. Background startup remains unchanged.
+Pushed the adaptation to origin/main as `4251304`, then replaced the repository app bundle with a release build signed by the existing ARK Local Signing identity; strict signature verification passes. Fixed Launch Services reopen handling so opening the already-running menu-bar app reliably shows the full window and repeated Open does not toggle it closed. Background startup remains unchanged.
 
 Native verification preserves the selected chat/messages, fictional unsent restart draft, Opus 5.5/Off/Saved permissions, Terminal selection/stopped shell, 379-pixel divider and empty Browser address. Restored the originally empty composer and hidden workspace. Exact hashes of all seven observed original history/access/reasoning/grant/navigation/project tables remain unchanged. This real baseline contains no exact-file grant; do not confuse it with automated Full access/grant/revoke fixtures.
 
@@ -385,7 +385,7 @@ Pushed completed computer readiness, research and adoption plan to origin/main a
 
 Implemented the next scoped pilot: Second brain → Sources previews one checked ordinary UTF-8 Markdown/text folder before explicit import. Manual edit-aware refresh uses the existing notes, FTS/search, tags, wikilinks and autolinks. Persist only source provenance/identity/hashes/exclusions alongside existing content; preserve whitespace and avoid title collisions. Local corrections survive refresh; changed-source conflicts/missing copies are labeled. Use file version requires confirmation and a fresh scan. Delete excludes the imported path; confirmed source removal deletes its copies including corrections, never the originals. Preview cancellation/expiry/replacement, folder changes, bounded no-follow reads and atomic publication are implemented. Existing chat archives, exact-file grants, access choices and source files are not rewritten. Imported brain reads and explicit note attachments have source/data markers and feed checked Claude/Codex external-content safeguards. No model source configuration endpoint or automatic folder grant. [Scope/limits](docs/personal-notes-source.md).
 
-TypeScript typecheck and final Swift release compilation pass, with existing SwiftPM native-engine/implicit-capture warnings. Static diff/whitespace review completed. Unit/integration/security/migration/live-model/UI/gallery checks are deliberately deferred; this is compiled implementation, not acceptance-certified or installed. No real notes folder, model request, private app source or account was used. The running app/window/Browser page, chats/drafts/grants and pane preference were not touched; the compiled binary was not copied into ATOM.app or launched. Current source changes remain local/uncommitted on main; graphify-out remains unrelated and untouched.
+TypeScript typecheck and final Swift release compilation pass, with existing SwiftPM native-engine/implicit-capture warnings. Static diff/whitespace review completed. Unit/integration/security/migration/live-model/UI/gallery checks are deliberately deferred; this is compiled implementation, not acceptance-certified or installed. No real notes folder, model request, private app source or account was used. The running app/window/Browser page, chats/drafts/grants and pane preference were not touched; the compiled binary was not copied into ARK.app or launched. Current source changes remain local/uncommitted on main; graphify-out remains unrelated and untouched.
 
 This pilot does not deliver PDF/Word/image readers, protected application databases, hosted/OAuth source adapters, model knowledge consolidation or portable two-way Markdown publication. Remote models remain primary; local general inference stays a later optional backup. The prior Terminal compact-Browser visual CI mismatch remains in the end-of-plan gate. Next scoped adoption capability: contextual unsent reply drafts extending Quick actions, with selected context and editable opt-in writing examples through Gateway. Stop after this capability.
 
@@ -394,27 +394,27 @@ This pilot does not deliver PDF/Word/image readers, protected application databa
 
 Keshab authorized adapting Sentient's useful advantages, upgrading existing equivalents and asking only about actual conflicts with a recommendation. Saved the [seven-capability sequence and complete 33-feature mapping](docs/sentient-adoption-plan.md). Remote Gateway models stay primary; general local inference is a future optional fallback/backup. No general model/runtime installation, Sentient source/assets reuse, cloud mirror, automatic sends or permission widening.
 
-Implemented the first capability in the existing computer tool: explicit content-free `status`, startup/probe/call timing, paginated method validation, per-process pending state, active-call-safe idle lifetime, bounded retirement of only ATOM's owned helper, and generation-checked input after approval waits. Failed fresh observations, stale tokens and transport failures discard the old target. No uncertain action is replayed by the transport. A status probe does not certify macOS permissions. [Behavior and evidence](docs/computer-readiness.md).
+Implemented the first capability in the existing computer tool: explicit content-free `status`, startup/probe/call timing, paginated method validation, per-process pending state, active-call-safe idle lifetime, bounded retirement of only ARK's owned helper, and generation-checked input after approval waits. Failed fresh observations, stale tokens and transport failures discard the old target. No uncertain action is replayed by the transport. A status probe does not certify macOS permissions. [Behavior and evidence](docs/computer-readiness.md).
 
 Typecheck passes; full TypeScript regression passes 1,167 tests with eight normal live opt-in skips. Final focused 173 computer/transport/screenshot/host-policy checks pass after retaining a healthy replacement when rejecting old tokens. Installed Cua protocol-only sample: 141 ms initialization + 4 ms cold probe; 2 ms warm probe. No desktop content read, input injected or model request made. Swift/UI sources and protocol are unchanged, so no native rebuild/gallery run is required for this host-only capability. The running host was not restarted or hot-patched; it loads the checkout sources on next runtime launch. Live chats, drafts, grants, Browser page and pane preference were not touched. Changes are local and uncommitted; unrelated graphify-out remains untouched.
 
 The prior Terminal push f63b00a has green TypeScript/Swift CI, but its visual job failed on 38-workspace-browser-compact.png at 1.308% changed pixels (run 39616156486). This is an outstanding pre-existing visual-baseline investigation, not certified fixed by the host tests; no reference or tolerance was changed here. Next adoption capability: explicitly selected ordinary notes-folder ingestion into Second brain with provenance, edit-aware freshness and removal/correction. Native helper migration, app-owned permission/input health checks and protected personal sources are not delivered by this first probe. Stop after this capability.
 
 
-## Current inquiry — Sentient OS features and ATOM comparison (2026-10-21)
+## Current inquiry — Sentient OS features and ARK comparison (2026-10-21)
 
 Pushed the completed Terminal capability to main as `f63b00a` at Keshab’s request; verified the remote SHA. Then completed a source/documentation inquiry of Sentient OS at `16e871ad43c19ca8b26ed36daf66baaa44e886e5` (main, 19 October), plus current release 2.5, website and selected issue reports. [Saved 33-feature inventory, overlap matrix, local-model/speed analysis, limitations and candidate priorities](docs/sentient-os-feature-inquiry.md).
 
-Finding: Sentient is further developed in opt-in personal-source ingestion, automatic linked Markdown knowledge, contextual writing-style drafts, read-only proactive preparation and overnight analysis. ATOM has more explicit multi-chat/project/worker controls, checked access, task checkpoints/Undo, Git/workspace surfaces and Telegram task interaction. The bundled 3.66 GB Gemma reader is not the default computer-use model; frontier computer use and Double Tap have distinct providers. Native OpenAI helper integration, low-effort defaults, prewarming, direct draft API and screenshot/context handling are useful architectural candidates, not a measured speed win. No current same-model/hardware/task token/latency comparison was run. Current open failure reports are attributed reports, not reproduced defect rates.
+Finding: Sentient is further developed in opt-in personal-source ingestion, automatic linked Markdown knowledge, contextual writing-style drafts, read-only proactive preparation and overnight analysis. ARK has more explicit multi-chat/project/worker controls, checked access, task checkpoints/Undo, Git/workspace surfaces and Telegram task interaction. The bundled 3.66 GB Gemma reader is not the default computer-use model; frontier computer use and Double Tap have distinct providers. Native OpenAI helper integration, low-effort defaults, prewarming, direct draft API and screenshot/context handling are useful architectural candidates, not a measured speed win. No current same-model/hardware/task token/latency comparison was run. Current open failure reports are attributed reports, not reproduced defect rates.
 
-Research only: no Sentient app/model/helper/script was installed or executed, no account/source data was connected, no code/assets were copied and no new ATOM product feature was started. Candidate priorities are not approved implementation work; pause PR/Device expansion pending Keshab’s next choice. Preserve the live Cedar Browser page, pane preference, current chats/drafts/grants and the notebook’s Full access choice. Unrelated graphify-out is untouched. Research notes remain local after the requested Terminal push.
+Research only: no Sentient app/model/helper/script was installed or executed, no account/source data was connected, no code/assets were copied and no new ARK product feature was started. Candidate priorities are not approved implementation work; pause PR/Device expansion pending Keshab’s next choice. Preserve the live Cedar Browser page, pane preference, current chats/drafts/grants and the notebook’s Full access choice. Unrelated graphify-out is untouched. Research notes remain local after the requested Terminal push.
 
 
 ## Current capability — Terminal workspace surface (2026-10-21, ADR-186)
 
 Published the completed Browser capability and acceptance notes to main as `3c25835` before starting this work, at Keshab’s request. All GitHub Swift, TypeScript and visual jobs passed (run 39610971376).
 
-Implemented an explicit user-operated Terminal beside active project chats, using pinned MIT SwiftTerm 1.19.0 for native VT rendering and an owned testable PTY transport. Start rechecks the project root, shows normal-Mac-user scope and skips inherited app credentials/user shell startup files; it is not a project sandbox or an agent action/Undo path. Stop/surface exit/window closure/scope/runtime/quit end the shell’s ordinary session jobs and reap the exact child. No agent endpoint, automatic model context, permission/schema change or terminal disk transcript. Existing computer policy continues to refuse ATOM’s own app identity. Compact panes use a surface menu; Option–Command–5 selects Terminal. [Scope, dependency review and limitations](docs/workspace-terminal.md).
+Implemented an explicit user-operated Terminal beside active project chats, using pinned MIT SwiftTerm 1.19.0 for native VT rendering and an owned testable PTY transport. Start rechecks the project root, shows normal-Mac-user scope and skips inherited app credentials/user shell startup files; it is not a project sandbox or an agent action/Undo path. Stop/surface exit/window closure/scope/runtime/quit end the shell’s ordinary session jobs and reap the exact child. No agent endpoint, automatic model context, permission/schema change or terminal disk transcript. Existing computer policy continues to refuse ARK’s own app identity. Compact panes use a surface menu; Option–Command–5 selects Terminal. [Scope, dependency review and limitations](docs/workspace-terminal.md).
 
 781 Swift tests / 146 suites pass, including six new real PTY checks. Final focused 20 workspace checks pass after native focus/Accessibility corrections. The 26 existing computer-policy tests pass, including the own-app refusal. Final locally signed release build, strict signature verification, shell syntax checks and 108 gallery scenes / all 40 visual comparisons pass. Reviewed the added chooser entry, wide/compact layouts and three new Terminal references. Initial live native Start, real printf/pwd/stty, resize, Ctrl–C and draft isolation passed. Fixed two live findings: focus after Start and readable Accessibility output. Final native acceptance passed after the user opened the corrected window: Start immediately focuses the readable AX terminal, harmless printf/stty output and Return remain outside the chat draft, explicit Stop works, Start again creates a clean buffer, pane close/reopen and surface switching leave the shell stopped, and changing to the movie chat/back removes the old terminal buffer entirely. Restart also retained the exact fictional draft and per-chat model/thinking/access state. Cleared only “Cedar terminal check — unsent.” and restored the user’s newly opened https://chat.sudoproject.tech/ Browser page in Cedar Workspace Check / Opus 5.5 / Off / Saved permissions / empty composer and search / Ready. Preserved the user’s new 391-pixel pane preference and larger window. Original movie history and the notebook’s confirmed Full access remain unchanged. No model request or file edit was issued. Terminal changes remain local/uncommitted; graphify-out remains untouched. Stop after this capability; PR and Device panes remain independent integrations.
 
@@ -428,9 +428,9 @@ Implemented and compiled. All 775 Swift checks / 145 suites pass; final signed b
 
 ## Project source live acceptance — 2026-10-21
 
-Published ADR-183/184 as e2f44a7 on main. Completed real native New project creation and GitHub owner/repository import using two dedicated fixtures under ~/Documents/ATOM-source-check-wx35r21p: Cedar Source Check (created, project p-dc580aa8, helper cedar-source-coder) and Cedar Import Check (imported, project p-a9ff5b62, helper cedar-import-coder). Creation initialized an actual empty Git repository; import cloned octocat/Hello-World, retained its public HTTPS origin and produced the expected Hello World README with clean Git status. Both UI operations confirmed success and left the existing movie chat unchanged. No model prompt was sent.
+Published ADR-183/184 as e2f44a7 on main. Completed real native New project creation and GitHub owner/repository import using two dedicated fixtures under ~/Documents/ARK-source-check-wx35r21p: Cedar Source Check (created, project p-dc580aa8, helper cedar-source-coder) and Cedar Import Check (imported, project p-a9ff5b62, helper cedar-import-coder). Creation initialized an actual empty Git repository; import cloned octocat/Hello-World, retained its public HTTPS origin and produced the expected Hello World README with clean Git status. Both UI operations confirmed success and left the existing movie chat unchanged. No model prompt was sent.
 
-Up/Down/Return source navigation passed. After a normal quit/relaunch, both projects and the selected import filter persisted; the movie transcript, Haiku 5.5 / Off / Saved permissions and exact fictional unsent draft survived. Cleared only the test draft. The single New chat then opened Cedar Import Check / New chat, and the Files pane listed and previewed the real imported README. Closed the pane and restored the movie chat with empty composer. Native project-popover synthetic Return dismissed without changing scope; Keshab physically clicked its search, pressed Down/Return and confirmed Cedar Source Check selected with the movie chat retained. The resulting project selection was verified in Accessibility. After explicit cleanup consent, removed only the two empty fixture projects using Remove project, keep chats and their generated agents through the native team controls. Verified both project IDs and agent folder grants are absent; agent configuration follows the existing recoverable agents-removed flow. Moved the dedicated fixture directory to ~/.Trash/ATOM-source-check-wx35r21p and verified the imported README remains recoverable there. Selected-project removal returned the filter to All projects. Restored the original movie chat / Haiku 5.5 / Off / Saved permissions / empty search and composer / closed workspace / Ready. Existing project/chat data and the notebook’s confirmed Full access choice were not changed. All GitHub TypeScript, Swift and visual jobs for e2f44a7 passed (run 39588428298). No production source or permission policy changed and no build/regression suite needed rerunning for this acceptance-only pass. The remaining project source create/import/restart/keyboard acceptance step is complete within the public-HTTPS scope. Next separate capability: Browser in the right pane.
+Up/Down/Return source navigation passed. After a normal quit/relaunch, both projects and the selected import filter persisted; the movie transcript, Haiku 5.5 / Off / Saved permissions and exact fictional unsent draft survived. Cleared only the test draft. The single New chat then opened Cedar Import Check / New chat, and the Files pane listed and previewed the real imported README. Closed the pane and restored the movie chat with empty composer. Native project-popover synthetic Return dismissed without changing scope; Keshab physically clicked its search, pressed Down/Return and confirmed Cedar Source Check selected with the movie chat retained. The resulting project selection was verified in Accessibility. After explicit cleanup consent, removed only the two empty fixture projects using Remove project, keep chats and their generated agents through the native team controls. Verified both project IDs and agent folder grants are absent; agent configuration follows the existing recoverable agents-removed flow. Moved the dedicated fixture directory to ~/.Trash/ARK-source-check-wx35r21p and verified the imported README remains recoverable there. Selected-project removal returned the filter to All projects. Restored the original movie chat / Haiku 5.5 / Off / Saved permissions / empty search and composer / closed workspace / Ready. Existing project/chat data and the notebook’s confirmed Full access choice were not changed. All GitHub TypeScript, Swift and visual jobs for e2f44a7 passed (run 39588428298). No production source or permission policy changed and no build/regression suite needed rerunning for this acceptance-only pass. The remaining project source create/import/restart/keyboard acceptance step is complete within the public-HTTPS scope. Next separate capability: Browser in the right pane.
 
 
 ## Current capability — Project sources and simpler sidebar (2026-10-21, ADR-184)
@@ -476,11 +476,11 @@ Fixed all seven desktop theme palettes, removed Design system from user Settings
 
 ## Completed optimization — Measured Codex chat startup (2026-10-19)
 
-Added setup stages, first-model-text timing, context sizes, restart reasons and raw usage counters. Effective configuration discovery replaces the slow pre-thread MCP connection inventory; final policy verification remains. Thread-only overrides remove 64 inherited standalone Codex skills while preserving ATOM tools/instructions and global settings. First-turn input fell from about 16.7K to 11.6K tokens. Instrumented baseline first text was 8.19 s; final median across three fresh chats was 5.34 s (4.43–6.73 s). Typecheck and 55 targeted protocol/history/grant/cancellation/timing checks pass. Twelve live responses and two word-position failures are retained; direct recall and old saved-history reopening pass. Original zero-cache cause remains unproven; all four final follow-ups reused the session and reported cached input. [Full evidence and limits](docs/chat-startup-performance.md). Stop after this measured capability.
+Added setup stages, first-model-text timing, context sizes, restart reasons and raw usage counters. Effective configuration discovery replaces the slow pre-thread MCP connection inventory; final policy verification remains. Thread-only overrides remove 64 inherited standalone Codex skills while preserving ARK tools/instructions and global settings. First-turn input fell from about 16.7K to 11.6K tokens. Instrumented baseline first text was 8.19 s; final median across three fresh chats was 5.34 s (4.43–6.73 s). Typecheck and 55 targeted protocol/history/grant/cancellation/timing checks pass. Twelve live responses and two word-position failures are retained; direct recall and old saved-history reopening pass. Original zero-cache cause remains unproven; all four final follow-ups reused the session and reported cached input. [Full evidence and limits](docs/chat-startup-performance.md). Stop after this measured capability.
 
-## Completed measurement — ATOM vs Codex desktop (2026-10-19)
+## Completed measurement — ARK vs Codex desktop (2026-10-19)
 
-Ran three fresh chats per app, two matching fictional prompts each, using GPT-6 Luna at Low effort. All 12 responses passed the supplied format, recall and arithmetic checks without tools. ATOM used 52.2% fewer total input tokens and 16.2% less estimated Standard API-equivalent cost; Codex completed fresh-chat responses faster. Cache behavior, timing boundaries and the excluded initial quota failure are documented in [the benchmark report](.ecc/benchmarks/atom-vs-codex-2026-10-19.md). No app source change, rebuild or regression suite in this measurement. Suggested next task: instrument fresh-chat setup/first-text timing and investigate cache stability; implementation has not started.
+Ran three fresh chats per app, two matching fictional prompts each, using GPT-6 Luna at Low effort. All 12 responses passed the supplied format, recall and arithmetic checks without tools. ARK used 52.2% fewer total input tokens and 16.2% less estimated Standard API-equivalent cost; Codex completed fresh-chat responses faster. Cache behavior, timing boundaries and the excluded initial quota failure are documented in [the benchmark report](.ecc/benchmarks/ark-vs-codex-2026-10-19.md). No app source change, rebuild or regression suite in this measurement. Suggested next task: instrument fresh-chat setup/first-text timing and investigate cache stability; implementation has not started.
 
 ## Current task — Searchable chat model picker (ADR-178, 2026-10-19)
 
@@ -502,7 +502,7 @@ Keshab authorized broader adoption of T3 Code's design, including replacement of
 
 ## Current task — T3 Code chat visual design (ADR-175, 2026-10-19)
 
-Keshab explicitly asked to copy the visuals/design from pingdotgg/t3code because ATOM's chat still felt unusual. Inspected a fresh source snapshot `1451e7cb23034d29774338608368a15d8845df36` and the installed T3 Code app's draft/populated conversation. Adapted its neutral light/dark surfaces, compact breadcrumb header, 46rem reading column, natural-width 80% user bubbles, readable uniform replies, hover/focus actions and roomy composer with bottom controls. Empty chat centers the heading and the same composer. ATOM branding, model/skills/files/voice, queues, approvals, recovery and existing input/grant policies remain intact. Upstream MIT notice is retained and included in the signed app.
+Keshab explicitly asked to copy the visuals/design from pingdotgg/t3code because ARK's chat still felt unusual. Inspected a fresh source snapshot `1451e7cb23034d29774338608368a15d8845df36` and the installed T3 Code app's draft/populated conversation. Adapted its neutral light/dark surfaces, compact breadcrumb header, 46rem reading column, natural-width 80% user bubbles, readable uniform replies, hover/focus actions and roomy composer with bottom controls. Empty chat centers the heading and the same composer. ARK branding, model/skills/files/voice, queues, approvals, recovery and existing input/grant policies remain intact. Upstream MIT notice is retained and included in the signed app.
 
 Verification: 745 Swift tests / 137 suites pass, signed builds pass and the 83-scene gallery / 17 visual comparisons pass. Live draft input, Japanese multiline text, cross-chat draft retention, model menu and hidden message-menu controls passed; test text was not sent and was cleared. Final polished build/gallery passed; live empty chat centers the same composer. The original chat/sidebar were restored with an empty composer and the app left Ready. Evidence is in [chat design](docs/chat-t3-design.md). Changes remain local and uncommitted/unpushed with ADR-174; the last published main commit is 818b644. Unrelated `graphify-out/` is untouched. Stop after this requested visual outcome; remaining Git roadmap items are separate.
 
@@ -575,7 +575,7 @@ Fixed native file-review answers dropping their review token, updated three stal
 Local verification: TypeScript checking; 1,071 TypeScript tests passed / 8 normal opt-in skips; 736 Swift tests passed; release compilation; two signed-in Codex checks passed for own-chat archive retrieval after reopening and later checked edits reusing an explicit file grant. New real-filesystem/SQLite/native-approval checks exercise complete review, Apply, Undo after storage reopen, conflict preservation, missing undo storage, Stop/late approval, stale tokens and review bounds. These integration checks are not a claim of clicking the rich review card in the live app. The rebuilt signed app reached Ready, reopened the fictional Juniper chat and recalled Friday/riverstone. A real Stop returned Ready and recorded Stopped; Recovery restored only an unsent draft, then the fixture draft was cleared. Remote CI remains a separate release gate for the published revision. No new upgrade capability or broad acceptance of ADR-141–167 is claimed. Unrelated `graphify-out/` remains untouched. [Baseline evidence and limits](docs/release-baseline.md).
 
 
-Publication checkpoint (2026-10-18, ADR-167): Keshab requested pushing the native file-review batch and restarting ATOM. This publishes the reviewed implementation on main; batch-local/uncommitted and installed-app notes below describe implementation-time state. TypeScript/diff checks and Swift release compilation passed. Rebuild/restart follows this push; tests and known CI repairs remain skipped. No apply/Undo/live acceptance is claimed. Unrelated graphify-out stays local.
+Publication checkpoint (2026-10-18, ADR-167): Keshab requested pushing the native file-review batch and restarting ARK. This publishes the reviewed implementation on main; batch-local/uncommitted and installed-app notes below describe implementation-time state. TypeScript/diff checks and Swift release compilation passed. Rebuild/restart follows this push; tests and known CI repairs remain skipped. No apply/Undo/live acceptance is claimed. Unrelated graphify-out stays local.
 
 Publication checkpoint (2026-10-18, ADR-160–166): Keshab requested pushing the accumulated worker-model, inspection, MCP, browser, advisory-child, disposable-preview and reviewed-edit upgrades on main before continuing. Per-batch local/uncommitted notes below describe their implementation-time state. TypeScript/diff checks pass; earlier Swift release compilation is recorded in the relevant batches. No new tests, migrations, adapter/provider/apply/Undo execution, app launch or installation. Known CI repairs remain deferred; unrelated graphify-out stays local.
 
@@ -586,7 +586,7 @@ Keshab requested push and continuation. Published accumulated ADR-160–166 as a
 - Native before/after review for an existing preview input: 32 KiB / 1,000 combined lines, complete absolute target and full literal source tabs plus existing computed diff. Oversized reviews refuse, not truncate. Work-strip Review changes opens Board → Needs you; Apply waits for diff preparation/current request.
 - Optional private approval fileReview payload and matching reviewToken answer. Fresh request/token binding in native state/model and host bridge refuses generic/old-client/Telegram Allow. Telegram/API needs summaries omit bodies/token and offer Decline only; no automatic fallback after native review refusal. Hosts lacking the optional capability keep the existing bounded small card.
 - Existing source receipt/Read/Write/plan/Stop/required checkpoint/target hold and guarded Undo semantics remain authoritative. No generated-file import, new/deleted files, multi-file apply or new database migration.
-- TypeScript checking, static source/security/diff review and Swift release compilation pass (48.16 seconds; /tmp/atom-file-review-release-final.log). No tests added/run, app/gallery/live UI/accessibility checks, migration, checkpoint/apply/Undo or adapter/provider execution. Installed app unchanged; ADR-167 local/uncommitted/unpushed on main after a3e4363. CI repairs deferred; graphify-out preserved.
+- TypeScript checking, static source/security/diff review and Swift release compilation pass (48.16 seconds; /tmp/ark-file-review-release-final.log). No tests added/run, app/gallery/live UI/accessibility checks, migration, checkpoint/apply/Undo or adapter/provider execution. Installed app unchanged; ADR-167 local/uncommitted/unpushed on main after a3e4363. CI repairs deferred; graphify-out preserved.
 - Stop after this scope. Next independent scope: generated-file proposal capture design with sandboxed content transport, fresh source checks and required undo. [Behavior and limits](docs/codex-native-file-review.md).
 
 ## Previous batch: reviewed preview-input edits (2026-10-18, ADR-166)
@@ -726,7 +726,7 @@ Keshab explicitly requested a few upgrades in one batch; this delivers the final
 Keshab explicitly requested a few upgrades in one batch, overriding the usual one-capability limit for these three related items. Tests/live checks remain skipped by request.
 
 - B2 / ADR-149: Command–V removes a narrow set of invisible/bidi controls with a count notice. Emoji joiners/non-joiners, variation selectors, tagged flag clusters and ordinary language text are preserved. Marked IME text bypasses interception. Before composer submission, other paste/input routes get cleanup plus a required second send after review. This is display cleanup, not an authorization or prompt-injection boundary.
-- B6 / ADR-150: a cleaned Command–V paste of at least 4,000 characters, or one that would exceed the editor's limit after replacing its selection, becomes a private durable UTF-8 .txt attachment (10 MiB maximum). Existing text/selection and clipboard stay unchanged. Full attachment slots, storage failures and project chats refuse conversion with visible guidance. Files live under Application Support/ATOM/PastedText, are not auto-deleted and use existing attachment checks on explicit send.
+- B6 / ADR-150: a cleaned Command–V paste of at least 4,000 characters, or one that would exceed the editor's limit after replacing its selection, becomes a private durable UTF-8 .txt attachment (10 MiB maximum). Existing text/selection and clipboard stay unchanged. Full attachment slots, storage failures and project chats refuse conversion with visible guidance. Files live under Application Support/ARK/PastedText, are not auto-deleted and use existing attachment checks on explicit send.
 - R4 / ADR-151: finished replies have Reply to this, adding a bounded Markdown quote after the existing draft and requesting composer focus. Existing attachments/queued messages are untouched. A quote that exceeds 4,000 total characters refuses without trimming; read-only chats and stale/streaming turns cannot quote. No arbitrary-selection toolbar or dedicated quote chips.
 - Release compilation/static diff review only. No tests added/run; gallery, app launch, live clipboard, Undo, IME, keyboard and VoiceOver checks skipped. Historical totals do not validate ADR-141–151; installed app unchanged. No runtime/protocol/schema/dependency/provider/permission change. All work remains local/uncommitted on `main`; earlier changes and `graphify-out/` preserved.
 - Stop after this batch. Three of 16 primary chat items remain: Find in chat (R2), project-path links (R3), project-file @ search (R5). Selection/segmented-editor experiments and broader roadmap work remain separate. [Behavior and limits](docs/chat-paste-and-quoting.md).
@@ -772,7 +772,7 @@ Keshab explicitly requested a few upgrades in one batch, overriding the usual on
 
 - Added persistent Copy code and Copy table controls. Code copies the displayed body without fences. Tables offer Markdown plus rich HTML (default), TSV and CSV. Clipboard item preparation precedes replacement; checked write results drive brief Copied/Copy failed feedback and a generic accessibility announcement.
 - Pure Core serialization retains table alignment, handles escaped pipes, normalizes Markdown cell line breaks and quotes delimiter/quote/newline cells in CSV/TSV. TSV also publishes the native tabular-text flavor. Table exports include headers and preserve the parsed row width.
-- Finished whole-reply Copy now stays in the layout rather than appearing only on hover. Native controls and named accessibility copy actions are exposed; groups identify You said / ATOM said / Code block / Table. Block controls are disabled until the reply settles; failure replies can copy their received text. Timing text shares the footer instead of overlapping it.
+- Finished whole-reply Copy now stays in the layout rather than appearing only on hover. Native controls and named accessibility copy actions are exposed; groups identify You said / ARK said / Code block / Table. Block controls are disabled until the reply settles; failure replies can copy their received text. Timing text shares the footer instead of overlapping it.
 - Tests, gallery, app launch, clipboard pasting and keyboard/VoiceOver acceptance were skipped at Keshab's request. One existing parser expectation was updated for alignment metadata, but was not compiled/run. Release compilation and static diff review only; prior test/gallery totals do not validate ADR-141–143. Installed app unchanged.
 - No backend/wire/schema/dependency/provider/permission change. Earlier work and `graphify-out/` preserved; local/uncommitted on `main`. This delivers saved plan C1/C3 as one block-copy capability; fuller Markdown, scroll-following and long-message collapse remain separate. Next: reply copy formats, user-message Copy and a window-scoped Copy last reply shortcut (C2). [Details](docs/chat-copying.md).
 
@@ -812,11 +812,11 @@ Keshab explicitly requested a few upgrades in one batch, overriding the usual on
 - Fresh actual-app retest: #26 saved the first fictional file, then backend fault injection occurred at the second approval. The supervisor recovered the unknown outcome and original checkpoint. Review → Retry created #27 on Codex, skipped the first file (identical content and modification time), asked separately for the remaining file and completed its save/report. One linked child; both file-change panels checked. After a further real quit/relaunch, Ready/zero active work and the original/completed retry link persisted with no new child or file changes. Fictional files/records retained. Codex Tool calls currently shows zero entries; a stopped Claude approval remained until declined. Recorded these limitations for separate follow-up.
 - Broader recovery remains partial: no per-operation exactly-once effects, durable main-chat turn journal, automatic unknown-write reconciliation or provider-limit/reset scheduling. Task-status/stopped-approval cleanup is now delivered by ADR-140. Next is durable chat input (draft/queue recovery), with broader turn recovery tracked separately. No next feature started. [Behavior, migration and evidence](docs/task-recovery.md).
 
-Renamed ZENO -> ATOM on 2026-10-13; entries below keep the name they were written under.
+The product was called ZENO until 2026-10-13 (ADR-105) and ATOM until 2026-11-01 (ADR-213). Entries below now use the name ARK.
 
 ## Prime Rule
 
-> Build ZENO one capability at a time.
+> Build ARK one capability at a time.
 
 The existence of a large architecture does not mean the entire architecture should be implemented now.
 
@@ -852,16 +852,16 @@ Do not automatically continue to another task.
 
 Phase 0 (Voice Foundation) is complete. Its task history is in `docs/phase-0-tasks.md`.
 
-Phase 0.5 gives ZENO a permanent place on the Mac (ADR-033 to ADR-042):
+Phase 0.5 gives ARK a permanent place on the Mac (ADR-033 to ADR-042):
 
 ```text
 shortcuts (any app, changeable)   pointer at left edge
             ↓                              ↓
-      ZENO Island (Swift app, apps/mac/island)
+      ARK Island (Swift app, apps/mac/island)
             ↓  commands        ↑  events
       stdin / stdout, JSON lines (docs/island-protocol.md)
             ↓                  ↑
-      ZENO runtime (Node, apps/mac/src — Phase 0, unchanged)
+      ARK runtime (Node, apps/mac/src — Phase 0, unchanged)
       Microphone → Whisper → Core → LLM Gateway → LLM → Kokoro → Speaker
 ```
 
@@ -879,12 +879,12 @@ The system must support:
 - the transcript and reply shown in the panel
 - an expanded view with the current conversation ("new conversation"), status details, and settings
 - settings in the island: AI provider and model, every shortcut, pet, sounds (ADR-040)
-- a pet that walks along the bottom of the screen and reacts to ZENO (ADR-042)
+- a pet that walks along the bottom of the screen and reacts to ARK (ADR-042)
 - clear guidance when a permission (microphone, Input Monitoring, Accessibility) is missing
 - the island starting, restarting and stopping the runtime
 - the terminal interface (`pnpm start`) still working
 
-Done means: with the terminal closed, the user can hold the talk shortcut in another app, ask a question, see the status and reply in the island, and hear ZENO answer; dictate into another app; and change shortcuts and the model from the island.
+Done means: with the terminal closed, the user can hold the talk shortcut in another app, ask a question, see the status and reply in the island, and hear ARK answer; dictate into another app; and change shortcuts and the model from the island.
 
 ---
 
@@ -908,7 +908,7 @@ Do not implement these during Phase 0.5 unless a task explicitly requires them:
 
 ### Task 0.5.1 — Move the Project Out of iCloud
 
-Move the repository from `~/Documents/zeno` to `~/Developer/zeno`.
+Move the repository from `~/Documents/ark` to `~/Developer/zeno`.
 
 `~/Documents` is synced by iCloud. With iCloud storage full, macOS replaced about 6,000 project files with online-only placeholders, which froze git and the type check (Task 0.11). A native app build adds many more small files.
 
@@ -930,7 +930,7 @@ Status: **Done (2026-10-02).**
 - `pnpm start` launches, loads the voice in 0.4 s, quits cleanly; the log now writes to `~/Developer/zeno/logs/`
 - Nothing outside the project referred to the old path
 
-Remaining for the user: open the new folder in editors and terminals, then delete `~/Documents/zeno`.
+Remaining for the user: open the new folder in editors and terminals, then delete `~/Documents/ark`.
 
 ---
 
@@ -959,7 +959,7 @@ Status: **Done (2026-10-02).**
 - Tests: 137 (135 pass, 2 live skipped): 10 protocol, 15 island-mode with fake parts over the real wire format, 3 new smoke tests that start the real program in island mode (config error → exit 78, stdout only events, SIGTERM exits cleanly)
 - Live, driven by a script through stdin / stdout with the real microphone, Whisper, Gemini and Kokoro: a full turn (`ready` 0.75 s after start, transcription 0.9 s, first sound 1.2 s after the reply); interrupting mid-reply with `talk.start`; cancel; reset; quit with exit 0. The log contained timings only, no words
 
-Note: `gemini-3.6-flash` had used its free daily quota, so the live turns used `gemini-3.5-flash-lite` (`ZENO_LLM_MODEL`), which took 5.7–11.6 s to reply. The 429 error itself arrived correctly as `{"stage":"model","kind":"rate_limit","retryable":true}`.
+Note: `gemini-3.6-flash` had used its free daily quota, so the live turns used `gemini-3.5-flash-lite` (`ARK_LLM_MODEL`), which took 5.7–11.6 s to reply. The 429 error itself arrived correctly as `{"stage":"model","kind":"rate_limit","retryable":true}`.
 
 ---
 
@@ -968,7 +968,7 @@ Note: `gemini-3.6-flash` had used its free daily quota, so the live turns used `
 Create the Swift app in `apps/mac/island/` (Swift Package, macOS 14+).
 
 - Runs as a background app: no Dock icon, no main window
-- Builds into `ZENO.app` with a script, including `Info.plist` with the microphone usage description
+- Builds into `ARK.app` with a script, including `Info.plist` with the microphone usage description
 - Starts the runtime as a child process, reads its events, sends it commands
 - Restarts the runtime if it exits unexpectedly (with backoff); stops it on quit
 - Finds `node` and the project folder reliably (Homebrew path, `.env` location)
@@ -976,11 +976,11 @@ Create the Swift app in `apps/mac/island/` (Swift Package, macOS 14+).
 
 Tests: Swift unit tests for the event decoder and the restart policy.
 
-Verification: launching `ZENO.app` starts the runtime (seen in `logs/zeno.log`); quitting stops it.
+Verification: launching `ARK.app` starts the runtime (seen in `logs/ark.log`); quitting stops it.
 
 Result:
 
-- `apps/mac/island/`: Swift package with `ZenoIslandCore` (protocol, line splitting, restart policy, Node/project lookup, supervisor, log) and the `ZenoIsland` app. `pnpm island:build` makes `apps/mac/island/build/ZENO.app` (344 KB, ad hoc signed, `LSUIElement`), recording the project folder and Node path; `pnpm island:test` runs 33 Swift tests, including the supervisor against real child processes
+- `apps/mac/island/`: Swift package with `ArkIslandCore` (protocol, line splitting, restart policy, Node/project lookup, supervisor, log) and the `ArkIsland` app. `pnpm island:build` makes `apps/mac/island/build/ARK.app` (344 KB, ad hoc signed, `LSUIElement`), recording the project folder and Node path; `pnpm island:test` runs 33 Swift tests, including the supervisor against real child processes
 - Launched with `open`: background app, no Dock icon; runtime started as its child and ready in 0.6–1.1 s
 - Runtime killed: restarted after 1 s, ready again in 1.7 s. Restarts back off 1 → 2 → 5 → 10 → 30 s and stop after 5 quick failures; a configuration error (exit 78) is shown in an alert and not restarted
 - Quit, SIGTERM and SIGINT stop the runtime and its voice worker in 0.1–0.3 s; force-killing the app ends the runtime too (it exits when its input closes). A second launch defers to the running one
@@ -995,7 +995,7 @@ The first version of the island window, at the top-centre (ADR-036). Kept here a
 
 Result:
 
-- `IslandGeometry` (frames and hover zones), `HoverController` (reveal and hide timing, no timers inside, so it is unit-tested with plain numbers) and `IslandStatus` (the pill's one line) in `ZenoIslandCore`; `IslandPanel` and `IslandController` in the app
+- `IslandGeometry` (frames and hover zones), `HoverController` (reveal and hide timing, no timers inside, so it is unit-tested with plain numbers) and `IslandStatus` (the pill's one line) in `ArkIslandCore`; `IslandPanel` and `IslandController` in the app
 - Verified on the Mac mini by moving the real pointer and reading the window server's window list: hidden at idle; shown 0.25 s after resting at the edge; stays while over it; hides 0.5 s after leaving; no reveal when passing quickly or away from the strip; clicking it leaves the front app in front; works over a full-screen app's Space
 - Cost: no CPU while the pointer is still; about 2 % of one core while it moves constantly; 33–41 MB
 - `pnpm island:test` passes the swift-testing plugin path explicitly: with only the Command Line Tools, SwiftPM otherwise fails to rebuild changed test files ("plugin for module 'TestingMacros' not found")
@@ -1010,8 +1010,8 @@ Move the island to the left edge below the menu bar and give the compact view it
 
 - Placement: hidden past the left edge of the main display; hover band at the left edge just below the menu bar; slides in from the left; never covers the menu bar
 - Look: dark glass (system glass material on macOS 26+, dark blur otherwise), rounded corners, soft shadow
-- Compact view: ZENO's live state with an icon and a microphone level meter driven by `mic.level` (Ready, Listening, Transcribing, Thinking, Speaking, Restarting, problems in plain words)
-- Stays shown for a whole turn (`held` while not idle) and hides a few seconds after ZENO returns to idle, unless hovered
+- Compact view: ARK's live state with an icon and a microphone level meter driven by `mic.level` (Ready, Listening, Transcribing, Thinking, Speaking, Restarting, problems in plain words)
+- Stays shown for a whole turn (`held` while not idle) and hides a few seconds after ARK returns to idle, unless hovered
 - Follows display changes (resolution, menu bar height, display arrangement)
 
 Tests: Swift unit tests for the new frames and hover band (including menu bar height and a display arrangement with another display on the left), the level meter's smoothing, and the state-to-label mapping.
@@ -1035,7 +1035,7 @@ Result:
 
 ### Task 0.5.5 — Expanded Island With Settings (ADR-038, ADR-040) ✅ Done (2026-10-02)
 
-Verified: Swift and Node tests; each tab rendered and reviewed with sample data (`ZENO_ISLAND_GALLERY`). Live model switching is still to be tried with the real runtime.
+Verified: Swift and Node tests; each tab rendered and reviewed with sample data (`ARK_ISLAND_GALLERY`). Live model switching is still to be tried with the real runtime.
 
 Click the compact card: it expands from the same corner into a larger glass panel with tabs.
 
@@ -1046,7 +1046,7 @@ Click the compact card: it expands from the same corner into a larger glass pane
   - Shortcuts: one row per action with a recorder (click, press the new keys; Esc cancels, Delete clears; conflicts with another action are refused)
   - Pet on or off; sounds on or off (stored now, used by later tasks)
 - Runtime: `info` event (provider, model, providers with a key present, models offered for each); `model.set` command switches the LLM adapter without restarting; the choice is saved to `config/island.json` (not in git) and applied at next start over `.env`; API keys never reach the island
-- The expanded panel can take key focus without activating ZENO; click outside, Esc or the collapse button closes it
+- The expanded panel can take key focus without activating ARK; click outside, Esc or the collapse button closes it
 
 Tests: Node tests for `model.set` (valid, unknown provider, no key, unknown model) and the settings file; Swift tests for decoding `info`, shortcut storage and display (⌃⌥⇧⌘ order), conflict detection.
 
@@ -1056,9 +1056,9 @@ Verification: open the panel from another app without that app losing focus; swi
 
 ### Task 0.5.6 — Shortcuts Work Everywhere (ADR-040) — code done; live check partial (2026-10-02)
 
-Checked live against a fake runtime with posted key events: hold ⌃⌥ sends `talk.start` then `talk.send`; a quick tap does nothing; ⌃⌥← does not talk; another key while held sends `talk.cancel`; ⌃⌥Z opens and closes the island; Right ⌥ starts Dictate. Still to check by hand: Esc only while busy, Right ⌥+letter typing an accent, a changed shortcut working at once, the Input Monitoring prompt from a fresh install. Signing: `make-signing-identity.sh` creates "ZENO Local Signing" in its own keychain (`~/Library/Keychains/zeno-signing.keychain-db`) so `build-app.sh` signs without a password prompt.
+Checked live against a fake runtime with posted key events: hold ⌃⌥ sends `talk.start` then `talk.send`; a quick tap does nothing; ⌃⌥← does not talk; another key while held sends `talk.cancel`; ⌃⌥Z opens and closes the island; Right ⌥ starts Dictate. Still to check by hand: Esc only while busy, Right ⌥+letter typing an accent, a changed shortcut working at once, the Input Monitoring prompt from a fresh install. Signing: `make-signing-identity.sh` creates "ARK Local Signing" in its own keychain (`~/Library/Keychains/ark-signing.keychain-db`) so `build-app.sh` signs without a password prompt.
 
-- Local signing certificate "ZENO Local Signing" so permissions survive rebuilds; `build-app.sh` signs with it
+- Local signing certificate "ARK Local Signing" so permissions survive rebuilds; `build-app.sh` signs with it
 - Shortcut engine: Carbon hot keys for chords; listen-only event tap for hold and modifier-only shortcuts (clean press only)
 - Talk: hold → `talk.start` and the island comes out; release → `talk.send`; another key while held → `talk.cancel`
 - Show or hide the island; Cancel while listening or speaking
@@ -1067,7 +1067,7 @@ Checked live against a fake runtime with posted key events: hold ⌃⌥ sends `t
 
 Tests: Swift unit tests for the key state machine (press, release, chord, clean press, Esc, repeats) and the shortcut model.
 
-Verification: talking from another app (e.g. Safari) with ZENO not focused; typing Ctrl+Option+Arrow does not talk; a changed shortcut works without restarting.
+Verification: talking from another app (e.g. Safari) with ARK not focused; typing Ctrl+Option+Arrow does not talk; a changed shortcut works without restarting.
 
 ---
 
@@ -1097,7 +1097,7 @@ Wisp is drawn in code (`WispView`), driven by a tested `PetBrain` (wander, rest,
 - On/off from Settings; Reduce Motion: no walking, gentle state changes only
 - Pauses its animation when nothing changes on screen, so it costs almost nothing
 
-Tests: Swift unit tests for the pet's behaviour state machine (state per ZENO state, walking bounds, nap timer).
+Tests: Swift unit tests for the pet's behaviour state machine (state per ARK state, walking bounds, nap timer).
 
 Verification: watch it through a full turn; it never blocks clicks; CPU use while walking and while idle.
 
@@ -1107,14 +1107,14 @@ Verification: watch it through a full turn; it never blocks clicks; CPU use whil
 
 Verify Phase 0.5 as the user will use it.
 
-- With the terminal closed, start `ZENO.app`
+- With the terminal closed, start `ARK.app`
 - From another app: hold the talk shortcut, ask a question, release; see status and reply; hear the answer; the pet reacts
-- Ask a follow-up; interrupt ZENO mid-reply; cancel with a shortcut
+- Ask a follow-up; interrupt ARK mid-reply; cancel with a shortcut
 - Dictate into another app
 - Change a shortcut and the model in Settings, and use them
 - Check hover reveal, the expanded view, and recovery when the runtime is killed
 
-Record timings from `logs/zeno.log` and the user's verdict.
+Record timings from `logs/ark.log` and the user's verdict.
 
 ---
 
@@ -1134,9 +1134,9 @@ Task 0.5.9 passed (Keshab: works, it replied). Core can offer tools to the model
 
 A `computer` tool in `services/tool-engine/` that starts `cua-driver mcp`, lists windows, reads an app, and acts on elements. Approval rules in code (send, buy, delete, submit, account change), no password fields, stop on Esc / ⌃⌥Z, every action logged. Needs Keshab to run `cua-driver permissions grant`. Tested on a harmless app first (TextEdit, Notes).
 
-**Done (2026-10-02):** `services/tool-engine/src/computer/`: `cua-client.ts` (talks to `cua-driver mcp` over stdio; starts on first use, restarts after a crash, stops when idle or closed; always standard mode, telemetry off, and the unrestricted and manifest overrides stripped; cancel is passed on to Cua), `policy.ts` (blocked apps, risky labels, risky keys, secret fields), `tool.ts` (one `computer` tool, actions `list_apps look open click type key scroll`). Off unless `ZENO_COMPUTER=1`; until Task 0.6.3, every action that needs approval is declined and logged. 45 new tests (233 total, 231 pass, 2 skipped).
+**Done (2026-10-02):** `services/tool-engine/src/computer/`: `cua-client.ts` (talks to `cua-driver mcp` over stdio; starts on first use, restarts after a crash, stops when idle or closed; always standard mode, telemetry off, and the unrestricted and manifest overrides stripped; cancel is passed on to Cua), `policy.ts` (blocked apps, risky labels, risky keys, secret fields), `tool.ts` (one `computer` tool, actions `list_apps look open click type key scroll`). Off unless `ARK_COMPUTER=1`; until Task 0.6.3, every action that needs approval is declined and logged. 45 new tests (233 total, 231 pass, 2 skipped).
 
-**Rules enforced in code, not by the model:** terminals, password managers, System Settings, Activity Monitor, Hermes, Claude, Cua and ZENO's own island are never controlled or even listed; the model may only act on numbered elements from its last `look`; Send/Delete/Buy/Pay/Quit-type buttons, Return, Delete, Cmd+Q, Spotlight and Force Quit ask first; passwords, PINs, one-time codes and card fields are never typed into; the menu bar is left out of a look; logs carry the action and app only, never typed text or screen content.
+**Rules enforced in code, not by the model:** terminals, password managers, System Settings, Activity Monitor, Hermes, Claude, Cua and ARK's own island are never controlled or even listed; the model may only act on numbered elements from its last `look`; Send/Delete/Buy/Pay/Quit-type buttons, Return, Delete, Cmd+Q, Spotlight and Force Quit ask first; passwords, PINs, one-time codes and card fields are never typed into; the menu bar is left out of a look; logs carry the action and app only, never typed text or screen content.
 
 **Live, real `cua-driver` 0.28.2, TextEdit on a scratch file:** reads the window, types into it (confirmed by reading it back), refuses Terminal, refuses an invented element number. Real Gemini (Flash and Flash-Lite): Flash added "buy milk" to the note (after two failed clicks and a retry, 22 s); Flash-Lite, asked to press Delete, was asked-and-declined and told the user it was not done, and nothing was deleted. Two bugs found live and fixed: a text area's content ("buy milk, send…") tripped the "send" rule, and typed text goes in at the cursor, which the tool description now says.
 
@@ -1148,12 +1148,12 @@ Three new island events (`computer.step`, `approval.request`, `approval.closed`)
 
 **Done (2026-10-03):**
 - **Runtime:** `apps/mac/src/computer-bridge.ts` sends steps and asks the user. No island, no answer in 60 s, Esc (`talk.cancel`), a new `talk.start`, a reset or quit all count as "no". An answer for an unknown or finished id is ignored, so an old prompt can never approve a later action. Wording is cut to one short line; steps carry the app and kind of action only, never typed text.
-- **Island (Swift):** the bubble reads "Using your Mac / Typing in TextEdit" while ZENO acts; an amber card (`ApprovalPanel.swift`) replaces it when ZENO asks, with Decline and Allow, the tail pointing at Wisp (below Wisp near the top of the screen). It brings Wisp out of hiding. Without Wisp it stands at the bottom of the main display. The card never takes focus. A request is cleared when the turn ends, the conversation resets, an error arrives, or the runtime stops.
+- **Island (Swift):** the bubble reads "Using your Mac / Typing in TextEdit" while ARK acts; an amber card (`ApprovalPanel.swift`) replaces it when ARK asks, with Decline and Allow, the tail pointing at Wisp (below Wisp near the top of the screen). It brings Wisp out of hiding. Without Wisp it stands at the bottom of the main display. The card never takes focus. A request is cleared when the turn ends, the conversation resets, an error arrives, or the runtime stops.
 - **Tests:** 252 TypeScript (250 pass, 2 skipped) and 271 Swift, none failing. Layout checked on the gallery render (`8-computer-control.png`: four panels, no clipping, tails correct).
 - **Live, real Cua and Gemini:** steps streamed in order; a Delete key press raised an approval request on the wire; the answer closed it. A model that gives up after too many tries ends cleanly with "used too many steps".
 - **Fixed on the way:** a cancel that arrived while Cua was still starting was missed, so the call hung until its 30 s timeout; and a failed start left a timer that held the process open for 15 s.
 
-**Not done:** the card has not been seen on the real screen, and Esc and the Allow click have not been tried by hand with `ZENO_COMPUTER=1`. Gemini Flash's daily free quota ran out partway through, so no run finished with an approved action and a final spoken answer.
+**Not done:** the card has not been seen on the real screen, and Esc and the Allow click have not been tried by hand with `ARK_COMPUTER=1`. Gemini Flash's daily free quota ran out partway through, so no run finished with an approved action and a final spoken answer.
 
 ### Task 0.6.4 — Pointing (ADR-054) — built; flown on the real screen; not yet heard by voice
 
@@ -1164,10 +1164,10 @@ The model names a place on screen; Wisp flies there and the bubble labels it. No
 - `computer` tool gains a `point` action (`element` from the last look, plus an optional spoken `label`). It refuses before any `look`, an element that is not in the last look, and an element with no position. It is never an approval case: it only shows, it does not act.
 - `computer.point` event (`x y w h label`, Cua's coordinates) goes runtime → bridge → island. Documented in `docs/island-protocol.md`; bad numbers are a decode error, never a crash.
 - Swift Core: `PointPlacement` (top-left/y-down to AppKit, any number of displays, stands on the element's top edge, hangs under it near the top of a display, never covers it; a place on no display is not flown to), `BubbleLayout` takes a preferred side, `PointingState` (ends on a new turn, reset, error or runtime stop).
-- Island: Wisp flies to the spot slowly enough to follow, faces the way it travels, stays about 7 s after arriving, then goes home. The user taking Wisp by hand ends it. The bubble shows the label with "ZENO is pointing".
+- Island: Wisp flies to the spot slowly enough to follow, faces the way it travels, stays about 7 s after arriving, then goes home. The user taking Wisp by hand ends it. The bubble shows the label with "ARK is pointing".
 - Tests: 56 in the computer tool (+11), 3 in the bridge, 25 Swift (+5 suites in `PointingTests.swift`). Full run: typecheck clean, 276 TypeScript (274 pass, 2 skipped), 295 Swift.
 
-**Verified on the real screen:** with `ZENO_POINT_DEMO` (development hook), Wisp flew to a button on the second display, to the middle of the main display and to the menu bar clock; bubble readable each time, clock uncovered, Wisp back home afterwards. With the real model against Brave, "point at the address bar" gave `look → point` in 5.8 s and the event the island got placed Wisp 15 px under the address bar with the bubble below it.
+**Verified on the real screen:** with `ARK_POINT_DEMO` (development hook), Wisp flew to a button on the second display, to the middle of the main display and to the menu bar clock; bubble readable each time, clock uncovered, Wisp back home afterwards. With the real model against Brave, "point at the address bar" gave `look → point` in 5.8 s and the event the island got placed Wisp 15 px under the address bar with the bubble below it.
 
 **Not done:** pointing by voice through the island (the live checks fed the same event by hand); the Allow/Decline card, still unseen; Claude untested on this tool; a window moving between the `look` and the `point` shows the old place.
 
@@ -1184,7 +1184,7 @@ Ideas taken from how Hermes drives the same Cua driver, to cut model round trips
 
 **Verified on the real driver:** TextEdit `set_value` returned "(confirmed)", `look_after` returned the new window state in the same reply, and the file was restored to its original text.
 
-**Not done:** a measurement of steps saved with a real model (the Gemini free quota was spent; Claude has no credit); the driver's health check (`cua-driver` `health_report`) as a ZENO command; the plan question (using a Claude subscription for the model), which is a separate decision.
+**Not done:** a measurement of steps saved with a real model (the Gemini free quota was spent; Claude has no credit); the driver's health check (`cua-driver` `health_report`) as a ARK command; the plan question (using a Claude subscription for the model), which is a separate decision.
 
 ### Task 0.6.6 — Claude on the User's Plan (ADR-055) — built; tested; driven by voice once (Allow path); Decline card not yet tried by voice
 
@@ -1192,28 +1192,28 @@ A fourth model choice, "Claude (my plan)", that runs the user's own signed-in `c
 
 **Done (2026-10-03):**
 
-- `services/llm-gateway/src/providers/claude-plan.ts`: the adapter. `scrubbedEnv` removes `ANTHROPIC_*`, cloud and OAuth variables and other providers' keys. Stops on an API-key credential or on extra usage. Only ZENO's tools are allowed, run in-process. Errors are mapped to gateway kinds; none is retryable after a tool acted. Cancelling stops `claude` and the tool in flight.
-- `packages/shared/src/config.ts`: `claude-plan` in the provider table; `findClaudeProgram`; the provider needs no key and counts as available when `claude` is found. A wrong `ZENO_CLAUDE_PATH` is never replaced by another copy.
+- `services/llm-gateway/src/providers/claude-plan.ts`: the adapter. `scrubbedEnv` removes `ANTHROPIC_*`, cloud and OAuth variables and other providers' keys. Stops on an API-key credential or on extra usage. Only ARK's tools are allowed, run in-process. Errors are mapped to gateway kinds; none is retryable after a tool acted. Cancelling stops `claude` and the tool in flight.
+- `packages/shared/src/config.ts`: `claude-plan` in the provider table; `findClaudeProgram`; the provider needs no key and counts as available when `claude` is found. A wrong `ARK_CLAUDE_PATH` is never replaced by another copy.
 - `apps/mac`: the runtime builds one tool engine and gives it to both the Core and the plan provider; `model.set` works for it; errors say "install Claude Code and run `claude auth login`" instead of "add a key to .env". 120 s whole-request limit for it. `plan.usage` in the log.
 - Island: the picker shows "Claude (my plan)" with "Runs on your Claude plan", or "Claude Code not found or not signed in".
 - Tests: 24 for the adapter, 3 for config, 4 for settings (fake SDK; no network, no `claude` process).
 
 **Checked live (2026-10-03):** `model.set` through the island protocol switched to it and saved it. A TextEdit request that needs approval ("press return") ran with the approval hook answering: declined, the Return key was not pressed and Claude said so (6.4 s); allowed, it was pressed (9.4 s). Plan use stayed at 38% (5-hour) and 67% (7-day) with extra usage off, `apiKeySource` none.
 
-**Voice check (2026-10-03):** picked Claude Haiku 4.5 (my plan) in the island and said "In TextEdit, press the return key once." The amber approval card appeared, Allow was tapped, Return was pressed (17.6 s, `plan.usage` 45% / 68%, extra usage off). Haiku tried a key before looking; ZENO refused that and it then looked first.
+**Voice check (2026-10-03):** picked Claude Haiku 4.5 (my plan) in the island and said "In TextEdit, press the return key once." The amber approval card appeared, Allow was tapped, Return was pressed (17.6 s, `plan.usage` 45% / 68%, extra usage off). Haiku tried a key before looking; ARK refused that and it then looked first.
 
-**Not done:** the Decline path by voice; a run of several tasks to see how much plan a normal use takes; the Claude usage page was not checked by ZENO (only the SDK's own report).
+**Not done:** the Decline path by voice; a run of several tasks to see how much plan a normal use takes; the Claude usage page was not checked by ARK (only the SDK's own report).
 
 ### Task 0.5.10 — Fixed Homes: Menu-Bar Panel and Work Strip (ADR-056) — built; tested; not yet seen on the real screen
 
 From Keshab's end-to-end check (0.5.9): checks 1–4 and the Decline card passed. Two faults shared one cause, everything hung off Wisp: (5) opening the panel beside Wisp moved and froze Wisp; (7) pointing near a corner left no room for the bubble.
 
-- **Menu-bar icon** (`MenuBarIcon`): symbol and colour follow the state. A click, a click on Wisp, or the shortcut opens the panel just below the icon; a click elsewhere, Esc or the collapse button closes it. Right-click: Open ZENO, Show Wisp, Quit ZENO. Wisp is no longer moved or frozen by the panel.
+- **Menu-bar icon** (`MenuBarIcon`): symbol and colour follow the state. A click, a click on Wisp, or the shortcut opens the panel just below the icon; a click elsewhere, Esc or the collapse button closes it. Right-click: Open ARK, Show Wisp, Quit ARK. Wisp is no longer moved or frozen by the panel.
 - **Left-edge island removed** (hover band, `HoverController`, `IslandGeometry`). Without Wisp, the status card hangs under the icon during a turn (`MenuPanelLayout`).
 - **Work strip** (`WorkStripState`, `WorkStripLayout`, `WorkStripController`): bottom centre above the Dock and Wisp's walkway, from the first step, point or approval request until the turn ends plus 2.5 s. It shows the step and Stop (= Esc); an approval request grows it with Decline / Allow. Then "Done", "Stopped" or "Couldn't finish". It replaces the Wisp-held approval card (`ApprovalPanel.swift` deleted).
 - **Pointing**: Wisp flies with no bubble and shows only a short label pill beside itself on arrival (`PointLabelLayout`, roomier side, kept on the display). Wisp's bubble is kept off while the strip is up or Wisp is pointing.
 - Tests: 21 new (strip state and layout, label placement, panel under the icon); the left-edge and hover tests removed. 301 Swift tests pass. Gallery sheet `8-computer-control` shows the new strip states.
-- Development hook `ZENO_WORK_DEMO=1` plays steps, an approval, a point at the top-right corner and the end of a turn through the real controller.
+- Development hook `ARK_WORK_DEMO=1` plays steps, an approval, a point at the top-right corner and the end of a turn through the real controller.
 
 **Not done:** seen on the real screen. The Mac was locked when this was built (screen capture refused, and the island's microphone warm-up waited on CoreAudio until it was killed), so the live checks are Keshab's: open the panel from the icon and from Wisp (Wisp keeps walking); "In TextEdit, press the return key once" (strip, Allow/Decline in it, Stop); "Point at the Control Centre icon" (Wisp in the top-right corner with just a label).
 
@@ -1242,23 +1242,23 @@ Keshab (2026-10-04): "Let's skip the tests… continue building." Phase 0.5's ha
 - New service `services/memory`: one SQLite file (`data/memory.db`, gitignored, Node's built-in `node:sqlite`) with full-text search. Every memory has an owner, scope, provenance (voice or text, request id, time) and lifecycle; forgetting deletes the row. 300 characters each, 500 at most, never dropped silently. Facts that look like passwords, PINs, card numbers or API keys are refused.
 - Tools `remember`, `recall`, `forget` in the Tool Engine. The Core gained a `context` hook: up to 12 relevant memories (matching words first, then newest) are added to the system prompt of each request, with their ids.
 - Island protocol: `memory.list`, `memory.forget`, `memory.clear` and a `memory` event (sent only to an island that asked). Settings has a **Memory** page: every fact with when and how it was kept, × to forget one, and "Forget everything" with a confirm step.
-- `ZENO_MEMORY=0` turns it off; `ZENO_MEMORY_FILE` moves the file. The runtime starts with `--disable-warning=ExperimentalWarning` so Node 22's SQLite notice stays out of the log.
+- `ARK_MEMORY=0` turns it off; `ARK_MEMORY_FILE` moves the file. The runtime starts with `--disable-warning=ExperimentalWarning` so Node 22's SQLite notice stays out of the log.
 - Tests: TS 338 pass, 2 skipped (12 new for the store, tools and context; 2 for the Core hook; 3 for the protocol); Swift 310 pass (3 new). Live on Claude Haiku 4.5 (Claude plan), across two separate runtimes sharing one file: "remember my sister is Asha in Osaka" and "my coffee is black" were kept; the second runtime, with no conversation history, answered both; "forget my coffee" deleted it; "remember my bank PIN" was declined.
 
 **Not done:** spoken through the island by Keshab; the Memory page seen on the real screen.
 
 ### Task 1.1b — Open at Login — built; not yet tried
 
-Settings → General → **Open at login**: registers ZENO.app as a macOS Login Item (`SMAppService.mainApp`). The state is read from macOS each time, never saved by ZENO, so it always matches System Settings → General → Login Items. If macOS asks for approval, the row offers "Open…" to go there. Unavailable (switch off, with a note) when ZENO is not running from the app bundle.
+Settings → General → **Open at login**: registers ARK.app as a macOS Login Item (`SMAppService.mainApp`). The state is read from macOS each time, never saved by ARK, so it always matches System Settings → General → Login Items. If macOS asks for approval, the row offers "Open…" to go there. Unavailable (switch off, with a note) when ARK is not running from the app bundle.
 
-Also checked: a damaged `data/memory.db` turns memory off with `memory.unavailable` in the log; ZENO keeps running.
+Also checked: a damaged `data/memory.db` turns memory off with `memory.unavailable` in the log; ARK keeps running.
 
 **Not done:** Keshab turns it on, logs out and in.
 
 ### Task 1.2 — Conversation Notes and Offering to Remember (ADR-059) — built; tested; checked live in text
 
-- After each reply, a background request writes ZENO's two-sentence note about the conversation (`episodes` table, one per session, newest 50 kept). The newest three from other sessions are in the system prompt. Settings → Memory → "Recent conversations" lists them with × and Clear. `ZENO_EPISODES=0` turns it off.
-- ZENO offers to remember lasting personal facts mentioned in passing and keeps them only on a yes.
+- After each reply, a background request writes ARK's two-sentence note about the conversation (`episodes` table, one per session, newest 50 kept). The newest three from other sessions are in the system prompt. Settings → Memory → "Recent conversations" lists them with × and Clear. `ARK_EPISODES=0` turns it off.
+- ARK offers to remember lasting personal facts mentioned in passing and keeps them only on a yes.
 - Base prompt: one to three sentences, at most one question.
 - Tests: TS 345 pass, 2 skipped (6 new for episodes and the recorder, 1 for the Core hook); Swift 311 pass. Live on Claude Haiku 4.5: a Kyoto trip plan was noted; after "New conversation", "What were we planning last time?" got the plan back. "I'm vegetarian" got an offer; "yes" kept it. A trivia question was not noted as a plan.
 
@@ -1266,10 +1266,10 @@ Also checked: a damaged `data/memory.db` turns memory off with `memory.unavailab
 
 ### Task 1.3 — Calendar and Reminders (ADR-060) — built; tested; helper in the app
 
-- `zeno-calendar` EventKit helper in ZENO.app; tools `calendar_events`, `reminders_list`, `reminder_add`; date, time and zone in every request's context.
+- `ark-calendar` EventKit helper in ARK.app; tools `calendar_events`, `reminders_list`, `reminder_add`; date, time and zone in every request's context.
 - Tests: TS 347 pass (3 new for the tools). The app builds with the helper inside, signed; the runtime logs `calendar.helper available:true`.
 
-Live in text (Claude plan): the calendar call waited on macOS's permission dialog (screen asleep at night) and timed out. The helper now says exactly that, so ZENO can tell the user to click Allow.
+Live in text (Claude plan): the calendar call waited on macOS's permission dialog (screen asleep at night) and timed out. The helper now says exactly that, so ARK can tell the user to click Allow.
 
 ### Task 1.4 — Timers (ADR-061) — built; tested; checked live in text
 
@@ -1282,8 +1282,8 @@ Live in text (Claude plan): the calendar call waited on macOS's permission dialo
 
 ### Task 1.6 — Speed and typing
 
-- Claude plan thinking off (unless `ZENO_THINKING=1`); weather cached and home pre-fetched. Measured: greeting 4.6 s, weather 6.3 s (was 19.4 s), timer 5.5 s, arithmetic 4.2 s.
-- Type to ZENO: a composer at the bottom of the Conversation tab; Return sends; the reply is shown and spoken. Protocol `text.send`. Checked over the real pipe: "What is 6 times 7?" → "Six times seven is forty-two." in 4.8 s, first sound 1.2 s later.
+- Claude plan thinking off (unless `ARK_THINKING=1`); weather cached and home pre-fetched. Measured: greeting 4.6 s, weather 6.3 s (was 19.4 s), timer 5.5 s, arithmetic 4.2 s.
+- Type to ARK: a composer at the bottom of the Conversation tab; Return sends; the reply is shown and spoken. Protocol `text.send`. Checked over the real pipe: "What is 6 times 7?" → "Six times seven is forty-two." in 4.8 s, first sound 1.2 s later.
 
 - ADR-064: the next Claude Code process is pre-started (3 s after each answer, so it does not slow speech). Per-request context moved to `systemExtra`.
 - ADR-065: speech starts on Claude's first sentence while it is still writing. A long opening is cut short; Kokoro now runs at fp32 (~1.6× faster here). Measured, question → first sound: greeting 1.7 s, plain question 1.3 s, weather 2.5 s.
@@ -1291,38 +1291,38 @@ Live in text (Claude plan): the calendar call waited on macOS's permission dialo
 ## Phase 2 — Hands-Free and More Things to Do (2026-10-04)
 
 - ADR-066: open apps and websites (always on; terminals, password managers, System Settings and AI agents refused). Checked live: Safari, Notes, YouTube opened; Terminal refused.
-- ADR-067: answer ZENO's question without keys. The microphone opens after a reply that ends in "?"; 6 s to start, 0.9 s of quiet ends it. Setting "Answer without keys". **Not yet tried by voice.**
-- ADR-068: music (Spotify/Music) and volume. **Not yet tried live** (macOS asks to allow ZENO to control the player).
+- ADR-067: answer ARK's question without keys. The microphone opens after a reply that ends in "?"; 6 s to start, 0.9 s of quiet ends it. Setting "Answer without keys". **Not yet tried by voice.**
+- ADR-068: music (Spotify/Music) and volume. **Not yet tried live** (macOS asks to allow ARK to control the player).
 - ADR-069: web search on the Claude plan; "Let me look that up" spoken first (~1 s); the Sources list is never spoken. Checked live in text.
 - ADR-070: take a note into Apple Notes. **Not yet tried live.**
 
-**Not done (1.3):** Keshab allows Calendar and Reminders when macOS asks (first time ZENO is asked about his schedule), then tries "What's on tomorrow?" and "Remind me to … at …".
+**Not done (1.3):** Keshab allows Calendar and Reminders when macOS asks (first time ARK is asked about his schedule), then tries "What's on tomorrow?" and "Remind me to … at …".
 
 ### Task 2.x — Shortcuts: Plain Commands Skip the Model (ADR-071) — built; tested; not yet tried by voice
 
 Run plain spoken commands in code before any model is called.
 
-**Keshab's list (2026-10-10):** "open settings, open brave, open finder, open notes, open journal, play/pause the music on current brave window, search <tag> on chrome/currently open youtube site". His answers: "settings" means both (ZENO's Settings, and "open system settings" for the Mac's); play/pause by the Mac's media key; searches on YouTube reuse the open YouTube tab, "on Google" or "on Chrome" opens a new tab.
+**Keshab's list (2026-10-10):** "open settings, open brave, open finder, open notes, open journal, play/pause the music on current brave window, search <tag> on chrome/currently open youtube site". His answers: "settings" means both (ARK's Settings, and "open system settings" for the Mac's); play/pause by the Mac's media key; searches on YouTube reuse the open YouTube tab, "on Google" or "on Chrome" opens a new tab.
 
 1. `services/tool-engine/src/shortcuts/`: a pure matcher `matchShortcut(text, context) → { name, call } | undefined`; `context` has the installed app names. Tests first, in two groups: sentences that must match, and look-alikes that must not ("open Safari and search for cats", "open the pod bay doors", "scroll down and tell me what it says", "open" alone, a near-match app name, "please" and capitals and punctuation variants of the real commands).
 2. Run the matched call through the existing tool engine, so every rule and log line stays. Return the fixed reply, or "not handled" if the tool fails or refuses.
 3. A Core option `shortcuts`: try it before `model.complete`; on a hit, the reply and exchange join the conversation with no model call; on "not handled", carry on as today. Cancel behaves as for a model turn.
-4. Wire it in `apps/mac/src/runtime.ts` unless `ZENO_SHORTCUTS=0`; log `shortcut.hit` / `shortcut.fallback` (name and reason only). `.env.example`.
+4. Wire it in `apps/mac/src/runtime.ts` unless `ARK_SHORTCUTS=0`; log `shortcut.hit` / `shortcut.fallback` (name and reason only). `.env.example`.
 
 **Done when:** unit tests pass including every look-alike staying unmatched; typecheck and existing tests green; on the real Mac, the log shows no model request for a shortcut and the time from end of speech to action is recorded next to today's 2–3 s model path; by voice, a shortcut works, a look-alike goes to the model, and "open Terminal" is refused with the reason spoken; Keshab's verdict is written here.
 
 **Out of scope:** typing, sending, deleting, buying, quitting; web page buttons; partial speech; wake words.
 
 **As built (2026-10-10):**
-- `services/tool-engine/src/shortcuts.ts`: `matchShortcut` (pure) and `createShortcuts` (runs the match through the tool engine, returns the tool's reply or undefined). The sentence is lower-cased and loses commas, end punctuation, a leading "Zeno", "please", "can you" and a trailing "please"; then the whole of it must fit one pattern:
-  - "open/show (the/my/your/ZENO's) settings" → `open_zeno_settings`.
+- `services/tool-engine/src/shortcuts.ts`: `matchShortcut` (pure) and `createShortcuts` (runs the match through the tool engine, returns the tool's reply or undefined). The sentence is lower-cased and loses commas, end punctuation, a leading "Ark", "please", "can you" and a trailing "please"; then the whole of it must fit one pattern:
+  - "open/show (the/my/your/ARK's) settings" → `open_ark_settings`.
   - "open/launch/start/switch to (the/my) <app> (app)" → `open_app`, only when <app> is exactly an installed app's name, or that name without " Browser" ("Brave"). "Mac settings" and "System Preferences" mean System Settings.
   - "play/pause/resume/unpause (the) (music/video/song/YouTube) (in/on Brave/the browser/YouTube)" → `play_pause`.
   - "search (for) <text> on/in YouTube", "search YouTube for <text>" → `open_url` with a YouTube results address and `same_tab`. The same with Google or Chrome → a Google search in a new tab. Text up to 200 characters.
-- New tools in `tools/island.ts`: `open_zeno_settings` and `play_pause`, carried out by the island (`settings.open`, `media.key`). The island presses the system play/pause key with the Accessibility permission it holds for dictation, or shows a notice when it lacks it.
+- New tools in `tools/island.ts`: `open_ark_settings` and `play_pause`, carried out by the island (`settings.open`, `media.key`). The island presses the system play/pause key with the Accessibility permission it holds for dictation, or shows a notice when it lacks it.
 - `open_app`: Finder is now in the app list (it lives in CoreServices), and System Settings may be opened (open only; computer control still never touches it).
 - `open_url` takes `same_tab`: when the browser in front (Chrome, Arc, Edge or Brave, the ones `front_window` reads) shows the same site in a normal window, the address is loaded in that tab; otherwise, or if the browser cannot be scripted, a new tab as before.
-- Core option `shortcuts`, tried before the model; a reply joins the conversation, a refusal or failure goes to the model unchanged (so "open Terminal" is answered by the model with the reason). Wired in `runtime.ts` unless `ZENO_SHORTCUTS=0`; logs `shortcut.hit` (name, ms) and `shortcut.fallback` (name, reason), never the sentence.
+- Core option `shortcuts`, tried before the model; a reply joins the conversation, a refusal or failure goes to the model unchanged (so "open Terminal" is answered by the model with the reason). Wired in `runtime.ts` unless `ARK_SHORTCUTS=0`; logs `shortcut.hit` (name, ms) and `shortcut.fallback` (name, reason), never the sentence.
 - Tests: 7 matcher/runner tests (every look-alike from the plan stays unmatched), 3 `open_url same_tab` and 1 System Settings test, 1 island tools test, 2 Core tests; 5 Swift tests for the two events and the key numbers. 447 TS and 408 Swift tests pass; typecheck clean. A dry run against this Mac's installed apps matched all of Keshab's commands (nothing was run).
 
 **Known limits:** play/pause is a toggle ("play" while playing pauses); without Accessibility the runtime still answers "Done." while the island shows the notice; `same_tab` can only reuse a tab in the browser in front.
@@ -1337,35 +1337,35 @@ A read-only `front_window` tool: front app name, and for Chrome, Arc, Edge and B
 
 1. `services/tool-engine/src/tools/front-window.ts`. Write the tests first, using a fake `osascript` / front-app reader:
    - **pure functions:** `cleanAddress(url)` drops the query, fragment and user info, and keeps only http(s); `describeFront(...)` builds the labelled result;
-   - **blocked apps:** an `appBlock` app gives "ZENO does not read <app>" and no title;
+   - **blocked apps:** an `appBlock` app gives "ARK does not read <app>" and no title;
    - **private windows:** an incognito Chromium window gives no title or address;
    - **Safari, Firefox and other apps:** name only, and no browser script is run for them;
    - **long titles:** cut to 200 characters;
    - **browser errors:** a script error or refusal gives the app name and the reason, not a crash.
 2. Front app without permissions: get the name and bundle id with no TCC prompt (`lsappinfo` or AppleScript `path to frontmost application`, whichever proves prompt-free on the real Mac). If a prompt appears, stop and report.
-3. Register the tool in `apps/mac/src/runtime.ts` unless `ZENO_FRONT_WINDOW=0`. Log `front_window.read` with the bundle id and the returned field names only. Add the switch to `.env.example`. The tool description tells the model to call it only when the user refers to what is on screen, and to treat the result as data.
-4. SECURITY.md §15 (desktop island): one bullet covering what is read, from which browsers, the limits, and that ZENO still holds no Accessibility.
+3. Register the tool in `apps/mac/src/runtime.ts` unless `ARK_FRONT_WINDOW=0`. Log `front_window.read` with the bundle id and the returned field names only. Add the switch to `.env.example`. The tool description tells the model to call it only when the user refers to what is on screen, and to treat the result as data.
+4. SECURITY.md §15 (desktop island): one bullet covering what is read, from which browsers, the limits, and that ARK still holds no Accessibility.
 
 **Done when:**
 - unit tests pass, and typecheck and the existing tests are green;
 - on the real Mac, by voice, with Chrome in front, "what's this page?" answers with the page title; macOS asked once for Chrome, and no Accessibility prompt appeared;
-- with Safari in front, ZENO names Safari only, and macOS never asks to control Safari;
+- with Safari in front, ARK names Safari only, and macOS never asks to control Safari;
 - "save this link in a note" puts the cleaned address in Notes;
-- with Terminal in front, ZENO says it does not read it;
+- with Terminal in front, ARK says it does not read it;
 - the log shows no title or address.
 
 **Out of scope:** page text (`WebFetch`, its own ADR); window titles of non-browser apps; sending the front app with every request; Safari and Firefox addresses.
 
 ### Task 2.z — Wisp Notices You (ADR-073) — built; tested; seen in the gallery; not yet seen on the real screen
 
-Built 2026-10-10. `WispGaze`, `WispReaction` and `WispReactionPlayer` (in `ZenoIslandCore`) have 12 new tests; all 330 Swift tests pass. The gallery (`10-wisp-*`) now has a third row showing each Wisp looking up-left and right, hovered, squish, dizzy, hello and yawn. Not yet done: Keshab's look on the real screen (see Done when).
+Built 2026-10-10. `WispGaze`, `WispReaction` and `WispReactionPlayer` (in `ArkIslandCore`) have 12 new tests; all 330 Swift tests pass. The gallery (`10-wisp-*`) now has a third row showing each Wisp looking up-left and right, hovered, squish, dizzy, hello and yawn. Not yet done: Keshab's look on the real screen (see Done when).
 
 Eyes that follow the pointer, a hover glow, a squish on click, dizzy after three fast clicks, a hello on launch, and a yawn before napping. ADR-073 accepted: on by default with a switch; hello on every launch.
 
-1. `ZenoIslandCore`. Write the tests first:
+1. `ArkIslandCore`. Write the tests first:
    - **gaze:** where the eyes look from Wisp's centre and the pointer, clamped to a few points, zero beyond about 400 pt, zero unless floating or resting;
    - **click count:** which reaction it gives;
-   - **reactions:** how long each lasts, and that any ZENO state (listening, thinking, speaking, worried, carried, tucked) replaces a reaction at once;
+   - **reactions:** how long each lasts, and that any ARK state (listening, thinking, speaking, worried, carried, tucked) replaces a reaction at once;
    - **Reduce Motion:** no squash, wobble or bounce.
 2. `WispView` and `PetController`: draw the gaze and the reactions for Ghost, Orb and Companion. Reuse the pointer position already read for hover; add no new timer.
 3. Settings → Wisp: "Reacts to you" switch. The gallery renders each reaction for each Wisp.
@@ -1373,7 +1373,7 @@ Eyes that follow the pointer, a hover glow, a squish on click, dizzy after three
 
 **Done when:**
 - Swift tests pass (`pnpm island:test`), and the existing tests are green;
-- on the real screen, with each Wisp: the eyes follow the pointer, a click squishes and still opens or closes the panel, three clicks make it dizzy, and talking to ZENO interrupts any reaction;
+- on the real screen, with each Wisp: the eyes follow the pointer, a click squishes and still opens or closes the panel, three clicks make it dizzy, and talking to ARK interrupts any reaction;
 - with Reduce Motion on, only the eyes move.
 
 **Out of scope:** particles and stickers; sounds; outfits.
@@ -1394,8 +1394,8 @@ Known limits:
 
 Holding Option while dropping Wisp on a window brings that app to the front, reads it once with `front_window`, and opens the microphone for the question. Wisp then flies back. ADR-074 accepted: hold Option; the app comes to the front. Still waits for ADR-067's voice check.
 
-1. `ZenoIslandCore`. Write the tests first:
-   - **window choice:** from `CGWindowListCopyWindowInfo`-shaped data, pick the window under a point, skipping ZENO's own windows and windows that are not on screen;
+1. `ArkIslandCore`. Write the tests first:
+   - **window choice:** from `CGWindowListCopyWindowInfo`-shaped data, pick the window under a point, skipping ARK's own windows and windows that are not on screen;
    - **gesture:** a drop with Option asks, a drop without Option parks;
    - **flight home:** Wisp's spot is unchanged after asking.
 2. Island: outline the window while Option is held; on the drop, refuse blocked apps with a bubble, otherwise bring the app to the front and send the runtime one new command (island protocol doc updated).
@@ -1420,14 +1420,14 @@ As built:
 - Permission rows include Accessibility, which is read only, for typing dictated text.
 - Input Monitoring is read with `IOHIDCheckAccess`, so "never asked" shows as Not yet asked.
 - For Microphone and Input Monitoring never asked, the row button asks macOS on the user's click.
-- On a config error or after repeated crashes, the panel now opens on the stopped card instead of an alert that quit ZENO.
+- On a config error or after repeated crashes, the panel now opens on the stopped card instead of an alert that quit ARK.
 - "Choose another model" shows only while the runtime runs. A missing key in .env stops the runtime, so that card offers Restart and Open log.
 - "Sign in" opens Terminal with `claude auth login` through a temporary `.command` file, so no Automation permission is needed.
 1. Core: permission state per row (pure mapping from system answers to Granted / Not yet asked / Denied), and the failure → sentence + action table. Tests first.
 2. Island:
    - the permissions checklist in Settings → General, plus the first-launch card;
    - plain error cards with action buttons;
-   - "Restart ZENO" and "Open log" on the stopped card;
+   - "Restart ARK" and "Open log" on the stopped card;
    - the first-run tour, skipped if the user talks first.
 3. README quick start.
 
@@ -1490,12 +1490,12 @@ As built:
 **Task 2.F — Pointing from a screenshot (ADR-080, Cua only).** Built 2026-10-10; tested (433 TS); the real Cua screenshot was taken once (1280×720 JPEG, about 340 ms, temp folder removed). Not yet tried by voice.
 
 As built:
-- Cua 0.28.2 captures the main display only (`get_desktop_state`), and ZENO's own windows can appear in the screenshot.
+- Cua 0.28.2 captures the main display only (`get_desktop_state`), and ARK's own windows can appear in the screenshot.
 - Images travel in tool results for all three providers.
 - The marker is held back from streamed speech like "Sources:" (`pointing.ts`).
 - A reply that is only a marker is spoken as "It's <label>."
 - The raw reply, marker included, stays in Core history, so it may appear in conversation notes.
-1. Runtime: a `look_at_screen` tool, only while `ZENO_COMPUTER=1`, using Cua's screenshot (pointer display first, 1280 px long side, never stored or logged).
+1. Runtime: a `look_at_screen` tool, only while `ARK_COMPUTER=1`, using Cua's screenshot (pointer display first, 1280 px long side, never stored or logged).
 2. A pure parser for `[POINT:x,y:label]` / `[POINT:none]`, stripped before speech, with a range check against the screenshot size and the pixel → screen-point conversion per display. Tests first, including a second display.
 3. Send the existing `computer.point` event.
 
@@ -1504,17 +1504,17 @@ As built:
 
 ## Phase 3 — Helpers: Sid, Kame and Puff (ADR-081, 2026-10-10; ADR-082; ADR-087)
 
-Keshab's answers: research, then open in its app; ZENO's own window; flies over and says one line; Sid end to end first. Each task below is one capability and ends with its own tests and docs.
+Keshab's answers: research, then open in its app; ARK's own window; flies over and says one line; Sid end to end first. Each task below is one capability and ends with its own tests and docs.
 
 **Task 3.1 — Helper store and the Helpers window.**
-1. Runtime: tables for helpers (name, app), jobs (id, helper, task, state, timestamps, partial) and reports (job, title, one-line summary, body, sources) in ZENO's SQLite file; a pure job state machine (queued → running → done / failed / stopped) with tests.
+1. Runtime: tables for helpers (name, app), jobs (id, helper, task, state, timestamps, partial) and reports (job, title, one-line summary, body, sources) in ARK's SQLite file; a pure job state machine (queued → running → done / failed / stopped) with tests.
 2. Protocol: `helpers.list`, `helper.set` (app), `job.stop`, `job.delete` commands; a `helpers` event with every helper, its jobs and its reports' titles; `report.get` → `report` event for one report body.
 3. Swift: a "Helpers" window (Dock icon while open) opened from the menu-bar icon and the panel: Sid's card with an app picker (installed apps), job list, report view, Stop and Delete. Kame and Puff appear as "coming soon".
 
 **Done when:** Sid can be set to Brave in the window, the choice survives a restart, and a job added by a test shows up, can be stopped and deleted.
 
 **As built (2026-10-10):** built; tested; seen in the gallery (`13-helpers`); not yet opened on the real screen.
-- `services/helpers` (`@zeno/helpers`): the roster (Sid available; Kame and Puff "coming soon"), the job state machine, and a store in its own SQLite file (`ZENO_HELPERS_FILE`, default `data/helpers.db`, gitignored) with helper apps, jobs and reports. `start`, `step`, `finish` and `fail` are ready for 3.2. A job left running when ZENO closed becomes failed ("ZENO was closed while this job ran"). Sources keep http and https only.
+- `services/helpers` (`@ark/helpers`): the roster (Sid available; Kame and Puff "coming soon"), the job state machine, and a store in its own SQLite file (`ARK_HELPERS_FILE`, default `data/helpers.db`, gitignored) with helper apps, jobs and reports. `start`, `step`, `finish` and `fail` are ready for 3.2. A job left running when ARK closed becomes failed ("ARK was closed while this job ran"). Sources keep http and https only.
 - Protocol: the six commands and two events in `docs/island-protocol.md`. `helper.set` accepts only an installed app. If the file cannot be opened, the runtime logs `helpers.unavailable` and carries on: the list is empty and `helper.set`, `job.add` and `report.get` are refused ("Helpers are off: their file could not be opened.").
 - Logs: `helpers.change` with helper, job id, state and ms only; never the task, report or addresses.
 - Swift: the Helpers window (720×520, remembers its place, Dock icon and a small menu with Edit commands while open), opened from "Helpers…" in the menu-bar icon's menu and a people button in the panel header. Sid's card shows the app picker, "Give Sid a task", the jobs with Stop, Delete and Read, and the report with its sources (http and https only).
@@ -1527,12 +1527,12 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 **Done when:** a job added in the window runs, produces a stored report with sources, stop ends it within a second, and the conversation answers meanwhile.
 
 **As built (2026-10-10):** built; tested; one real job run end to end from a script; not yet tried from the window.
-- `services/helpers/src/runner.ts`: at most 3 jobs at once, one per worker, oldest first; picks up queued jobs at start; stop or delete aborts the run at once and drops its late result; at 15 minutes it aborts and keeps a returned report as partial, else fails "Took longer than 15 minutes"; closing ZENO stops every run (the next start marks them failed).
+- `services/helpers/src/runner.ts`: at most 3 jobs at once, one per worker, oldest first; picks up queued jobs at start; stop or delete aborts the run at once and drops its late result; at 15 minutes it aborts and keeps a returned report as partial, else fails "Took longer than 15 minutes"; closing ARK stops every run (the next start marks them failed).
 - `services/llm-gateway/src/providers/claude-plan-job.ts`: one Agent SDK session per job with Claude Code's WebSearch and WebFetch only, no MCP servers, no user settings (`strictMcpConfig`, `settingSources: []`), 30 turns. `canUseTool` is the gate: it allows search and the structured answer, counts pages, refuses the 13th fetch ("write the report now", marked partial) and refuses any other tool. The report comes back as structured output, checked against a strict schema. Steps: "Searching the web", "Reading n of up to 12 pages", "Writing the report". Plan usage goes through the same checks and meters as conversations.
-- Runtime: the provider in use when a job starts decides; any provider but the Claude plan fails the job with "Sid needs the Claude plan for research." Logs `job.run` with worker, job, state, ms, pages and partial only. Quitting ZENO stops jobs and their Claude processes.
+- Runtime: the provider in use when a job starts decides; any provider but the Claude plan fails the job with "Sid needs the Claude plan for research." Logs `job.run` with worker, job, state, ms, pages and partial only. Quitting ARK stops jobs and their Claude processes.
 - Live (Haiku 4.5, the saved choice): "What is the difference between TCP and UDP?" finished in 25.7 s with 1 page read and 4 sources. The plan then reported 98 % of the five-hour window used.
 - Tests: 15 new (runner 9, research run 6); 483 TS pass, typecheck clean.
-- Known limits: no test yet that a conversation answers during a job (nothing in the Core waits on it); "no markdown" in a report is asked, not checked; Sid's soul is fixed until 3.3; no `ZENO_HELPERS=0` switch.
+- Known limits: no test yet that a conversation answers during a job (nothing in the Core waits on it); "no markdown" in a report is asked, not checked; Sid's soul is fixed until 3.3; no `ARK_HELPERS=0` switch.
 
 **Task 3.2b — Laya chooses each job's model (ADR-083).**
 1. `services/decision-engine`: a `DecisionEngine` interface (`chooseModel(task, role) → { tier, score?, source }`) and the Laya implementation: an MCP stdio client to `laya-mcp-server`, started on the first job and kept warm, stopped on quit; the difficulty question and thresholds from ADR-083; a 5 s limit; any failure → the role's default tier. Tests with a fake Laya.
@@ -1541,7 +1541,7 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 **Done when:** a lookup task runs on Haiku and a refactor task on Opus (or Sonnet with the large model off), Laya stopped makes jobs fall back without waiting, and the pin overrides Laya.
 
 **As built (2026-10-10):** built; tested; Laya checked live (no Claude jobs, the plan was nearly spent); not yet tried from the window.
-- `services/decision-engine` (`@zeno/decision-engine`): the `DecisionEngine` interface (`chooseTier`, `warm`, `close`), the thresholds in one place, and the Laya engine over MCP stdio (`@modelcontextprotocol/sdk` 1.31.0, already in the lockfile). 5 s per call; a failure or a missing server falls back to medium; one restart after a crash, then off until ZENO restarts. `ZENO_LAYA=0` turns it off, `ZENO_LAYA_SERVER` sets the path. Laya starts when the Helpers window opens (its cold start took 5.4 s, longer than a job's 5 s limit) and stops when ZENO quits.
+- `services/decision-engine` (`@ark/decision-engine`): the `DecisionEngine` interface (`chooseTier`, `warm`, `close`), the thresholds in one place, and the Laya engine over MCP stdio (`@modelcontextprotocol/sdk` 1.31.0, already in the lockfile). 5 s per call; a failure or a missing server falls back to medium; one restart after a crash, then off until ARK restarts. `ARK_LAYA=0` turns it off, `ARK_LAYA_SERVER` sets the path. Laya starts when the Helpers window opens (its cold start took 5.4 s, longer than a job's 5 s limit) and stops when ARK quits.
 - `services/helpers/src/models.ts`: roles on the roster (Sid researcher, Kame coder, Puff designer), role floors, newest model per family with "next tier down" when one is missing, and the reasons the window shows. A pin wins over Laya, the floor and the large-model switch.
 - Store: pins, the large-model switch (default on) and each job's model and reason, with old files migrated. Protocol: `helper.pin`, `helpers.settings` and the new `helpers` fields.
 - Window: a Model picker ("Chosen by Laya" or a model), "Allow the large model for helpers", and a line on each job such as "Sonnet 4.5 · Laya: moderate".
@@ -1554,7 +1554,7 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 
 **As built (2026-10-11):** built; tested; seen in the gallery (`13-helpers`, "Sid's soul"); not yet opened on the real screen and no live job run (plan quota).
 - Roster (`services/helpers/src/jobs.ts`): Sid researcher, Kame coder, Puff designer, Quill documenter, Penny financial information, Hana HR, Tinker improver, each with a default soul. Sid, Penny and Hana are available and run the research job (WebSearch and WebFetch only); the rest show "coming soon". `available` and `role` are code; a soul edit cannot change them.
-- Souls: a `souls` table in `data/helpers.db` (helper, version, five fields, time). Version 1 is the default, written on first open. A save adds a version (none when unchanged); a restore copies an old version into a new one, so it can be undone. Every version is kept; the newest 10 are listed. Names: letters, at most 20, unique among workers, not Wisp or ZENO. Field limits 600 / 1500 / 1500 / 2000.
+- Souls: a `souls` table in `data/helpers.db` (helper, version, five fields, time). Version 1 is the default, written on first open. A save adds a version (none when unchanged); a restore copies an old version into a new one, so it can be undone. Every version is kept; the newest 10 are listed. Names: letters, at most 20, unique among workers, not Wisp or ARK. Field limits 600 / 1500 / 1500 / 2000.
 - Jobs: the runtime reads the soul when a job starts, so an edit applies from the next job. The instructions are the soul, then the role's fixed rules in code: Penny gives information, never advice, never touches accounts or trading, and every report of hers ends with "This is information, not professional financial advice." (added by code if missing); Hana never puts a private person's details into a web search.
 - Protocol: `soul.set` and `soul.restore`; the `helpers` event gains `role`, `soul`, `soulVersion` and `soulVersions`. The command limit is now 16 384 characters (the longest soul). Logs carry the helper and version only.
 - Window: every worker can be chosen; the header shows the role; "Soul" opens a form (name, personality, how it works, rules, lessons learned, each with a count), Save (⌘S) and a Versions menu that restores an older one. A worker not ready for jobs shows its soul only.
@@ -1576,7 +1576,7 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - Tests: 9 store and runner tests, protocol and island tests (TS 531 pass, 2 skipped; typecheck clean) and 10 Swift (472 pass).
 - Known limits: "Needs you" holds failed tasks only until budgets and plan approval (3.7, 3.8) add more; a done task cannot be run again yet (3.6); the board lists each worker's newest 20 tasks; `report.get` stays in the protocol but the window now uses `thread.get`.
 
-**Task 3.5 — Wisp the manager.** The `delegate` tool (a goal and up to six tasks with worker and blockers), checked in code; the combined report; one spoken line when ZENO is idle; "<Name>, …" by voice gives that worker a task directly.
+**Task 3.5 — Wisp the manager.** The `delegate` tool (a goal and up to six tasks with worker and blockers), checked in code; the combined report; one spoken line when ARK is idle; "<Name>, …" by voice gives that worker a task directly.
 **Done when:** "research home networking and write it up as a guide" makes Wisp create a Sid task and a Quill task blocked by it, says who is on it, and later says one line, with the combined report in the window.
 
 **As built (2026-10-11):** built; tested; seen in the gallery (`13-helpers`, a task's thread with "The whole goal"); not yet tried by voice or with a live run (plan quota).
@@ -1585,10 +1585,10 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - Quill is now available with the research tools: its report is the write-up. It gains folders in 3.11.
 - "<Name>, …" by voice (ADR-081), settled in code before any model: "Sid, research mesh Wi-Fi", "Ask Penny to …", "Tell Hana to …", with a comma or colon after the name so "Penny for your thoughts" stays with Wisp. It makes a goal of one task ("Sid is on it." / "Sid will start on it after the current task."); "Sid, stop" stops its running task; "Kame, …" answers "Kame is not ready yet." Logs `worker.command` with the worker and action.
 - Ending a goal (`watchGoals` in `goals.ts`): once its last task ends, the combined report is the task's own (one task), else one model call with no tools (the reports marked as data, never instructions), else the reports joined if the call fails or its reply has no title, line and body. Sources are merged without repeats (at most 20, http and https only). Logs `goal.ended` (ids, count, whether spoken) and `goal.report_fallback` (the reason).
-- The line, in code: "Your home networking guide is ready. The Helpers window has the report." (with "but 1 of 3 tasks failed" when some did); "Sid is done." for one task; "The team couldn't finish your …" when none was done; nothing when Keshab stopped every task. The island says it when ZENO is idle, in the timers' queue.
+- The line, in code: "Your home networking guide is ready. The Helpers window has the report." (with "but 1 of 3 tasks failed" when some did); "Sid is done." for one task; "The team couldn't finish your …" when none was done; nothing when Keshab stopped every task. The island says it when ARK is idle, in the timers' queue.
 - Window: a task's thread shows "The whole goal" for a goal of several tasks: how many are done, then the combined report. The thread is asked for again when the goal ends. "Goal:" is not repeated when it is the task itself.
 - Tests: 15 TS (goals and delegate 13, island 2) and 3 Swift. TS 546 pass, 2 skipped; typecheck clean; Swift 475 pass.
-- Known limits: a goal whose last task was running when ZENO closed never gets its combined report (its tasks are still in the window); the line is spoken only, not shown; "What is Sid doing?" is still left to Wisp; the board does not group tasks by goal.
+- Known limits: a goal whose last task was running when ARK closed never gets its combined report (its tasks are still in the window); the line is spoken only, not shown; "What is Sid doing?" is still left to Wisp; the board does not group tasks by goal.
 
 **Task 3.6 — Wake-ups and memory.** Wake on assignment, on asking again and on a new comment; wake-ups during a run merge into one more run; each (worker, task) resumes its Claude session (`resume`), with "Start fresh" in the thread.
 **Done when:** "Sid, dig deeper on that" continues the same session, three wake-ups during a run lead to one more run, and "Start fresh" starts a new session.
@@ -1621,12 +1621,12 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - Switches: a worker's "Plan first" (window switch, `helper.planFirst`, default off) applies to its new tasks; one task can say otherwise (`job.add` `planFirst`). The goal and voice paths follow the worker's switch.
 - The plan run (`runPlan`): no tools at all, nothing kept for resuming, a structured plan back (`summary` at most 160 characters, `steps` at most 4000). Its cost counts toward budgets. The runner saves it (`savePlan`); the task goes back to "to do" with `planStatus: awaiting`, held under "Needs you" ("Sid's plan waits for your OK."). No run starts until Keshab answers.
 - Approving (`plan.approve`, the thread's Approve button, Wisp's approval card, or "Sid, go ahead" / "yes" / "do it") lets the next run start; its brief carries "The plan Keshab approved. Follow it:". Rejecting (`plan.reject`, Reject, or "Sid, no" / "drop it") stops the task, and what waits for it fails. Voice answers must be the whole sentence, so "Sid, go find prices" is still a new task.
-- When a plan is written, ZENO says "Sid has a plan ready for your OK." when idle, then shows Wisp's approval card (the computer-control card): Allow approves; Decline or no answer within 60 s leaves the plan waiting in the window, never a rejection.
+- When a plan is written, ARK says "Sid has a plan ready for your OK." when idle, then shows Wisp's approval card (the computer-control card): Allow approves; Decline or no answer within 60 s leaves the plan waiting in the window, never a rejection.
 - Window: the thread shows the plan (waiting, approved) with Approve and Reject; activity "Wrote a plan", "Plan approved", "Plan rejected".
 - Tests: 10 TS (plan first 4, plan run 1, island 2, protocol) and 2 Swift. TS 569 pass, 2 skipped; typecheck clean; Swift 482 pass.
 - Known limits: the window has no per-task switch (the protocol has); researchers have no write tools anyway, so for them the plan is a preview of what they will search and deliver until folder grants (3.11); a waiting plan is said and asked about once.
 
-**Task 3.9 — Routines.** Schedules (daily or weekly at a time, or every N hours) that create a task for a worker; one catch-up after ZENO was closed; skipped while the previous run still goes; a Wisp `schedule` tool for voice; a list in the window.
+**Task 3.9 — Routines.** Schedules (daily or weekly at a time, or every N hours) that create a task for a worker; one catch-up after ARK was closed; skipped while the previous run still goes; a Wisp `schedule` tool for voice; a list in the window.
 **Done when:** "Sid, every morning at 8, summarise networking news" creates a routine that makes a task at 8, a missed morning runs once at start, and an overlapping run is skipped.
 
 **As built (2026-10-11):** built; tested with a fake clock; not yet tried live.
@@ -1642,22 +1642,22 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 **Done when:** Sid hands Penny a costs question as a sub-task, a third level is refused, and the parent waits for it.
 
 **As built (2026-10-11):** built; tested (a fake Claude Code for the tool); not yet tried live.
-- The tool: a running top-level task's Claude session gets `hand_off` (worker, task) through an in-process MCP server (`mcp__zeno__hand_off`), the only server it may use. Its description names the workers its role may hand to, by their current names. Sub-tasks get no such tool.
+- The tool: a running top-level task's Claude session gets `hand_off` (worker, task) through an in-process MCP server (`mcp__ark__hand_off`), the only server it may use. Its description names the workers its role may hand to, by their current names. Sub-tasks get no such tool.
 - Checks in code (`store.handOff`): the task is running; the target is available, not itself, and its role is allowed (`HAND_OFFS`: researcher to financial adviser, documenter and HR; financial adviser and HR to researcher and documenter; documenter to researcher); at most two levels (a sub-task cannot hand off again); at most 3 sub-tasks a task; neither the target's nor the team's budget used up. Every refusal comes back to the model as words it can act on.
 - Waiting: the sub-task becomes a blocker of the task and the task is marked to run again. The worker finishes its run with what it has; then the task waits for the sub-task and runs again (resuming its session) with "The sub-tasks you handed off" in its brief. A sub-task that fails or is stopped does not fail its parent: the link is dropped and the parent runs again, told it did not finish. A sub-task joins its parent's goal.
 - Window: the thread shows "Handed off" with each sub-task (opening its own thread), activity "Handed off a sub-task"; a sub-task's board card says "for #1".
 - Tests: 7 TS (hand-offs 4, provider 1, island 1) and 1 Swift. TS 583 pass, 2 skipped; typecheck clean; Swift 484 pass.
 - Known limits: the parent's first report is replaced when it runs again; a hand-off made in a plan run is not possible (plan runs have no tools); the worker is told, not forced, to finish quickly after handing off.
 
-**Task 3.11 — Folder grants, and Kame, Puff and Quill.** Grants in the window (refusing the home folder, `/`, system and credential folders); file tools checked against grants in code; sandboxed commands without network; approval through Wisp for risky commands; a `zeno/<task>` branch in git repositories, never pushed. The coder, designer and documenter roles.
+**Task 3.11 — Folder grants, and Kame, Puff and Quill.** Grants in the window (refusing the home folder, `/`, system and credential folders); file tools checked against grants in code; sandboxed commands without network; approval through Wisp for risky commands; a `ark/<task>` branch in git repositories, never pushed. The coder, designer and documenter roles.
 **Done when:** Kame changes a file in a granted repo on its own branch, is refused a path outside, and `git push` is never run.
 
 **As built (2026-10-11):** built; tested (checks, a real git repository, a fake Claude Code); not yet run live: Claude Code's sandbox on this Mac and a real Kame task are still to try (plan quota).
 - Grants (`grants.ts`, `grants` table): only for the coder, designer and documenter; at most 8 a worker; checked when added and saved as real paths. Refused: the home folder itself, `/` and anything outside the home folder except external drives under `/Volumes`, `~/Library`, and any hidden folder (`~/.ssh`, `~/Documents/.secret`). The window has "Add folder…" (the system folder picker) and Remove.
 - Kame and Puff are available. A coder or designer with no folder fails at once ("Kame needs a folder to work in"); Quill works in its folder when it has one, else writes up from the web as before.
-- A run in folders: Claude Code's Read, Write, Edit, Glob, Grep and Bash in the work folder, 60 turns. Every call goes through ZENO's check: a file path must resolve (real path, symlinks and `..` included) inside the run's folders; a command is classified in code: refused (`git push`, changing remotes, switching to main or resetting, `sudo`, keychain and system commands, `curl`, `ssh` and other network), asked on Wisp's approval card (deleting folders, installing software, `git clean`), or allowed. Bash always runs in Claude Code's sandbox (`failIfUnavailable`, never unsandboxed): no network, writes only in the run's folders, keys and tokens unreadable (`~/.ssh`, `~/.aws`, `~/.config`, `~/Library/Keychains`, …). Logs keep the tool and the verdict, never paths or commands.
-- Git: in a repository, ZENO (not the model) makes a worktree on `zeno/task-<id>` beside the helpers file (`data/worktrees/task-<id>`), so the current branch and working copy are never touched; the worker works there; after the run ZENO commits everything as "ZENO" on that branch, and the report says where. Nothing is ever pushed: the command is refused and the sandbox has no network anyway.
-- Closed after a review of the change: ZENO's own git commands run with no repository hooks (they would run outside the sandbox), and a worker can never change git's data (`.git` folders and the worktree's `.git` file are refused to file tools and unwritable in the sandbox), so it cannot point ZENO's commit at another repository.
+- A run in folders: Claude Code's Read, Write, Edit, Glob, Grep and Bash in the work folder, 60 turns. Every call goes through ARK's check: a file path must resolve (real path, symlinks and `..` included) inside the run's folders; a command is classified in code: refused (`git push`, changing remotes, switching to main or resetting, `sudo`, keychain and system commands, `curl`, `ssh` and other network), asked on Wisp's approval card (deleting folders, installing software, `git clean`), or allowed. Bash always runs in Claude Code's sandbox (`failIfUnavailable`, never unsandboxed): no network, writes only in the run's folders, keys and tokens unreadable (`~/.ssh`, `~/.aws`, `~/.config`, `~/Library/Keychains`, …). Logs keep the tool and the verdict, never paths or commands.
+- Git: in a repository, ARK (not the model) makes a worktree on `ark/task-<id>` beside the helpers file (`data/worktrees/task-<id>`), so the current branch and working copy are never touched; the worker works there; after the run ARK commits everything as "ARK" on that branch, and the report says where. Nothing is ever pushed: the command is refused and the sandbox has no network anyway.
+- Closed after a review of the change: ARK's own git commands run with no repository hooks (they would run outside the sandbox), and a worker can never change git's data (`.git` folders and the worktree's `.git` file are refused to file tools and unwritable in the sandbox), so it cannot point ARK's commit at another repository.
 - Fixed while testing: the work folder inside the worktree came out wrong when the folder's path went through a symlink (`/var` is `/private/var`); real paths are now used on both sides, with a check that it stays inside the worktree.
 - Tests: 14 TS (grants and checks 5, folder check 2, worktree 2, provider 1, island 1, protocol, and older tests that used Kame as "not ready" now use Tinker) and 1 Swift. TS 594 pass, 2 skipped; typecheck clean; Swift 485 pass.
 - Known limits: the folder for a task is the first grant unless the task names another's folder; worktrees are not cleaned up; Kame and Puff have no hand-off; a run in folders cannot use the web.
@@ -1667,7 +1667,7 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 
 **As built (2026-10-11):** built; tested (real files for the plugin, a fake Claude Code for the run); not yet tried live.
 - Keshab's skills are the folders in `~/.claude/skills` with a `SKILL.md` (name and description read from its front matter). The window has a "Skills" menu per worker; at most 10, names checked, and each must be one of Keshab's (`helper.skills`).
-- Loading only those: before each run ZENO rebuilds the worker's own small plugin (`data/skill-plugins/<worker>/`, a `zeno-skills` manifest and links to exactly the chosen skills) and the run loads it (`plugins`, `skills: ["zeno-skills:<name>"]`). Runs load no user settings, so no other skill is there; a Skill call for any other name is refused in code. Plan runs load no skills.
+- Loading only those: before each run ARK rebuilds the worker's own small plugin (`data/skill-plugins/<worker>/`, a `ark-skills` manifest and links to exactly the chosen skills) and the run loads it (`plugins`, `skills: ["ark-skills:<name>"]`). Runs load no user settings, so no other skill is there; a Skill call for any other name is refused in code. Plan runs load no skills.
 - Skills are data for the task: they never add tools. A skill's scripts can only run through a run's sandboxed Bash (runs in folders); research runs have no Bash.
 - Tests: 5 TS (skills 2, provider 1, island 1, protocol) and 1 Swift. TS 598 pass, 2 skipped; typecheck clean; Swift 486 pass.
 - Known limits: skill files stay readable on disk to a run in folders (the SDK filter hides them from the model's list, it does not lock files); a skill renamed or removed from `~/.claude/skills` is quietly skipped until Keshab chooses again.
@@ -1680,7 +1680,7 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - "Not good" makes a Tinker task, "Review task 12 (Sid)" (once per task). It runs like any task (budgets apply, it shows on the board). Tinker's run has no tools and nothing kept for resuming (`runReview`). It reads the task, the comment, the error or report and the worker's soul, all marked as data, and returns at most one change: a field (lessons preferred, or rules, how it works, personality), its whole new text, and the reason. "No change" is an answer too (for example a failure outside the worker's control).
 - A proposal is checked so that the changed soul is still a valid soul. The worker's page shows "Tinker suggests" with Accept and Reject. Accept saves a new soul version with the change. Undo restores the version from before it, as another new version, so every version stays kept.
 - Tinker takes no tasks of its own ("Tinker only reviews tasks you rate as not good."); the sidebar says "Reviews rated tasks".
-- Failed tasks are reviewed when Keshab rates them not good, not automatically: most failures so far are limits and setup ("needs the Claude plan", "ZENO was closed"), where a soul change would not help and a review would spend plan for nothing.
+- Failed tasks are reviewed when Keshab rates them not good, not automatically: most failures so far are limits and setup ("needs the Claude plan", "ARK was closed"), where a soul change would not help and a review would spend plan for nothing.
 - Tests: 8 TS (feedback 5, provider 1, island 1, protocol) and 1 Swift. TS 605 pass, 2 skipped; typecheck clean; Swift 487 pass.
 - Known limits: a proposal is shown on the worker's page, not said aloud; Tinker reviews one task at a time and does not look across several.
 
@@ -1688,7 +1688,7 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 
 **As built (2026-10-11):** built; tested with fakes for `open` and AppleScript; not yet tried on the real apps.
 - `open-in-app.ts`: a browser (Safari, Brave, Chrome, Arc, Firefox, Edge and others by name) opens the report's top 5 web sources as tabs (`open -a`), http and https only; Notes gets a new note with the report and its sources (adding only, as the Notes tool); any other app opens the report as a text file (`data/reports/task-<id>.txt`).
-- From the thread: "Open in Brave Browser" above a finished report, when its worker has an app (`job.open`). By voice: "Sid, open it", "Sid, open the sources", "Sid, show that" open Sid's newest finished report and ZENO says what it did; problems come back as words ("Choose where Sid opens things in the Helpers window first.", "The report has no web sources to open."). Logs `report.opened` with ids only.
+- From the thread: "Open in Brave Browser" above a finished report, when its worker has an app (`job.open`). By voice: "Sid, open it", "Sid, open the sources", "Sid, show that" open Sid's newest finished report and ARK says what it did; problems come back as words ("Choose where Sid opens things in the Helpers window first.", "The report has no web sources to open."). Logs `report.opened` with ids only.
 - Tests: 6 TS (open in app 3, voice 1, island 1, protocol) and 1 Swift. TS 610 pass, 2 skipped; typecheck clean; Swift 488 pass.
 - Known limits: nothing opens by itself when a task finishes (on request only); a browser not in the list is treated as "any other app" (the report as a text file).
 
@@ -1696,20 +1696,20 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 
 **As built (2026-10-11):** built; tested (protocol and status); the flight and the card not yet seen on the real screen.
 - Looks: each worker shows its avatar image from `assets/avatars/<worker>/` (ADR-085) when Keshab adds them, else its first letter in a disc, as before; no third-party characters, no Lab code.
-- Working sign: the compact island card now shows the marks of up to three workers at work, each with its running arc of Wisp's light, when ZENO is not listening. The island keeps the helpers list from start (it used to ask only while the Helpers window was open).
-- The line: just before ZENO says a team line (a goal done, a plan waiting), the runtime sends `worker.line`; the card shows "From the team" with it, and Wisp flies to the menu-bar icon with the line beside it (the tour's flight), then back.
+- Working sign: the compact island card now shows the marks of up to three workers at work, each with its running arc of Wisp's light, when ARK is not listening. The island keeps the helpers list from start (it used to ask only while the Helpers window was open).
+- The line: just before ARK says a team line (a goal done, a plan waiting), the runtime sends `worker.line`; the card shows "From the team" with it, and Wisp flies to the menu-bar icon with the line beside it (the tour's flight), then back.
 - Tests: 1 TS (island) and 1 Swift. TS 610 pass, 2 skipped; Swift 489 pass.
 - Known limits: the worker images themselves wait for Keshab's designs; the flight is skipped when Wisp is hidden or a turn is running (the line is still said).
 
-**Task 3.16 — Optional Paperclip connection.** Off unless `ZENO_PAPERCLIP_URL` is set, loopback only; Wisp creates an issue for a chosen Paperclip agent, reads its state and comments, approves or rejects its approvals; Paperclip tasks on the board marked "Paperclip"; the window warns that Paperclip agents run outside ZENO's checks and that its telemetry is on unless turned off. ZENO never installs or starts Paperclip.
+**Task 3.16 — Optional Paperclip connection.** Off unless `ARK_PAPERCLIP_URL` is set, loopback only; Wisp creates an issue for a chosen Paperclip agent, reads its state and comments, approves or rejects its approvals; Paperclip tasks on the board marked "Paperclip"; the window warns that Paperclip agents run outside ARK's checks and that its telemetry is on unless turned off. ARK never installs or starts Paperclip.
 **Done when:** with Keshab's Paperclip running, a task handed to a Paperclip agent shows on the board and its result comes back; with the setting unset or a non-loopback address, nothing is sent.
 
 **As built (2026-10-11):** built; tested against a fake Paperclip that follows its documented API (`docs/api` in paperclipai/paperclip); not yet tried with Keshab's own Paperclip (not installed).
-- On only when `ZENO_PAPERCLIP_URL` is an http or https address on this Mac (`localhost`, `127.0.0.1`, `::1`, no user or password); anything else logs `paperclip.refused` and sends nothing. Requests never follow redirects and time out after 10 s. Local trusted mode: no keys, nothing stored but the issues ZENO handed over (`data/paperclip.json`: ids, titles, agent names, status, the result). `ZENO_PAPERCLIP_COMPANY` picks a company, else the first.
+- On only when `ARK_PAPERCLIP_URL` is an http or https address on this Mac (`localhost`, `127.0.0.1`, `::1`, no user or password); anything else logs `paperclip.refused` and sends nothing. Requests never follow redirects and time out after 10 s. Local trusted mode: no keys, nothing stored but the issues ARK handed over (`data/paperclip.json`: ids, titles, agent names, status, the result). `ARK_PAPERCLIP_COMPANY` picks a company, else the first.
 - Narrow client (`paperclip.ts`): list agents, create an issue for an agent, read an issue and its comments, list pending approvals, approve or reject one. Ids are checked before they go into a path.
 - Wisp's tools, only when on: `paperclip_hand` (an agent by name or role, a title, a description; "Handed to Paperclip's CTO as PAP-1."), `paperclip_check` (the handed tasks with their results, and approvals waiting, marked as data), `paperclip_decide` (approve or reject one, sent only after Keshab's OK on Wisp's approval card; no answer is a no).
-- Coming back: every minute ZENO reads the handed tasks not yet finished; when one is done (or cancelled) its newest comment becomes the result and ZENO says one line when idle ("Paperclip's CTO finished \"Review\"."), once.
-- Window: the board has a "Paperclip" section, each task marked "Paperclip" with its id, status, agent and result, under the warning that Paperclip's agents run outside ZENO's checks and that its telemetry is on unless `PAPERCLIP_TELEMETRY_DISABLED=1` is set where it runs. ZENO never installs, starts or configures Paperclip.
+- Coming back: every minute ARK reads the handed tasks not yet finished; when one is done (or cancelled) its newest comment becomes the result and ARK says one line when idle ("Paperclip's CTO finished \"Review\"."), once.
+- Window: the board has a "Paperclip" section, each task marked "Paperclip" with its id, status, agent and result, under the warning that Paperclip's agents run outside ARK's checks and that its telemetry is on unless `PAPERCLIP_TELEMETRY_DISABLED=1` is set where it runs. ARK never installs, starts or configures Paperclip.
 - Tests: 5 TS (Paperclip 4, island 1) and 1 Swift. TS 615 pass, 2 skipped; typecheck clean; Swift 490 pass.
 - Known limits: the field names for comments and approvals (`body`, `title`) follow Paperclip's docs and are read defensively; a live check with a real Paperclip may need small adjustments.
 
@@ -1723,15 +1723,15 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - Agents work everywhere: Wisp's team line and `delegate`, "Rumi, …" by voice, routines, plan first, budgets, skills, ratings and Tinker, the board. Hand-offs follow the role map, so an agent whose role is not in it neither hands off nor receives.
 - Window: "New agent" at the bottom of the (now scrolling) team list opens a form (name, role, kit, personality, how it works, rules); Create writes the soul.md and selects the agent. An added agent's page has Remove, which asks first; its folder moves to `data/agents-removed/`, never deleted.
 - Tests: 10 TS (agents 6, provider 1, island 1, protocol, older expectations) and 1 Swift. TS 623 pass, 2 skipped; typecheck clean; Swift 491 pass.
-- Known limits: role and kit are changed by editing soul.md (the window's Soul form edits the soul only); built-in workers' souls stay in ZENO's store, not in soul.md files; agents live in `data/` (local, not in git).
+- Known limits: role and kit are changed by editing soul.md (the window's Soul form edits the soul only); built-in workers' souls stay in ARK's store, not in soul.md files; agents live in `data/` (local, not in git).
 
 **Pal and the pals redrawn (ADR-089).** Keshab: "change wisp to pal", "add a new pal … with the following script", "redraw all the pals animation with reference to this pasted json format … premium looking".
 
 **As built (2026-10-11):** built; tested; seen in the gallery (`16-pals`); not yet seen on the real screen.
-- Wisp is Pal everywhere, code included (files, types, words); saved settings keep their stored `zeno.wisp.*` names.
+- Wisp is Pal everywhere, code included (files, types, words); saved settings keep their stored `ark.wisp.*` names.
 - `assets/pals/pal.json` is Keshab's "Strobi copy" avatar definition, as pasted. `scripts/make-pals.py` makes each worker's from it: Sid sea-glass blue with tall ears, Kame mint with low nubs and a broader body, Puff blush pink with long ears, Quill warm paper with one ear folded, Penny gold with small wide ears, Hana lavender with round ears, Tinker apricot with an antenna. An agent Keshab adds gets Pal's shape in colours chosen by its id. `build-app.sh` copies them into the app.
-- `PalCharacter.swift` (Core): the format (body, nodes, colours, 28 expressions, 23 animations); an animation's steps loop, each easing in (smoothstep) and holding; blinks at the intervals each animation allows; the expression's own colours and motion (shake, slow drift). ZENO's moments pick an animation: idle, listening, thinking, happy while speaking, sleeping, confused for a problem, surprised when carried; reactions: celebrate, confused, surprised, drowsy; a worker at work plays "working".
-- `PalFigure.swift`: ZENO's own renderer. The rounded body turns with the head (nod, turn, tilt) and its far side falls into shade; nodes are placed in 3D and drawn back to front; light from the top left, a rim of light, a gloss on the body, glossy eyes with two catchlights, drawn a little larger than the numbers so they read at small sizes. No Lab code.
+- `PalCharacter.swift` (Core): the format (body, nodes, colours, 28 expressions, 23 animations); an animation's steps loop, each easing in (smoothstep) and holding; blinks at the intervals each animation allows; the expression's own colours and motion (shake, slow drift). ARK's moments pick an animation: idle, listening, thinking, happy while speaking, sleeping, confused for a problem, surprised when carried; reactions: celebrate, confused, surprised, drowsy; a worker at work plays "working".
+- `PalFigure.swift`: ARK's own renderer. The rounded body turns with the head (nod, turn, tilt) and its far side falls into shade; nodes are placed in 3D and drawn back to front; light from the top left, a rim of light, a gloss on the body, glossy eyes with two catchlights, drawn a little larger than the numbers so they read at small sizes. No Lab code.
 - "Character" is the new default style (Settings → Appearance), taken once whatever was stored; the earlier styles stay. The Helpers window and the island card show each worker's character, playing "working" while busy.
 - Tests: 5 Swift (format, steps and looping, colours and motion, blinks, mapping) and updated default-style tests. Swift 496 pass; TS 623 pass.
 - Known limits: the 3D is drawn as shaded shapes (a box seen turned, not a modelled mesh); feet and ears are seen from the front only; Void's flat rule does not apply to the characters (their shading is part of the character; no glow).
@@ -1739,32 +1739,32 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 **One window (ADR-089).** Keshab: "i want to have the chats, settings, agents all in one window".
 
 **As built (2026-10-11):** built; tested; seen in the gallery (`13-helpers`: Chat, Settings, the board, a worker); not yet used on the real screen.
-- The Helpers window is now the ZENO window (`MainWindow.swift`, 920×640, remembers its place): its sidebar has Pal (its character playing ZENO's state) with the state in words, Chat, Board, the team with New agent, and Settings at the bottom. Chat is the conversation and composer from the panel; Settings is the panel's Settings, both at a readable width.
-- Opening ZENO opens this window on the page asked for: a click on the island card, the menu-bar icon, Pal, the toggle shortcut (which closes it when it is in front), "open settings" by voice, a setup problem (Chat) or the model card (Settings). The drop-down panel stays closed; the compact card, the menu-bar icon and Pal stay for quick status and talking. The menu-bar menu says "Open ZENO…". ZENO's words say "the ZENO window" instead of "the Helpers window".
+- The Helpers window is now the ARK window (`MainWindow.swift`, 920×640, remembers its place): its sidebar has Pal (its character playing ARK's state) with the state in words, Chat, Board, the team with New agent, and Settings at the bottom. Chat is the conversation and composer from the panel; Settings is the panel's Settings, both at a readable width.
+- Opening ARK opens this window on the page asked for: a click on the island card, the menu-bar icon, Pal, the toggle shortcut (which closes it when it is in front), "open settings" by voice, a setup problem (Chat) or the model card (Settings). The drop-down panel stays closed; the compact card, the menu-bar icon and Pal stay for quick status and talking. The menu-bar menu says "Open ARK…". ARK's words say "the ARK window" instead of "the Helpers window".
 - Tests: all suites pass (TS 623, Swift 496); the window is checked by renders.
 - Known limits: the drop-down panel's code remains (unused) until it is removed; the window's Chat page and the panel share one conversation.
 
-**The ZENO window grows (ADR-090).** Keshab: "progress situation, to do, issues and others like plugins, mcps … and on board section lets have a visual where we can see how the agents are working". Five parts, one at a time.
+**The ARK window grows (ADR-090).** Keshab: "progress situation, to do, issues and others like plugins, mcps … and on board section lets have a visual where we can see how the agents are working". Five parts, one at a time.
 
 **Part 1, Overview — as built (2026-10-11):** built; tested; seen in the gallery. A sidebar page with the board's counts (running, needs you, to do, ended today), who is at work (its character playing "working", the task, its step, how long), goals with a bar for how far they are, today's team budget and the plan's five-hour use, and the newest results; every row opens its task. `TeamOverview` (Core) computes it from the helpers list. 1 Swift test (497 pass). Fixed while testing: a goal took its name from whichever task came first, even one without it.
 
 **Part 2, Needs you — as built (2026-10-11):** built; tested; seen in the gallery. A sidebar page (with a count and an amber dot) listing everything waiting on Keshab, each with its buttons: Pal's approval card (Allow, Decline), plans (Approve, Reject, Open), Tinker's proposals (Accept, Reject), tasks held by a budget or the plan's limit (Budgets, Open), failed tasks (Open). `NeedsYouItem` (Core) gathers them; plan and proposal answers work for any task or worker from here. 1 Swift test (498 pass). Paperclip's approvals stay with Wisp's `paperclip_check` / `paperclip_decide` (not in the window yet).
 
-**Part 3, Issues — as built (2026-10-11):** built; tested. A sidebar page listing failed tasks (why, when, "tried again once") with Retry and Open; Needs you's failed rows get Retry too. `job.retry` runs a failed or stopped task again (resuming its session). A failure a second try may fix (a time limit, Claude Code ending early or answering in the wrong shape, ZENO closed mid-run) is retried once by itself (`MAX_AUTO_RETRIES`), before anything waiting on it fails; setup problems and the plan's limits never are. Activity "Tried again". 3 TS tests, protocol, and 1 Swift (TS 626, Swift 499 pass). Two older tests now expect the automatic retry.
+**Part 3, Issues — as built (2026-10-11):** built; tested. A sidebar page listing failed tasks (why, when, "tried again once") with Retry and Open; Needs you's failed rows get Retry too. `job.retry` runs a failed or stopped task again (resuming its session). A failure a second try may fix (a time limit, Claude Code ending early or answering in the wrong shape, ARK closed mid-run) is retried once by itself (`MAX_AUTO_RETRIES`), before anything waiting on it fails; setup problems and the plan's limits never are. Activity "Tried again". 3 TS tests, protocol, and 1 Swift (TS 626, Swift 499 pass). Two older tests now expect the automatic retry.
 
 **Part 4, Plugins — as built (2026-10-11):** built; tested (a real stdio MCP server started by the test; fakes for the run); seen in the gallery; no real server tried by Keshab yet.
-- MCP servers (`services/helpers/src/mcp.ts`, table `mcp_servers` in the local helpers file): a server runs a command (program, arguments, `KEY=value` environment) or connects to a URL (Streamable HTTP or SSE, `Name: value` headers). Checked when added (a lower-case name not "zeno", no tokens in the address), saved switched off. At most 20.
+- MCP servers (`services/helpers/src/mcp.ts`, table `mcp_servers` in the local helpers file): a server runs a command (program, arguments, `KEY=value` environment) or connects to a URL (Streamable HTTP or SSE, `Name: value` headers). Checked when added (a lower-case name not "ark", no tokens in the address), saved switched off. At most 20.
 - Test (`mcp.test`, `mcp-servers.ts`): starts the command (or connects), completes the MCP handshake and lists the tools, within 15 s; a failure is said in words without the server's own output. A server turns on only after a test listed its tools.
-- Per worker: Keshab picks which workers may use it. A run gets its servers in the Agent SDK's `mcpServers`; every call to one of their tools goes through ZENO's check: a Trusted server's tools run; any other asks on Pal's card (no answer is a no). Plan and review runs get none. Logs keep the server and the verdict only.
+- Per worker: Keshab picks which workers may use it. A run gets its servers in the Agent SDK's `mcpServers`; every call to one of their tools goes through ARK's check: a Trusted server's tools run; any other asks on Pal's card (no answer is a no). Plan and review runs get none. Logs keep the server and the verdict only.
 - Secrets: environment values and header values stay in the local file; the window gets only their names ("Private: NOTES_TOKEN"); nothing is logged.
 - The Plugins page lists the servers (status dot, command or address, tools, Test, Remove, On, Trusted, Workers), an Add server form, and every skill with the workers that use it. The sidebar's page rows are more compact.
 - Tests: 8 TS (store 3, run-time 4 with a real MCP server, gateway 1), island and protocol, 1 Swift (TS 637, Swift 500 pass).
 - Known limits: OAuth sign-in for URL servers is not built (tokens go in headers); a server is not re-tested by itself when its command changes (remove and add again).
 
 **Part 5, Office floor — as built (2026-10-11):** built; tested (the plan is pure and tested); seen in the gallery; not yet watched live.
-- The Board opens on Floor (Floor | Columns, kept while ZENO runs). Each worker has its own desk; one at work sits there playing "working" with its step in a bubble, and its monitor lights. One waiting for an OK or held sits at its desk with an amber dot and says why. Idle workers rest in the lounge; a failed last task shows "sad" with a red dot; a goal finished in the last minute makes its workers celebrate.
-- Pal sits at the manager's desk in its own office, with its mood from ZENO's state. A hand-off not yet done sends an envelope from the desk that handed it off to the worker doing it.
-- Clicking a worker opens its task (or its page). Pals walk between lounge and desk when their state changes. ZENO's own drawing: no art from the reference project.
+- The Board opens on Floor (Floor | Columns, kept while ARK runs). Each worker has its own desk; one at work sits there playing "working" with its step in a bubble, and its monitor lights. One waiting for an OK or held sits at its desk with an amber dot and says why. Idle workers rest in the lounge; a failed last task shows "sad" with a red dot; a goal finished in the last minute makes its workers celebrate.
+- Pal sits at the manager's desk in its own office, with its mood from ARK's state. A hand-off not yet done sends an envelope from the desk that handed it off to the worker doing it.
+- Clicking a worker opens its task (or its page). Pals walk between lounge and desk when their state changes. ARK's own drawing: no art from the reference project.
 - Tests: 1 Swift (Swift 501 pass).
 
 **Part 5 redone in 2D pixel art (2026-10-11, Keshab: "something like munder-difflin … 2d … for office and pals as well"):** built; tested; seen in the gallery; not yet watched live.
@@ -1775,7 +1775,7 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - Tests: 6 Swift (paths reach every seat around furniture and only through doors, walking, pixel pals from their files, the layers) (Swift 507 pass).
 
 **Fixes after Keshab's first look (2026-10-11):**
-- Files: Quill's task to save a document in ~/ZenoDoc ran without file tools (no folder granted) and reported it could not save. Now a file worker (coder, designer, or the documenter when its task saves files) with no folder asks on Pal's card for the folder its task names (a path inside home, or "a folder named X", in Documents or on the Desktop if it says so), else ~/Documents/ZENO. Allowed: ZENO makes the folder, grants it (the usual checks: inside home, not home itself, ~/Library or hidden folders) and the worker runs with its file tools (read, write, edit, copy and move with commands). Refused or unanswered: the task fails with words saying so, and is not retried by itself.
+- Files: Quill's task to save a document in ~/ArkDoc ran without file tools (no folder granted) and reported it could not save. Now a file worker (coder, designer, or the documenter when its task saves files) with no folder asks on Pal's card for the folder its task names (a path inside home, or "a folder named X", in Documents or on the Desktop if it says so), else ~/Documents/ARK. Allowed: ARK makes the folder, grants it (the usual checks: inside home, not home itself, ~/Library or hidden folders) and the worker runs with its file tools (read, write, edit, copy and move with commands). Refused or unanswered: the task fails with words saying so, and is not retried by itself.
 - Floor: only a worker at work sits at a PC; waiting, held, queued, failed and idle workers are in the lounge (their "!" and bubble go with them).
 - Tests: 2 TS (the folder offered, the ask with a real store), the floor test updated (TS 637, Swift 507 pass).
 
@@ -1786,40 +1786,40 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - Rename: a pencil by the worker's name on its page; Enter saves a new soul version with the name (checked like any soul: length, unique).
 - A top bar over the main pane with the page's name (and the worker's role); it moves the window like a title bar, and a double click zooms it.
 - The office floor keeps its shape and fits both the Board's width and the window's height (no more overflowing in full screen).
-- The chat's top bar has Sounds: speak the team's reports, speak timers and updates, start and stop sounds. Muted lines still show on the island and Pal still flies over; they are not chimed or said (`speech.set`, sent when ZENO connects and on each change).
+- The chat's top bar has Sounds: speak the team's reports, speak timers and updates, start and stop sounds. Muted lines still show on the island and Pal still flies over; they are not chimed or said (`speech.set`, sent when ARK connects and on each change).
 - Tests: 1 TS (muted reports are shown, not said), protocol, 1 Swift (rename, speech.set) (TS 638, Swift 508 pass).
 
 **Part 2, notifications — as built (2026-10-11):** built; tested; not yet seen on the real Mac (macOS asks once to allow them).
-- ZENO.app posts macOS notifications (UserNotifications; a development build posts none): a worker finished (its report's title), a task failed (why, first line), something needs Keshab (a plan for his OK, a held task, a soul proposal, and an approval card while ZENO is not in front), and a budget (a worker's or the team's) or the Claude plan's five hours passing 80% or used up.
+- ARK.app posts macOS notifications (UserNotifications; a development build posts none): a worker finished (its report's title), a task failed (why, first line), something needs Keshab (a plan for his OK, a held task, a soul proposal, and an approval card while ARK is not in front), and a budget (a worker's or the team's) or the Claude plan's five hours passing 80% or used up.
 - Only what is new: the first team list after start is learned, not announced; each thing once; a budget warns again after it resets. Never a task's or report's text beyond the title.
-- Clicking one opens the ZENO window on its task. Settings → General → Notifications turns each kind off.
+- Clicking one opens the ARK window on its task. Settings → General → Notifications turns each kind off.
 - Tests: 2 Swift (what is new, budgets and the plan) (Swift 510 pass).
 
 **Part 3, tokens and the Dashboard — as built (2026-10-11):** built; tested; seen in the gallery; counts start from now (earlier runs were not recorded).
-- Every Claude run records its tokens (input, output, cache read, cache write) and API-equivalent dollars from Claude Code's result: each worker's task (research, plan, review, file runs) and each of ZENO's own chat answers. Table `usage` in the local helpers file: counts and model ids only, kept 90 days.
-- The Dashboard (sidebar, under Overview; its row shows today's tokens): today, the last 7 days and dollars; a bar per day (new tokens solid, cached faint); the Claude plan's five-hour and seven-day use; the week by worker (ZENO's chat apart) and by model; how to use fewer.
+- Every Claude run records its tokens (input, output, cache read, cache write) and API-equivalent dollars from Claude Code's result: each worker's task (research, plan, review, file runs) and each of ARK's own chat answers. Table `usage` in the local helpers file: counts and model ids only, kept 90 days.
+- The Dashboard (sidebar, under Overview; its row shows today's tokens): today, the last 7 days and dollars; a bar per day (new tokens solid, cached faint); the Claude plan's five-hour and seven-day use; the week by worker (ARK's chat apart) and by model; how to use fewer.
 - Tests: 3 TS (sums by day, worker and model; the store; tokens from a result), the helpers event, 1 Swift (decoding, short numbers) (TS 641, Swift 511 pass).
 
 **Part 4, chats — as built (2026-10-11):** built; tested; seen in the gallery; not yet used live.
-- Every conversation with ZENO is a chat, saved after each exchange in the local memory file (tables `chats`, `chat_messages`; the newest 200 kept; never logged). Its title is its first words.
-- The sidebar lists the chats where the Team section was (and the separate Chat row is gone): the current one is marked; a click continues one (ZENO Core resumes that session with its saved turns, so voice and typing go to it); New chat starts fresh; a chat's menu deletes it (deleting the current one starts a new chat). The chat page's top bar shows the chat's title.
+- Every conversation with ARK is a chat, saved after each exchange in the local memory file (tables `chats`, `chat_messages`; the newest 200 kept; never logged). Its title is its first words.
+- The sidebar lists the chats where the Team section was (and the separate Chat row is gone): the current one is marked; a click continues one (ARK Core resumes that session with its saved turns, so voice and typing go to it); New chat starts fresh; a chat's menu deletes it (deleting the current one starts a new chat). The chat page's top bar shows the chat's title.
 - The team moved to the Board: a chip per worker (its pal, name, and its step or role) opens its page; New agent is there too.
 - Protocol: `chats.list`, `chat.open`, `chat.delete`; events `chats` (with `current`) and `chat.opened` (its turns).
 - Tests: 3 TS (the chat store, Core resume, the island commands), protocol, 1 Swift (decoding, replay) (TS 644, Swift 512 pass).
 
 **Part 5, Git — as built (2026-10-11):** built; tested with real git repositories (a local bare remote); seen in the gallery; not yet pushed to Keshab's own remote.
-- The Dashboard's Git section lists every `zeno/task-<id>` branch in the repositories Keshab granted, like a pull request: repository and branch, the task's title, its commits on the base (the remote's default branch, else the current one), changed files with lines added and removed, the remote's address (credentials taken out) and whether it is pushed (Not pushed, Pushed, Changed since push).
+- The Dashboard's Git section lists every `ark/task-<id>` branch in the repositories Keshab granted, like a pull request: repository and branch, the task's title, its commits on the base (the remote's default branch, else the current one), changed files with lines added and removed, the remote's address (credentials taken out) and whether it is pushed (Not pushed, Pushed, Changed since push).
 - Show changes: the patch, added lines green and removed red (first 400 lines; long patches cut).
-- Push…: only after Keshab confirms in a dialog naming the branch, its commits and the remote. ZENO pushes `refs/heads/zeno/task-N` to `origin` only: never forced, no hooks, never waiting for a password (a remote that needs one fails with words). The runtime refuses any other branch, a repository outside the granted folders, or one with no `origin`. Workers and models still never push.
+- Push…: only after Keshab confirms in a dialog naming the branch, its commits and the remote. ARK pushes `refs/heads/ark/task-N` to `origin` only: never forced, no hooks, never waiting for a password (a remote that needs one fails with words). The runtime refuses any other branch, a repository outside the granted folders, or one with no `origin`. Workers and models still never push.
 - Protocol: `git.list`, `git.push`, `git.diff`; events `git` and `git.diff`. Logs: the task number only.
-- Tests: 2 TS (branches, files, pushed states, push, refusals with real git; remote addresses without credentials), island and protocol (only zeno/task-* and full paths), 1 Swift (decoding, when it can be pushed) (TS 647, Swift 513 pass).
+- Tests: 2 TS (branches, files, pushed states, push, refusals with real git; remote addresses without credentials), island and protocol (only ark/task-* and full paths), 1 Swift (decoding, when it can be pushed) (TS 647, Swift 513 pass).
 
-**Part 6, the icon — as built (2026-10-11):** built; installed in ZENO.app.
-- Pal on the black Void tile with its graphite hairline and a faint glow of Pal's light, drawn by ZENO (`AppIconArt.swift`, rendered with `ZENO_ISLAND_GALLERY_ONLY=icon`). `scripts/make-icon.sh` makes `assets/icon/ZENO.icns` (16 to 1024 px); `build-app.sh` copies it into the app and names it in `CFBundleIconFile`.
+**Part 6, the icon — as built (2026-10-11):** built; installed in ARK.app.
+- Pal on the black Void tile with its graphite hairline and a faint glow of Pal's light, drawn by ARK (`AppIconArt.swift`, rendered with `ARK_ISLAND_GALLERY_ONLY=icon`). `scripts/make-icon.sh` makes `assets/icon/ARK.icns` (16 to 1024 px); `build-app.sh` copies it into the app and names it in `CFBundleIconFile`.
 
 ## ADR-092 — Claude on the plan only; a source release
 
-**As built (2026-10-11):** Gemini and the Claude API are removed: their adapters (`providers/claude.ts`, `gemini.ts`) and tests, the `@anthropic-ai/sdk` and `@google/genai` dependencies, their keys in `.env.example`, and the app's API-key failure messages. `PROVIDERS` holds only `claude-plan` (the default); an old `ZENO_LLM_PROVIDER=gemini` or `claude`, or a saved choice of one, runs on the plan with its default model. Settings → AI model lists only Claude (my plan). Tests rewritten for one provider (TS 601, Swift 512 pass). Publishing: a tagged source release with notes, no app binary (it records Keshab's project path and runs only here).
+**As built (2026-10-11):** Gemini and the Claude API are removed: their adapters (`providers/claude.ts`, `gemini.ts`) and tests, the `@anthropic-ai/sdk` and `@google/genai` dependencies, their keys in `.env.example`, and the app's API-key failure messages. `PROVIDERS` holds only `claude-plan` (the default); an old `ARK_LLM_PROVIDER=gemini` or `claude`, or a saved choice of one, runs on the plan with its default model. Settings → AI model lists only Claude (my plan). Tests rewritten for one provider (TS 601, Swift 512 pass). Publishing: a tagged source release with notes, no app binary (it records Keshab's project path and runs only here).
 
 ## ADR-093 — A 2D pixel Pal, AI tools found on the Mac, and a clean-up
 
@@ -1829,33 +1829,33 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - Tests: 3 Swift (moods, noticing and reactions, click) (Swift 494 pass).
 
 **Part 2, AI tools found on the Mac — as built (2026-10-11):** built; tested; checked live on this Mac.
-- At start, and on Settings → AI model → Scan, ZENO looks for Claude Code, Codex (also inside the ChatGPT VS Code/Cursor extension), the Gemini CLI, Ollama and LM Studio, and shows each as found, signed in (Claude via `claude auth status`, Codex via `codex login status`, the Gemini CLI by its saved sign-in existing; no login file is read) or not found.
-- ZENO can run on Codex (ChatGPT plan, `codex exec` read-only, nothing kept) and the Gemini CLI (Google sign-in, `gemini -p` in plan mode) as well as Claude Code (the default). They answer in chat only: ZENO's tools and the team stay on Claude. API keys are taken out of their environment, so they always use the sign-in. A tool known to be signed out cannot be chosen. Ollama and LM Studio are listed but not used (CLAUDE.md §11).
-- Live on this Mac: Claude Code and Codex found and signed in (a real Codex answer in about 7 s); the Gemini CLI found, not signed in (ZENO says so: "run `gemini` and sign in with Google"); Ollama found and not used.
+- At start, and on Settings → AI model → Scan, ARK looks for Claude Code, Codex (also inside the ChatGPT VS Code/Cursor extension), the Gemini CLI, Ollama and LM Studio, and shows each as found, signed in (Claude via `claude auth status`, Codex via `codex login status`, the Gemini CLI by its saved sign-in existing; no login file is read) or not found.
+- ARK can run on Codex (ChatGPT plan, `codex exec` read-only, nothing kept) and the Gemini CLI (Google sign-in, `gemini -p` in plan mode) as well as Claude Code (the default). They answer in chat only: ARK's tools and the team stay on Claude. API keys are taken out of their environment, so they always use the sign-in. A tool known to be signed out cannot be chosen. Ollama and LM Studio are listed but not used (CLAUDE.md §11).
+- Live on this Mac: Claude Code and Codex found and signed in (a real Codex answer in about 7 s); the Gemini CLI found, not signed in (ARK says so: "run `gemini` and sign in with Google"); Ollama found and not used.
 - Tests: 10 TS (adapters with a fake runner; the scan with a fake disk; finding Codex in the editor extension; signed-out tools unavailable), protocol, 1 Swift (TS 609, Swift 495 pass).
 
 **Part 3, clean-up — as built (2026-10-11):** done as Keshab asked: agent 1 listed 60 candidates; agent 2 checked each one again on its own (37 unused, 3 in use, 24 needing a decision, plus 4 knock-on items); only the confirmed-unused ones were removed (agent 3), then every check ran again.
 - Removed: the drop-down panel's dead controller code (since ADR-089 "open" goes to the window: the rest of `setExpanded`, the outside-click monitor, panel key focus and Esc, `closing`, `Presentation.expanded`, the panel Size setting `PanelSize`), flight lean (`PalFlight.lean`), the Pal half of `AvatarExpression`, the unused `report.get` command and `report` event on both sides, `turn.complete.requestId`, `RuntimeError.retryable`, `ThemePalette.userBubble`, and small leftovers (`PixelCanvas.stamp`, `isHolding`, `heardSpeech`, `SettingsHome.reachable`, `IslandLog.debug`, `MenuBarIcon.setHighlighted`, `defaultInputName`, `isFollowingUp`, `FILE_ROLES`, `isNear`/`BUDGET_WARNING`, `episodeCount`, `isLink`, unused imports). 49 files, 443 lines out, 112 in.
 - Fixed on the way: the "not found or not signed in" messages now name the right tool (Codex, Gemini CLI), not always Claude Code.
-- Waiting for Keshab (technically unused, but removing them drops something): the gallery's drop-down panel sheets and the panel views only they draw (`ExpandedView`, `PanelHeader`, `PanelLight`); custom PNG avatars (`AvatarImages`, `assets/avatars`); the DesignStudy mock-ups; the `ZENO_PANEL_DEMO` script; the empty service/package folders PROJECT_STRUCTURE.md lists. Missing wiring rather than dead code: `mic.ready` (a "speak now" cue the Swift side ignores), `agentProblems()` (a broken soul.md is never shown), `emptyReplyReason` (could say "declined" or "cut off"), a second click on Pal closing the window (`PetClickAction`).
+- Waiting for Keshab (technically unused, but removing them drops something): the gallery's drop-down panel sheets and the panel views only they draw (`ExpandedView`, `PanelHeader`, `PanelLight`); custom PNG avatars (`AvatarImages`, `assets/avatars`); the DesignStudy mock-ups; the `ARK_PANEL_DEMO` script; the empty service/package folders PROJECT_STRUCTURE.md lists. Missing wiring rather than dead code: `mic.ready` (a "speak now" cue the Swift side ignores), `agentProblems()` (a broken soul.md is never shown), `emptyReplyReason` (could say "declined" or "cut off"), a second click on Pal closing the window (`PetClickAction`).
 - Checks: typecheck clean; TS 609 pass (2 skipped); Swift 487 pass, no build warnings.
 
 **ADR-093 part 4 — as built (2026-10-11):** Keshab's decisions on the waiting items; built; tested; gallery renders.
 - Removed: the drop-down panel's views and gallery sheets (`ExpandedView`, `PanelHeader`, `PanelLight` and its tests, `IslandModel.expanded`/`showsExpanded`, the panel branch of `IslandView`, `IslandMetrics.expanded`, `Motion.breathe(slow:)`, `PanelTab`'s word labels and `twoWordTabs`; sheets 2-*, 3, 4, 9-*-panel, 11-setup-panel*, 12-everyday). The scrolling helpers moved to `Scrollable.swift`. `PanelTab` stays: it picks the window page.
-- Removed: custom PNG avatars (`AvatarImages`, `AvatarExpression`, `assets/avatars`, the build step and its "avatars" line, sheet 16-avatars; a worker's badge is its pixel character or its letter), the DesignStudy mock-ups (sheet 14, `ZENO_ISLAND_GALLERY_ONLY=design`), `ZENO_PANEL_DEMO`, and the 8 empty service/package folders (PROJECT_STRUCTURE.md marks them "not created yet").
+- Removed: custom PNG avatars (`AvatarImages`, `AvatarExpression`, `assets/avatars`, the build step and its "avatars" line, sheet 16-avatars; a worker's badge is its pixel character or its letter), the DesignStudy mock-ups (sheet 14, `ARK_ISLAND_GALLERY_ONLY=design`), `ARK_PANEL_DEMO`, and the 8 empty service/package folders (PROJECT_STRUCTURE.md marks them "not created yet").
 - "Speak now": a turn shows "Listening…" until the runtime's `mic.ready`, then "Speak now": Pal raises its arms with pixel sound bars, no bubble (Keshab kept "listening gets no bubble"; the card under the icon shows it with Pal off), until listening ends; local Parakeet talk shows it at once (its microphone is already open).
 - Broken agents: each `data/agents/<id>/soul.md` that cannot be loaded is logged once at start (`helpers.agent_problem`, id and why) and sent in `helpers` as `agentProblems`; the Board lists them under the team as "<id>: <problem>".
 - Empty replies say why: the Agent SDK's `stop_reason` reaches `emptyReplyReason`, so a refusal says "declined" and a token cut-off says "cut off".
-- A second click on Pal closes the ZENO window when it is open and in front (like the menu-bar icon); a double-click never closes what its first click opened.
+- A second click on Pal closes the ARK window when it is open and in front (like the menu-bar icon); a double-click never closes what its first click opened.
 - Tests: 2 TS (agent problems in `helpers`; stop reasons) and the agent-store test rewritten; 3 Swift (speak now, its bubble, agent problems decoded), click test renamed (`windowOpen`). Checks: typecheck clean; TS 611 pass (2 skipped); Swift 483 pass; no new build warnings (the one in `IslandSettings.swift` is already at 149bedd); gallery renders 29 sheets.
 
 ## ADR-094 — Skills that grow, workers that wake, a Scheduled page, room for many agents
 
 **ADR-094 part A — as built (2026-10-12):** skills that grow, always with Keshab's OK; built by a worker, then checked; tested with a fake Claude Code; gallery renders; not yet tried live.
-- ZENO's own skills live in `data/skills/<name>/SKILL.md` (beside the helpers file, gitignored). Workers choose from Keshab's `~/.claude/skills` (read only, never written) and ZENO's; a name in both is Keshab's. The Plugins page and the worker's skill menu show each skill's source ("yours" or "made by ZENO"). The per-worker skill plugins moved from `data/skills/<worker>/` to `data/skill-plugins/<worker>/`, so they never mix with ZENO's skills (they are rebuilt before each run).
-- Drafts: rating a done task good, or "Make a skill" in its thread (`skill.make`), queues one Tinker task "Make a skill from task 12 (Sid)" (at most one draft per task; budgets apply). Tinker's run has no tools (`runSkillDraft`) and returns a name (lower case and dashes, 2–41), a description (≤ 200) and the steps (≤ 8,000), checked again by the store (`skill_drafts`). Approve (`skill.approve`) writes the SKILL.md (front matter name and description, then the steps); a name already used by one of Keshab's skills or ZENO's is refused with words. Reject (`skill.reject`) marks it.
+- ARK's own skills live in `data/skills/<name>/SKILL.md` (beside the helpers file, gitignored). Workers choose from Keshab's `~/.claude/skills` (read only, never written) and ARK's; a name in both is Keshab's. The Plugins page and the worker's skill menu show each skill's source ("yours" or "made by ARK"). The per-worker skill plugins moved from `data/skills/<worker>/` to `data/skill-plugins/<worker>/`, so they never mix with ARK's skills (they are rebuilt before each run).
+- Drafts: rating a done task good, or "Make a skill" in its thread (`skill.make`), queues one Tinker task "Make a skill from task 12 (Sid)" (at most one draft per task; budgets apply). Tinker's run has no tools (`runSkillDraft`) and returns a name (lower case and dashes, 2–41), a description (≤ 200) and the steps (≤ 8,000), checked again by the store (`skill_drafts`). Approve (`skill.approve`) writes the SKILL.md (front matter name and description, then the steps); a name already used by one of Keshab's skills or ARK's is refused with words. Reject (`skill.reject`) marks it.
 - Use: each Skill call a run is allowed reaches `onSkill` → `recordSkillUse` (`skill_uses`), logged as `job.skill` (ids and the skill's name).
-- Edits: a bad rating, or a failure a retry does not fix, of a task that used one of ZENO's skills queues one Tinker task per skill, "Improve the compare-laptops skill (task 12)". Tinker (`runSkillEdit`, no tools) returns the whole new steps and a reason, or "no change" (`skill_edits`). Accept writes the new steps, keeping the description, and keeps the steps from just before for Undo; Reject marks it; Undo restores them (`skill.edit.accept/reject/undo`). A skill from `~/.claude/skills`, or one now shadowed by Keshab's of the same name, is never edited.
+- Edits: a bad rating, or a failure a retry does not fix, of a task that used one of ARK's skills queues one Tinker task per skill, "Improve the compare-laptops skill (task 12)". Tinker (`runSkillEdit`, no tools) returns the whole new steps and a reason, or "no change" (`skill_edits`). Accept writes the new steps, keeping the description, and keeps the steps from just before for Undo; Reject marks it; Undo restores them (`skill.edit.accept/reject/undo`). A skill from `~/.claude/skills`, or one now shadowed by Keshab's of the same name, is never edited.
 - Window: `helpers` carries `skillDrafts` (name, description, a 400-character preview) and `skillEdits` (reason and a compact before/after from the first changed line), pending ones and the newest few. The Plugins page shows them with Approve/Reject and Accept/Reject/Undo; Needs you lists the pending ones; a notification says "Tinker drafted a skill: <name>" or "Tinker suggests an edit to <name>" (never the steps). A done task's thread has "Make a skill" (or says where its draft is).
 - Tests: 12 TS (store 6, Tinker runs 2, provider 2, skills listing 1, island 1; protocol cases added) and 3 Swift (decoding, answers and Make a skill, Needs you and notices). Checks: typecheck clean; TS 623 pass (2 skipped); Swift 487 pass.
 - Known limits: a draft whose name is taken can only be rejected (no rename in the window); every good rating spends one Tinker run; drafts and edits are reviewed one task at a time; part C is not built yet.
@@ -1863,15 +1863,15 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 **ADR-094 part B — as built (2026-10-12):** delegation that runs itself, inside the same limits; built by a worker, then checked; tested with a fake clock; gallery renders; not yet tried live.
 - Team tasks: a task can be posted to the team (`team.add`, optional `role`; absent means anyone) instead of one worker. It waits unassigned in its own table (`team_tasks`, not `jobs`: `jobs.helper` is NOT NULL and the runner would otherwise pick it up), at most 50; a role must be one some worker that takes tasks has. `team.delete` takes one back. The task field on a worker's page has a "For" pill: the worker, "Team: anyone" or "Team: <role>". Pal has a `post_to_team` tool for work no single worker fits (logged as `team.posted`, the id only); it says who wakes up to take it.
 - Wake-ups: per worker, off by default; every 15 minutes, hourly, every 4 hours or daily (`wake_ups`: interval, paused, last and next wake). Set on the worker's page ("Wakes up" pill) or `helper.wakeUp` / `helper.wakeUp.pause`. Tinker has none.
-- The clock: `scheduleTick` (apps/mac/src/scheduler.ts) runs every 30 s on the routines' timer: routines first, then `runWakeUps(planUsed)`. A due worker records its wake (next = now + interval; wakes missed while ZENO was closed count once). If it runs nothing, is within its and the team's daily budget and the plan is below its limit, it takes the oldest team task its role may do, one per wake, with one SQL statement (`DELETE … RETURNING` inside the transaction that inserts the task), so two wakes never take the same one. The taken task is an ordinary queued task of that worker: plan first, blockers, hand-off rules and budgets apply as before. Logged as `wakeup.woke` (worker, team task id, task id).
+- The clock: `scheduleTick` (apps/mac/src/scheduler.ts) runs every 30 s on the routines' timer: routines first, then `runWakeUps(planUsed)`. A due worker records its wake (next = now + interval; wakes missed while ARK was closed count once). If it runs nothing, is within its and the team's daily budget and the plan is below its limit, it takes the oldest team task its role may do, one per wake, with one SQL statement (`DELETE … RETURNING` inside the transaction that inserts the task), so two wakes never take the same one. The taken task is an ordinary queued task of that worker: plan first, blockers, hand-off rules and budgets apply as before. Logged as `wakeup.woke` (worker, team task id, task id).
 - Routines can be paused and resumed (`routine.pause`); a resumed routine does not make up missed times. Each routine now carries its next time (`nextDue`).
 - Scheduled page: a sidebar row below Issues and Board. It lists every worker's routines and wake-ups (schedule, "Next in …", "Last ran … ago", Pause/Resume, Delete; for a wake-up Delete is "Turn off"), the paused last, then the team tasks waiting (role and age, Delete). Empty: "Nothing is scheduled…". The Board shows a compact "Team" group of waiting team tasks (a click opens Scheduled).
 - `helpers` carries `wakeUp` per worker, `paused`/`nextAt` per routine and `teamTasks`; no task text in logs or changes.
 - Tests: 14 TS (team store 10: create/claim, atomic single claim, role filter, oldest first, busy/budget/plan refusal, wake times with a fake clock, ids-only changes, paused routines, next due, Pal's tool; scheduler tick 2; island protocol 1 and island round trip 1, with the routines case extended) and 6 Swift (decoding, commands, the For pill, window actions, page sorting, times in words). Checks: typecheck clean; TS 639 pass (2 skipped); Swift 493 pass; gallery has a Scheduled window.
-- Known limits: a team task has no blockers and no goal (ZENO says nothing when it is done; the Board shows it); idle meant nothing running or queued (replaced by ADR-095: a wake-up takes a task whenever a run slot is free, even with that worker's own tasks queued or running); a removed agent's wake-up row stays but never wakes; daily is every 24 hours from when it was set, not a clock time.
+- Known limits: a team task has no blockers and no goal (ARK says nothing when it is done; the Board shows it); idle meant nothing running or queued (replaced by ADR-095: a wake-up takes a task whenever a run slot is free, even with that worker's own tasks queued or running); a removed agent's wake-up row stays but never wakes; daily is every 24 hours from when it was set, not a clock time.
 
 **ADR-094 part C — as built (2026-10-12):** room for many agents; built by a worker, then checked; window only (no runtime change); gallery renders a 50-agent sample; not yet tried live.
-- Board chips (`TeamRoster.chips`, ZenoIslandCore): a team of 12 or fewer shows everyone, as before. A larger team shows only who matters now, at most 12: working (longest at work first), then waiting for Keshab (anyone with a Needs you item: failed, plan to approve, held, proposal, skill draft), then used in the last 24 hours (a task started or ended; most recent first); ties keep the team's order. When someone is left out, an "All agents (N)" chip sits before New agent.
+- Board chips (`TeamRoster.chips`, ArkIslandCore): a team of 12 or fewer shows everyone, as before. A larger team shows only who matters now, at most 12: working (longest at work first), then waiting for Keshab (anyone with a Needs you item: failed, plan to approve, held, proposal, skill draft), then used in the last 24 hours (a task started or ended; most recent first); ties keep the team's order. When someone is left out, an "All agents (N)" chip sits before New agent.
 - All agents: a card over the Board (from that chip or a floor sign) listing everyone A to Z with role and step, searched by name or role in any case (`TeamRoster.search`; "financial info" and "adviser" both find Penny). A row opens the worker's page as a chip does; Escape, the cross or a click outside closes it; Return opens a single match.
 - Floor (`OfficePlan`): 8 desks and 4 meeting seats. Workers at work take seats in the order they started, each its own seat (its place in the team, wrapping past 12) or the next free one, so a team of 12 or fewer sits exactly as before and nobody moves while those who started earlier keep working; the rest are a pixel "+N at work" sign right of the top desks. The lounge shows everyone idle up to its 10 spots (in the team's order); past that the 10 who matter most (waiting for Keshab or failed first, then most recently active) and a "+N more" sign by the lounge door. Clicking a sign opens All agents. The "Needs you" board's notes count everyone waiting, shown or not. Pal's office is unchanged.
 - Made legible for a full floor: the four meeting seats show no bubble (a tile apart, their bubbles overlapped; a click still opens the task), and names in the lounge's bottom row stay on the floor.
@@ -1879,21 +1879,21 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 
 ADR-094 is done: parts A, B and C built and tested. Next: Keshab tries them on the real Mac.
 
-## ADR-095 — ATOM, Managers, Agents and Sub-Agents; Runs in Parallel
+## ADR-095 — ARK, Managers, Agents and Sub-Agents; Runs in Parallel
 
-**ADR-095 package 1 — as built (2026-10-12):** items 1 (ATOM, user-facing) and 5 (runs in parallel); built by a worker, then checked; Managers (items 2, 6) and Sub-Agents (item 4) are packages 2–3, not built.
+**ADR-095 package 1 — as built (2026-10-12):** items 1 (ARK, user-facing) and 5 (runs in parallel); built by a worker, then checked; Managers (items 2, 6) and Sub-Agents (item 4) are packages 2–3, not built.
 - Runs in parallel: the runner's one-run-per-worker rule is gone; the team-wide limit is "Runs at once" (`MAX_RUNNING` = 6 default, `MAX_RUNNING_RANGE` 1–10), stored as the `maxRunning` helper setting beside the plan limit (`store.maxRunning()` / `setMaxRunning`, part of `budgets()`), read by the runner before each start, so a change applies at once (lowering it stops nothing already running). Budgets and the plan limit (`mayStart`) still hold starts. Protocol: `helpers.settings` takes `maxRunning`; `helpers` carries it. Settings → General has a "Team" card with a "Runs at once" stepper (shown when the runtime sends the value); the Board's limits row keeps only the team budget and the plan limit.
 - Wake-ups: a worker takes a team task while a run slot is free (team-wide runs < Runs at once), within budgets and the plan, even with its own tasks queued or running (replaces ADR-094's "nothing running or queued"). Tasks taken in one wake-up pass count as runs, so a pass never takes more team tasks than free run slots; the rest stay in the team pool.
 - Single-run assumptions changed: voice "Sid, …" says "is on it" unless every run slot is taken ("will start on it when another task ends"); a worker's card line and floor bubble show the newest running task's step, with "N at work · " when it runs more than one; "longest at work" uses its oldest running task; each run links its skills in its own folder (`data/skill-plugins/<worker>/<task>`, removed after the run) so two runs of one worker never rebuild each other's.
-- ATOM: every place Keshab sees or hears the name (Settings page and switches, menus "Show/Hide ATOM", the floor's office label, "ATOM asks" cards, the tour's "Hi, I'm ATOM.", theme descriptions, gallery captions, model-facing tool descriptions and the pointed-window heading). The system prompt tells the model the user may call it ATOM or Pal; "atom" joins "pal" and "zeno" as names no worker may take. Code names, files, assets and settings keys keep "Pal". README, docs/island-protocol.md and SECURITY.md say ATOM.
-- Tests: TS 9 new or extended (runner: two jobs of one worker at once, the limit from Settings applied live, range refused; default and kept across a reopen; team: busy worker still takes a task while a slot is free, full slots leave it waiting, one pass takes no more than the free slots; voice reply when slots are full; island round trip and protocol cases for `maxRunning`; system prompt; reserved name). Swift 2 new (decode and command for Runs at once; a worker with two runs on its card, seat and overview). Checks: typecheck clean; TS 646 (644 pass, 2 skipped); Swift 505 pass; no new build warnings; gallery shows ATOM.
-- Known limits: a wake-up pass counts only the slots it fills itself, so tasks already queued (not yet running) do not hold a slot; a file worker with no folder may ask twice when two of its tasks start together; ZENO's chat and "N at work" on Managers' desks come with package 2.
+- ARK: every place Keshab sees or hears the name (Settings page and switches, menus "Show/Hide ARK", the floor's office label, "ARK asks" cards, the tour's "Hi, I'm ARK.", theme descriptions, gallery captions, model-facing tool descriptions and the pointed-window heading). The system prompt tells the model the user may call it ARK or Pal; "ark" joins "pal" and "ark" as names no worker may take. Code names, files, assets and settings keys keep "Pal". README, docs/island-protocol.md and SECURITY.md say ARK.
+- Tests: TS 9 new or extended (runner: two jobs of one worker at once, the limit from Settings applied live, range refused; default and kept across a reopen; team: busy worker still takes a task while a slot is free, full slots leave it waiting, one pass takes no more than the free slots; voice reply when slots are full; island round trip and protocol cases for `maxRunning`; system prompt; reserved name). Swift 2 new (decode and command for Runs at once; a worker with two runs on its card, seat and overview). Checks: typecheck clean; TS 646 (644 pass, 2 skipped); Swift 505 pass; no new build warnings; gallery shows ARK.
+- Known limits: a wake-up pass counts only the slots it fills itself, so tasks already queued (not yet running) do not hold a slot; a file worker with no folder may ask twice when two of its tasks start together; ARK's chat and "N at work" on Managers' desks come with package 2.
 
-**ADR-095 package 2 — as built (2026-10-12):** items 2 (Managers), the ATOM-hands-to-Managers part of 1, and 6 (Board and floor show Managers only); built by a worker, to be checked. Sub-Agents (item 4) are package 3, not built.
+**ADR-095 package 2 — as built (2026-10-12):** items 2 (Managers), the ARK-hands-to-Managers part of 1, and 6 (Board and floor show Managers only); built by a worker, to be checked. Sub-Agents (item 4) are package 3, not built.
 - Managers are soul files beside the agents: `data/agents/<id>/soul.md` with `kind: manager` and `mode: plan | group` (anything else reads as group); a Manager file with `kit`, `role` or `manager` is refused (an agent problem). Agents name theirs with `manager: <id>`; one naming no Manager works without one and is listed as a problem. Built-in workers keep theirs in the setting `manager:<id>`. Managers are versioned like souls, have a daily budget (default the team's cap, `budget:<id>`), take no tasks of their own, and are listed in `helpers` (`managers`, each Agent's `manager`). At most 12 (`MAX_MANAGERS`).
 - First start (once; the setting `managers:migrated`): with no Managers, one per role in use (Research, Coding, Design, Writing, Finance, People, else the role's own name; mode group), and every worker that takes tasks is put under its role's Manager. An added agent's move is written to its soul.md and recorded as a soul version (the same text). Keshab: agent page "Manager" picker (`agent.manager`), Board "New manager" (`manager.create`), and on a Manager's page Rename, mode switch, budget and Remove (refused while it has Agents; the folder goes to `agents-removed/`). A new agent goes under the Manager of an Agent with its role, else the first by name.
-- ATOM hands to Managers: `teamContext` lists the team by Manager; the `delegate` tool takes a "plan" Manager's name for a whole part (the goal gets one task for that Manager) and a "group" Manager's Agents directly; naming a group Manager, or an Agent under a plan Manager, is refused with words the model can act on, and `addGoal` checks again. Voice "Sid, …" still goes straight to the Agent.
-- A plan Manager's task runs through the runner like any task (a run slot, its budget, held when over): the first run (`runManagerSplit`, no tools) splits the part into at most 6 tasks for its own Agents (`store.managerSplit`: Agents' tasks with `parentId` the Manager's task, the goal's text, `after` between them; the Manager's task waits for all and runs again). When they end, `runManagerReview` (no tools) either asks one done task for its one revision (`store.managerRevise`: a note via `addComment`, which wakes it; the Manager's task waits for it) or passes a summary with the Agents' sources up; after a revision it passes up whatever comes back. ATOM's combine is unchanged (it sees the Manager's summary as that task's report). A task that ends unfinished does not fail the Manager (it reviews what finished; none finished fails its run). Agents' tasks under a Manager hand off as top-level tasks do. A Manager's run is not rated or made a skill. Logged: `manager.run` with Manager, task id, outcome and task count only.
+- ARK hands to Managers: `teamContext` lists the team by Manager; the `delegate` tool takes a "plan" Manager's name for a whole part (the goal gets one task for that Manager) and a "group" Manager's Agents directly; naming a group Manager, or an Agent under a plan Manager, is refused with words the model can act on, and `addGoal` checks again. Voice "Sid, …" still goes straight to the Agent.
+- A plan Manager's task runs through the runner like any task (a run slot, its budget, held when over): the first run (`runManagerSplit`, no tools) splits the part into at most 6 tasks for its own Agents (`store.managerSplit`: Agents' tasks with `parentId` the Manager's task, the goal's text, `after` between them; the Manager's task waits for all and runs again). When they end, `runManagerReview` (no tools) either asks one done task for its one revision (`store.managerRevise`: a note via `addComment`, which wakes it; the Manager's task waits for it) or passes a summary with the Agents' sources up; after a revision it passes up whatever comes back. ARK's combine is unchanged (it sees the Manager's summary as that task's report). A task that ends unfinished does not fail the Manager (it reviews what finished; none finished fails its run). Agents' tasks under a Manager hand off as top-level tasks do. A Manager's run is not rated or made a skill. Logged: `manager.run` with Manager, task id, outcome and task count only.
 - Window: Board chips are Manager chips ("N at work" = its Agents' running tasks plus its own runs, or "N agents · mode"; "!" when an Agent's plan, proposal or held task needs Keshab, or its own run is held); "All agents" lists everyone grouped by Manager ("No manager" last). A Manager's page: its pal, Rename/Remove, mode switch with what it means, budget, its Agents (each opens the agent page) and their tasks plus its own runs. Floor: one desk per Manager (`OfficePlan` with `TeamRoster.managers`), working with "N at work" while any Agent works, "!" and "Needs you" when one needs Keshab, idle Managers in the lounge; a desk click opens the Manager's page. Without Managers (an older runtime) the ADR-094 worker chips and floor stay, caps included. Gallery: a Research (plans and reviews, 4 agents), Coding (3) and Writing (2) team, a Manager's page and the New manager form.
 - Tests: TS 14 new (managers: soul files, names, migration once and idempotent with versions, problems, create/rename/mode/move/remove, budgets and holds, delegation in both modes, split ≤6 and one revision, unfinished tasks and refusals; manager runs with a fake SDK: split, revision, pass-up, bad split, none finished; protocol and island round trip). Swift 6 new (decode, commands, window state, chips with 0/1/5 Managers, floor desks and lounge, All agents grouping). Checks: typecheck clean; TS 660 (658 pass, 2 skipped); Swift 511 pass; no new build warnings; gallery looked at (Board, floor, Manager page).
 - Known limits: built-in workers' Managers live in settings, not a file; deleting every Manager after the first start does not make them again; a failed split (unknown Agent name, bad shape) fails the Manager's task with why; a Manager's own runs are on its page, not in the Board's columns, Needs you or Issues; the New agent form has no Manager picker (it defaults by role; move it after).
@@ -1902,15 +1902,15 @@ ADR-094 is done: parts A, B and C built and tested. Next: Keshab tries them on t
 - An Agent's run with tools may start the Agent SDK's built-in subagents (`agents` option, launched by Claude Code's `Agent` tool, older name `Task`): a fixed set by what the run may use (`subAgentsFor` in `services/llm-gateway/src/providers/sub-agents.ts`): web runs get "searcher" (WebSearch) and "reader" (WebFetch); folder runs "coder" (the file tools and Bash) and "checker" (Read, Glob, Grep, Bash: no edits); think, plan, Tinker and Manager runs none (no `Agent` tool, no `agents`). Each definition's tools are filtered to the run's own (plus `Skill` when the Agent has skills, through the same per-run plugin), with `model: inherit`, `permissionMode: default`, `maxTurns` 20 and `Agent`/`Task` disallowed (no nesting). The run's instructions add one line: up to 4, only when parts can run side by side.
 - Every launch passes one gate (`subAgentGate`), from both a PreToolUse hook (Claude Code lets the Agent tool through without asking canUseTool in the default mode) and canUseTool (counted once per tool call): only the run's own kinds, never from a sub-agent, at most `MAX_SUB_AGENTS` = 4 a run (the 5th is refused with words the model can act on), and the input rebuilt to description, prompt, kind and `run_in_background: false` (no remote or worktree copy, no other model). A sub-agent's own tool calls reach the same canUseTool (they carry its `agentID`): only tools some sub-agent has (all the run's own) plus Claude Code's hand-back, then the run's usual checks (shared page limit, folder check and sandbox, skill names); its MCP servers and `hand_off` are refused.
 - Cost: the result's `total_cost_usd` covers subagents (SDK: same calls as `modelUsage`, which includes Task subagents), so it already counts toward the Agent's budget via `addSpend`; nothing added. Dashboard tokens still come from `result.usage` (main loop only).
-- The thread: `onSubAgent` reports each start (from the gate, with the call's id, name and description cut to 120 characters) and end (the run's own tool result for that call: done, or failed on an error result, with the subagent's text cut to 200; any still open when the run ends failed). The runtime records it with `store.recordSubAgent` in a `sub_agents` table (job, call id, name, description, state, result; the newest 12 per task; deleted with the task; one left "started" when ZENO closed reads failed). Each job in `helpers` carries `subAgents`; the change is logged as `{ action: "subAgent", helper, job, name, state }`: never the description or result. The Swift thread view shows "Sub-agents" with a dot, the name, Working/Done/Failed and the result (else the description); a change re-asks the open thread like any job change.
+- The thread: `onSubAgent` reports each start (from the gate, with the call's id, name and description cut to 120 characters) and end (the run's own tool result for that call: done, or failed on an error result, with the subagent's text cut to 200; any still open when the run ends failed). The runtime records it with `store.recordSubAgent` in a `sub_agents` table (job, call id, name, description, state, result; the newest 12 per task; deleted with the task; one left "started" when ARK closed reads failed). Each job in `helpers` carries `subAgents`; the change is logged as `{ action: "subAgent", helper, job, name, state }`: never the description or result. The Swift thread view shows "Sub-agents" with a dot, the name, Working/Done/Failed and the result (else the description); a change re-asks the open thread like any job change.
 - Tests: TS 8 new (agents per kit, subsets and none for no-tool runs; the cap of 4 through hook and canUseTool counted once, unknown kind, nesting, rebuilt input; sub-agent calls through the page limit, folder check and own-tools rule; recording started/done/failed from the stream; store record, cut, change events, newest 12, closed-while-running; island `helpers` round trip) and 2 extended (the run's tool lists now end with `Agent`). Swift 2 new (decode with a malformed entry left out, state words and detail line; a change re-asks the open thread). Checks: typecheck clean; TS 672 (670 pass, 2 skipped); Swift 515 pass; no new build warnings.
 - Checker fixes: a worker run's dashboard tokens now sum `modelUsage` across models (sub-agents included) instead of the main loop's `usage` (chat unchanged); `sub_agents` keeps only the newest 12 rows per task (older pruned on each start); a PreToolUse hook on every tool denies a sub-agent's call to any tool outside the sub-agents' lists, even one Claude Code auto-allows. Tests: 3 new (summed modelUsage vs usage, 20 starts → 12 rows, the all-tools hook).
 - Known limits: not yet run against the real Claude Code (the routing of subagent calls to canUseTool and the PreToolUse hook are from the SDK's types and the installed CLI 2.1.296); passing `Skill` in a subagent's tools is marked deprecated by the SDK (the `skills` field would preload whole skills instead, outside the Skill gate and `onSkill`); a sub-agent counts for the Agent's budget only after the run ends, as the run's own cost does; the 4 is per run, so a task asked again may start 4 more.
 
 ADR-095 is done: packages 1–3 built and tested. Next: Keshab tries them on the real Mac.
 
-**ADR-096 — as built (2026-10-12):** Back and Save in the ZENO window. A worker built it. Keshab asked for no new tests, no gallery and no review.
-- Back: `WindowHistory` and `WindowLocation` are in `ZenoIslandCore/WindowHistory.swift`. `WindowPage` moved there too. A step is the sidebar page. On the team page, a step also keeps the agent, Manager, Board, task, soul, New agent, New manager and All agents.
+**ADR-096 — as built (2026-10-12):** Back and Save in the ARK window. A worker built it. Keshab asked for no new tests, no gallery and no review.
+- Back: `WindowHistory` and `WindowLocation` are in `ArkIslandCore/WindowHistory.swift`. `WindowPage` moved there too. A step is the sidebar page. On the team page, a step also keeps the agent, Manager, Board, task, soul, New agent, New manager and All agents.
 - `IslandModel.recordLocation()` runs on each change of `location` (an `onChange` in `HelpersView`). It keeps the step before as a Back step. A change from the runtime is not a step. The history keeps at most 30 steps and no two equal steps in a row.
 - `IslandModel.goBack()` skips a step when its task, Manager or agent is gone. `HelpersState.show(_:)` puts the team page back. The top bar shows "‹" when a step exists. Go → Back (⌘[) and the mouse back button do the same.
 - Save: one shared `SaveButton` lights only for a change and shows "Saved" for 1.5 s. It is on the soul, the agent name, the Manager name, a task note, New agent, New manager and a new MCP server. Return saves one-line fields.
@@ -1955,7 +1955,7 @@ Own schedules. Keshab makes, edits and deletes schedules on the Scheduled page.
 - The Scheduled page has a "New schedule" button. The button opens a form: the agent, the task, the repeat and the time. The agent menu lists only the agents that take tasks.
 - The repeat is one of the three kinds that the store has: every day at a time, every week on a day at a time, or every 1 to 168 hours. An hourly schedule also has a first run time.
 - Each routine card has an Edit button. Edit opens the same form with the routine's values. Save sends the change.
-- The form uses the shared `SaveButton` ("Create" or "Save", ⌘S) and `.tracksEdits`. Leaving the page with unsaved text asks "Discard changes?". The form closes when ZENO answers without a problem.
+- The form uses the shared `SaveButton` ("Create" or "Save", ⌘S) and `.tracksEdits`. Leaving the page with unsaved text asks "Discard changes?". The form closes when ARK answers without a problem.
 - Store: `addRoutine` takes an optional `startAt`. The new `updateRoutine` changes the worker, the task and the schedule. A changed routine counts from now, so a changed time does not come due at once. `anchorFor` in `services/helpers/src/routines.ts` sets the hourly anchor.
 - Protocol: `routine.add` and `routine.update`, and `schedule` (the numbers) in each routine (docs/island-protocol.md). The runtime checks the shape; the store checks the worker, the task and the numbers.
 - Swift: `RoutineSchedule` and `RoutineDraft` (`Scheduled.swift`), `HelpersState.saveRoutine`, `ScheduleFormCard` (`ScheduledView.swift`).
@@ -1965,39 +1965,39 @@ Sounds settings. Settings has a Sounds page with one switch for each sound. Each
 
 | Switch | Sound | Setting |
 |---|---|---|
-| Speak the team's reports | ZENO says a goal's report aloud | `speakReports` (existing), sent in `speech.set` |
-| Speak timers and updates | ZENO says timers and other updates aloud | `speakUpdates` (existing), sent in `speech.set` |
+| Speak the team's reports | ARK says a goal's report aloud | `speakReports` (existing), sent in `speech.set` |
+| Speak timers and updates | ARK says timers and other updates aloud | `speakUpdates` (existing), sent in `speech.set` |
 | Chime before speaking | The Glass chime before a spoken line | `speechChime` (new), sent as `chime` in `speech.set` |
 | Start and stop sounds | The Tink and Pop tones of dictation | `soundsEnabled` (existing) |
-| Notification sounds | The macOS sound of ZENO's notifications | `notificationSounds` (new) |
+| Notification sounds | The macOS sound of ARK's notifications | `notificationSounds` (new) |
 
 - The page is `Settings/SoundsPage.swift`. The Start and stop sounds switch moved there from General.
 - The chat's Sounds menu uses the same settings. It also has the two new switches and a "Sound settings…" link.
-- ATOM makes no sound of its own. ATOM shows a spoken line in its bubble while ZENO says it. The two Speak switches control that speech. So the page has no separate ATOM switch.
+- ARK makes no sound of its own. ARK shows a spoken line in its bubble while ARK says it. The two Speak switches control that speech. So the page has no separate ARK switch.
 - Not done: tests for the new code. Keshab asked for build only.
 
 ## ADR-097 item 3 — as built (2026-10-12)
 
-Memory from chats. Keshab chooses the chats to keep in memory. ZENO searches the kept chats for every request.
+Memory from chats. Keshab chooses the chats to keep in memory. ARK searches the kept chats for every request.
 
 - The Memory page has a "Recent chats" card. Each chat shows its title, date and message count. Tick "Keep in memory" on each chat to keep, then click Save. A kept chat shows "Kept" and a Remove button. The card uses the shared `SaveButton` and `.tracksEdits`.
 - Protocol: `memory.keepChat` and `memory.dropChat`, and `chats` in the `memory` event (docs/island-protocol.md).
-- ZENO keeps each kept chat at 3 depths in `data/memory.db`: a summary (level 1), sections of 8 messages with a heading each (level 2), and the exact lines, cut to 800 characters or less (level 3). The tables are `kept_chats`, `kept_sections`, `kept_lines` and the full-text table `kept_fts`. The code is `services/memory/src/chat-index.ts`.
-- The summary and the headings come from one run of the plan's small model without tools (`runChatDigest` in `claude-plan-job.ts`). If the run fails, or the Claude plan is not in use, ZENO makes the digest from the first lines and keywords. Keeping a chat never fails because of the model.
-- The search uses keywords (SQLite FTS5) and meaning (the local model `Xenova/all-MiniLM-L6-v2`, through `@huggingface/transformers`, which ZENO already uses). Reciprocal rank fusion merges the two results. The search starts at the summaries. It searches the sections of the best 3 chats only, then the lines of the best 3 sections only.
-- The embedding model loads in the background. A request does not wait for it: until it is ready, the search uses keywords only. If the model cannot load, ZENO logs it and uses keywords only. Vectors that are missing are added when the model is ready.
+- ARK keeps each kept chat at 3 depths in `data/memory.db`: a summary (level 1), sections of 8 messages with a heading each (level 2), and the exact lines, cut to 800 characters or less (level 3). The tables are `kept_chats`, `kept_sections`, `kept_lines` and the full-text table `kept_fts`. The code is `services/memory/src/chat-index.ts`.
+- The summary and the headings come from one run of the plan's small model without tools (`runChatDigest` in `claude-plan-job.ts`). If the run fails, or the Claude plan is not in use, ARK makes the digest from the first lines and keywords. Keeping a chat never fails because of the model.
+- The search uses keywords (SQLite FTS5) and meaning (the local model `Xenova/all-MiniLM-L6-v2`, through `@huggingface/transformers`, which ARK already uses). Reciprocal rank fusion merges the two results. The search starts at the summaries. It searches the sections of the best 3 chats only, then the lines of the best 3 sections only.
+- The embedding model loads in the background. A request does not wait for it: until it is ready, the search uses keywords only. If the model cannot load, ARK logs it and uses keywords only. Vectors that are missing are added when the model is ready.
 - Each request gets the best kept lines, with their chat title and section heading, in the system prompt (1,500 characters or less). The Core's context hook can now be async.
 - Not done: tests for the new code (Keshab asked for build only). A kept chat is a copy: turns added to the chat after keeping are not in memory. Remove and keep the chat again to add them.
 
 ## ADR-098 item 9 — as built (2026-10-12)
 
-Token savings from jcode. ZENO sends fewer tokens to Claude, and the cache holds more of them.
+Token savings from jcode. ARK sends fewer tokens to Claude, and the cache holds more of them.
 
 - Sub-agents use cheaper models. The searcher and the reader use Haiku with low effort. The checker uses Sonnet. The coder uses the model of its run. The code is `subAgentsFor` in `services/llm-gateway/src/providers/sub-agents.ts`.
 - Runs without tools use low effort. These runs are the plan, Tinker's review, the skill draft and edit, the Manager split and review, and the chat digest. The code is `runStructured` in `claude-plan-job.ts`.
 - Managers and Tinker use Sonnet at most. A model that Keshab pins on an agent stays. The code is the `cap` input of `chooseJobModel` in `services/helpers/src/models.ts`. The reason in the window is "Role maximum".
-- Each chat keeps one Claude Code session. A typed turn in a chat resumes the session and sends only the new turn and the context for this request. The `chats` table has a new column `session` (JSON: session id, model, hash of the last answer). ZENO resumes the session only when the model is the same and the last answer in the chat is the answer from that session. Otherwise, ZENO starts a new session with the whole chat and keeps its id.
-- If a resume fails before Claude does anything, ZENO starts a new session with the whole chat.
+- Each chat keeps one Claude Code session. A typed turn in a chat resumes the session and sends only the new turn and the context for this request. The `chats` table has a new column `session` (JSON: session id, model, hash of the last answer). ARK resumes the session only when the model is the same and the last answer in the chat is the answer from that session. Otherwise, ARK starts a new session with the whole chat and keeps its id.
+- If a resume fails before Claude does anything, ARK starts a new session with the whole chat.
 - Voice turns do not change. They use the pre-started process and no session. A typed chat turn does not use the pre-started process, because that process keeps no session.
 - The team list and the memory guidance are now in the system prompt (the `standing` option of `createCore`). The per-turn text has only the time, the memory facts, the kept-chat lines, the episodes and the pointed window. A chat session renders its system prompt each time (`snapshot: false`), so a changed team list arrives on the next turn.
 - After an answer with tools, the adapter pre-starts the next process with the instructions of that answer. Thus a changed team list does not stop the pre-start.
@@ -2006,37 +2006,37 @@ Token savings from jcode. ZENO sends fewer tokens to Claude, and the cache holds
 
 ## ADR-098 items 1–2 — as built (2026-10-12)
 
-Telegram for ATOM, and results to the phone. ZENO uses its own bot. Hermes keeps its bot.
+Telegram for ARK, and results to the phone. ARK uses its own bot. Hermes keeps its bot.
 
-- Set up: make a new bot with @BotFather. Add `ZENO_TELEGRAM_BOT_TOKEN` and `ZENO_TELEGRAM_CHAT_ID` to `.env`. Restart ZENO. The feature is off until both values are set.
+- Set up: make a new bot with @BotFather. Add `ARK_TELEGRAM_BOT_TOKEN` and `ARK_TELEGRAM_CHAT_ID` to `.env`. Restart ARK. The feature is off until both values are set.
 - `apps/mac/src/telegram.ts` (`startTelegram`, `splitMessage`) talks to the Bot API with Node's `fetch`. It uses long polling (`getUpdates` with offset and a 50 s timeout), `sendMessage` (plain text, split at 4096 characters) and `answerCallbackQuery`. Errors back off from 1 s to 60 s. `stop()` aborts the call in flight.
-- ZENO serves only the chat in `ZENO_TELEGRAM_CHAT_ID`. ZENO ignores other chats and logs only a count. The log never holds the token or message text.
-- `apps/mac/src/telegram-bot.ts` (`startTelegramBot`, `needsYou`) holds ZENO's side:
-  - Plain text is an ATOM chat turn. The turn goes to a Core of its own (`makeCore` in `runtime.ts`), with the chat id `telegram`. The ZENO window lists this chat as "Telegram". Turns run one at a time.
-  - `/needs` sends each Needs you item with its buttons: ATOM's questions (Allow, Decline), plans (Approve, Reject), Tinker's proposals, skill drafts and skill edits (Accept or Approve, Reject), held tasks, and failed tasks (Retry). At most 10 items. Each button calls the same store command as the window.
+- ARK serves only the chat in `ARK_TELEGRAM_CHAT_ID`. ARK ignores other chats and logs only a count. The log never holds the token or message text.
+- `apps/mac/src/telegram-bot.ts` (`startTelegramBot`, `needsYou`) holds ARK's side:
+  - Plain text is an ARK chat turn. The turn goes to a Core of its own (`makeCore` in `runtime.ts`), with the chat id `telegram`. The ARK window lists this chat as "Telegram". Turns run one at a time.
+  - `/needs` sends each Needs you item with its buttons: ARK's questions (Allow, Decline), plans (Approve, Reject), Tinker's proposals, skill drafts and skill edits (Accept or Approve, Reject), held tasks, and failed tasks (Retry). At most 10 items. Each button calls the same store command as the window.
   - `/tasks` lists running and waiting tasks (at most 20 lines). `/report <number>` sends a task's report, cut at 3500 characters. `/help` lists the commands.
   - Push: a new Needs you item (not a failure), a finished goal (its title and summary), and the result of a schedule with "Send result to Telegram" on.
-- The computer bridge has `pending()` and `onAsk()`, so ATOM's questions also go to Telegram.
+- The computer bridge has `pending()` and `onAsk()`, so ARK's questions also go to Telegram.
 - Routines have `notifyTelegram` (store column `notify_telegram`, default off). `routine.add` and `routine.update` take it. The Scheduled form has a "Send result to Telegram" switch.
-- Settings → General has a Telegram card. It shows "Connected" or "Not set up" (with the two `.env` names) and the "Send to Telegram" switch. The switch is on by default. The island sends it as `telegram.set` when ZENO connects and when it changes. The `ready` event has `telegram`.
-- The "Send to Telegram" switch controls all sends that ZENO starts, also schedule results. Replies to Keshab's messages always go.
+- Settings → General has a Telegram card. It shows "Connected" or "Not set up" (with the two `.env` names) and the "Send to Telegram" switch. The switch is on by default. The island sends it as `telegram.set` when ARK connects and when it changes. The `ready` event has `telegram`.
+- The "Send to Telegram" switch controls all sends that ARK starts, also schedule results. Replies to Keshab's messages always go.
 - Steering (ADR-100): `/steer <number> <text>` calls `TaskSteering.steer`, the same function as the window. It answers "Sent to task #N now." or "Kept for task #N. It runs after this step." `/interrupt <number>` calls `TaskSteering.interrupt` and answers "Task #N stopped. It waits for your message." A `HelperError` message is the answer. Without steering, both commands answer "Steering is off." The log holds the command name only, never the message.
 - Test results (ADR-100): a Needs you item for a Tinker proposal or skill edit has one more line, "Test cases: 2 better, 1 same". The line has the same words as the window. No results: no line. No new buttons.
 - Tests: `telegram-bot.test.ts` covers the bot, the commands, steering and the test line.
-- One writer for each chat: the chats `telegram`, `api` and `api-<chatId>` are read-only in the ZENO window. The `chats` event sets `readOnly: true` on them. A window turn (typed or spoken) in one gets the error "This chat is written from Telegram. Open it to read it only." The window shows one line in place of the composer. Reading, copying and search still work. Not done: a chat that Telegram writes has no way to move to the window.
+- One writer for each chat: the chats `telegram`, `api` and `api-<chatId>` are read-only in the ARK window. The `chats` event sets `readOnly: true` on them. A window turn (typed or spoken) in one gets the error "This chat is written from Telegram. Open it to read it only." The window shows one line in place of the composer. Reading, copying and search still work. Not done: a chat that Telegram writes has no way to move to the window.
 
 ## ADR-098 item 4 — as built (2026-10-12)
 
 A browser for workers.
 
 - Turn on the Browser switch on the worker's page. The store keeps the setting `browser:<id>`. The protocol command is `helper.browser`. Each helper in `helpers` has `browser`.
-- With the switch on, each run of the worker gets Playwright's MCP server (`@playwright/mcp` 0.0.83, Apache-2.0) under the name `zeno-browser`. A "think" worker does not get it. Sub-agents do not get it.
+- With the switch on, each run of the worker gets Playwright's MCP server (`@playwright/mcp` 0.0.83, Apache-2.0) under the name `ark-browser`. A "think" worker does not get it. Sub-agents do not get it.
 - The launch command is `node <@playwright/mcp>/cli.js --browser chromium --user-data-dir data/browser-profile/<id> --output-dir data/browser-files/<id> --no-webmcp`. The browser is headed, so Keshab can watch it.
 - Install the browser once: `node apps/mac/node_modules/@playwright/mcp/cli.js install-browser chromium`. Without it, the first browser call fails with an install message.
-- `browserCheck` in `apps/mac/src/browser.ts` checks each browser call. The first visit to each site and the first typing or submit on each site ask Keshab on ATOM's card. The answer lasts for the run. Uploads come only from the worker's granted folders. The check refuses a call that names a file. A PostToolUse hook gives each result to the check, so it knows the page's origin and the last snapshot.
+- `browserCheck` in `apps/mac/src/browser.ts` checks each browser call. The first visit to each site and the first typing or submit on each site ask Keshab on ARK's card. The answer lasts for the run. Uploads come only from the worker's granted folders. The check refuses a call that names a file. A PostToolUse hook gives each result to the check, so it knows the page's origin and the last snapshot.
 - The task's step shows the tool and the origin, for example "Browser: click on https://example.com".
 - The gateway option is `browser` in `runResearch` (`claude-plan-job.ts`). The runtime makes a new check for each run.
-- Password fields: ZENO's init script (`apps/mac/src/browser-password-mark.cjs`, `--init-script`) puts "[password field]" before the name of each password input (type `password`, or `autocomplete` with "password"). The page snapshot shows it. For `browser_type` and `browser_fill_form`, `browserCheck` reads the target's line in the snapshot. A password field, or a target ZENO cannot find in the snapshot, asks Keshab on each call, also on a site that is already allowed. The answer is never kept. The model has no new tool. The summary of a typing call and its result hide the typed text.
+- Password fields: ARK's init script (`apps/mac/src/browser-password-mark.cjs`, `--init-script`) puts "[password field]" before the name of each password input (type `password`, or `autocomplete` with "password"). The page snapshot shows it. For `browser_type` and `browser_fill_form`, `browserCheck` reads the target's line in the snapshot. A password field, or a target ARK cannot find in the snapshot, asks Keshab on each call, also on a site that is already allowed. The answer is never kept. The model has no new tool. The summary of a typing call and its result hide the typed text.
 - Two browser tasks of one worker: the second waits for the first (`acquireBrowser`, first come first served). Its step says "Waiting for the browser". The turn is released when the first task ends, fails or stops. A stop ends a wait. Another worker does not wait.
 - Not done: a headless switch. Inputs inside shadow roots are not marked. `browser_press_key` can still type into a focused password field after the site question. The turn is released when the run ends, not when the browser process has exited. The init script is tested with fakes, not yet in a real Chromium (not installed here).
 
@@ -2062,27 +2062,27 @@ One search, and labels on tasks.
 Codex when the Claude plan limit stops work.
 
 - The switch is "Use Codex when the Claude plan limit is reached", in Settings → General, in the Team card. It is off by default. The store keeps the setting `codexFallback`. The protocol command is `helpers.settings` with `codexFallback`. The `helpers` event has `codexFallback` and `codexReady`.
-- The switch shows only when Codex is found and signed in (`codexReady`). The runtime asks `codex login status` at start and when Keshab turns the switch on. ZENO also finds Codex in the ChatGPT app now (`/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex`).
+- The switch shows only when Codex is found and signed in (`codexReady`). The runtime asks `codex login status` at start and when Keshab turns the switch on. ARK also finds Codex in the ChatGPT app now (`/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex`).
 - With the switch on, the runner starts a task on Codex when only the Claude plan's limit holds it. Budgets still hold tasks. A plan that waits for Keshab, Tinker and Managers stay on Claude. The Codex run uses a normal run slot. The task does not show as held.
 - `runCodexJob` (`services/llm-gateway/src/providers/codex-job.ts`) sends the same brief: the soul, the task (`briefFor`) and a report contract. Codex replies with one JSON object. `parseReport` checks it, as for Claude runs.
 - Commands by kit:
   - think: `codex exec --json --ephemeral --skip-git-repo-check --ignore-user-config --output-last-message <file> --sandbox read-only -c web_search="disabled" <prompt>`
   - research, and a write-up without a folder: the same with `-c web_search="live"`.
-  - folders: `codex exec --json --ephemeral --skip-git-repo-check --ignore-user-config --output-last-message <file> --sandbox workspace-write -c sandbox_workspace_write.network_access=false --cd <worktree> [--add-dir <other granted folder>] <prompt>`. ZENO commits the changes on the task's branch, as for Claude.
+  - folders: `codex exec --json --ephemeral --skip-git-repo-check --ignore-user-config --output-last-message <file> --sandbox workspace-write -c sandbox_workspace_write.network_access=false --cd <worktree> [--add-dir <other granted folder>] <prompt>`. ARK commits the changes on the task's branch, as for Claude.
 - stdin is closed. API keys are removed (`signedInEnv`). The time limit is the job limit (15 minutes).
 - The thread shows the model "codex" with the reason "Ran on Codex (Claude plan limit reached)". The step says the same.
-- The tokens come from the `turn.completed` events of `--json`. They go to the usage table with the model `codex` and $0. ZENO adds no spend, so budgets count $0.
+- The tokens come from the `turn.completed` events of `--json`. They go to the usage table with the model `codex` and $0. ARK adds no spend, so budgets count $0.
 - The log has `job.codex` (task id, kit, folder yes or no) and `codex.ready`.
 - Not done: tests (Keshab asked for build only). A Codex run does not resume an earlier session. Hand-off, skills, MCP servers, the browser and sub-agents are not given to Codex. Wake-ups still wait at the plan's limit. The usage table has no provider column, so the model `codex` marks these runs. Codex output over 16 MB fails the run.
 
 ## ADR-098 item 5 — as built (2026-10-12)
 
-ZENO as a server: a local HTTP API, an MCP server and webhooks for schedules.
+ARK as a server: a local HTTP API, an MCP server and webhooks for schedules.
 
 - The API is `apps/mac/src/api-server.ts` (`createApiServer`). It uses Node's `http`. It has no framework.
-- Turn it on in Settings → General → "Local API". It is off by default. The island keeps the switch (`zeno.api.on`) and sends `api.set` when ZENO connects and when the switch changes. The runtime answers with the `api` event (on, port, token file, error).
-- The API listens on 127.0.0.1 only. The port is `ZENO_API_PORT` (default 4790).
-- Each request needs `Authorization: Bearer <token>`. The token is in `data/api-token` (32 random bytes as hex, mode 0600). ZENO makes it at the first start. ZENO compares SHA-256 digests in constant time. A wrong token gets 401. The log has the count only.
+- Turn it on in Settings → General → "Local API". It is off by default. The island keeps the switch (`ark.api.on`) and sends `api.set` when ARK connects and when the switch changes. The runtime answers with the `api` event (on, port, token file, error).
+- The API listens on 127.0.0.1 only. The port is `ARK_API_PORT` (default 4790).
+- Each request needs `Authorization: Bearer <token>`. The token is in `data/api-token` (32 random bytes as hex, mode 0600). ARK makes it at the first start. ARK compares SHA-256 digests in constant time. A wrong token gets 401. The log has the count only.
 - "Copy token" reads the file when clicked and puts the token on the clipboard. The token is never in the log or the protocol.
 - Endpoints: `POST /v1/goals`, `GET /v1/goals/:id`, `POST /v1/chat`, `GET /v1/tasks`, `GET /v1/tasks/:id`, `GET /v1/needs`, `POST /v1/needs/:key`, `POST /v1/hooks/:routineId`. Each answer is `{ok, data, error}`. A body is at most 64 KB.
 - Goals and chat turns go to a Core of their own (`makeCore`, as for Telegram). The chat is `api`, or `api-<chatId>`. One turn runs at a time. A goal has a `source` (the chat that made it; NULL for old goals). The `goal` change event carries it. The API goal turn takes the goal id only from a goal with the source `api`.
@@ -2090,9 +2090,9 @@ ZENO as a server: a local HTTP API, an MCP server and webhooks for schedules.
 - Needs you uses `needsYou` and `answerNeed` from `telegram-bot.ts`. `answerNeed` is the Telegram button code, moved out so both use it. The action is the button's word in lower case (`approve`, `reject`, `allow`, `decline`, `accept`, `retry`).
 - Webhooks: each routine has a `webhook` column (default off). The Scheduled form has the switch "Can be started by webhook". In edit mode the form shows the path. `HelperStore.startRoutine(id)` makes the task now. A routine without the switch gets 403. A routine whose last task has not ended gets 409.
 - The log has `api.request` (method, route pattern, status, ms), `api.unauthorized` (count), `api.start`, `api.stop` and `api.start_failed`. It never has bodies, goals, answers or the token.
-- The MCP server is `apps/mac/src/mcp-serve.ts`. It uses `@modelcontextprotocol/sdk` (already a dependency) over stdio. It is a client of the API and reads `data/api-token`. Tools: `zeno_give_goal`, `zeno_goal_status`, `zeno_chat`, `zeno_list_tasks`, `zeno_task_report`, `zeno_needs_you`. Add it with `claude mcp add zeno -- node <ZENO folder>/apps/mac/src/mcp-serve.ts`.
-- Docs: README "Use ZENO from other tools", SECURITY.md "Local API and MCP server", docs/island-protocol.md "Local API".
-- Not done: tests (Keshab asked for build only). No `pnpm zeno:mcp` script: pnpm writes a line to stdout, and that breaks the MCP stream. The MCP server has no tool to answer Needs you. Terminal mode has no switch, so the API is off there.
+- The MCP server is `apps/mac/src/mcp-serve.ts`. It uses `@modelcontextprotocol/sdk` (already a dependency) over stdio. It is a client of the API and reads `data/api-token`. Tools: `ark_give_goal`, `ark_goal_status`, `ark_chat`, `ark_list_tasks`, `ark_task_report`, `ark_needs_you`. Add it with `claude mcp add ark -- node <ARK folder>/apps/mac/src/mcp-serve.ts`.
+- Docs: README "Use ARK from other tools", SECURITY.md "Local API and MCP server", docs/island-protocol.md "Local API".
+- Not done: tests (Keshab asked for build only). No `pnpm ark:mcp` script: pnpm writes a line to stdout, and that breaks the MCP stream. The MCP server has no tool to answer Needs you. Terminal mode has no switch, so the API is off there.
 
 ## ADR-098 item 3 — as built (2026-10-12)
 
@@ -2100,9 +2100,9 @@ Steer or interrupt a running task.
 
 - Open the thread of a running task. The field "Tell <agent>…" sends a message. Click Send or push Return. The protocol command is `job.steer` (`id`, `text` of 1 to 2000 characters).
 - The worker reads the message at its next step. The run does not stop. The runtime gives each worker run its input as a stream (Agent SDK streaming input: `query({ prompt: AsyncIterable<SDKUserMessage> })`, sdk.d.ts line 3245; `priority` at line 6228). Each message has `priority: "next"` and `client_composed: true`, so the CLI does not read `@file` mentions or run slash commands.
-- ZENO keeps the message as a task note with `delivery: "live"`. The thread shows it as "Keshab (while running)". A resumed run does not get a "live" note again.
-- Some runs cannot take a message: plan, Manager and Tinker runs, and a run that has its result. Then ZENO keeps the message with `delivery: "after"`, and the task runs once more after this run. The thread shows "Keshab (after this run: the run could not take it)".
-- The CLI takes a message between steps. When the run ends before a step follows the message, ZENO changes the message to "after" (`steerUnread`). This is a guess from step boundaries: a message can then go to the worker two times.
+- ARK keeps the message as a task note with `delivery: "live"`. The thread shows it as "Keshab (while running)". A resumed run does not get a "live" note again.
+- Some runs cannot take a message: plan, Manager and Tinker runs, and a run that has its result. Then ARK keeps the message with `delivery: "after"`, and the task runs once more after this run. The thread shows "Keshab (after this run: the run could not take it)".
+- The CLI takes a message between steps. When the run ends before a step follows the message, ARK changes the message to "after" (`steerUnread`). This is a guess from step boundaries: a message can then go to the worker two times.
 - The Interrupt button is next to Stop on a running task. The protocol command is `job.interrupt` (`id`). It calls the SDK's `Query.interrupt()` (sdk.d.ts line 2858). Then the input stream ends, and the run ends with `RunInterrupted`.
 - The runtime keeps the session id. The store moves the task back to `queued` with `interrupted` = 1 (`HelperStore.interrupt`). The task is held with "Interrupted — waiting for you." It shows under Needs you. The activity line is "Interrupted".
 - The field on an interrupted task is "Tell <agent> what to do next". The message wakes the task. The next run resumes the same Claude session with the message (`resumeOf`, `followUpBrief`). When a note waited already at the interrupt, the task runs again at once.
@@ -2115,21 +2115,21 @@ Steer or interrupt a running task.
 
 Test cases for souls and skills.
 
-- Open the thread of a done task. "Save as test case" saves the task for its agent. When the run used a ZENO-made skill, "Save for <skill>" saves the task for that skill. The protocol command is `testcase.save` (`jobId`, `kind` `soul` or `skill`, `target`).
+- Open the thread of a done task. "Save as test case" saves the task for its agent. When the run used a ARK-made skill, "Save for <skill>" saves the task for that skill. The protocol command is `testcase.save` (`jobId`, `kind` `soul` or `skill`, `target`).
 - The store keeps each test case in the table `test_cases`: id, target kind, target (agent id or skill name), task id, task text, the original report (cut to 4000 characters) and the time. A target keeps 10 test cases at most. The store refuses the 11th with a clear message. It also refuses a task that is not done, a task with no report, a wrong target and a second save of the same task for the same target.
-- The agent page and each ZENO-made skill on the Plugins page list the test cases ("Test cases · 2 of 10"). Delete removes one (`testcase.delete`, `id`).
-- When Tinker saves a soul proposal or a skill edit, and the target has test cases, the Tinker task runs the test cases before it ends. ZENO takes the newest 3 cases. For each case, ZENO makes two dry runs: one with the current soul or skill text, one with the proposed text. Then a judge run compares the two answers with the saved report. The judge gives `better` (`old`, `new` or `same`) and a reason (200 characters at most).
+- The agent page and each ARK-made skill on the Plugins page list the test cases ("Test cases · 2 of 10"). Delete removes one (`testcase.delete`, `id`).
+- When Tinker saves a soul proposal or a skill edit, and the target has test cases, the Tinker task runs the test cases before it ends. ARK takes the newest 3 cases. For each case, ARK makes two dry runs: one with the current soul or skill text, one with the proposed text. Then a judge run compares the two answers with the saved report. The judge gives `better` (`old`, `new` or `same`) and a reason (200 characters at most).
 - Each run has no tools: `tools` [], `strictMcpConfig`, `settingSources` [], effort "low" (the `runStructured` pattern, modes `testAnswer` and `testJudge`). The model is Sonnet at most (`modelForTier(..., "medium")`).
 - The cost counts on the Tinker task that made the change, so it counts on Tinker's budget. When the plan is above its limit, a case is "Not run: plan limit". When Tinker's or the team's budget is used up, a case is "Not run: budget used up". A plan-limit error in a run stops the remaining cases.
 - The store keeps the results per proposal or edit in the table `test_results` (state, verdict, reason, the two answers cut to 4000 characters). A new run replaces the old results.
 - The proposal card (agent page and Needs you) and the skill edit card (Plugins page and Needs you) show "Test cases: 2 better, 1 same". "Compare" opens the old and the new answer side by side for each case (cut to 800 characters), with the judge's reason. "Run tests" runs the cases again (`testcase.run`, `proposalKind`, `id`). Accept and Reject do not change.
 - Code: `services/helpers/src/test-cases.ts` (`testCaseTable`, briefs, limits). Store: `saveTestCase`, `deleteTestCase`, `testCases`, `testInputs`, `startTestRun`, `finishTestCase`, `testResults`, `tinkerTaskOf`. Gateway: `runTestAnswer`, `runTestJudge` in `claude-plan-job.ts`. Runtime: `apps/mac/src/test-runs.ts` (`runTestCases`), the `test` hook of `runTinker`, and `runTests` in `runtime.ts`. Window: `TestCaseViews.swift` (`TestRunView`, `TestCasesList`, `SaveTestCaseSection`) and `TestCases.swift` (Core).
 - The log has `test.run` (kind, id and counts) and `test.failed` (kind, id and the error kind). The change events have ids, targets and states only. The log never has a task, a report or an answer.
-- Not done: tests (Keshab asked for build only). Telegram does not show test results. A run that ZENO closes in the middle stays "running" until "Run tests" runs it again.
+- Not done: tests (Keshab asked for build only). Telegram does not show test results. A run that ARK closes in the middle stays "running" until "Run tests" runs it again.
 
 ## Backlog After ADR-098 (2026-10-13)
 
-This list comes from a comparison of ZENO with Paperclip. The agent did not fetch the Paperclip docs. The Paperclip rows use ZENO's notes and prior knowledge. A "no hits" result is a search, not proof.
+This list comes from a comparison of ARK with Paperclip. The agent did not fetch the Paperclip docs. The Paperclip rows use ARK's notes and prior knowledge. A "no hits" result is a search, not proof.
 
 Order of work: fix and test first, then build.
 
@@ -2146,17 +2146,17 @@ Keshab asked for build only, so these items had no tests. They have tests now (c
 - Fixed (2026-10-13): a Telegram turn and a window turn on the same chat could disagree on the history. Each chat now has one writer; the window reads `telegram` and `api*` chats only.
 - Fixed: a second browser task of one worker waits for the first.
 - Fixed (2026-10-13): a goal that another surface made during an API goal turn could get the wrong id. A goal now has a `source`. Not checked with the real Claude plan: the source reaches the shared tool runner through `AsyncLocalStorage`.
-- Fixed: a password field, or a field ZENO cannot identify, always asks. Open: shadow-root inputs and `browser_press_key` into a focused password field.
+- Fixed: a password field, or a field ARK cannot identify, always asks. Open: shadow-root inputs and `browser_press_key` into a focused password field.
 - Codex runs get no hand-off, skills, MCP servers, browser or sub-agents. This is not a gap: no browser or MCP tool exists for the safety checks to guard. A test checks it (`codex-job.test.ts`).
 - No separate webhook secret (ADR-103). The webhook uses the API bearer token and the API listens on 127.0.0.1 only.
-- Fixed: the MCP server has the tool `zeno_answer_need` (key and action). A browser action before the first navigate is now refused.
+- Fixed: the MCP server has the tool `ark_answer_need` (key and action). A browser action before the first navigate is now refused.
 - `runtime.ts` split: done, 832 lines (a pure move into `run-job.ts`, `runtime-support.ts` and `island-wiring.ts`; tests unchanged). `island-protocol.ts` split: done, 140 lines (a pure move into `island-items.ts` and `island-commands.ts`; `island-protocol.ts` still re-exports every name; tests unchanged).
 
 ### B3 — Gaps against Paperclip (most valuable first)
 
 1. Activity timeline for each run (ADR-099): built and tested (TS 746 tests, Swift 517). Not yet seen in the real window. Codex and Manager runs record no calls.
 2. Telegram parity (B3.2, ADR-100): built and tested. `/steer`, `/interrupt` and the test line in Needs you items. Not yet tried on a real phone.
-3. WhatsApp for ATOM (B3.3): skipped by Keshab 2026-10-13.
+3. WhatsApp for ARK (B3.3): skipped by Keshab 2026-10-13.
 4. Checkpoint and undo of a run's file edits, also outside git repos (B3.4, ADR-101): TypeScript side built and tested. The Swift side is built by another agent. Bash edits are not tracked. Codex runs have no undo.
 5. Skills hub (B3.5, ADR-102): TypeScript side built and tested. The Swift side is built by another agent. Search and install of skills from a pinned list of public repos (`anthropics/skills`). A person approves each install. No update is automatic.
 6. Smaller gaps: image and video generation. Remote terminals (Task 3.19, Cloud sandboxes, is the nearest planned task).
@@ -2196,11 +2196,11 @@ Design: `docs/design/design-study.md` §3 A (tokens, type, motion) and §4 (roll
 - 4.7: Wisp's bubble is night glass (radius 18, no icon circle, a soft curved tail); listening and dictating light its rim with a pool of light at the tail and a meter in Wisp's light; amber for a notice or a question, coral for a problem; grows from the tail and leaves on the named springs.
 - 4.8: the work strip is a glass capsule with a breathing dot of light and a concentric Stop; the approval card has an amber rim and dot, the request in rounded type, Decline with its `esc` hint and Allow as the only filled button, both concentric with the corners; the pointing label is a glass capsule.
 - 4.9: the Helpers window has a darker sidebar reaching the top, helper discs (avatar or letter) with a turning arc of light while working, jobs as dots (running, queued, done, failed, stopped), a line of light for "n of m" steps (`HelperJob.progress`, tested), compact "Opens in" and "Model" pills, a capsule task field, "Read report" as the only lit button, and a roomier report view.
-- Kept on purpose: "ZENO needs your OK" wording; Delete on every job row; the helper header shows job counts, since helpers have no description yet.
+- Kept on purpose: "ARK needs your OK" wording; Delete on every job row; the helper header shows job counts, since helpers have no description yet.
 
 **Void theme (ADR-086, 2026-10-10):** built; tested (456 Swift); seen in the gallery; not yet checked in the running app (window shadows off, the menu-bar glyph refreshing on a theme change, hover timing). Void is the default (a stored Lantern moves to it once; any later choice sticks); Lantern and the others are unchanged (pixel-compared before and after). New palette properties (`surfaceStyle`, `buttonStyle`, `usesGlow`, `usesShadows`, `monoIdentifiers`, `statusDots`, `borderHover`, `identifier`, `cornerGap`) drive every component: pure black, 1 px `#292d30` hairlines, no glows or shadows (Wisp and the menu-bar glyph included), ghost buttons (Allow with an amber hairline, "Read report" with a violet one), status dots, SF Mono for identifiers with violet only on model names and source hosts, one New York line per screen, 150 ms hover. Departures: captions are `#878b92` (Iron `#6e727a` is below AA on black); overlays have no backdrop blur; the working strip stays a pill; under Void the Glow, bubble Background and Glass/Solid settings have no visible effect.
 
-**Avatars (ADR-085, 2026-10-10):** the loader is built and tested (453 Swift); waiting for Keshab's exported images in `assets/avatars/`. `build-app.sh` copies the PNGs one folder deep into the app; `AvatarImages` finds them (`ZENO_AVATARS_DIR`, then the app bundle, then the repo); a new Wisp style "Avatar" draws the image for each mood and reaction with ZENO's own motion and light (speaking alternates two mouths about 6 times a second, unevenly); helpers show their face in the Helpers window. With Wisp's images present, Avatar becomes the default, and a stored Orb moves to it once. A missing image falls back to today's drawing. Not done: Wisp's "happy" for a finished job (only the hello), mirroring when Wisp faces left, the letter discs with a working arc from the mock.
+**Avatars (ADR-085, 2026-10-10):** the loader is built and tested (453 Swift); waiting for Keshab's exported images in `assets/avatars/`. `build-app.sh` copies the PNGs one folder deep into the app; `AvatarImages` finds them (`ARK_AVATARS_DIR`, then the app bundle, then the repo); a new Wisp style "Avatar" draws the image for each mood and reaction with ARK's own motion and light (speaking alternates two mouths about 6 times a second, unevenly); helpers show their face in the Helpers window. With Wisp's images present, Avatar becomes the default, and a stored Orb moves to it once. A missing image falls back to today's drawing. Not done: Wisp's "happy" for a finished job (only the hello), mirroring when Wisp faces left, the letter discs with a working arc from the mock.
 
 ---
 
@@ -2271,7 +2271,7 @@ Pal and the office floor are now smooth vector art (`PalDrawing`, `OfficeDrawing
 
 ## ADR-106 — One turn, then idle (2026-10-13)
 
-ATOM no longer listens again after a reply. "Answer without keys" is off by default. A typed turn never opens the microphone. A Quiet chat does not speak the reply to a typed message. Keshab: check by hand with the running app.
+ARK no longer listens again after a reply. "Answer without keys" is off by default. A typed turn never opens the microphone. A Quiet chat does not speak the reply to a typed message. Keshab: check by hand with the running app.
 
 ## Overview inside Board; budget on one line (2026-10-13)
 
@@ -2304,11 +2304,11 @@ The `usage` table has three new nullable columns: `chat_id`, `gap_ms` and `cache
 
 ## Token cost, job 2: why the second Opus request has no cache hit (2026-10-13)
 
-One chat turn makes two model requests, not one. Rows 3-4 and 5-6 of `data/helpers.db` show them. The first is the turn: it writes about 7.5k tokens of cache (ATOM's tools and system prompt). The second comes 3 seconds later. It is the conversation note (ADR-059) that runs after every reply on the chat's own model. It has no tools and a different system prompt (`SUMMARY_PROMPT`). The cache prefix starts with the tools, then the system prompt. So the note shares nothing with the turn: `cache_read` is 0 and it writes about 1k. On Opus the note is above the 1024-token cache minimum, so it pays a cache write. On Haiku it is below the minimum and pays plain input (about 0.78k). The pre-started Claude Code process (ADR-064) makes no model request. The chat digest (ADR-097) runs only when a chat is kept, on the small model. The goal report is rare. The note does not share the cache and cannot, because its prefix must differ. Options: (a) write the note once per chat (job 3, done in ADR-108); (b) run the note on the small model. Option (b) changes the wording of the saved notes, so it needs Keshab's decision.
+One chat turn makes two model requests, not one. Rows 3-4 and 5-6 of `data/helpers.db` show them. The first is the turn: it writes about 7.5k tokens of cache (ARK's tools and system prompt). The second comes 3 seconds later. It is the conversation note (ADR-059) that runs after every reply on the chat's own model. It has no tools and a different system prompt (`SUMMARY_PROMPT`). The cache prefix starts with the tools, then the system prompt. So the note shares nothing with the turn: `cache_read` is 0 and it writes about 1k. On Opus the note is above the 1024-token cache minimum, so it pays a cache write. On Haiku it is below the minimum and pays plain input (about 0.78k). The pre-started Claude Code process (ADR-064) makes no model request. The chat digest (ADR-097) runs only when a chat is kept, on the small model. The goal report is rare. The note does not share the cache and cannot, because its prefix must differ. Options: (a) write the note once per chat (job 3, done in ADR-108); (b) run the note on the small model. Option (b) changes the wording of the saved notes, so it needs Keshab's decision.
 
 ## Token cost, job 3: one note per quiet chat (2026-10-13)
 
-The conversation note is now written once, when a chat has been quiet for 10 minutes (`ATOM_NOTE_QUIET_MS`, default 600000), when the user leaves the chat (new chat, other chat), and at quit. A chat with fewer than 2 exchanges gets no note. `ATOM_EPISODES=0` still turns notes off. `ATOM_NOTE_QUIET_MS=0` restores a note after every reply. The offer to remember was never part of the note request, so it is unchanged. See ADR-108. Code: `services/memory/src/episodes.ts`, `apps/mac/src/notes.ts`, `onLeave` in `services/core/src/core.ts`.
+The conversation note is now written once, when a chat has been quiet for 10 minutes (`ARK_NOTE_QUIET_MS`, default 600000), when the user leaves the chat (new chat, other chat), and at quit. A chat with fewer than 2 exchanges gets no note. `ARK_EPISODES=0` still turns notes off. `ARK_NOTE_QUIET_MS=0` restores a note after every reply. The offer to remember was never part of the note request, so it is unchanged. See ADR-108. Code: `services/memory/src/episodes.ts`, `apps/mac/src/notes.ts`, `onLeave` in `services/core/src/core.ts`.
 
 ## Token cost, job 4: Dashboard shows input + output (2026-10-13)
 
@@ -2326,13 +2326,13 @@ Next: Keshab checks by hand that a goal from a window chat shows its result in t
 
 ## Phase N1: the native engine core (ADR-110, 2026-10-13)
 
-`ATOM_ENGINE=native` gives each open chat one long-lived Claude Code session (`services/llm-gateway/src/providers/claude-session.ts`). `apps/mac/src/native-core.ts` has the same Core interface as the legacy engine, so voice, the island, Telegram and the API do not change. `apps/mac/src/native-safety.ts` is the gate for every tool call. The session closes after `ATOM_SESSION_IDLE_MS` (default 3600000; it was 600000 until 2026-10-15, now as long as the 1-hour prompt cache, so a chat resumed after a pause keeps its warm cache) with no turn and no background task, and reopens with `resume`. The default is `legacy`, and the legacy engine is unchanged. Tests: `claude-session.test.ts`, `native-core.test.ts` (fake SDK). Live probe: plain prefix 2.3k (target 2.5k), project prefix about 4.6k (target 4.5k), ATOM tools deferred, second turn cached.
+`ARK_ENGINE=native` gives each open chat one long-lived Claude Code session (`services/llm-gateway/src/providers/claude-session.ts`). `apps/mac/src/native-core.ts` has the same Core interface as the legacy engine, so voice, the island, Telegram and the API do not change. `apps/mac/src/native-safety.ts` is the gate for every tool call. The session closes after `ARK_SESSION_IDLE_MS` (default 3600000; it was 600000 until 2026-10-15, now as long as the 1-hour prompt cache, so a chat resumed after a pause keeps its warm cache) with no turn and no background task, and reopens with `resume`. The default is `legacy`, and the legacy engine is unchanged. Tests: `claude-session.test.ts`, `native-core.test.ts` (fake SDK). Live probe: plain prefix 2.3k (target 2.5k), project prefix about 4.6k (target 4.5k), ARK tools deferred, second turn cached.
 
-Next: Keshab tries `ATOM_ENGINE=native` in the real app. Then Phase N2: sub-agents and the Board.
+Next: Keshab tries `ARK_ENGINE=native` in the real app. Then Phase N2: sub-agents and the Board.
 
 ## Phase N2: sub-agents and the Board (ADR-110, 2026-10-14)
 
-With `ATOM_ENGINE=native`, ATOM's workers are Claude Code sub-agents. The legacy engine is unchanged.
+With `ARK_ENGINE=native`, ARK's workers are Claude Code sub-agents. The legacy engine is unchanged.
 
 - `apps/mac/src/native-agents.ts`: `agentDefinitions` (one AgentDefinition for each worker, tools by kit), `agentModel` (pin, else Laya with the role floor), and the `create_agent` tool.
 - `apps/mac/src/native-board.ts`: `boardRecorder` makes Board rows from the session stream and the SubagentStart and SubagentStop hooks.
@@ -2344,22 +2344,22 @@ With `ATOM_ENGINE=native`, ATOM's workers are Claude Code sub-agents. The legacy
 
 Review fixes (2026-10-14): Agent call input allowlist, plan-first file gate, `create_agent` on the approval card, built-in agent names refused, Board text masked, ToolSearch for agents with MCP or the browser, fail-closed tests.
 
-Not built in N2: speech for a wake-up reply (N3), SendMessage steering to a running agent, a worktree in a plain chat (a folders agent there works in its granted folders, with checkpoints), and an exact link from SubagentStart and WorktreeCreate to the Agent call (these hooks give no `tool_use_id`, so ATOM uses the oldest open job of that worker and the oldest waiting worktree).
+Not built in N2: speech for a wake-up reply (N3), SendMessage steering to a running agent, a worktree in a plain chat (a folders agent there works in its granted folders, with checkpoints), and an exact link from SubagentStart and WorktreeCreate to the Agent call (these hooks give no `tool_use_id`, so ARK uses the oldest open job of that worker and the oldest waiting worktree).
 
 Next: Keshab tries Phase N2 in the real app. Then Phase N3: voice, Telegram, the API and schedules.
 
 ## Phase N3: voice, Telegram, the API and schedules (ADR-110, 2026-10-14)
 
-With `ATOM_ENGINE=native`, the other entry points use the native engine. The legacy engine is unchanged.
+With `ARK_ENGINE=native`, the other entry points use the native engine. The legacy engine is unchanged.
 
-- `apps/mac/src/native-entry.ts`: `routeWake` sends a reply that the session gives by itself (an agent reported). In the voice chat, ATOM says it on the report-line path, so a Quiet chat shows it and does not say it (ADR-106). In the `telegram` chat, the bot sends it. In a routine chat, the bot sends it when the routine's "Send to Telegram" is on.
+- `apps/mac/src/native-entry.ts`: `routeWake` sends a reply that the session gives by itself (an agent reported). In the voice chat, ARK says it on the report-line path, so a Quiet chat shows it and does not say it (ADR-106). In the `telegram` chat, the bot sends it. In a routine chat, the bot sends it when the routine's "Send to Telegram" is on.
 - `routineStarter`: a due routine is one main-agent turn in its chat `routine-<id>`, with the text "<worker name>, <task>". The text goes `client_composed`. A routine whose last turn or agent still runs is skipped this time. `store.runRoutines(start)` makes no legacy task and keeps the catch-up rule. `scheduleTick` runs no wake-ups on the native engine.
-- `api-server.ts`: `POST /v1/goals` sends the goal into the chat `api-goal-<goalId>`. `goalId` is null when ATOM answers without an agent. `GET /v1/goals/:id` reads the job rows of that chat. `mcp-serve.ts` is unchanged.
+- `api-server.ts`: `POST /v1/goals` sends the goal into the chat `api-goal-<goalId>`. `goalId` is null when ARK answers without an agent. `GET /v1/goals/:id` reads the job rows of that chat. `mcp-serve.ts` is unchanged.
 - `telegram-bot.ts`: `send(text, pushed)`. A later reply always goes. A routine result follows "Send to Telegram".
 - `chat-owner.ts`: a routine chat is read-only in the window, as the Telegram and API chats are.
 - Board: the gate puts Laya's model or the pin on the job at once. The recorder puts the exact model from the sub-agent's usage while the job runs.
 - The native opening no longer has the team line. The agents reach Claude Code as its agent listing. The line also named the legacy `delegate` tool. Saving: about 35 to 60 tokens for each session open.
-- Tests: `native-entry.test.ts`, and N3 tests in `api-server.test.ts`, `telegram-bot.test.ts`, `scheduler.test.ts`, `routines.test.ts`, `native-board.test.ts`, `native-safety.test.ts` and `island.test.ts`. The Telegram, API and scheduler tests also pass with `ATOM_ENGINE=native`. All tests use fakes.
+- Tests: `native-entry.test.ts`, and N3 tests in `api-server.test.ts`, `telegram-bot.test.ts`, `scheduler.test.ts`, `routines.test.ts`, `native-board.test.ts`, `native-safety.test.ts` and `island.test.ts`. The Telegram, API and scheduler tests also pass with `ARK_ENGINE=native`. All tests use fakes.
 
 - Fixes after N3 (2026-10-14): 1. An agent's report that comes during a turn of the same chat goes into the Core's turns, before the request (the order that Claude Code saw). The turn's save keeps it. Before, the turn's save deleted it. 2. On the native engine, a webhook starts the routine with `routineStarter`, as the clock does: no legacy task, the same overlap rule (409 while its last run goes), answer `{ taskId: null }`. 3. `/v1/chat` refuses a `chatId` that starts with `goal-`. Thus an API chat cannot share the chat `api-goal-<id>` of a goal. 4. A native run clears the routine's old last task. The window shows the time of the last run, which a native run sets.
 
@@ -2386,7 +2386,7 @@ Next: Keshab tries Phase N4 in the real app. Then Phase N5: `native` becomes the
 - Moved: `scrubbedEnv`, `planGuard`, `classify`, `tokensOf`, `sourcesFilter`, `sdkToolsFor`, `promptFrom`, `listPlanModels` and the shared types to `services/llm-gateway/src/providers/plan-support.ts`. `createScheduleTool` to `services/helpers/src/schedule-tool.ts`.
 - Added: `apps/mac/src/tinker-runner.ts` and `createTinkerRun` (Tinker's tasks), `nativeSteering` in `native-entry.ts`, the `note` mode in `claude-plan-job.ts`.
 - Deleted: `claude-plan.ts`, `sub-agents.ts`, `codex-job.ts`; in helpers `runner.ts`, `delegate.ts`, `goals.ts`, `managers.ts`, `team.ts`, `sub-agents.ts`; in `apps/mac/src` `run-job.ts`, `manager-run.ts`, `goal-post.ts`, `task-steering.ts`, `turn-chat.ts`; `createCore`; Swift `ManagerViews.swift`, the team-task and wake-up views.
-- Removed: the `ATOM_ENGINE` switch, the Codex fallback, `sendGoal`, `sendRoutineResult`, `held`, the legacy goal path of the API, and the manager, team and wake-up commands of the island.
+- Removed: the `ARK_ENGINE` switch, the Codex fallback, `sendGoal`, `sendRoutineResult`, `held`, the legacy goal path of the API, and the manager, team and wake-up commands of the island.
 - Tests: no test ran (the cloud session has no `data/`, no macOS). `pnpm typecheck` is clean. Tests of deleted code are deleted.
 
 Next: Keshab runs `pnpm test` and `pnpm island:test` on the Mac, then tries plain chat, project chat, voice, Telegram, Sid, a new agent and a routine by hand.
@@ -2397,7 +2397,7 @@ Next: Keshab runs `pnpm test` and `pnpm island:test` on the Mac, then tries plai
 - Work plans (ADR-111): `work-plan.ts`, `plans.ts`, `native-plan.ts`; Swift `WorkPlans.swift`, `PlanViews.swift`.
 - Reach: `search_chats`, `propose_skill` (`reach-tools.ts`), the audit log (`audit.ts`, `GET /v1/audit`).
 - Second brain (ADR-112): `brain.ts`, `brain-wiring.ts`; Swift `Brain.swift`, `BrainView.swift`; commands `brain.*`.
-- UI: Stop in the composer while ATOM answers, Copy and Try again on replies, New chat in the chat top bar, a link from Settings → Memory to the graph.
+- UI: Stop in the composer while ARK answers, Copy and Try again on replies, New chat in the chat top bar, a link from Settings → Memory to the graph.
 - Tests: the whole TypeScript suite passes in the cloud session (815 tests, Linux). Swift was not compiled or run (no macOS in the cloud session).
 - Not done: a second chat app (Slack or Discord) for the gateway; it needs a token, an allowlist and a security review first.
 
@@ -2438,21 +2438,21 @@ Next: Keshab uses the window for a week, and names the features he never opens.
 
 Four read-only reviewers (runtime/island, helpers/gateway, security, Swift) found the problems below. The first three were fixed first, each with a test that failed before the fix. The rest of the list is in the audit notes.
 
-- **A failed command no longer ends ATOM.** `handle()` in `island.ts` had no try/catch, and the crash handler ends the app on any uncaught error. A failing command now logs its name and sends an `error` event. The `sendHelpers` promise got a `.catch` (it also clears its queued flag).
-- **Opening a chat during an answer no longer crashes ATOM.** `loop.cancel()` only aborts, and `resume()` threw while the Core was still busy. `Core.busy` is new and optional. `chat.open` waits up to 2 s for the Core, then resumes. Tests in `island.test.ts`.
+- **A failed command no longer ends ARK.** `handle()` in `island.ts` had no try/catch, and the crash handler ends the app on any uncaught error. A failing command now logs its name and sends an `error` event. The `sendHelpers` promise got a `.catch` (it also clears its queued flag).
+- **Opening a chat during an answer no longer crashes ARK.** `loop.cancel()` only aborts, and `resume()` threw while the Core was still busy. `Core.busy` is new and optional. `chat.open` waits up to 2 s for the Core, then resumes. Tests in `island.test.ts`.
 - **A task the user stopped still gets its cleanup.** `end()` in `native-board.ts` returned early when the row was no longer "running", so the browser lock, checkpoints and worktree commit never ran. The row stays as the user set it, and `onEnd` runs once. Failed Board writes are logged (`board.write_failed`).
 - **The Computer control switch cannot stay stuck.** It cleared only on `ready`. It now also clears when the runtime fails or its configuration is invalid, and after 45 s (`ComputerRestart`).
 
 - **Approval gaps in computer control.** Return skipped its card after typing in any field, so "type, then Return" sent a message from a compose box. Now it skips only after typing in a search or address field (`isSearchField`). Text with a line break asks before it is typed. Key aliases (`command`, `alt`, `esc`, `kp_enter`) are normalised to the names the rules use. Static text, images and headings ask when their label is risky (a page can make them clickable). The risky-word list gained allow, accept, agree, authorize, approve, grant, unlock, yes, continue, sign in, log in. Tests: `policy.test.ts`, `tool.test.ts`.
-- **Folder agents no longer open secrets.** `folderCheck` had no secret check (only the project chat had one). It now refuses `.env` files, keys, `data/api-token` and ATOM's databases (`isSecretLike` knows `data/helpers.db` and `data/memory.db`) for read and write. Test in `folder-run.test.ts`.
+- **Folder agents no longer open secrets.** `folderCheck` had no secret check (only the project chat had one). It now refuses `.env` files, keys, `data/api-token` and ARK's databases (`isSecretLike` knows `data/helpers.db` and `data/memory.db`) for read and write. Test in `folder-run.test.ts`.
 - **Private files.** The data folder is mode 0700. `helpers.db`, `memory.db` (with their WAL files) and the log are 0600 (`private-files.ts`, called at startup).
 - Open from the review: soul `##` truncation, the Swift items (recorder, model reload, dropped commands), the sandbox git config escape, token scopes, and the delete candidates (Keshab decides).
 - **Dead code removed (85 lines).** Checked by search first; each item had no caller outside its definition and its own test. Removed: `HAND_OFFS`, `MAX_LEVELS`, `MAX_HAND_OFFS`, `TaskContext`, `HandOffOutcome`, `store.handOffs()`, `store.context()`, `wantsFiles`, and the `Runtime` fields `memory`, `helpers`, `timers` and `steering` (nothing read them; `config` and `log` stay, `terminal.ts` reads them). Kept on purpose: the `goals` table and `store.goal()` (the Board and the API read them), `reopenGoal`, `core.prepare()` (part of the `Core` interface) and the `spend` table (a schema line; no data is dropped).
-- **Swift: the shortcut recorder.** A recording nobody finished kept every global shortcut paused and took ATOM's own keys. It now ends when the Shortcuts page closes and after 30 s (`ShortcutRecorder`).
+- **Swift: the shortcut recorder.** A recording nobody finished kept every global shortcut paused and took ARK's own keys. It now ends when the Shortcuts page closes and after 30 s (`ShortcutRecorder`).
 - **Swift: the speech model.** A failed first load (offline, 450 MB download) stayed failed until relaunch. The next dictation or Talk now tries again.
-- **Swift: dropped commands.** A command sent while the runtime was down (typed prompt, note, skill) vanished with only a log line. `RuntimeSupervisor.onCommandDropped` now reports it; the app shows "ATOM is not running right now… Try again in a moment" and clears the waiting state (`DroppedCommand`). Tests: `RuntimeSupervisorTests`. The recorder and the model retry were checked by build only (they sit in the app target, not the tested core).
+- **Swift: dropped commands.** A command sent while the runtime was down (typed prompt, note, skill) vanished with only a log line. `RuntimeSupervisor.onCommandDropped` now reports it; the app shows "ARK is not running right now… Try again in a moment" and clears the waiting state (`DroppedCommand`). Tests: `RuntimeSupervisorTests`. The recorder and the model retry were checked by build only (they sit in the app target, not the tested core).
 - **Soul text with `##` lines is no longer cut.** A line of soul text that starts with "## " is written with a backslash and read back without it, so a lesson or a rule can hold such a line. A write followed by a read changes nothing, so no bogus soul version is saved (`agents.ts`; test in `agents.test.ts`).
-- **Git escape closed.** An agent in the sandbox could delete its worktree's `.git` link and run `git init`; the new config could name a command (`core.fsmonitor`, a filter) that ran when ATOM ran `git add` outside the sandbox. `worktreeIntact()` now checks that the worktree's `.git` is still a file that points into the repository's own `worktrees` folder, and `commitWork` refuses otherwise (logged as `agent.commit_refused`). The git wrapper also turns `core.fsmonitor` off. Tests use a real repository and a real swap (`worktree.test.ts`).
+- **Git escape closed.** An agent in the sandbox could delete its worktree's `.git` link and run `git init`; the new config could name a command (`core.fsmonitor`, a filter) that ran when ARK ran `git add` outside the sandbox. `worktreeIntact()` now checks that the worktree's `.git` is still a file that points into the repository's own `worktrees` folder, and `commitWork` refuses otherwise (logged as `agent.commit_refused`). The git wrapper also turns `core.fsmonitor` off. Tests use a real repository and a real swap (`worktree.test.ts`).
 - **Back loop (Keshab, 2026-10-16).** Board → agent → Soul → the page's "‹" → the top bar's "<" led back into Soul, and "‹" led out again, forever. A page's own "‹" goes up a level and no longer leaves the page it left as a Back step (`navigateUp`, `WindowHistory.recordMove`). Applies to Soul, the report page and New agent. Tests: `WindowHistoryTests`.
 - **`create_agent` approves only what Keshab can read.** The card showed 140 characters of a soul that could be 2,100, so an instruction hidden after them was approved unseen. A created agent's personality and how-it-works text may now total 320 characters; a longer soul is refused with a plain reason (no card). The card carries all of it (`reasonMax`, hard limit 600), and the Needs you card shows up to 8 lines. Tests: `native-agents.test.ts`, `computer-bridge.test.ts`.
 - **The API token can no longer approve its own risky steps (ADR-120).** `POST /v1/needs/:key` answers plans and retries only; other cards return 403. `GET /v1/needs` marks them `answerable: false`. Test: `api-server.test.ts`.
@@ -2469,11 +2469,11 @@ Four read-only reviewers (runtime/island, helpers/gateway, security, Swift) foun
 
 Three more read-only reviewers. Findings I checked against the code, then fixed with tests (a test that failed first where it could):
 
-- **Bugs my own fixes had introduced.** `makePrivate` could change the mode of the working folder, `$HOME` or `/var/log` (`:memory:` was resolved into a path first, and any custom log or memory path counted); now only ATOM's own `data` and `logs` folders (`ownFolders`) and the files themselves. The worktree guard checked the top `.git` while git ran in the project's subfolder, where an agent could `git init` and use a filter driver (fsmonitor was already off on the command line); git now runs from the verified top (`commitWork`). The "not sent" message went to the model instead of the status card and also fired for the app's own housekeeping; now it goes through the controller and only for what the user did (`DroppedCommand.shouldTell`). The Computer-switch timer was not cancelled per toggle; a second `stop()` cancelled the first one's kill timers (a quit during a restart could hang forever); a restart under way could start a runtime when the app quit (`stop(forQuit:)`).
+- **Bugs my own fixes had introduced.** `makePrivate` could change the mode of the working folder, `$HOME` or `/var/log` (`:memory:` was resolved into a path first, and any custom log or memory path counted); now only ARK's own `data` and `logs` folders (`ownFolders`) and the files themselves. The worktree guard checked the top `.git` while git ran in the project's subfolder, where an agent could `git init` and use a filter driver (fsmonitor was already off on the command line); git now runs from the verified top (`commitWork`). The "not sent" message went to the model instead of the status card and also fired for the app's own housekeeping; now it goes through the controller and only for what the user did (`DroppedCommand.shouldTell`). The Computer-switch timer was not cancelled per toggle; a second `stop()` cancelled the first one's kill timers (a quit during a restart could hang forever); a restart under way could start a runtime when the app quit (`stop(forQuit:)`).
 - **Approvals.** Return after typing is free only in a field whose label *starts* with search, find, filter, address, url, location or go to (it matched the word anywhere). Text, images and headings ask only for the strong action words, so "Continue reading" no longer asks. A soul line `##` plus a tab is escaped too.
 - **Data.** An empty chat id could make `attachments.remove("")` delete every chat's attachments. A mirrored brain note renamed to a ghost's title rolled back the whole sync on every run. `brain_note` only adds to the end of a note and cannot touch mirrored notes. `remember` refuses an empty fact (it kept "undefined"). Conversation notes use the local date. Speech keeps `3.14159` whole. Laya's failure count resets after a healthy session (`stableMs`). `git-branches` turns fsmonitor off.
 - **Swift.** Clicking the already selected agent leaves the Board. A failed task is counted and listed once (it was an ask and a failure). A message over 4,000 characters keeps its draft and says why. The thread reply ends its wait; a stopped runtime ends every wait (`runtimeStopped`). A note delete no longer leaves the brain flag set. "What can I ask?" and "Details in Settings" open Settings. Closing the window stops a shortcut recording. A copied token is cleared when the app quits.
-- **Left alone on purpose.** Strict decoding of the `helpers` event (tests pin it; the app and runtime ship together). Committing the partial work of a task Keshab stopped (it is on the task's own branch and can be undone). The page address in browser results can still be faked by a result that prints its own "### Page state" before the real one (Playwright's output order does not let ATOM tell; the tools that print arbitrary page text first are not in the allowed list).
+- **Left alone on purpose.** Strict decoding of the `helpers` event (tests pin it; the app and runtime ship together). Committing the partial work of a task Keshab stopped (it is on the task's own branch and can be undone). The page address in browser results can still be faked by a result that prints its own "### Page state" before the real one (Playwright's output order does not let ARK tell; the tools that print arbitrary page text first are not in the allowed list).
 - **Open.** Telegram pushes are lost silently when a send fails (no retry; the "known" set is updated first). The Telegram turn queue has no timeout. `runRoutines` marks a routine as run even when its start threw. Attachments of pruned chats stay on disk. Checkpoints of failed or stopped tasks are never swept. `TaskField` keeps its draft when another agent is selected. The brain note editor does not track unsaved edits. `NoteEditor`, `PalBubble` show/hide race, `PetController.setEnabled` and `HelpersState.setPostTo` (wired only in tests: the "post to the team" path is unreachable from the window) need a decision.
 
 
@@ -2492,18 +2492,18 @@ Three more read-only reviewers. Findings I checked against the code, then fixed 
 
 Four more read-only reviewers (runtime and API, services, Swift logic, tests and docs). Fixed, with a test that failed first where it could:
 
-- **A crash with no token.** A Local API request whose path is `//` made `new URL` throw before the token check, outside any try; the rejection reached the app's crash handler and ended ATOM. Any web page that could reach `127.0.0.1` could do it. Now the token is checked first, a bad address is a 400, a broken percent-encoding is a 400, and nothing can escape the server callback. API turns also have a 10-minute limit (504), like Telegram.
-- **Bugs in my own earlier fixes.** `runtimeStopped()` cancelled the Computer-switch timer on every restart (it passes through "stopped"), so a hung new runtime left the switch disabled; the env-name scan test failed because I had named a regex constant like an environment variable (`ATOM_DATABASE`; my test commands had not included `packages/`); the announce queue had no guard around its chime and callback.
+- **A crash with no token.** A Local API request whose path is `//` made `new URL` throw before the token check, outside any try; the rejection reached the app's crash handler and ended ARK. Any web page that could reach `127.0.0.1` could do it. Now the token is checked first, a bad address is a 400, a broken percent-encoding is a 400, and nothing can escape the server callback. API turns also have a 10-minute limit (504), like Telegram.
+- **Bugs in my own earlier fixes.** `runtimeStopped()` cancelled the Computer-switch timer on every restart (it passes through "stopped"), so a hung new runtime left the switch disabled; the env-name scan test failed because I had named a regex constant like an environment variable (`ARK_DATABASE`; my test commands had not included `packages/`); the announce queue had no guard around its chime and callback.
 - **Approvals and policy.** The Space key asks like Return. Return is free only in a search or address bar (label starting search, address bar, URL; not "Address line 1" or "Location"). Labels are read after Unicode and camel-case normalisation (fullwidth, zero-width, `SendEmail`, `Send_now`). OK, Reply, Forward, Sign up, Register, Upload, Overwrite, Discard, Replace, Book and Reserve ask for buttons (Save and Done stay free). More blocked apps (Script Editor, Automator, Shortcuts, Console, Xcode, VS Code, Raycast, Alfred, WezTerm, Hyper). More secret field names (passwords, API key, private key, credit card, SSN, account number, IBAN). `look` no longer shows the value of a field named like a secret.
 - **Grants and commands.** A dangling symlink is followed to where it points, so a write through it is outside the folder. `.GIT` and `library` in any case are refused (macOS ignores case). `classifyCommand` reads through git's own options (`git -C . push`), a newline, `env` and `xargs` before sudo. `open_url` and WebFetch refuse a very long address (800 and 1200 characters), because the path and host carry data out too.
 - **Other.** "every night at 12" is midnight (it was noon) and "every night at 1" is 1 AM. An old Cua process that exits late no longer rejects the request of the new one. A throwing usage callback no longer closes the chat session. The goals migration is one step.
-- **Telegram.** The retry timer has its own timer and cannot outlive `stop()`; an item that failed is not tried again before its time, whatever else runs `check`; a text starting with `/` that is not a command goes to ATOM; a message is never cut inside an emoji and never ends in a blank part; `/interrupt` is out of the help (native tasks refuse it).
+- **Telegram.** The retry timer has its own timer and cannot outlive `stop()`; an item that failed is not tried again before its time, whatever else runs `check`; a text starting with `/` that is not a command goes to ARK; a message is never cut inside an emoji and never ends in a blank part; `/interrupt` is out of the help (native tasks refuse it).
 - **Swift.** Talk is ignored while a dictation is listening (it opened a second microphone through the runtime). A spoken question can get a follow-up (it was marked as typed). A lock cancels a Talk that went through the runtime. Hold-to-talk stops after 3 minutes. A second terminate request does not stop the runtime twice.
 - **Tests and docs.** New tests for `scrubbedEnv` and `planGuard`, the real `/interrupt` refusal, and the date test that could fail across midnight. README, SECURITY.md, `docs/telegram.md`, `docs/island-protocol.md` and STATUS.md no longer promise budgets, Managers, wake-ups, hand-offs, `/interrupt`, or a missing web-search fee.
-- **Telegram backlog (done after the pass).** Messages and button presses that arrived while ATOM was closed are skipped on start and counted; ATOM sends one notice with the count (`skipBacklog`, `onBacklog`).
+- **Telegram backlog (done after the pass).** Messages and button presses that arrived while ARK was closed are skipped on start and counted; ARK sends one notice with the count (`skipBacklog`, `onBacklog`).
 - **Telegram polish (done after the review).** A long message that failed partway is sent again from the failed part. Replies, command answers and routine results go through an outbox that retries (every 30 seconds, six tries). A 401 or 409 from Telegram waits five minutes and logs what is wrong once.
-- **Telegram sender check (done).** ATOM now obeys one person: the sender must be the chat id (a private chat) or `ATOM_TELEGRAM_USER_ID` (a group). Before, any member of a group could send commands and press Allow.
-- **Shared chats and the Brain editor (done after the review).** `chat-turns.ts`: the window and the phone can no longer run a turn in the same chat at once (the second is refused at once with "The phone or the Local API is answering in this chat. Try again in a moment.", the API answers 409), and a chat deleted while a turn runs is not saved back when the turn ends. Brain note editor: it keeps its text when ATOM updates the open note (new text is taken only where nothing was typed), a refused new note stays open with its text and the error, and leaving the page with unsaved text asks first.
+- **Telegram sender check (done).** ARK now obeys one person: the sender must be the chat id (a private chat) or `ARK_TELEGRAM_USER_ID` (a group). Before, any member of a group could send commands and press Allow.
+- **Shared chats and the Brain editor (done after the review).** `chat-turns.ts`: the window and the phone can no longer run a turn in the same chat at once (the second is refused at once with "The phone or the Local API is answering in this chat. Try again in a moment.", the API answers 409), and a chat deleted while a turn runs is not saved back when the turn ends. Brain note editor: it keeps its text when ARK updates the open note (new text is taken only where nothing was typed), a refused new note stays open with its text and the error, and leaving the page with unsaved text asks first.
 - **Open from this pass.** A reported `Cyrillic` look-alike in a label ("Рay") still passes (needs a confusables table). Text inserter: Accessibility calls run on the main thread without a timeout; Command-V uses a QWERTY key code (Dvorak). `HelpersState` clears its wait on any `helpers` push. An unlabeled AXGroup or AXLink click asks nothing. The `computer` tool's shared target could be switched by parallel calls (not confirmed that calls run in parallel).
 
 ### Cleanup (2026-10-16)
@@ -2520,7 +2520,7 @@ Four more read-only reviewers (runtime and API, services, Swift logic, tests and
 - `tests/smoke-harness.ts` starts a real runtime in island mode in a temp folder (clean environment, no user data or token). `tests/smoke.test.ts` (in `pnpm test`, about 25 seconds, no model): the runtime starts, the Local API and the phone page answer with their headers, a bad token and a foreign Host are refused, `//` is a 400, a protocol command is answered.
 - `tests/smoke.live.test.ts` (`pnpm test:live`, about one minute): a chat answer, the phone chat shown and opened in the window, an agent saves a file with no folder granted, an edit asks and is approved over the island protocol, a delete is refused. Checked by a mutation: with the old session-tools bug put back, it fails at the file save with the sentence Keshab saw ("no tool that can write files in this session").
 - `.github/workflows/ci.yml`: typecheck, `pnpm test` and the Swift tests on every push and pull request (macOS runner). Not run before it was pushed: the first run on GitHub shows if the runner needs changes.
-- Visual check: `pnpm test:visual` (`scripts/ui-check.sh` with the live half off) draws every window offscreen with sample data and compares each shot in `tests/ui-golden` by pixel. It needs no screen and no permission (`screencapture` cannot capture the real screen in this session). CI runs it as a separate job (`visual`, blocking since 2026-10-16 after two green runs in a row) and keeps the images as the artifact `ui-gallery`. After a look change you meant: `UPDATE=1 sh scripts/ui-check.sh`, then commit the new shots in `tests/ui-golden`. `pnpm window:shot` (`scripts/window-shot.sh`) captures the real, open ATOM window to a PNG (it needs Screen Recording for the terminal app; works since 2026-10-16), so the real UI can be looked at. Not covered: a pixel comparison of the real window with a reference (the fonts and the live data differ from the gallery), and the Accessibility text check (`scripts/ui-check.js`), which needs Accessibility for the terminal app.
+- Visual check: `pnpm test:visual` (`scripts/ui-check.sh` with the live half off) draws every window offscreen with sample data and compares each shot in `tests/ui-golden` by pixel. It needs no screen and no permission (`screencapture` cannot capture the real screen in this session). CI runs it as a separate job (`visual`, blocking since 2026-10-16 after two green runs in a row) and keeps the images as the artifact `ui-gallery`. After a look change you meant: `UPDATE=1 sh scripts/ui-check.sh`, then commit the new shots in `tests/ui-golden`. `pnpm window:shot` (`scripts/window-shot.sh`) captures the real, open ARK window to a PNG (it needs Screen Recording for the terminal app; works since 2026-10-16), so the real UI can be looked at. Not covered: a pixel comparison of the real window with a reference (the fonts and the live data differ from the gallery), and the Accessibility text check (`scripts/ui-check.js`), which needs Accessibility for the terminal app.
 - Browser uploads (decided and built after the review): any file the file rules allow, a card for each upload, none after web text (`browser.ts`, `uploadProblem`).
 
 ### Fourth review pass (2026-10-16): the whole app, one area at a time
@@ -2540,7 +2540,7 @@ Eight independent read-only reviewers (new security code, new runtime code, help
   - The supervisor's blocking write to the runtime's pipe can hang quit if the runtime stops reading; events arriving during the quit wait can re-show windows.
   - The notes auto-link is quadratic (slow at several thousand notes); chat search shows one chat if it has 400 matching messages; legacy queued tasks are not cascaded after a restart.
   - Brain note editor: a refused new note loses its text; the editor resets when the runtime updates the open note.
-  - The ATOM-asks notification is not removed when answered; a hot key whose chord was taken is not retried; Pal's window can keep taking clicks after the screens slept.
+  - The ARK-asks notification is not removed when answered; a hot key whose chord was taken is not retried; Pal's window can keep taking clicks after the screens slept.
   - Dead Swift protocol surface from ADR-110 (`manager*`, `team*`, `helperWakeUp*`, `helpersCodexFallback`) is still defined; remove it when Keshab says so.
   - A few other low items are in the reviewers' reports (unbounded small maps, FTS rebuild after a crash, formatter allocation).
 ## Regenerate the Local API token (2026-10-15)
@@ -2559,8 +2559,8 @@ Keshab pasted the token in chat three times and found no way to replace it ("i d
 
 Keshab: "you add that and also in app setting for toggle". ADR-119.
 
-- Cause found first: the benchmark's computer prompt did not fail. `ATOM_COMPUTER` was not set, so the tool did not exist (ADR-054).
-- `ready` carries `computer`; the runtime reports `computerOn`. `RuntimeSupervisor.restart(environment:)` stops the runtime and starts it with the new value. Settings → General has the switch; the choice is saved as `atom.computer.override` and wins over `.env`.
+- Cause found first: the benchmark's computer prompt did not fail. `ARK_COMPUTER` was not set, so the tool did not exist (ADR-054).
+- `ready` carries `computer`; the runtime reports `computerOn`. `RuntimeSupervisor.restart(environment:)` stops the runtime and starts it with the new value. Settings → General has the switch; the choice is saved as `ark.computer.override` and wins over `.env`.
 - Tests: `island.test.ts` (ready), `SettingsProtocolTests` (decode, saved choice), `RuntimeSupervisorTests` (a real restart sees the value).
 - The `.env` line was not added: the permission system blocked the command, and the switch makes it unnecessary.
 
@@ -2579,11 +2579,11 @@ Keshab saw "research about quantum physics" go to Sid: "all 3 please .. and thin
 
 ## "/" commands in the chat (2026-10-15)
 
-Keshab: "lets make sure we call / commands from Atom as well"; asked which, he chose both with a picker. ADR-117.
+Keshab: "lets make sure we call / commands from Ark as well"; asked which, he chose both with a picker. ADR-117.
 
-- Typing "/" opens a picker over the message box: ATOM's commands (`/new`, `/model`, `/skills`, `/memory`, `/help`), his skills and his 96 Claude commands from `~/.claude/commands`. Keys: Up, Down, Return or Tab, Escape; a click picks. `SlashMenu.swift` (pure, 6 tests) ranks and merges them; `SlashPicker.swift` draws it; the composer owns the keys.
+- Typing "/" opens a picker over the message box: ARK's commands (`/new`, `/model`, `/skills`, `/memory`, `/help`), his skills and his 96 Claude commands from `~/.claude/commands`. Keys: Up, Down, Return or Tab, Escape; a click picks. `SlashMenu.swift` (pure, 6 tests) ranks and merges them; `SlashPicker.swift` draws it; the composer owns the keys.
 - Runtime: `slash-commands.ts` (6 tests) reads the command files, fills `$ARGUMENTS` and `$1`..`$9`, never runs a `!` shell line, never writes. A skill of the same name wins. `commands.list` and `commands` carry the list to the window (`island.test.ts`).
-- Checked live: `/new` + Return starts a new chat and sends nothing; `/code-rev` + Return fills `/code-review ` from the real command list; `/mem` + Return opens the Second brain; and a temporary command of mine, `/zz-atom-test hello world`, reached the model as its expanded prompt and ATOM answered exactly "COMMAND-OK hello world" (I deleted the file after; the test chat stays in the list). Not checked: the picker's look in the live window (Accessibility cannot read it); the gallery shot `21-slash-picker` and its golden show it.
+- Checked live: `/new` + Return starts a new chat and sends nothing; `/code-rev` + Return fills `/code-review ` from the real command list; `/mem` + Return opens the Second brain; and a temporary command of mine, `/zz-ark-test hello world`, reached the model as its expanded prompt and ARK answered exactly "COMMAND-OK hello world" (I deleted the file after; the test chat stays in the list). Not checked: the picker's look in the live window (Accessibility cannot read it); the gallery shot `21-slash-picker` and its golden show it.
 - Not done: Claude commands in Telegram, subfolder commands, `allowed-tools`, `@file` includes.
 
 ## Needs you and Issues move into the Board (2026-10-15)
@@ -2601,16 +2601,16 @@ Keshab: "can we move needs you, issues to board? if we do that we can increase o
 
 ## Design research and system (2026-10-15)
 
-Keshab: research the Open Design `design-systems` and `design-templates`, then improve ATOM's system and design with them. Full notes: `docs/design-research.md`.
+Keshab: research the Open Design `design-systems` and `design-templates`, then improve ARK's system and design with them. Full notes: `docs/design-research.md`.
 
 - Read: the README and schema of `design-systems` (151 packages), seven systems (HUD, Agentic, Dashboard, Linear, Raycast, Warp, Claude), five templates (Dashboard, Kanban, Live dashboard, Worker visualizer, Critique), and the `craft` rules (state coverage, anti-AI-slop, animation, accessibility, typography hierarchy, laws of UX, colour).
-- Done: `design/atom-design-system/` (`manifest.json`, `DESIGN.md`, `tokens.css`) for Void and Daylight, in the Open Design package shape. `DesignTokensTests.swift` (3 tests) fails when `tokens.css` differs from `Theme.swift`; proved with a one-digit change.
+- Done: `design/ark-design-system/` (`manifest.json`, `DESIGN.md`, `tokens.css`) for Void and Daylight, in the Open Design package shape. `DesignTokensTests.swift` (3 tests) fails when `tokens.css` differs from `Theme.swift`; proved with a one-digit change.
 - Done: spacing constants on a 4 pt grid (22, 14, 18, 26 became 24, 16, 20, 24). Goldens updated.
 - Done: a fault I caused is fixed. The draggable sidebar rows lost keyboard focus when they stopped being `Button`s. They now take focus, Return and Space press them, and VoiceOver can press them. The drag still works (tested with a real synthetic drag). Not proved by keyboard in the live app.
 - Review (Critique's five dimensions, my own scores): philosophy 8, hierarchy 6, detail 7, functionality 7, innovation 8.
 - Done (2026-10-15): the Dashboard. One lead number (today's input + output, with "N% above/below a usual day so far", `TokenUsageSummary.todayTrend`), three medium tiles for the week, two small cache tiles; colour only on today's bar (the other bars, share bars and the plan meters are neutral, and the plan meter turns amber only as a warning); "Updated N sec ago" in the header (`HelpersState.usageUpdatedAt`); Recent turns as aligned columns (Model, Kind, Tokens, Cache w, Cache r). Tests: `UsageTrendTests.swift` (6). Golden updated. Not seen live.
 - Done (2026-10-15): the five states for Chats list, Needs you and Issues. Needs you and Issues said "Nothing waits" and "No issues" while the list had not loaded; loading and empty are now different. Empty states have a headline and a sentence. A loading view (`LoadingStateView`) says "taking longer than expected" after 15 s and offers Ask again; `EmptyStateView` has an optional action. `StateViews.swift`. The gallery sheet `19-states` shows every state, and `tests/ui-golden/19-states.png` guards it. Not seen live.
-- Done (2026-10-15): the same for Scheduled, Plugins (servers and skills), Dashboard, Overview and the Board. Each said "none" or "nothing" while still loading (Scheduled, Plugins, Board) or had a bare "Waiting for ATOM…" (Dashboard, Overview); they now load and then say, with the same slow fallback. Empty states have a headline and a sentence (Plugins also an Add server action). The `19-states` sheet now has 15 cells. The Board's columns already show a count ("Waiting · 3"), so the planned count chip is not needed. Not done: the error and edge rows of the research table for the Dashboard, and Settings pages; the Settings → Memory tab has its own loading card.
+- Done (2026-10-15): the same for Scheduled, Plugins (servers and skills), Dashboard, Overview and the Board. Each said "none" or "nothing" while still loading (Scheduled, Plugins, Board) or had a bare "Waiting for ARK…" (Dashboard, Overview); they now load and then say, with the same slow fallback. Empty states have a headline and a sentence (Plugins also an Add server action). The `19-states` sheet now has 15 cells. The Board's columns already show a count ("Waiting · 3"), so the planned count chip is not needed. Not done: the error and edge rows of the research table for the Dashboard, and Settings pages; the Settings → Memory tab has its own loading card.
 - Next, in this order, each its own task: (1) the type scale (11, 12, 13, 15, 18, 26) in place of half-point sizes; (2) the error and edge states of the Dashboard (zero use, many models).
 
 ## Chat top bar and top space (2026-10-15)
@@ -2629,7 +2629,7 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 - Done: the composer. The voice button has the right edge to itself, and the field and the tools row (Attach, Skills, model) sit in one column to its left. Checked by the positions of the live controls; Keshab to look.
 - Done: the Skills menu in the composer lists names only (the description is the hover tip), so it is no longer as wide as the window.
 - Done: Plugins → Skills is one dropdown with an editor for the chosen skill (ADR-114). Save writes `SKILL.md` and keeps `SKILL.md.bak`. Tests: `skills.test.ts`, `island.test.ts`, `SkillFileTests.swift`. Not tried by hand.
-- Done: the sidebar. Every page (Dashboard, Needs you, Issues, Board, Scheduled, Second brain, Plugins, Settings) is a row you drag onto another row, or onto the strip at the end of the top or the bottom group, so Scheduled can sit with Plugins and Settings. Right-click has Move up, Move down and Move to the other group, for use without a mouse. The order is saved (`atom.window.sidebar`, `SidebarLayout`). Only the Chats list scrolls; the header, search, pages and Projects stay fixed. The rows are tap targets and not `Button`s, because a button takes the mouse-down and the row could not be dragged. Checked with a real synthetic mouse drag: Scheduled moved to the bottom group and the setting saved. Tests: `SidebarLayoutTests.swift`. The gallery shows plain rows (`ImageRenderer` cannot draw drag and drop), and the goldens were updated; the Chats list in the gallery shows a small overlap where the scroll area is squeezed, which the live scroll view does not have.
+- Done: the sidebar. Every page (Dashboard, Needs you, Issues, Board, Scheduled, Second brain, Plugins, Settings) is a row you drag onto another row, or onto the strip at the end of the top or the bottom group, so Scheduled can sit with Plugins and Settings. Right-click has Move up, Move down and Move to the other group, for use without a mouse. The order is saved (`ark.window.sidebar`, `SidebarLayout`). Only the Chats list scrolls; the header, search, pages and Projects stay fixed. The rows are tap targets and not `Button`s, because a button takes the mouse-down and the row could not be dragged. Checked with a real synthetic mouse drag: Scheduled moved to the bottom group and the setting saved. Tests: `SidebarLayoutTests.swift`. The gallery shows plain rows (`ImageRenderer` cannot draw drag and drop), and the goldens were updated; the Chats list in the gallery shows a small overlap where the scroll area is squeezed, which the live scroll view does not have.
 - Done: Second brain. Memory is now its second tab (Graph | Memory), and Settings → Memory is gone (the facts, conversation notes and kept chats, with Forget, are the same view). The graph has a HUD look: a grid, three range rings with ticks, two axes, nodes as small targets (a core, a ring, a dashed second ring for hubs), a four-bracket target lock on the open note, monospaced capital labels, corner brackets and a readout (SYS // ONLINE, NODES, LINKS, ZOOM, TARGET). All colours come from the theme (the HUD uses its live colour), and glow only where the theme allows it, so it works in Void, Lantern and Daylight. The gallery has `17-brain*` shots (a snapshot lays the graph out itself, because it cannot run the async layout), and `tests/ui-golden/17-brain.png` guards the look.
 - Done: MCP like Claude Desktop (ADR-115). Add server opens on "Paste config": the same JSON as Claude Desktop (the whole file, the mcpServers block, one entry or one bare server) is read at once and shown as a list (name made to fit, private values noted, already-added skipped), and "Add N servers" saves each one switched off through the existing add command. "Import from Claude Desktop" reads its config file on a click. "By hand" keeps the old form. Tests: `McpConfigImportTests.swift` (6). The gallery has `18-mcp-paste` and a golden. Not tried by hand.
 
@@ -2643,20 +2643,20 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 
 ## Skills that improve themselves (2026-10-15)
 
-- Objective: the "improve" half of ADR-094 A works in the native engine. A task that used one of ATOM's skills and then fails or gets a bad rating makes Tinker propose an edit to that skill. Keshab accepts, rejects or undoes it.
+- Objective: the "improve" half of ADR-094 A works in the native engine. A task that used one of ARK's skills and then fails or gets a bad rating makes Tinker propose an edit to that skill. Keshab accepts, rejects or undoes it.
 - Found: nothing recorded which skill a task used since the job runner went away (ADR-110 N5). `skill_uses` had 0 rows, so `askEdits` found nothing to improve. The "create" half was also unused: 0 drafts, 0 edits in `data/helpers.db`.
 - Change: `native-safety.ts` records every skill an agent was given when its task starts (`recordSkillUse` in `agentCall`). Claude Code preloads an agent's skills into its context, so the agent never calls the `Skill` tool, and the first version (a record at that call) never recorded anything: found by the live test on 2026-10-16. A refused `Skill` call is still not a use. Test: `native-safety.test.ts`.
 - Unchanged: a model never adds or changes a skill without Keshab's click; `~/.claude/skills` is never written; hub skills are never edited.
-- Not done: skills used in a plain chat (`/name`, `use_skill`) have no task, so they cannot trigger an edit. Nothing prompts the main agent to call `propose_skill` after a good task. Not tried live: no agent has used an ATOM skill yet.
-- Live test (2026-10-16, passes): `tests/skills-loop.live.test.ts` (`pnpm test:live`, about 5 minutes, uses the plan). Kame uses an ATOM skill, the task is rated "not good", Tinker (a real model call) proposes an edit, accepting changes the skill file, undo restores its name, description and steps. Undo writes the file in ATOM's canonical form (description in quotes).
-- Chat side (2026-10-16, both gaps closed): (1) a skill used in a plain chat has no task, so Tinker's task-based edit cannot run. The new tool `improve_skill` lets the main agent propose an edit itself when the user says in a chat that one of ATOM's skills did not work well (`proposeSkillEdit`; job 0 = "from a chat"; only ATOM's own skills; one pending edit per skill; the user accepts or rejects it; Undo works; refused after web text). (2) The team prompt now tells the main agent to offer once to save a good agent task as a skill and to call `propose_skill` only if the user says yes; `propose_skill` no longer needs the task number (it takes the task that finished last). The Needs you card says "Skill edit suggested" and names ATOM when the edit came from a chat. Live test: `tests/skills-chat.live.test.ts` (passes).
+- Not done: skills used in a plain chat (`/name`, `use_skill`) have no task, so they cannot trigger an edit. Nothing prompts the main agent to call `propose_skill` after a good task. Not tried live: no agent has used an ARK skill yet.
+- Live test (2026-10-16, passes): `tests/skills-loop.live.test.ts` (`pnpm test:live`, about 5 minutes, uses the plan). Kame uses an ARK skill, the task is rated "not good", Tinker (a real model call) proposes an edit, accepting changes the skill file, undo restores its name, description and steps. Undo writes the file in ARK's canonical form (description in quotes).
+- Chat side (2026-10-16, both gaps closed): (1) a skill used in a plain chat has no task, so Tinker's task-based edit cannot run. The new tool `improve_skill` lets the main agent propose an edit itself when the user says in a chat that one of ARK's skills did not work well (`proposeSkillEdit`; job 0 = "from a chat"; only ARK's own skills; one pending edit per skill; the user accepts or rejects it; Undo works; refused after web text). (2) The team prompt now tells the main agent to offer once to save a good agent task as a skill and to call `propose_skill` only if the user says yes; `propose_skill` no longer needs the task number (it takes the task that finished last). The Needs you card says "Skill edit suggested" and names ARK when the edit came from a chat. Live test: `tests/skills-chat.live.test.ts` (passes).
 - Still not done: a rating button on chat replies (the edit starts from the user's words, not from a rating).
 
 ## UI check (2026-10-15)
 
 - `pnpm island:ui-check` (`scripts/ui-check.sh`, `scripts/ui-check.js`) runs after `pnpm island:build`.
 - Gallery half: the app renders every window with sample data to PNG files, with no screen. The check fails on a `gallery:` error, a missing shot, or an almost empty file. Two shots cover what broke in use: `13-helpers-chat-table.png` (a reply with a table, list and code) and `13-helpers-settings-page.png` (a Settings page with one Back arrow). Keep the files with `GALLERY_DIR=<dir>` and look at them.
-- Live half: the check reads the text of the open window through Accessibility and fails on raw Markdown on screen. `ATOM_OPEN_WINDOW=1` opens the window at launch. Needs Accessibility for the terminal. It does not need Screen Recording. Skip it with `LIVE=0`.
+- Live half: the check reads the text of the open window through Accessibility and fails on raw Markdown on screen. `ARK_OPEN_WINDOW=1` opens the window at launch. Needs Accessibility for the terminal. It does not need Screen Recording. Skip it with `LIVE=0`.
 - Limits: the live half cannot read button labels (System Events does not show SwiftUI labels) and cannot read the sidebar rows. Pixel compare (2026-10-15): see the next bullet.
 - Golden shots (2026-10-15): `tests/ui-golden/` holds three shots (`13-helpers-chat-table.png`, `13-helpers-settings-page.png`, `13-helpers-dashboard.png`, 784 KB). `scripts/png-diff.swift` (CoreGraphics, no dependency) counts the pixels that changed by more than 24 of 255 in a channel. Two renders of the same code differ by under 0.2% (moving avatars). The check fails above 1% or when the size changes, and writes `diff-<name>.png` with the changes in red. After a change you meant, look at the new shots, then run `UPDATE=1 pnpm island:ui-check` to keep them. Swapping the table shot for the Settings shot made the check fail at 10%. The golden shots come from this Mac; a different macOS or font may need `UPDATE=1`. The other 34 shots are checked for existence and size only.
 - `MarkdownReply` draws wide tables and code flat in snapshots (`SideScroll`), as `Scrollable` does.
@@ -2664,7 +2664,7 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 
 ## Design system page (2026-10-16, ADR-124)
 
-- Done: Settings → Design system, with Showcase and Tokens, previewing Void or Daylight without changing the app's theme. Files: `AtomIslandCore/DesignCatalog.swift`, `AtomIsland/Settings/DesignPage.swift`, `SettingsPage.design`. tokens.css has the type scale. Tests: `DesignCatalogTests.swift` (catalog equals tokens.css both ways, colours from the palette, contrast). Gallery: `22-design-showcase*.png`, `22-design-tokens*.png`.
+- Done: Settings → Design system, with Showcase and Tokens, previewing Void or Daylight without changing the app's theme. Files: `ArkIslandCore/DesignCatalog.swift`, `ArkIsland/Settings/DesignPage.swift`, `SettingsPage.design`. tokens.css has the type scale. Tests: `DesignCatalogTests.swift` (catalog equals tokens.css both ways, colours from the palette, contrast). Gallery: `22-design-showcase*.png`, `22-design-tokens*.png`.
 - Fixed (2026-10-16), the four problems the page found:
   - Daylight secondary text is `#55555F` (6.8:1); captions stay `#6B6B78` (4.9:1). They were one colour. Warm had the same gap (secondary 5.8:1, captions 5.1:1); its secondary text is now ink at 76% (7.6:1). Test: `ThemeTests.textLevelsDiffer` (every theme: captions at least 1 contrast step below secondary text).
   - One button height, `ControlMetrics.buttonHeight` (26). An icon button beside text buttons uses it (Helpers job row, the page). In Daylight an icon button at rest takes the pills' fill; it was clear and showed a bare glyph.
@@ -2683,7 +2683,7 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 - Done: "@" menu of helpers, Second brain pages and "A file…"; "@Sid" anywhere hands the message to Sid; a page goes as "<title>.md". Tests: `MentionMenuTests` (7), runtime `text.send with notes` and "@Sid" routing. Checked in the running app: menu with the real team, Tab writes "@Sid ", Return attaches "Chat note 2026-10-16 (3)", Escape keeps the words.
 - Not checked live (it would send a real turn): a message with a page attached reaching the model, and "@Sid" handing over — both covered by runtime tests. Try one once.
 
-## Chat box, part 2b: typing while ATOM answers (2026-10-17, ADR-127)
+## Chat box, part 2b: typing while ARK answers (2026-10-17, ADR-127)
 
 - Done: Return during an answer waits in a "Next" row (Edit, Send now) and goes when the answer ends; ⌘Return sends now; Stop, an error or leaving the chat puts it back in the box. Runtime: `text.send` over an answer waits for the Core, and `withPointing` passes `busy` through (it never did, so `chat.open` did not wait either). Tests: `MessageQueueTests` (7), runtime "text.send over a running answer", pointing `busy`.
 - Checked in the running app (a test chat "Write the numbers one to forty…"): a queued "Reply with exactly: SECOND" went after the full cat story; Stop put "THIRD" back in the box unsent; ⌘Return stopped the heron story and "NOW" was answered.
@@ -2698,9 +2698,9 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 
 ## ADR-129: the diff engine and the edit review (2026-10-17)
 
-- Done: `TextDiff.swift`, `EditReview.swift`, `EditRequest.swift` in `AtomIslandCore`; `TextDiffTests`, `EditReviewTests`, `EditRequestTests`.
+- Done: `TextDiff.swift`, `EditReview.swift`, `EditRequest.swift` in `ArkIslandCore`; `TextDiffTests`, `EditReviewTests`, `EditRequestTests`.
 - Not run: the Swift tests (no Swift in the cloud session). Run `pnpm island:test` on the Mac first.
-- Next in upgrades.md: item 3, the shared editor `AtomTextView` (B2), the biggest piece.
+- Next in upgrades.md: item 3, the shared editor `ArkTextView` (B2), the biggest piece.
 
 ## ADR-130: search everything (2026-10-17)
 
@@ -2725,16 +2725,16 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 
 ## ADR-133, ADR-134 and the search keyboard (2026-10-17)
 
-- Done: `EditReviewView`, `InlineDiff`, Tinker's diff, `text.edit` (`text-edit.ts`, `runEdit`, `AskAtomPanel` in the Second brain note editor), quick actions (`QuickActions.swift`, `QuickActionController.swift`, the ⌃⌥K shortcut, the `TextInserter` reading helpers), the search keyboard (`SearchCursor`, `SearchOpening.swift`).
+- Done: `EditReviewView`, `InlineDiff`, Tinker's diff, `text.edit` (`text-edit.ts`, `runEdit`, `AskArkPanel` in the Second brain note editor), quick actions (`QuickActions.swift`, `QuickActionController.swift`, the ⌃⌥K shortcut, the `TextInserter` reading helpers), the search keyboard (`SearchCursor`, `SearchOpening.swift`).
 - Tests: none, at Keshab's request. `pnpm typecheck` passes. The Swift is not compiled.
-- Not checked live: every item above. Check first: ⌃⌥K in TextEdit (selection, then Replace), in Safari (⌘C path) and in a password field (refused); Ask ATOM in a note; Tinker's diff; ↑ ↓ Return in the search.
+- Not checked live: every item above. Check first: ⌃⌥K in TextEdit (selection, then Replace), in Safari (⌘C path) and in a password field (refused); Ask ARK in a note; Tinker's diff; ↑ ↓ Return in the search.
 - Left in upgrades.md: the shared editor (B2) and what needs it (⌘K in any text box, the chat box move), image generation (a provider is needed) and cloud sandboxes (a spike is needed).
 
 ## Clean verification baseline (2026-10-17)
 
 - Fixed two stale Swift assertions after Quick actions added a fifth shortcut: the action titles/default key and the shortcut count after clearing Dictate.
 - Fixed Dashboard layout when no daily brief exists: omit empty brief sections and load the brief on the Dashboard itself. The gallery's chart uses fixed sample dates instead of the current day, so weekday labels stay stable.
-- Verified: `pnpm typecheck`; `pnpm test` (1,018 passed, zero failed, six live tests skipped, including a passing real-runtime smoke test); `pnpm island:test` (730 tests, 133 suites, all passed); release build of ATOM and Calendar helper, locally signed; `pnpm test:visual` (61 gallery images, all 12 original golden comparisons below 1%). Dashboard title/layout inspected in the rendered image. No reference images replaced.
+- Verified: `pnpm typecheck`; `pnpm test` (1,018 passed, zero failed, six live tests skipped, including a passing real-runtime smoke test); `pnpm island:test` (730 tests, 133 suites, all passed); release build of ARK and Calendar helper, locally signed; `pnpm test:visual` (61 gallery images, all 12 original golden comparisons below 1%). Dashboard title/layout inspected in the rendered image. No reference images replaced.
 - Earlier ADR-129 through ADR-134 entries saying Swift was not compiled are superseded by this baseline. The existing diff/edit/search tests now pass. This does not add feature tests for the items whose tests were previously skipped at Keshab's request.
 - `pnpm island:ui-check` passes its gallery, golden and running-window checks. The rebuilt app is open; its header is present and Accessibility reports no raw Markdown. This verifies startup/window rendering only.
 - Remaining limits: no lint script or coverage gate is configured, coverage was not measured, the model-dependent live suite was not run, and the recent feature workflows have not been checked end to end. The release build reported existing warnings in `IslandSettings.choice` (region isolation) and `main.swift`'s dropped-command callback (mixed capture ownership).
@@ -2742,8 +2742,8 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 
 ## Everyday workflow check with Codex (2026-10-17)
 
-- Tried the app through its real UI, selected Codex for a new fictional Cedar chat, and completed five turns. Context persisted through follow-ups and leaving/reopening the chat. Kame did not run: ATOM's Codex route has no agents or file tools.
-- Saved a fictional Second brain note. Did not execute its AI rewrite: Ask ATOM and quick actions call Claude directly, regardless of the chat's model choice. The TextEdit quick-action shortcut did not trigger through synthetic input, so its capture/replace remains unverified.
+- Tried the app through its real UI, selected Codex for a new fictional Cedar chat, and completed five turns. Context persisted through follow-ups and leaving/reopening the chat. Kame did not run: ARK's Codex route has no agents or file tools.
+- Saved a fictional Second brain note. Did not execute its AI rewrite: Ask ARK and quick actions call Claude directly, regardless of the chat's model choice. The TextEdit quick-action shortcut did not trigger through synthetic input, so its capture/replace remains unverified.
 - Reproduced history loss in a no-model diagnostic: after 22 exchanges, the first fact is absent from the next request and the 40-message `onExchange` persistence payload. The store replaces saved messages with that payload. Code inspection also found that file approvals are discarded at the end of each agent task, rather than kept for the chat.
 - Evidence, caveats and next capability: `docs/everyday-workflows.md`. No runtime fixes were made in this diagnostic pass; the three complete workflows have not passed under Codex. Next: preserve the full chat archive and continuity, then explicit continuing file permissions and provider-aware tools/editing.
 
@@ -2753,7 +2753,7 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 - Implemented full transcript persistence and replay, including projects and worker wake-up replies. A real-store regression retains the initial fact after 25 exchanges, reopening and a provider change. This cannot recover old discarded messages; provider context windows still apply.
 - Added an explicit **Allow for chat** file choice alongside **Allow for task**. Grants are exact canonical file + chat, persist across restarts, never bypass protected-file checks and are removed with the chat. Deterministic chat commands inspect/revoke them. Tested restart persistence, other-chat/other-file isolation, refusal, cancellation and revocation.
 - Added a signed-in Codex app-server adapter in the gateway and checked Mac host router. Delegation creates real Board jobs, returns reports, supports Stop, uses existing checkpoints/worktrees and records usage. Native execution and imported MCP are disabled and checked before a model turn. No dependencies or login reads added. Codex worker shell/web/browser/external MCP, assigned Claude skill plugins, model pins and nested workers remain unsupported; workers use the chat's Codex model.
-- Ask ATOM/quick actions now follow the active chat provider, without provider fallback or conversation context. Codex uses a separate session with no host tools under the same native-tool lockdown. Claude's existing small-model edit path remains. Background chat summaries still use Claude.
+- Ask ARK/quick actions now follow the active chat provider, without provider fallback or conversation context. Codex uses a separate session with no host tools under the same native-tool lockdown. Claude's existing small-model edit path remains. Background chat summaries still use Claude.
 - Verified: typecheck; TypeScript suite (1,033 passed, zero failures, seven opt-in live tests skipped); Swift suite (731 tests/133 suites); locally signed release build; 69 gallery images and all 12 golden comparisons. Inspected new file-permission cards in dark/light themes; updated only the model-settings golden for intentional capability text.
 - Live result: the signed-in Codex Core/router test changed a temporary fictional Cedar file through Kame and recalled Wednesday on the next turn. The later rewrite initially inferred denial from the native sandbox; clarified the host-tool instructions. The following run reached the third turn, then the account usage limit blocked it. This is **not** a passing end-to-end workflow. The real approval-card click, Codex note edit/review/save and physical quick-action replacement remain unverified.
 - Stabilized the bridge's existing timer-reset test with a controlled clock after wall-clock sleeps flaked under build/test load; production timing is unchanged.
@@ -2766,7 +2766,7 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 - The real UI exposed a missing choice in Board → Needs you: file-specific cards still showed only Allow/Decline. Added Allow for task / Allow for chat / Decline using the existing guarded approval answer; ordinary requests retain their existing two choices. Added the Board file card to the three theme galleries.
 - Actual UI verification: clicked Allow for chat for the fictional Cedar fixture; verified the saved file and worker report, project/day recall and a later rewrite without another card. Quit/relaunched the app, reopened the same Codex chat, inspected the persisted exact-file grant and verified a fresh worker rewrote the same file without another approval.
 - Verified: typecheck, all 731 Swift tests in 133 suites, signed release build, 72 gallery images and all 12 unchanged golden comparisons. Full TypeScript baseline remains 1,033 passing / seven opt-in skips; no TypeScript production code changed in this UI fix. No lint/coverage gate exists.
-- Revoking the grant renewed the approval on the next task; Decline left the fixture unchanged and the worker reported no save. Ask ATOM on the fictional Cedar note used Codex, showed four changes, accepted/saved them and retained the new text after leaving/reopening. The physical quick action captured the exact TextEdit fixture, Codex proposed two grammar changes, Accept all enabled Replace in TextEdit, and clicking it updated the actual document to “Cedar launches on Wednesday. The doors open at noon.” All three everyday fixture workflows now pass. The additional password-field refusal passed in a temporary native secure-field app outside the repo: Accessibility confirmed the field type, the physical shortcut showed “A password field is focused. ATOM does not read it.” with no actions, and the fixture app was closed. No real password or account was used.
+- Revoking the grant renewed the approval on the next task; Decline left the fixture unchanged and the worker reported no save. Ask ARK on the fictional Cedar note used Codex, showed four changes, accepted/saved them and retained the new text after leaving/reopening. The physical quick action captured the exact TextEdit fixture, Codex proposed two grammar changes, Accept all enabled Replace in TextEdit, and clicking it updated the actual document to “Cedar launches on Wednesday. The doors open at noon.” All three everyday fixture workflows now pass. The additional password-field refusal passed in a temporary native secure-field app outside the repo: Accessibility confirmed the field type, the physical shortcut showed “A password field is focused. ARK does not read it.” with no actions, and the fixture app was closed. No real password or account was used.
 - Remaining live results and limits: `docs/everyday-workflows.md`. Changes remain local; unrelated `graphify-out/` preserved.
 
 
@@ -2776,7 +2776,7 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 - Added literal own-chat search and original-message paging through host-bound read-only tools. Stable position IDs, Unicode-safe continuation offsets, eight-message/8 KiB pages, strict arguments, cancellation and isolation after switching/removing a chat. Native Claude MCP and Codex checked main-thread routes receive the tools; workers and text edits do not. Gemini remains tool-free with an omission notice.
 - Verified: typecheck; full TypeScript suite (1,041 passed, zero failed, eight opt-in skips). Real SQLite + scripted Codex/Claude recover an omitted original fact after reopening/provider change, preserve the full archive and retain the next Codex prefix. Paging reconstructs large Unicode/control text; large shared-chat catch-up stays bounded with the Claude session intact; cross-chat/worker boundaries pass.
 - Real signed-in Codex: recovered Friday at 09:40 through a checked archive tool from an 82-message fictional chat after reopening, with the fact absent from initial model context; all original messages retained (one test, no skips, about 12.5 seconds). This is a live Core/router/provider check, not a long-chat UI or live Claude test.
-- Restarted the idle ATOM runtime and verified the real window opened in Ready state with no running jobs. No new UI/Swift change, schema, dependency, provider fallback or generated summary. Byte replay is not an exact total-provider token bound; native session compaction remains SDK-owned. No lint/coverage gate is configured. Existing local Board approval changes and unrelated `graphify-out/` preserved. Evidence: `docs/long-chat-history.md`.
+- Restarted the idle ARK runtime and verified the real window opened in Ready state with no running jobs. No new UI/Swift change, schema, dependency, provider fallback or generated summary. Byte replay is not an exact total-provider token bound; native session compaction remains SDK-owned. No lint/coverage gate is configured. Existing local Board approval changes and unrelated `graphify-out/` preserved. Evidence: `docs/long-chat-history.md`.
 - Next recommended capability: durable work/approval/interruption recovery. Search, memory-suggestion and daily-brief live checks remain separate. Changes remain local.
 
 
@@ -2784,9 +2784,9 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 
 - Keshab asked to save the combined current/proposed upgrade plan and inspect `pingdotgg/t3code` again before further work.
 - Saved `docs/upgrade-roadmap.md`, linked from the root README and reference index. It retains the original twelve items, the built continuity/Codex changes, pending live checks, new proposals and earlier deferrals.
-- Cloned a fresh source snapshot outside ATOM and pinned it to `f96aebeb4bbdaf2b3d05177bd115dad4b8b41a8b`. Compared it with the prior `2fbd4318fc5b610c3e7fcfcbd5bbd80b73521d8f` snapshot: 202 files changed, mainly web/browser tests and performance work; no change under docs, server or provider-core.
+- Cloned a fresh source snapshot outside ARK and pinned it to `f96aebeb4bbdaf2b3d05177bd115dad4b8b41a8b`. Compared it with the prior `2fbd4318fc5b610c3e7fcfcbd5bbd80b73521d8f` snapshot: 202 files changed, mainly web/browser tests and performance work; no change under docs, server or provider-core.
 - Traced history selection/retrieval/delivery, provider switching, runtime requests, limit recovery, draft/queue state, copy/scroll controls, provider capability/account checks, file-restore safety, event writes, history paging, settings/connections and Git defaults. Inspected related tests without executing them. The source audit does not claim a live T3 run.
-- Saved pinned evidence, feature inventory, eleven corrections and revised candidate priorities in `reference/t3code-second-review-2026-10-17.md`. Corrected false/incomplete subscription-only, secret-file-mode, desktop-settings and unconditional provider-lock claims. Marked old ATOM comparisons as historical and recorded that exact-file/chat permission is already built.
+- Saved pinned evidence, feature inventory, eleven corrections and revised candidate priorities in `reference/t3code-second-review-2026-10-17.md`. Corrected false/incomplete subscription-only, secret-file-mode, desktop-settings and unconditional provider-lock claims. Marked old ARK comparisons as historical and recorded that exact-file/chat permission is already built.
 - Recommended next after current acceptance checks: bounded provider context plus paged own-chat retrieval; clear durable work/approval/limit recovery; draft and attachment recovery; then reading/copying and the existing workspace/settings proposals. Existing kept-chat retrieval is acknowledged. No product, billing or permission behavior changed.
 - Verified local Markdown targets, pinned source references, named test paths and Git whitespace/diff scope. Application tests were not repeated for documentation-only edits. The unrelated `graphify-out/` directory remains untouched.
 - Next implementation capability remains a user choice; this review does not start the deferred chat plan or any other feature.

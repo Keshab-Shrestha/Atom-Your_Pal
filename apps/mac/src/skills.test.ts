@@ -8,7 +8,7 @@ import { listSkills, prepareSkills, readSkillFile, writeSkillFile } from "./skil
 // Task 3.12: only the skills chosen for a worker are linked into its plugin.
 
 function skillsDir() {
-  const dir = mkdtempSync(join(tmpdir(), "atom-skills-"));
+  const dir = mkdtempSync(join(tmpdir(), "ark-skills-"));
   for (const [name, desc] of [["pdf", "Read and write PDFs."], ["council", '"Four voices."'], ["no-skill-md", ""]] as const) {
     mkdirSync(join(dir, name));
     if (desc) writeFileSync(join(dir, name, "SKILL.md"), `---\nname: ${name}\ndescription: ${desc}\n---\n\n# ${name}\n`);
@@ -28,12 +28,12 @@ test("Keshab's skills are the folders with a SKILL.md, with their descriptions",
 
 test("a worker's plugin links exactly the chosen skills, and rebuilding drops the others without touching the skills", () => {
   const dir = skillsDir();
-  const plugin = mkdtempSync(join(tmpdir(), "atom-plugin-"));
+  const plugin = mkdtempSync(join(tmpdir(), "ark-plugin-"));
   try {
     assert.deepEqual(prepareSkills(plugin, ["pdf", "council", "missing", "../etc"], dir).names, ["pdf", "council"]);
     assert.deepEqual(readdirSync(join(plugin, "skills")).sort(), ["council", "pdf"]);
     assert.ok(lstatSync(join(plugin, "skills", "pdf")).isSymbolicLink());
-    assert.equal(JSON.parse(readFileSync(join(plugin, ".claude-plugin", "plugin.json"), "utf8")).name, "atom-skills");
+    assert.equal(JSON.parse(readFileSync(join(plugin, ".claude-plugin", "plugin.json"), "utf8")).name, "ark-skills");
     prepareSkills(plugin, ["pdf"], dir);
     assert.deepEqual(readdirSync(join(plugin, "skills")), ["pdf"]);
     assert.ok(existsSync(join(dir, "council", "SKILL.md")), "the skill itself is untouched");
@@ -44,69 +44,69 @@ test("a worker's plugin links exactly the chosen skills, and rebuilding drops th
   }
 });
 
-test("ATOM's own skills are listed and linked too, unless Keshab has one of the same name (ADR-094)", () => {
+test("ARK's own skills are listed and linked too, unless Keshab has one of the same name (ADR-094)", () => {
   const dir = skillsDir();
-  const zeno = mkdtempSync(join(tmpdir(), "atom-own-"));
-  const plugin = mkdtempSync(join(tmpdir(), "atom-plugin-"));
+  const ark = mkdtempSync(join(tmpdir(), "ark-own-"));
+  const plugin = mkdtempSync(join(tmpdir(), "ark-plugin-"));
   try {
     for (const name of ["compare-laptops", "pdf"]) {
-      mkdirSync(join(zeno, name));
-      writeFileSync(join(zeno, name, "SKILL.md"), `---\nname: ${name}\ndescription: "ATOM's ${name}."\n---\n\nSteps.\n`);
+      mkdirSync(join(ark, name));
+      writeFileSync(join(ark, name, "SKILL.md"), `---\nname: ${name}\ndescription: "ARK's ${name}."\n---\n\nSteps.\n`);
     }
     assert.deepEqual(
-      listSkills(dir, zeno).map((s) => [s.name, s.source, s.description]),
-      [["compare-laptops", "zeno", "ATOM's compare-laptops."], ["council", "yours", "Four voices."], ["pdf", "yours", "Read and write PDFs."]],
+      listSkills(dir, ark).map((s) => [s.name, s.source, s.description]),
+      [["compare-laptops", "ark", "ARK's compare-laptops."], ["council", "yours", "Four voices."], ["pdf", "yours", "Read and write PDFs."]],
     );
-    assert.deepEqual(prepareSkills(plugin, ["compare-laptops", "pdf"], dir, zeno).names, ["compare-laptops", "pdf"]);
-    assert.equal(realpathSync(join(plugin, "skills", "compare-laptops")), realpathSync(join(zeno, "compare-laptops")));
+    assert.deepEqual(prepareSkills(plugin, ["compare-laptops", "pdf"], dir, ark).names, ["compare-laptops", "pdf"]);
+    assert.equal(realpathSync(join(plugin, "skills", "compare-laptops")), realpathSync(join(ark, "compare-laptops")));
     assert.equal(realpathSync(join(plugin, "skills", "pdf")), realpathSync(join(dir, "pdf")), "Keshab's wins a clash");
   } finally {
-    for (const d of [dir, zeno, plugin]) rmSync(d, { recursive: true, force: true });
+    for (const d of [dir, ark, plugin]) rmSync(d, { recursive: true, force: true });
   }
 });
 
-test("a ATOM skill whose name is in the hub list has source \"hub\" (B3.5)", () => {
+test("a ARK skill whose name is in the hub list has source \"hub\" (B3.5)", () => {
   const dir = skillsDir();
-  const zeno = mkdtempSync(join(tmpdir(), "atom-own-"));
+  const ark = mkdtempSync(join(tmpdir(), "ark-own-"));
   try {
     for (const name of ["made-here", "from-hub"]) {
-      mkdirSync(join(zeno, name));
-      writeFileSync(join(zeno, name, "SKILL.md"), `---\nname: ${name}\ndescription: "D."\n---\n\nSteps.\n`);
+      mkdirSync(join(ark, name));
+      writeFileSync(join(ark, name, "SKILL.md"), `---\nname: ${name}\ndescription: "D."\n---\n\nSteps.\n`);
     }
-    const sources = (hub?: Set<string>) => listSkills(dir, zeno, hub).filter((s) => ["made-here", "from-hub"].includes(s.name)).map((s) => [s.name, s.source]);
-    assert.deepEqual(sources(new Set(["from-hub"])), [["from-hub", "hub"], ["made-here", "zeno"]]);
-    assert.deepEqual(sources(), [["from-hub", "zeno"], ["made-here", "zeno"]]);
-    assert.deepEqual(listSkills(dir, zeno, new Set(["pdf"])).find((s) => s.name === "pdf")?.source, "yours", "Keshab's own skill is never relabelled");
+    const sources = (hub?: Set<string>) => listSkills(dir, ark, hub).filter((s) => ["made-here", "from-hub"].includes(s.name)).map((s) => [s.name, s.source]);
+    assert.deepEqual(sources(new Set(["from-hub"])), [["from-hub", "hub"], ["made-here", "ark"]]);
+    assert.deepEqual(sources(), [["from-hub", "ark"], ["made-here", "ark"]]);
+    assert.deepEqual(listSkills(dir, ark, new Set(["pdf"])).find((s) => s.name === "pdf")?.source, "yours", "Keshab's own skill is never relabelled");
   } finally {
     rmSync(dir, { recursive: true, force: true });
-    rmSync(zeno, { recursive: true, force: true });
+    rmSync(ark, { recursive: true, force: true });
   }
 });
 
 test("the editor reads a whole SKILL.md and saves Keshab's edit with one backup, touching nothing else", () => {
   const dir = skillsDir();
-  const zeno = mkdtempSync(join(tmpdir(), "atom-zeno-skills-"));
+  const ark = mkdtempSync(join(tmpdir(), "ark-ark-skills-"));
   try {
-    mkdirSync(join(zeno, "mine"));
-    writeFileSync(join(zeno, "mine", "SKILL.md"), "---\nname: mine\ndescription: Made by ATOM.\n---\n\nStep 1.\n");
-    const before = readSkillFile("pdf", dir, zeno)!;
+    mkdirSync(join(ark, "mine"));
+    writeFileSync(join(ark, "mine", "SKILL.md"), "---\nname: mine\ndescription: Made by ARK.\n---\n\nStep 1.\n");
+    const before = readSkillFile("pdf", dir, ark)!;
     assert.equal(before.source, "yours");
     assert.match(before.text, /description: Read and write PDFs\./);
-    assert.equal(readSkillFile("mine", dir, zeno)!.source, "zeno");
+    assert.equal(readSkillFile("mine", dir, ark)!.source, "ark");
 
     const edited = before.text.replace("Read and write PDFs.", "Read, write and merge PDFs.");
-    writeSkillFile("pdf", edited, dir, zeno);
+    writeSkillFile("pdf", edited, dir, ark);
     assert.equal(readFileSync(join(dir, "pdf", "SKILL.md"), "utf8"), edited);
     assert.equal(readFileSync(join(dir, "pdf", "SKILL.md.bak"), "utf8"), before.text, "the replaced text is kept");
     assert.deepEqual(readdirSync(join(dir, "pdf")).sort(), ["SKILL.md", "SKILL.md.bak"], "no temp file stays");
     assert.equal(listSkills(dir).find((x) => x.name === "pdf")!.description, "Read, write and merge PDFs.");
 
-    writeSkillFile("pdf", "# second edit\n", dir, zeno);
+    writeSkillFile("pdf", "# second edit\n", dir, ark);
     assert.equal(readFileSync(join(dir, "pdf", "SKILL.md.bak"), "utf8"), edited, "only the newest backup");
     assert.deepEqual(readdirSync(dir).sort(), ["council", "no-skill-md", "pdf"], "no skill was made or removed");
   } finally {
     rmSync(dir, { recursive: true, force: true });
-    rmSync(zeno, { recursive: true, force: true });
+    rmSync(ark, { recursive: true, force: true });
   }
 });
 

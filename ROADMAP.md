@@ -1,6 +1,6 @@
-# ATOM Roadmap
+# ARK Roadmap
 
-The roadmap describes the direction of ATOM.
+The roadmap describes the direction of ARK.
 
 It is not a strict task queue.
 
@@ -12,14 +12,14 @@ Implementation should follow TASK.md.
 
 Goal:
 
-Establish the smallest working ATOM loop.
+Establish the smallest working ARK loop.
 
 ```text
 Microphone
  ↓
 Whisper
  ↓
-ATOM Core
+ARK Core
  ↓
 LLM Gateway
  ↓
@@ -34,7 +34,7 @@ Speaker
 
 ## Phase 0.5 — Desktop Island
 
-Give ATOM a permanent place on the Mac (ADR-033).
+Give ARK a permanent place on the Mac (ADR-033).
 
 - a dark glass island hidden past the left edge, below the menu bar, revealed by hovering; it shows live state and, expanded, the conversation, status and model settings
 - hold Ctrl+Option in any app to talk
@@ -42,9 +42,9 @@ Give ATOM a permanent place on the Mac (ADR-033).
 - the Phase 0 voice loop, unchanged, as the runtime behind it
 
 ```text
-ATOM Island (Swift)
+ARK Island (Swift)
  ↕ JSON lines over stdin / stdout
-ATOM runtime (Phase 0 voice loop)
+ARK runtime (Phase 0 voice loop)
 ```
 
 ---
@@ -68,7 +68,7 @@ Potential capabilities:
 
 ## Phase 2 — Mac Tools
 
-Allow ATOM to interact with controlled Mac capabilities.
+Allow ARK to interact with controlled Mac capabilities.
 
 Potential capabilities:
 
@@ -137,20 +137,20 @@ Introduce:
 
 ## Phase 7 — iOS Node
 
-Introduce iPhone as a ATOM device node.
+Introduce iPhone as a ARK device node.
 
 Capabilities may include:
 
 - microphone
 - notifications
 - mobile-specific actions
-- communication with ATOM Core
+- communication with ARK Core
 
 ---
 
 ## Phase 8 — Windows Node
 
-Introduce Windows as another ATOM node.
+Introduce Windows as another ARK node.
 
 ---
 
@@ -166,7 +166,7 @@ Introduce:
 
 ---
 
-## Phase 10 — ATOM Cloud
+## Phase 10 — ARK Cloud
 
 Introduce cloud infrastructure for:
 
@@ -209,7 +209,7 @@ Introduce controlled capability acquisition.
 
 Example:
 
-> "ATOM, give yourself a calendar."
+> "ARK, give yourself a calendar."
 
 The system should:
 

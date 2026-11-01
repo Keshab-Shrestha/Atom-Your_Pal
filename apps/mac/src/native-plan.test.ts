@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { openHelperStore } from "@atom/helpers";
+import { openHelperStore } from "@ark/helpers";
 import { planBook } from "./native-plan.ts";
 
 // ADR-111: the plan tools and the gate's claim, on a real in-memory store.

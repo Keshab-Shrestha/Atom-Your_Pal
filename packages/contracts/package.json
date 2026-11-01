@@ -1,5 +1,5 @@
 {
-  "name": "@atom/contracts",
+  "name": "@ark/contracts",
   "private": true,
   "type": "module",
   "exports": "./src/index.ts"

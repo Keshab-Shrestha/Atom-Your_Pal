@@ -40,13 +40,13 @@ function fakePaperclip() {
 }
 
 test("Pal hands a task to a Paperclip agent; the board tracks it; its result comes back once, said in one line", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-pc-"));
+  const dir = mkdtempSync(join(tmpdir(), "ark-pc-"));
   try {
     const pc = fakePaperclip();
     const tracker = issueTracker(join(dir, "paperclip.json"));
     let changes = 0;
     const [hand, check] = createPaperclipTools({ client: pc.client, tracker, confirm: async () => true, onChange: () => changes++ });
-    assert.equal(await hand!.run({ agent: "cto", title: "Review", description: "Review the landing page" }), "Handed to Paperclip's CTO as PAP-1. ATOM will say when it is done.");
+    assert.equal(await hand!.run({ agent: "cto", title: "Review", description: "Review the landing page" }), "Handed to Paperclip's CTO as PAP-1. ARK will say when it is done.");
     assert.deepEqual(pc.calls.find((c) => c.method === "POST")!.body, { title: "Review", description: "Review the landing page", status: "todo", assigneeAgentId: "ag1" });
     assert.ok(pc.calls.every((c) => c.redirect === "error"), "never redirected anywhere");
     assert.deepEqual(tracker.list().map((i) => [i.identifier, i.agent, i.status]), [["PAP-1", "CTO", "todo"]]);
@@ -65,7 +65,7 @@ test("Pal hands a task to a Paperclip agent; the board tracks it; its result com
 });
 
 test("an approval is answered only after Keshab's OK on the card", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-pc-"));
+  const dir = mkdtempSync(join(tmpdir(), "ark-pc-"));
   try {
     const pc = fakePaperclip();
     let ok = false;
@@ -93,7 +93,7 @@ test("a Paperclip that is down or refuses comes back as words", async () => {
 
 // 2026-10-16 (code check): a tracker file that holds valid JSON that is not a list made .filter throw every minute.
 test("a tracker file that is not a list reads as empty", () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-pc-"));
+  const dir = mkdtempSync(join(tmpdir(), "ark-pc-"));
   try {
     const file = join(dir, "tracked.json");
     writeFileSync(file, "{}");

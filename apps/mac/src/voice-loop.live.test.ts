@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadConfig, readEnv } from "@atom/shared";
+import { loadConfig, readEnv } from "@ark/shared";
 import type { AudioClip } from "./audio.ts";
 import { createNativeCore } from "./native-core.ts";
 import { createWhisperStt } from "./stt.ts";
@@ -16,10 +16,10 @@ import { createVoiceLoop, type TurnTimings } from "./voice-loop.ts";
 // Costs two provider requests and plays audio. Run with: pnpm test:live
 // The session closes this long after the last turn; its process would otherwise keep the test run open for minutes.
 const LIVE_IDLE_MS = 20_000;
-const enabled = readEnv(process.env, "ATOM_LIVE_TESTS") === "1";
+const enabled = readEnv(process.env, "ARK_LIVE_TESTS") === "1";
 
 function speech(text: string): AudioClip {
-  const dir = mkdtempSync(join(tmpdir(), "atom-e2e-"));
+  const dir = mkdtempSync(join(tmpdir(), "ark-e2e-"));
   try {
     execFileSync("say", ["-o", join(dir, "q.aiff"), text]);
     execFileSync("ffmpeg", ["-loglevel", "error", "-i", join(dir, "q.aiff"), "-ac", "1", "-ar", "16000", "-f", "s16le", join(dir, "q.pcm")]);
@@ -30,7 +30,7 @@ function speech(text: string): AudioClip {
   }
 }
 
-test("live: spoken questions are answered aloud, with conversation memory", { skip: !enabled && "set ATOM_LIVE_TESTS=1 (pnpm test:live)", timeout: 120_000 }, async (t) => {
+test("live: spoken questions are answered aloud, with conversation memory", { skip: !enabled && "set ARK_LIVE_TESTS=1 (pnpm test:live)", timeout: 120_000 }, async (t) => {
   const config = loadConfig();
   const tts = createSpeaker(createKokoroSynthesizer({ voice: config.tts.voice, dtype: config.tts.dtype }));
   await tts.warmUp();

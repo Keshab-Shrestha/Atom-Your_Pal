@@ -59,7 +59,7 @@ test("an action prints the page state browserCheck reads, and the check learns t
   const asked: string[] = [];
   const check = browserCheck({ name: "Scout", approve: async (r) => (asked.push(r.summary), true) });
   check.seen(out.text);
-  const verdict = await check.check("mcp__atom-browser__browser_type", { target: "e6", text: "pw" });
+  const verdict = await check.check("mcp__ark-browser__browser_type", { target: "e6", text: "pw" });
   assert.ok("step" in verdict);
   assert.ok(asked.some((s) => /password field/.test(s)), "typing into the marked field asks");
 });

@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { openMemoryStore } from "./store.ts";
 
 test("thinking persists before the first answer, is scoped to chat/provider/model, forks explicitly and deletes with chat", () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-thinking-")), path = join(dir, "memory.db");
+  const dir = mkdtempSync(join(tmpdir(), "ark-thinking-")), path = join(dir, "memory.db");
   let memory = openMemoryStore({ path });
   try {
     memory.chats.setReasoning("cedar", "codex", "gpt-test", "medium");

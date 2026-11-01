@@ -175,28 +175,28 @@ importers:
 
   apps/mac:
     dependencies:
-      '@atom/contracts':
+      '@ark/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
-      '@atom/core':
+      '@ark/core':
         specifier: workspace:*
         version: link:../../services/core
-      '@atom/decision-engine':
+      '@ark/decision-engine':
         specifier: workspace:*
         version: link:../../services/decision-engine
-      '@atom/helpers':
+      '@ark/helpers':
         specifier: workspace:*
         version: link:../../services/helpers
-      '@atom/llm-gateway':
+      '@ark/llm-gateway':
         specifier: workspace:*
         version: link:../../services/llm-gateway
-      '@atom/memory':
+      '@ark/memory':
         specifier: workspace:*
         version: link:../../services/memory
-      '@atom/shared':
+      '@ark/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@atom/tool-engine':
+      '@ark/tool-engine':
         specifier: workspace:*
         version: link:../../services/tool-engine
       '@huggingface/transformers':
@@ -218,13 +218,13 @@ importers:
 
   services/core:
     dependencies:
-      '@atom/contracts':
+      '@ark/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
 
   services/decision-engine:
     dependencies:
-      '@atom/shared':
+      '@ark/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@modelcontextprotocol/sdk':
@@ -233,7 +233,7 @@ importers:
 
   services/helpers:
     dependencies:
-      '@atom/decision-engine':
+      '@ark/decision-engine':
         specifier: workspace:*
         version: link:../decision-engine
 
@@ -242,10 +242,10 @@ importers:
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.3.287
         version: 0.3.287(@anthropic-ai/sdk@0.129.0(zod@4.6.5))(@modelcontextprotocol/sdk@1.31.0(zod@4.6.5))(zod@4.6.5)
-      '@atom/contracts':
+      '@ark/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
-      '@atom/shared':
+      '@ark/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       zod:
@@ -254,13 +254,13 @@ importers:
 
   services/memory:
     dependencies:
-      '@atom/contracts':
+      '@ark/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
 
   services/tool-engine:
     dependencies:
-      '@atom/contracts':
+      '@ark/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
 

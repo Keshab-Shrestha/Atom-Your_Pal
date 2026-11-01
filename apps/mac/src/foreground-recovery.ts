@@ -1,4 +1,4 @@
-import type { ForegroundRecord, ForegroundStore, ForegroundSummary } from "@atom/memory";
+import type { ForegroundRecord, ForegroundStore, ForegroundSummary } from "@ark/memory";
 import { excerpt } from "./chat-history.ts";
 export type ForegroundCommand =
   | { type: "foreground.list"; request: string; pending: string[]; pendingAnswers: { id: string; digest: string }[] }

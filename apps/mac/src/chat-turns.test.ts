@@ -11,7 +11,7 @@ test("a second turn in a chat that is answering is refused with a line that name
   assert.equal(turns.begin("other", "window"), undefined, "another chat is not blocked");
   turns.end("api-x", "api");
   assert.equal(turns.begin("api-x", "window"), undefined, "free after the turn ended");
-  assert.match(turns.begin("api-x", "api") ?? "", /^The ATOM window is answering/);
+  assert.match(turns.begin("api-x", "api") ?? "", /^The ARK window is answering/);
   turns.end("api-x", "api"); // ending for the wrong surface changes nothing
   assert.ok(turns.begin("api-x", "api"), "still the window's turn");
 });

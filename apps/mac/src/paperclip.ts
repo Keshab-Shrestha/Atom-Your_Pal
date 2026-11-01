@@ -1,11 +1,11 @@
 // ADR-087, Task 3.16: an optional connection to Keshab's own Paperclip (paperclipai/paperclip). Off unless
-// ATOM_PAPERCLIP_URL is set; loopback addresses only (Paperclip's local trusted mode), so nothing leaves the Mac.
-// ATOM never installs, starts or configures Paperclip and keeps no Paperclip secrets. Narrow operations only: list
+// ARK_PAPERCLIP_URL is set; loopback addresses only (Paperclip's local trusted mode), so nothing leaves the Mac.
+// ARK never installs, starts or configures Paperclip and keeps no Paperclip secrets. Narrow operations only: list
 // agents, create an issue, read an issue and its comments, list pending approvals, approve or reject one.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import type { Tool } from "@atom/tool-engine";
+import type { Tool } from "@ark/tool-engine";
 
 export const PAPERCLIP_TIMEOUT_MS = 10_000;
 const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
@@ -134,7 +134,7 @@ function toIssue(i: Record<string, unknown>): PaperclipIssue {
 
 export type Paperclip = ReturnType<typeof createPaperclip>;
 
-/** An issue ATOM handed to Paperclip, as the board shows it. */
+/** An issue ARK handed to Paperclip, as the board shows it. */
 export interface TrackedIssue {
   id: string;
   identifier?: string;
@@ -144,14 +144,14 @@ export interface TrackedIssue {
   createdAt: string;
   /** The newest comment once it is done: the result. */
   result?: string;
-  /** ATOM has said it is done. */
+  /** ARK has said it is done. */
   told?: boolean;
 }
 
 export const DONE = new Set(["done", "cancelled", "canceled"]);
 export const TRACKED_MAX = 30;
 
-/** The issues ATOM handed over, in a small local file (titles only; never logged). */
+/** The issues ARK handed over, in a small local file (titles only; never logged). */
 export function issueTracker(file: string) {
   const read = (): TrackedIssue[] => {
     try {
@@ -210,7 +210,7 @@ export interface PaperclipToolOptions {
   onCall?(event: { action: string }): void;
 }
 
-const OUTSIDE = "Paperclip's agents run outside ATOM's checks: Paperclip decides their tools and folders.";
+const OUTSIDE = "Paperclip's agents run outside ARK's checks: Paperclip decides their tools and folders.";
 
 /** Pal's three Paperclip tools (Tools for the tool engine, by shape). Registered only when the connection is on. */
 export function createPaperclipTools(options: PaperclipToolOptions): Tool[] {
@@ -244,13 +244,13 @@ export function createPaperclipTools(options: PaperclipToolOptions): Tool[] {
         const issue = await client.createIssue({ title, description: String(input.description ?? ""), agentId: agent.id });
         tracker.add({ id: issue.id, ...(issue.identifier ? { identifier: issue.identifier } : {}), title: issue.title, agent: agent.name, status: issue.status, createdAt: new Date().toISOString() });
         options.onChange?.();
-        return `Handed to Paperclip's ${agent.name}${issue.identifier ? ` as ${issue.identifier}` : ""}. ATOM will say when it is done.`;
+        return `Handed to Paperclip's ${agent.name}${issue.identifier ? ` as ${issue.identifier}` : ""}. ARK will say when it is done.`;
       },
     },
     {
       spec: {
         name: "paperclip_check",
-        description: "How the tasks ATOM handed to Paperclip are doing, and Paperclip's approvals waiting for Keshab (with their ids).",
+        description: "How the tasks ARK handed to Paperclip are doing, and Paperclip's approvals waiting for Keshab (with their ids).",
         inputSchema: { type: "object", properties: {} },
       },
       async run(): Promise<string> {
@@ -269,7 +269,7 @@ export function createPaperclipTools(options: PaperclipToolOptions): Tool[] {
       spec: {
         name: "paperclip_decide",
         description:
-          "Approve or reject one of Paperclip's waiting approvals, when Keshab says so. Keshab confirms on ATOM's approval card first; " +
+          "Approve or reject one of Paperclip's waiting approvals, when Keshab says so. Keshab confirms on ARK's approval card first; " +
           "without his OK nothing is sent. approval: its id from paperclip_check. approve: true or false. note: optional words for the decision.",
         inputSchema: {
           type: "object",

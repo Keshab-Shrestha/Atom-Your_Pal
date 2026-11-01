@@ -18,8 +18,8 @@ export function testCaseMethods(ctx: StoreContext): Pick<HelperStore, "saveTestC
       const taskReport = report(jobId);
       if (!taskReport) throw new HelperError("That task has no report to compare with.");
       if (kind === "soul" && target !== job.helper) throw new HelperError("A task is a test case for the agent that did it.");
-      if (kind === "skill" && (!skills.skillsUsed(jobId).includes(target) || !skills.isZenoSkill(target))) {
-        throw new HelperError("A task is a test case only for a ATOM-made skill its run used.");
+      if (kind === "skill" && (!skills.skillsUsed(jobId).includes(target) || !skills.isArkSkill(target))) {
+        throw new HelperError("A task is a test case only for a ARK-made skill its run used.");
       }
       const saved = tests.of(kind, target);
       const name = kind === "soul" ? current(target).name : `the ${target} skill`;

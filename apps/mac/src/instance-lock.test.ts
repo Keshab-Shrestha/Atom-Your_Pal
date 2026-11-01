@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { acquireInstanceLock } from "./instance-lock.ts";
 
-const tmp = () => join(mkdtempSync(join(tmpdir(), "atom-lock-")), ".atom.lock");
+const tmp = () => join(mkdtempSync(join(tmpdir(), "ark-lock-")), ".ark.lock");
 
 test("a second acquire is refused while the first owner lives", () => {
   const file = tmp();

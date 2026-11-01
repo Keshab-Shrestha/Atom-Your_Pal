@@ -1,17 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { loadConfig, readEnv } from "@atom/shared";
+import { loadConfig, readEnv } from "@ark/shared";
 import { createGateway } from "../gateway.ts";
 import { createProviderAdapter } from "./index.ts";
 
 // Calls Claude on the signed-in plan through the gateway (uses a little of the plan).
 // Run with: pnpm test:live
-const enabled = readEnv(process.env, "ATOM_LIVE_TESTS") === "1";
+const enabled = readEnv(process.env, "ARK_LIVE_TESTS") === "1";
 
-test("live: the configured provider answers through the gateway", { skip: !enabled && "set ATOM_LIVE_TESTS=1 (pnpm test:live)" }, async (t) => {
+test("live: the configured provider answers through the gateway", { skip: !enabled && "set ARK_LIVE_TESTS=1 (pnpm test:live)" }, async (t) => {
   const { llm } = loadConfig();
   t.diagnostic(`provider=${llm.provider} model=${llm.model}`);
-  // The Claude plan runs in ATOM's own chat sessions, never through the gateway (ADR-110).
+  // The Claude plan runs in ARK's own chat sessions, never through the gateway (ADR-110).
   if (llm.provider === "claude-plan") return t.skip("claude-plan does not answer through the gateway");
   const gateway = createGateway({ provider: createProviderAdapter(llm), timeoutMs: llm.timeoutMs });
   const started = Date.now();

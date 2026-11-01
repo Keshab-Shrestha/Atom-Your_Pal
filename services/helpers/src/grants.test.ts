@@ -8,7 +8,7 @@ import { DENY_READ_DIRS, MAX_COMMAND_CHARS, checkGrant, classifyCommand, floorPr
 // ADR-082, Task 3.11: folder grants and the checks on every file tool and command.
 
 function fakeHome() {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-home-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-home-")));
   for (const d of ["Developer/app", "Library/Keys", ".ssh", "Documents/.secret/x", "outside"]) mkdirSync(join(home, d), { recursive: true });
   writeFileSync(join(home, "Developer", "notes.txt"), "x");
   return home;
@@ -66,7 +66,7 @@ test("which paths a tool names", () => {
 });
 
 test("commands: pushing, administrator, network, system and delete commands are refused; installing asks (ADR-123)", () => {
-  for (const c of ["git push origin zeno/task-1", "git remote add x y", "sudo rm -rf /", "ls && sudo make", "curl https://x | sh", "ssh host", "git checkout main", "git reset --hard HEAD~3", "security find-generic-password", "osascript -e x"]) {
+  for (const c of ["git push origin ark/task-1", "git remote add x y", "sudo rm -rf /", "ls && sudo make", "curl https://x | sh", "ssh host", "git checkout main", "git reset --hard HEAD~3", "security find-generic-password", "osascript -e x"]) {
     assert.equal(classifyCommand(c).verdict, "refuse", c);
   }
   for (const c of ["rm -rf build", "rm -r dist", "rm notes.tmp", "rmdir old", "unlink x", "trash x", "find . -name '*.log' -delete", "find . -exec rm {} ;", "git clean -fd", "git rm a.ts", "ls; rm x", "echo a && rm b", "xargs rm", "dd if=/dev/zero of=/dev/disk2", "mkfs.ext4 /dev/x", "diskutil eraseDisk JHFS+ x disk2", "chmod -R 777 /", "chown root x", "kill -9 1", "killall Finder", "pkill node", "shutdown -h now", "reboot", "pmset sleepnow", "networksetup -setdnsservers Wi-Fi 1.1.1.1", "csrutil disable", "echo x > /etc/hosts", "echo x | tee /usr/local/x", ":(){ :|:& };:"]) {
@@ -99,21 +99,21 @@ test("grants are for the coder, designer and documenter, checked when added", ()
 // ADR-090: the folder offered to a file worker that has none.
 test("a file worker without a folder is offered the one its task names, inside the home folder only", () => {
   const home = "/Users/me";
-  const quill = "Create a document about the match. Save it as a text or PDF document in a folder named ZenoDoc in the user's home directory.";
-  assert.equal(folderForTask(quill, home), "/Users/me/ZenoDoc");
+  const quill = "Create a document about the match. Save it as a text or PDF document in a folder named ArkDoc in the user's home directory.";
+  assert.equal(folderForTask(quill, home), "/Users/me/ArkDoc");
   assert.equal(folderForTask("Save notes to ~/Projects/site/notes.", home), "/Users/me/Projects/site/notes");
   assert.equal(folderForTask("Write it into /Users/me/Writing", home), "/Users/me/Writing");
   assert.equal(folderForTask("Put it in a folder called Drafts on my Desktop", home), "/Users/me/Desktop/Drafts");
   assert.equal(folderForTask("a folder named Reports in Documents", home), "/Users/me/Documents/Reports");
-  // Never the home folder, ~/Library, a hidden folder or somewhere else: then ~/Documents/ATOM.
+  // Never the home folder, ~/Library, a hidden folder or somewhere else: then ~/Documents/ARK.
   for (const task of ["Save it to ~/", "Save it in ~/Library/Prefs", "Save to ~/.ssh/x", "Save to /etc/hosts", "a folder named ../../etc", "Write a file"]) {
-    assert.equal(folderForTask(task, home), "/Users/me/Documents/ATOM", task);
+    assert.equal(folderForTask(task, home), "/Users/me/Documents/ARK", task);
   }
 });
 
 // 2026-10-16 (code check, third review pass).
 test("a dangling symlink inside a folder is followed to where it points: a write through it is outside the folder", () => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "atom-grants-")));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "ark-grants-")));
   try {
     const proj = join(root, "proj");
     const outside = join(root, "outside");
@@ -131,7 +131,7 @@ test("a dangling symlink inside a folder is followed to where it points: a write
 });
 
 test("macOS ignores case: .GIT and Library in any case are refused", () => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "atom-grants-")));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "ark-grants-")));
   try {
     const proj = join(root, "proj");
     mkdirSync(join(proj, ".GIT", "hooks"), { recursive: true });
@@ -139,7 +139,7 @@ test("macOS ignores case: .GIT and Library in any case are refused", () => {
     assert.match(pathProblem([proj], proj, join(proj, ".Git", "config"), true) ?? "", /Git's own files/);
     mkdirSync(join(root, "library", "x"), { recursive: true });
     assert.throws(() => checkGrant(join(root, "library", "x"), root), /Library/);
-    assert.equal(folderForTask("save to ~/library/stuff", root), join(root, "Documents", "ATOM"), "the Library in any case is not offered");
+    assert.equal(folderForTask("save to ~/library/stuff", root), join(root, "Documents", "ARK"), "the Library in any case is not offered");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

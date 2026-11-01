@@ -1,7 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import { dollarsFor, webSearchDollars } from "./pricing.ts";
 
-// ADR-091: the tokens every Claude run used (a worker's task or ATOM's own chat answer), for the Dashboard. Counts and
+// ADR-091: the tokens every Claude run used (a worker's task or ARK's own chat answer), for the Dashboard. Counts and
 // model ids only: never a task's or answer's text. Kept 90 days.
 
 export interface TokenCounts {
@@ -59,11 +59,11 @@ export interface UsageSummary {
   week: UsageTotals;
   /** The last 7 days, oldest first, each with its local date (YYYY-MM-DD). */
   days: (UsageTotals & { day: string })[];
-  /** The last 7 days by worker (null: ATOM's chat), most tokens first. */
+  /** The last 7 days by worker (null: ARK's chat), most tokens first. */
   byWorker: (UsageTotals & { helper: string | null })[];
   /** The last 7 days by model, most tokens first. */
   byModel: (UsageTotals & { model: string })[];
-  /** ADR-098 item 9: ATOM's last chat answers read nothing from the prompt cache. */
+  /** ADR-098 item 9: ARK's last chat answers read nothing from the prompt cache. */
   chatCacheCold: boolean;
   /** Job 4: the newest calls, newest first. */
   recent: RecentRun[];

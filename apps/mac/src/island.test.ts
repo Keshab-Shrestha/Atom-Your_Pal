@@ -1,15 +1,15 @@
 import { randomUUID } from "node:crypto";
-import type { ProviderKeys } from "@atom/shared";
+import type { ProviderKeys } from "@ark/shared";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { PassThrough } from "node:stream";
-import type { Core } from "@atom/core";
-import { openMemoryStore } from "@atom/memory";
+import type { Core } from "@ark/core";
+import { openMemoryStore } from "@ark/memory";
 import { createNativeCore } from "./native-core.ts";
-import { createSwitchableModel, type SwitchableModel } from "@atom/llm-gateway";
+import { createSwitchableModel, type SwitchableModel } from "@ark/llm-gateway";
 import type { AudioClip, AudioError, Recording } from "./audio.ts";
 import type { IslandEvent } from "./island-protocol.ts";
 import { runIsland, type IslandOptions } from "./island.ts";
@@ -17,7 +17,7 @@ import { createModelSettings, writeSavedChoice } from "./model-settings.ts";
 import type { SpeechToText } from "./stt.ts";
 import type { TextToSpeech } from "./tts.ts";
 import { createComputerBridge } from "./computer-bridge.ts";
-import { BUILT_IN_KITS, HELPERS, openHelperStore, skillFile, tieredModels } from "@atom/helpers";
+import { BUILT_IN_KITS, HELPERS, openHelperStore, skillFile, tieredModels } from "@ark/helpers";
 import { islandHelpers } from "./island-helpers.ts";
 import { createHubCommands } from "./hub-commands.ts";
 
@@ -340,7 +340,7 @@ test("talk.start while listening is ignored; talk.send while idle is ignored", a
   assert.equal(h.recordings[0].stopped, false);
 });
 
-test("talk.start while ATOM is speaking interrupts and starts listening", async () => {
+test("talk.start while ARK is speaking interrupts and starts listening", async () => {
   let stopped = false;
   const h = islandHarness({
     tts: {
@@ -506,7 +506,7 @@ function modelCore(model: { complete: (request: ModelRequest, signal?: AbortSign
 
 /** A model Core and switchable model with fake gateways that record which model answered what. */
 function modelHarness(keys: ProviderKeys = { "claude-plan": CLAUDE }) {
-  const path = join(mkdtempSync(join(tmpdir(), "atom-island-")), "config", "island.json");
+  const path = join(mkdtempSync(join(tmpdir(), "ark-island-")), "config", "island.json");
   const requests: { model: string; request: ModelRequest }[] = [];
   const logs: string[] = [];
   const fakeGateway = (name: string) => ({
@@ -607,10 +607,10 @@ test("without the claude program, model.set says to install it and sign in", asy
   await tick(2);
   h.clear();
   await h.send({ type: "model.set", provider: "claude-plan", model: "claude-opus-5-5" });
-  assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: "Install Claude Code and run `claude auth login` to use Claude (my plan), then restart ATOM." }]);
+  assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: "Install Claude Code and run `claude auth login` to use Claude (my plan), then restart ARK." }]);
   h.clear();
   await h.send({ type: "model.set", provider: "codex", model: "codex-default" });
-  assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: "Install Codex and run `codex login` to use Codex (my ChatGPT plan), then restart ATOM." }]);
+  assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: "Install Codex and run `codex login` to use Codex (my ChatGPT plan), then restart ARK." }]);
 });
 
 test("a malformed model.set is a protocol error", async () => {
@@ -715,7 +715,7 @@ function fakeMemory() {
         return () => listeners.delete(listener);
       },
     },
-    /** ATOM kept something by itself (the remember tool). */
+    /** ARK kept something by itself (the remember tool). */
     changed: () => {
       items = [{ id: 3, text: "Keshab is in Tokyo.", createdAt: "2026-10-04T02:00:00.000Z", source: "voice" }, ...items];
       for (const l of listeners) l();
@@ -737,7 +737,7 @@ test("memory.list sends what is kept, newest first; nothing is sent before the i
   assert.deepEqual(event.memories.map((m) => m.id), [3, 2, 1]);
 });
 
-test("after memory.list, changes ATOM makes by itself are sent; forget and clear answer with the new list", async () => {
+test("after memory.list, changes ARK makes by itself are sent; forget and clear answer with the new list", async () => {
   const fake = fakeMemory();
   const h = islandHarness({ memory: fake.memory });
   await tick(5);
@@ -1070,7 +1070,7 @@ test("ADR-110 N3: a later reply (an agent reported) goes the report-line path: a
   assert.deepEqual(h.spoken, ["Penny wrote the draft."]);
 });
 
-test("chats: listed with the current one; opened, ATOM continues it; deleting the current one starts a new chat (ADR-091)", async () => {
+test("chats: listed with the current one; opened, ARK continues it; deleting the current one starts a new chat (ADR-091)", async () => {
   const saved = new Map([["chat-a", [{ role: "user" as const, content: "Plan my trip" }, { role: "assistant" as const, content: "Where to?" }]]]);
   let session = "chat-new";
   const resumed: string[] = [];
@@ -1149,7 +1149,7 @@ test("chats written by Telegram are read-only: flagged, and a window turn in one
 });
 
 test("git: branches listed; a push runs and the list comes back; a refused push says why (ADR-091)", async () => {
-  const branch = { repo: "/r", repoName: "r", branch: "zeno/task-7", task: 7, base: "origin/main", commits: [], files: [], pushed: "no" as const };
+  const branch = { repo: "/r", repoName: "r", branch: "ark/task-7", task: 7, base: "origin/main", commits: [], files: [], pushed: "no" as const };
   const pushed: string[] = [];
   let refuse = false;
   const h = islandHarness({
@@ -1168,16 +1168,16 @@ test("git: branches listed; a push runs and the list comes back; a refused push 
   await tick(5);
   assert.deepEqual(h.events(), [{ type: "git", branches: [branch] }]);
   h.clear();
-  await h.send({ type: "git.push", repo: "/r", branch: "zeno/task-7" });
+  await h.send({ type: "git.push", repo: "/r", branch: "ark/task-7" });
   await tick(5);
-  assert.deepEqual([pushed, (h.events()[0] as { branches: { pushed: string }[] }).branches[0]!.pushed], [["/r zeno/task-7"], "yes"]);
+  assert.deepEqual([pushed, (h.events()[0] as { branches: { pushed: string }[] }).branches[0]!.pushed], [["/r ark/task-7"], "yes"]);
   h.clear();
-  await h.send({ type: "git.diff", repo: "/r", branch: "zeno/task-7" });
+  await h.send({ type: "git.diff", repo: "/r", branch: "ark/task-7" });
   await tick(5);
-  assert.deepEqual(h.events(), [{ type: "git.diff", repo: "/r", branch: "zeno/task-7", text: "+two", truncated: false }]);
+  assert.deepEqual(h.events(), [{ type: "git.diff", repo: "/r", branch: "ark/task-7", text: "+two", truncated: false }]);
   refuse = true;
   h.clear();
-  await h.send({ type: "git.push", repo: "/r", branch: "zeno/task-7" });
+  await h.send({ type: "git.push", repo: "/r", branch: "ark/task-7" });
   await tick(5);
   assert.match((h.events()[0] as { message: string }).message, /The push failed: rejected/);
 });
@@ -1246,8 +1246,8 @@ test("job.rate asks Tinker to review; proposal.accept, proposal.undo and proposa
 });
 
 test("skill.make, skill.approve and skill.reject; skill.edit.accept, .undo and .reject; drafts and edits in the helpers event (ADR-094)", async () => {
-  const home = mkdtempSync(join(tmpdir(), "atom-home-"));
-  const skillsDir = mkdtempSync(join(tmpdir(), "atom-skills-"));
+  const home = mkdtempSync(join(tmpdir(), "ark-home-"));
+  const skillsDir = mkdtempSync(join(tmpdir(), "ark-skills-"));
   try {
     const store = openHelperStore({ path: ":memory:", home, skillsDir });
     const h = islandHarness({ helpers: islandHelpers(store, async () => []) });
@@ -1317,7 +1317,7 @@ test("the helpers event carries Paperclip's tasks only when the connection is on
 });
 
 test("the helpers event names agent folders that could not be loaded, and leaves the field out when there are none (ADR-093)", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-ag-"));
+  const dir = mkdtempSync(join(tmpdir(), "ark-ag-"));
   try {
     mkdirSync(join(dir, "bad"));
     writeFileSync(join(dir, "bad", "soul.md"), "no front matter");
@@ -1336,7 +1336,7 @@ test("the helpers event names agent folders that could not be loaded, and leaves
 });
 
 test("agent.create adds an agent with its soul.md; agent.remove takes it out (ADR-088)", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-ag-"));
+  const dir = mkdtempSync(join(tmpdir(), "ark-ag-"));
   try {
     const store = openHelperStore({ path: ":memory:", agentsDir: dir });
     const h = islandHarness({ helpers: islandHelpers(store, async () => []) });
@@ -1346,7 +1346,7 @@ test("agent.create adds an agent with its soul.md; agent.remove takes it out (AD
     assert.deepEqual([rumi.id, rumi.role, rumi.kit, rumi.custom], ["rumi", "travel planner", "think", true]);
     h.clear();
     await h.send({ type: "agent.create", name: "Pal", role: "x", kit: "think", personality: "P", howItWorks: "", rules: "" });
-    assert.match((h.events()[0] as { message: string }).message, /taken by ATOM/);
+    assert.match((h.events()[0] as { message: string }).message, /taken by ARK/);
     await h.send({ type: "agent.remove", id: "rumi" });
     assert.ok(!(h.events().at(-1) as HelpersEvent).helpers.some((x) => x.id === "rumi"));
   } finally {
@@ -1417,7 +1417,7 @@ test("with helpers off: helpers.list and stop/delete answer an empty list; set, 
 
 // --- timers (ADR-061) ---
 
-test("a timer ending is shown and spoken, in that order, then ATOM is idle again", async () => {
+test("a timer ending is shown and spoken, in that order, then ARK is idle again", async () => {
   let fire!: (t: { id: number; label: string; seconds: number }) => void;
   const h = islandHarness({ onTimer: (listener) => ((fire = listener), () => {}) });
   await new Promise((r) => setTimeout(r, 5));
@@ -1440,7 +1440,7 @@ test("a timer ending is shown and spoken, in that order, then ATOM is idle again
 
 // --- goals (Task 3.5) ---
 
-test("a goal's line waits until ATOM is idle, then is spoken without a timer notice", async () => {
+test("a goal's line waits until ARK is idle, then is spoken without a timer notice", async () => {
   let say!: (line: string) => void;
   let answer!: () => void;
   const h = islandHarness({
@@ -1449,12 +1449,12 @@ test("a goal's line waits until ATOM is idle, then is spoken without a timer not
   });
   await new Promise((r) => setTimeout(r, 5));
   await h.send({ type: "text.send", text: "hello" });
-  say("Your guide is ready. The ATOM window has the report.");
+  say("Your guide is ready. The ARK window has the report.");
   await new Promise((r) => setTimeout(r, 20));
-  assert.deepEqual(h.spoken, [], "not while ATOM is thinking");
+  assert.deepEqual(h.spoken, [], "not while ARK is thinking");
   answer();
   await new Promise((r) => setTimeout(r, 700));
-  assert.deepEqual(h.spoken, ["the reply", "Your guide is ready. The ATOM window has the report."]);
+  assert.deepEqual(h.spoken, ["the reply", "Your guide is ready. The ARK window has the report."]);
   assert.ok(!h.events().some((e) => e.type === "timer"));
   const line = h.events().findIndex((e) => e.type === "worker.line");
   assert.ok(line >= 0 && h.events()[line + 1]?.type === "state", "the line goes to the island just before it is said (Task 3.15)");
@@ -1481,7 +1481,7 @@ test("text.send with files: the files are attached first and named in the reques
   const added: string[][] = [];
   const h = islandHarness({
     attachments: {
-      add: (_chat, paths) => (paths[0] === "/bad.exe" ? { error: "bad.exe: ATOM reads text, code, PDFs and images." } : (added.push([...paths]), { ok: true as const, text: "[Attached: a.txt — /data/a.txt]" })),
+      add: (_chat, paths) => (paths[0] === "/bad.exe" ? { error: "bad.exe: ARK reads text, code, PDFs and images." } : (added.push([...paths]), { ok: true as const, text: "[Attached: a.txt — /data/a.txt]" })),
     },
   });
   await h.send({ type: "text.send", text: "summarise this", files: ["/Users/k/a.txt"] });
@@ -1532,7 +1532,7 @@ test("text.send with notes: each Second brain note goes as a <title>.md file wit
   assert.match(String((h.events()[0] as { message?: string }).message), /"notes" is a list of note numbers/);
 });
 
-test("search also answers from everything else ATOM keeps, and the old groups stay (upgrades.md C1)", async () => {
+test("search also answers from everything else ARK keeps, and the old groups stay (upgrades.md C1)", async () => {
   const asked: string[] = [];
   const h = islandHarness({
     chats: { list: () => [], messages: () => [], remove: () => true, search: () => [{ id: "c1", title: "Mesh chat", snippet: "…", at: "2026-10-01T00:00:00Z" }], onChange: () => () => {} },
@@ -1558,7 +1558,7 @@ test("context.window reads the named app and answers context.ready", async () =>
   let clears = 0;
   const h = islandHarness({
     screen: {
-      point: async (bundleId, name) => (points.push(`${bundleId}|${name}`), bundleId === "com.apple.Terminal" ? { ok: false, message: "ATOM doesn't read Terminal." } : { ok: true }),
+      point: async (bundleId, name) => (points.push(`${bundleId}|${name}`), bundleId === "com.apple.Terminal" ? { ok: false, message: "ARK doesn't read Terminal." } : { ok: true }),
       clear: () => clears++,
     },
   });
@@ -1569,7 +1569,7 @@ test("context.window reads the named app and answers context.ready", async () =>
   assert.deepEqual(points, ["com.brave.Browser|Brave Browser", "com.apple.Terminal|Terminal"]);
   assert.deepEqual(h.events(), [
     { type: "context.ready", app: "Brave Browser", ok: true },
-    { type: "context.ready", app: "Terminal", ok: false, message: "ATOM doesn't read Terminal." },
+    { type: "context.ready", app: "Terminal", ok: false, message: "ARK doesn't read Terminal." },
   ]);
   await h.send({ type: "conversation.reset" });
   assert.equal(clears, 1);
@@ -1654,7 +1654,7 @@ test("thread.get lists the run's tool calls (B3.1), and a new call sends the ope
 
 // B3.4, ADR-101: the thread lists the files a run changed, and job.undo puts them back.
 test("thread has checkpoints and bashRan; job.undo restores, refuses a conflict in words, and the next thread shows it", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-undo-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-undo-")));
   try {
     const folder = join(home, "work");
     mkdirSync(folder);
@@ -1712,9 +1712,9 @@ test("job.undo without helpers is refused", async () => {
 });
 
 test("skill.hub.*: search, preview and approve reach the helpers event as skillHub; refusals are errors; no hub means refused (B3.5)", async () => {
-  const skillsDir = mkdtempSync(join(tmpdir(), "atom-skills-"));
+  const skillsDir = mkdtempSync(join(tmpdir(), "ark-skills-"));
   try {
-    const store = openHelperStore({ path: ":memory:", home: mkdtempSync(join(tmpdir(), "atom-home-")), skillsDir });
+    const store = openHelperStore({ path: ":memory:", home: mkdtempSync(join(tmpdir(), "ark-home-")), skillsDir });
     const sha = "9".repeat(40);
     const client = {
       searchHub: async () => [{ name: "pdf-tools", description: "PDFs.", repo: "anthropics/skills", path: "skills/pdf-tools/SKILL.md", sha, source: 0 }],
@@ -1971,7 +1971,7 @@ test("a result posted into the open chat re-sends chat.opened; a chat that is no
 });
 
 // 2026-10-15 (code review): chat.open called core.resume() right after loop.cancel(), while the Core was still busy with the aborted
-// request. resume() throws then; nothing caught it, and the crash handler ended the app. Switching chats during an answer closed ATOM.
+// request. resume() throws then; nothing caught it, and the crash handler ended the app. Switching chats during an answer closed ARK.
 test("chat.open during an answer waits for the Core to finish, then opens the chat; the app keeps running", async () => {
   const saved = new Map([["chat-a", [{ role: "user" as const, content: "Plan my trip" }, { role: "assistant" as const, content: "Where to?" }]]]);
   let busy = true;
@@ -2070,7 +2070,7 @@ test("a failing helpers list is logged and does not end the app; the next update
 });
 
 // 2026-10-16 (code check): announce() ran as `void announce()` and its `after` callback and the chime sat outside any try/catch, so a throw there
-// was an unhandled rejection, which the crash handler turns into the end of the app. One bad callback must not end ATOM.
+// was an unhandled rejection, which the crash handler turns into the end of the app. One bad callback must not end ARK.
 test("a goal line whose after-callback throws does not end the app, and the next line is still said", async () => {
   let say!: (line: string, after?: () => void) => void;
   const h = islandHarness({ onGoalLine: (listener) => ((say = listener), () => {}) });
@@ -2126,7 +2126,7 @@ test("a window turn in a chat where the phone is answering is refused with a cle
 });
 
 // ADR-127 (found live, 2026-10-17): typing over an answer stopped it but started the new turn while the Core was still
-// unwinding the old one, so the new message was refused with "The ATOM window is answering in this chat".
+// unwinding the old one, so the new message was refused with "The ARK window is answering in this chat".
 test("text.send over a running answer stops it, waits for the Core to finish it, then answers the new message", async () => {
   const { createChatTurns } = await import("./chat-turns.ts");
   let busy = false;
@@ -2190,7 +2190,7 @@ test("chat brief saves require the current idle writable chat before touching st
 
 
 test("the window reopens its chosen saved chat after a real database reopen, without sending work", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-reopen-chat-")), path = join(dir, "memory.db");
+  const dir = mkdtempSync(join(tmpdir(), "ark-reopen-chat-")), path = join(dir, "memory.db");
   let memory = openMemoryStore({ path });
   const listeners = new Set<() => void>();
   let calls = 0, number = 0;
@@ -2383,7 +2383,7 @@ test("access commands refuse stale, shared, archived and busy chats before stora
 
 test("Full access waits for separate human consent and rejects declined, late, switched and newly busy activations", async () => {
   for (const scenario of ["allow", "decline", "switch", "busy", "stale", "cancel"] as const) {
-    let current = "cedar", busy = false, mode: import("@atom/contracts").ChatAccessMode = "checked", writes = 0;
+    let current = "cedar", busy = false, mode: import("@ark/contracts").ChatAccessMode = "checked", writes = 0;
     let answer!: (allowed: boolean) => void, signal: AbortSignal | undefined;
     const h = islandHarness({ core: { get sessionId() { return current; }, get busy() { return busy; }, handle: async () => ({ text: "ok", requestId: "r" }), reset() {} },
       chats: { list: () => [], messages: () => [], remove: () => false, onChange: () => () => {}, accessOf: () => mode,

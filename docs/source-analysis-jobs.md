@@ -26,7 +26,7 @@ Paused/failed jobs block a fresh scheduled job until reviewed/resumed/cleared. A
 
 ## Schedule and review
 
-Reuse the existing 30-second brief heartbeat and routine due-time calculation. Runs require ATOM to be running; normal sleep/closure catch-up is subject to the job's pause/recovery state. No privileged wake helper, power setting, system schedule or duplicate worker routine. Foreground/brief work defers admission. Analysis interrupts automatic summaries before a call, and summaries are not admitted during analysis/brief work.
+Reuse the existing 30-second brief heartbeat and routine due-time calculation. Runs require ARK to be running; normal sleep/closure catch-up is subject to the job's pause/recovery state. No privileged wake helper, power setting, system schedule or duplicate worker routine. Foreground/brief work defers admission. Analysis interrupts automatic summaries before a call, and summaries are not admitted during analysis/brief work.
 
 Sources shows budget, current/pinned models, note/offset progress, completed/reused/skipped counts and fixed host-authored failure guidance. Review/copy reports manually or open the original note. The private native channel correlates request IDs and checks source/version/job. It does not automatically resend timed-out mutations. Poll only the visible pane, preserving the selected report page; ignore late mismatched replies and clear pending state on runtime stop. Logs contain counts, sizes, model/provider and fixed failure categories, never paths, source/report content or raw provider errors.
 

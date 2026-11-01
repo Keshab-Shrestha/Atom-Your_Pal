@@ -55,7 +55,7 @@ test("needsYou: keys, push flags and button codes", () => {
   assert.deepEqual(codes("failed-3"), ["r:3"]);
 });
 
-test("needsYou without a store still lists ATOM's questions; every code fits Telegram's 64 bytes", () => {
+test("needsYou without a store still lists ARK's questions; every code fits Telegram's 64 bytes", () => {
   assert.deepEqual(needsYou(undefined, [ask("q")] as any).map((n) => n.key), ["ask-q"]);
   const long = needsYou(undefined, [ask("x".repeat(40))] as any);
   assert.ok(long[0]!.buttons!.flat().every((b) => Buffer.byteLength(b.data) <= 64));
@@ -71,7 +71,7 @@ test("needsYou: a hub skill shows name, source, short sha and flag kinds, never 
   });
   const needs = needsYou(store, []);
   assert.deepEqual(needs.map((n) => [n.key, n.push]), [["skill-hub-9", true], ["skill-hub-10", true]]);
-  assert.equal(needs[0]!.text, "Skill from the hub: pdf-tools\nanthropics/skills @ aaaaaaa\nFlags: url, shell-command\nRead it in the ATOM window before you approve.");
+  assert.equal(needs[0]!.text, "Skill from the hub: pdf-tools\nanthropics/skills @ aaaaaaa\nFlags: url, shell-command\nRead it in the ARK window before you approve.");
   assert.match(needs[1]!.text, /newer version of the old-one skill.*\nFlags: none/s);
   assert.ok(needs.every((n) => !n.text.includes("SECRET") && !n.text.includes("evil")));
   assert.deepEqual(needs[0]!.buttons!.flat().map((b) => b.data), ["h:9:1", "h:9:0"]);
@@ -137,7 +137,7 @@ async function run(opts: { updates: unknown[][]; store?: any; asks?: any[]; ask?
   const bot = startTelegramBot({
     token: "t", chatId: "42", skipBacklog: false, log, helpers: opts.store, describe: (e) => (e as Error).message, ...(opts.steering ? { steering: opts.steering } : {}), ...(opts.log ? { log: opts.log } : {}),
     ...(opts.tune ?? {}),
-    ask: opts.ask ?? (async (t) => (asked.push(t), `ATOM:${t}`)),
+    ask: opts.ask ?? (async (t) => (asked.push(t), `ARK:${t}`)),
     approvals: { pending: () => asks, answer() {}, onAsk: (l) => (listeners.push(l), () => {}) },
   });
   try {
@@ -158,14 +158,14 @@ test("only the allowed chat is served: a stranger's message and button get nothi
     store: fakeStore(),
   });
   assert.deepEqual(r.asked, ["hi"]);
-  assert.deepEqual(texts(r.sent), ["ATOM:hi"]);
+  assert.deepEqual(texts(r.sent), ["ARK:hi"]);
   assert.equal(r.sent.some((s) => s.method === "answerCallbackQuery"), false);
 });
 
 test("commands: /help, /needs empty, /report validation, unknown command", async () => {
-  const r = await run({ updates: [[text(1, 42, "/help"), text(2, 42, "/needs"), text(3, 42, "/report"), text(4, 42, "/report 99"), text(5, 42, "/needs@zeno_bot"), text(6, 42, "/evil")]], store: fakeStore(), wait: 150 });
+  const r = await run({ updates: [[text(1, 42, "/help"), text(2, 42, "/needs"), text(3, 42, "/report"), text(4, 42, "/report 99"), text(5, 42, "/needs@ark_bot"), text(6, 42, "/evil")]], store: fakeStore(), wait: 150 });
   const t = texts(r.sent);
-  assert.match(t[0]!, /^I am ATOM/);
+  assert.match(t[0]!, /^I am ARK/);
   assert.equal(t[1], "Nothing waits for you.");
   assert.match(t[2]!, /Send \/report and a task number/);
   assert.equal(t[3], "Task #99 has no report.");
@@ -187,9 +187,9 @@ test("a store error on a button is reported back, not thrown", async () => {
   assert.equal(r.sent.find((s) => s.method === "answerCallbackQuery")!.body.text, "cannot retry");
 });
 
-test("an ATOM failure is sent as a message; non-text input gets a short note", async () => {
+test("an ARK failure is sent as a message; non-text input gets a short note", async () => {
   const r = await run({ updates: [[text(1, 42, "go"), { update_id: 2, message: { chat: { id: 42 }, from: { id: 42 } } }]], store: fakeStore(), ask: async () => { throw new Error("down"); }, wait: 120 });
-  assert.deepEqual(texts(r.sent), ["I read text only.", "ATOM could not answer: down"]);
+  assert.deepEqual(texts(r.sent), ["I read text only.", "ARK could not answer: down"]);
 });
 
 test("a long answer is split at 4096", async () => {
@@ -211,7 +211,7 @@ test("push: a new Needs you item is sent once with buttons; setPush(false) stops
       h.listeners.forEach((l: any) => l(asks[0]));
       await tick(1300);
       assert.equal(texts(h.sent).length, 1);
-      assert.match(texts(h.sent)[0]!, /ATOM asks: sum n1/);
+      assert.match(texts(h.sent)[0]!, /ARK asks: sum n1/);
       assert.deepEqual(h.sent[0].body.reply_markup.inline_keyboard[0].map((b: any) => b.callback_data), ["a:n1:1", "a:n1:0"]);
       h.listeners.forEach((l: any) => l(asks[0])); // same key again
       await tick(1300);
@@ -331,7 +331,7 @@ test("push: a Needs you item whose send failed is tried again later and then arr
       down = false;
       await waitFor(() => texts(h.sent).length === 1); // the next round
       assert.equal(texts(h.sent).length, 1, "it arrived after the network came back");
-      assert.match(texts(h.sent)[0]!, /ATOM asks: sum n1/);
+      assert.match(texts(h.sent)[0]!, /ARK asks: sum n1/);
       await tick(400);
       assert.equal(texts(h.sent).length, 1, "and only once");
     },
@@ -368,15 +368,15 @@ test("a hung answer does not block the next message: the turn is given up on aft
   const r = await run({
     updates: [[text(1, 42, "first")], [text(2, 42, "second")]],
     tune: { turnTimeoutMs: 40 },
-    ask: (t) => (++n === 1 ? new Promise<string>(() => {}) : Promise.resolve(`ATOM:${t}`)),
+    ask: (t) => (++n === 1 ? new Promise<string>(() => {}) : Promise.resolve(`ARK:${t}`)),
     wait: 400,
   });
   const out = texts(r.sent);
   assert.ok(out.some((m) => /could not answer.*did not answer in/i.test(m)), out.join(" | "));
-  assert.ok(out.includes("ATOM:second"), "the second message was answered");
+  assert.ok(out.includes("ARK:second"), "the second message was answered");
 });
 
-test("a command that throws on the way is answered, not an unhandled rejection that ends ATOM", async () => {
+test("a command that throws on the way is answered, not an unhandled rejection that ends ARK", async () => {
   const rejections: unknown[] = [];
   const onRejection = (e: unknown) => rejections.push(e);
   process.on("unhandledRejection", onRejection);
@@ -393,9 +393,9 @@ test("a command that throws on the way is answered, not an unhandled rejection t
 });
 
 // 2026-10-16 (code check, third review pass).
-test("a text that merely starts with a slash is a message for ATOM, not an unknown command", async () => {
-  const r = await run({ updates: [[text(1, 42, "/tmp/build.log is huge, why?"), text(2, 42, "/evil"), text(3, 42, "/needs@zeno_bot")]], store: fakeStore(), wait: 150 });
-  assert.ok(r.asked.includes("/tmp/build.log is huge, why?"), "reached ATOM");
+test("a text that merely starts with a slash is a message for ARK, not an unknown command", async () => {
+  const r = await run({ updates: [[text(1, 42, "/tmp/build.log is huge, why?"), text(2, 42, "/evil"), text(3, 42, "/needs@ark_bot")]], store: fakeStore(), wait: 150 });
+  assert.ok(r.asked.includes("/tmp/build.log is huge, why?"), "reached ARK");
   const out = texts(r.sent);
   assert.ok(out.some((m) => /I do not know that command/.test(m)), "a real unknown command is still answered");
   assert.ok(out.includes("Nothing waits for you."), "a command with a bot name still works");
@@ -461,7 +461,7 @@ test("a store change during the retry wait does not bring the retry forward", as
   });
 });
 
-test("messages that arrived while ATOM was closed are not run; the user is told once", async () => {
+test("messages that arrived while ARK was closed are not run; the user is told once", async () => {
   const r = await run({ updates: [[text(1, 42, "/steer 3 delete everything"), text(2, 42, "hello")], []], store: fakeStore(), wait: 150, tune: { skipBacklog: true } });
   assert.deepEqual(r.asked, [], "nothing ran");
   const out = texts(r.sent);
@@ -510,7 +510,7 @@ test("an answer that failed to send is sent again later, once, in order", async 
       assert.equal(texts(h.sent).length, 0, "nothing got through while the network was down");
       down = false;
       await waitFor(() => texts(h.sent).length === 1);
-      assert.match(texts(h.sent)[0]!, /ATOM:hello/);
+      assert.match(texts(h.sent)[0]!, /ARK:hello/);
       await tick(300);
       assert.equal(texts(h.sent).length, 1, "and only once");
     },

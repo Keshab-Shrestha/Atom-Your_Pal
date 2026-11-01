@@ -1,7 +1,7 @@
 import { HITS_PER_GROUP, rankHits, snippetAround, type Searchable } from "./search-rank.ts";
 
 /**
- * "Search everything" (upgrades.md C1): the places ATOM keeps things, searched locally and ranked by `search-rank.ts`.
+ * "Search everything" (upgrades.md C1): the places ARK keeps things, searched locally and ranked by `search-rank.ts`.
  * Nothing goes to a model. Remembered facts and conversation notes come back only to the window that asked (ADR-058).
  * The caller logs counts, never the query or a hit.
  */
@@ -49,7 +49,7 @@ export function searchEverything(sources: EverythingSources, query: string, onSk
     }
   };
   safely("pages", () => {
-    // Only pages Keshab or ATOM wrote: the mirrored facts, notes, chats and projects have their own groups.
+    // Only pages Keshab or ARK wrote: the mirrored facts, notes, chats and projects have their own groups.
     out.pages = (sources.brain?.(query) ?? [])
       .filter((n) => n.kind === "note" || n.kind === "entity")
       .slice(0, HITS_PER_GROUP)

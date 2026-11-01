@@ -5,12 +5,12 @@ import { BRIEF_REPORT_CHARS, HelperError, type HelperId } from "./jobs.ts";
 import type { HelperChange, Job, Report } from "./store-types.ts";
 
 // ADR-094 part A: skills that grow. Tinker drafts a skill from a task Keshab rated good (or asked to make a skill from);
-// Keshab approves it into ATOM's own folder (`data/skills/<name>/SKILL.md`). When a task that used one of ATOM's skills
+// Keshab approves it into ARK's own folder (`data/skills/<name>/SKILL.md`). When a task that used one of ARK's skills
 // goes badly, Tinker proposes an edit; Keshab accepts, rejects or undoes it. ~/.claude/skills is never written.
 
 /** A draft's name: lower case, digits and dashes. */
 export const SKILL_DRAFT_NAME = /^[a-z0-9][a-z0-9-]{1,40}$/;
-/** Any skill name ATOM reads (as in Task 3.12): a plain folder name, never a path. */
+/** Any skill name ARK reads (as in Task 3.12): a plain folder name, never a path. */
 const ANY_SKILL_NAME = /^[a-z0-9][a-z0-9._-]{0,63}$/i;
 export const MAX_SKILL_BODY = 8000;
 export const MAX_SKILL_DESCRIPTION = 200;
@@ -53,11 +53,11 @@ export interface SkillDraftTarget {
   role: string;
   task: string;
   report?: { title: string; summary: string; body: string };
-  /** Skill names already in use (Keshab's and ATOM's). */
+  /** Skill names already in use (Keshab's and ARK's). */
   taken: string[];
 }
 
-/** What Tinker reads to propose an edit to one of ATOM's skills. */
+/** What Tinker reads to propose an edit to one of ARK's skills. */
 export interface SkillEditTarget {
   skill: string;
   /** The skill's steps now. */
@@ -114,7 +114,7 @@ export function parseSkillFile(text: string): { description: string; body: strin
   return { description, body: (m ? text.slice(m[0].length) : text).trim() };
 }
 
-/** Writes a skill's file in ATOM's folder, whole or not at all. */
+/** Writes a skill's file in ARK's folder, whole or not at all. */
 export function writeSkill(dir: string, name: string, description: string, body: string) {
   const folder = join(dir, name);
   mkdirSync(folder, { recursive: true });
@@ -219,11 +219,11 @@ function skillTables(db: DatabaseSync) {
 export interface SkillStoreDeps {
   db: DatabaseSync;
   now: () => Date;
-  /** ATOM's own skills folder; without it no draft can be approved and no skill counts as ATOM's. */
+  /** ARK's own skills folder; without it no draft can be approved and no skill counts as ARK's. */
   skillsDir?: string;
   /** Keshab's ~/.claude/skills: read for names only, never written. */
   userSkillsDir: string;
-  /** B3.5: a skill installed from the hub is not ATOM's own: Tinker never edits it. */
+  /** B3.5: a skill installed from the hub is not ARK's own: Tinker never edits it. */
   isHub?: (name: string) => boolean;
   emit(change: HelperChange): void;
   get(id: number): Job | undefined;
@@ -240,9 +240,9 @@ export function skillStore(deps: SkillStoreDeps) {
   const { skillsDir, userSkillsDir, emit, now } = deps;
   const t = skillTables(deps.db);
   const has = (dir: string | undefined, name: string) => Boolean(dir) && existsSync(join(dir!, name, "SKILL.md"));
-  /** One of ATOM's own skills: in its folder and not shadowed by one of Keshab's of the same name. */
-  const isZeno = (name: string) => ANY_SKILL_NAME.test(name) && has(skillsDir, name) && !has(userSkillsDir, name) && !deps.isHub?.(name);
-  const readZeno = (name: string) => parseSkillFile(readFileSync(join(skillsDir!, name, "SKILL.md"), "utf8"));
+  /** One of ARK's own skills: in its folder and not shadowed by one of Keshab's of the same name. */
+  const isArk = (name: string) => ANY_SKILL_NAME.test(name) && has(skillsDir, name) && !has(userSkillsDir, name) && !deps.isHub?.(name);
+  const readArk = (name: string) => parseSkillFile(readFileSync(join(skillsDir!, name, "SKILL.md"), "utf8"));
   const taken = (dir: string | undefined) => {
     try {
       return dir && existsSync(dir) ? readdirSync(dir) : [];
@@ -292,10 +292,10 @@ export function skillStore(deps: SkillStoreDeps) {
   return {
     askDraft,
 
-    /** Asks Tinker for an edit to each of ATOM's skills a task that went badly used (once per task and skill). */
+    /** Asks Tinker for an edit to each of ARK's skills a task that went badly used (once per task and skill). */
     askEdits(job: Job) {
       for (const { skill } of t.usesOf.all(job.id) as { skill: string }[]) {
-        if (isZeno(skill)) deps.askTinker(job.id, `Improve the ${skill} skill (task ${job.id})`, "edit", skill);
+        if (isArk(skill)) deps.askTinker(job.id, `Improve the ${skill} skill (task ${job.id})`, "edit", skill);
       }
     },
 
@@ -324,12 +324,12 @@ export function skillStore(deps: SkillStoreDeps) {
     skillEditTarget(tinkerTaskId: number): SkillEditTarget | undefined {
       const { tinker, reviewed } = about(tinkerTaskId, "edit");
       const skill = tinker.reviewSkill ?? "";
-      if (!reviewed || !isZeno(skill)) return undefined;
+      if (!reviewed || !isArk(skill)) return undefined;
       const worker = deps.worker(reviewed.helper);
       const comment = deps.ratingComment(reviewed.id);
       return {
         skill,
-        body: readZeno(skill).body,
+        body: readArk(skill).body,
         worker: worker.name,
         role: worker.role,
         task: reviewed.task,
@@ -356,11 +356,11 @@ export function skillStore(deps: SkillStoreDeps) {
     approveSkillDraft(id: number) {
       const d = draftOf(id);
       if (!d || d.state !== "pending") throw new HelperError("No skill draft waits for an answer there.");
-      if (!skillsDir) throw new HelperError("ATOM's skills folder is not set up, so a skill cannot be saved.");
+      if (!skillsDir) throw new HelperError("ARK's skills folder is not set up, so a skill cannot be saved.");
       if (existsSync(join(userSkillsDir, d.name))) {
-        throw new HelperError(`You already have a skill called "${d.name}" in ~/.claude/skills, and ATOM never changes yours. Reject this draft.`);
+        throw new HelperError(`You already have a skill called "${d.name}" in ~/.claude/skills, and ARK never changes yours. Reject this draft.`);
       }
-      if (existsSync(join(skillsDir, d.name))) throw new HelperError(`ATOM already has a skill called "${d.name}". Reject this draft.`);
+      if (existsSync(join(skillsDir, d.name))) throw new HelperError(`ARK already has a skill called "${d.name}". Reject this draft.`);
       writeSkill(skillsDir, d.name, d.description, d.body);
       t.decideDraft.run("approved", now().toISOString(), id);
       emit({ action: "skillDraft", draft: id, job: d.jobId, skill: d.name, state: "approved" });
@@ -377,27 +377,27 @@ export function skillStore(deps: SkillStoreDeps) {
       const { tinker, reviewed } = about(tinkerTaskId, "edit");
       const skill = tinker.reviewSkill ?? "";
       if (!reviewed) throw new HelperError("The task that used the skill is gone.");
-      if (!isZeno(skill)) throw new HelperError("Only ATOM's own skills are edited; the skills in ~/.claude/skills never are.");
+      if (!isArk(skill)) throw new HelperError("Only ARK's own skills are edited; the skills in ~/.claude/skills never are.");
       const body = edit.body.trim();
       const reason = edit.reason.trim();
       if (!body || body.length > MAX_SKILL_BODY) throw new HelperError(`A skill's steps are at most ${MAX_SKILL_BODY} characters, and not empty.`);
       if (!reason || reason.length > MAX_SKILL_REASON) throw new HelperError(`An edit needs a reason of at most ${MAX_SKILL_REASON} characters.`);
-      const id = Number(t.addEdit.run(skill, reviewed.id, readZeno(skill).body, body, reason, now().toISOString()).lastInsertRowid);
+      const id = Number(t.addEdit.run(skill, reviewed.id, readArk(skill).body, body, reason, now().toISOString()).lastInsertRowid);
       emit({ action: "skillEdit", edit: id, job: reviewed.id, skill, state: "pending" });
       return editOf(id)!;
     },
 
     /**
-     * 2026-10-16: the main agent proposes an edit to one of ATOM's skills after the user said in a chat that it did not work well. There is no task (job 0:
+     * 2026-10-16: the main agent proposes an edit to one of ARK's skills after the user said in a chat that it did not work well. There is no task (job 0:
      * "from a chat"), so no Tinker run is needed. Keshab still accepts or rejects it, and Undo works as for any edit.
      */
     proposeSkillEdit(skill: string, edit: { body: string; reason: string }): SkillEdit {
-      if (!isZeno(skill)) throw new HelperError("Only ATOM's own skills are edited; the skills in ~/.claude/skills never are, and a skill from the hub is not either.");
+      if (!isArk(skill)) throw new HelperError("Only ARK's own skills are edited; the skills in ~/.claude/skills never are, and a skill from the hub is not either.");
       const body = edit.body.trim();
       const reason = edit.reason.trim();
       if (!body || body.length > MAX_SKILL_BODY) throw new HelperError(`A skill's steps are at most ${MAX_SKILL_BODY} characters, and not empty.`);
       if (!reason || reason.length > MAX_SKILL_REASON) throw new HelperError(`An edit needs a reason of at most ${MAX_SKILL_REASON} characters.`);
-      const before = readZeno(skill).body;
+      const before = readArk(skill).body;
       if (before.trim() === body) throw new HelperError("That is the skill as it is. Change something, or say no edit is needed.");
       const pending = (t.edits.all() as { skill: string; state: string }[]).some((e) => e.skill === skill && e.state === "pending");
       if (pending) throw new HelperError(`An edit to "${skill}" already waits for the user's answer.`);
@@ -409,8 +409,8 @@ export function skillStore(deps: SkillStoreDeps) {
     acceptSkillEdit(id: number) {
       const e = editOf(id);
       if (!e || e.state !== "pending") throw new HelperError("No skill edit waits for an answer there.");
-      if (!isZeno(e.skill)) throw new HelperError(`"${e.skill}" is not one of ATOM's own skills any more, and the skills in ~/.claude/skills are never edited.`);
-      const before = readZeno(e.skill);
+      if (!isArk(e.skill)) throw new HelperError(`"${e.skill}" is not one of ARK's own skills any more, and the skills in ~/.claude/skills are never edited.`);
+      const before = readArk(e.skill);
       writeSkill(skillsDir!, e.skill, before.description, e.newBody);
       t.setEdit.run("accepted", before.body, id); // Undo restores exactly what was there just before
       emit({ action: "skillEdit", edit: id, job: e.jobId, skill: e.skill, state: "accepted" });
@@ -426,17 +426,17 @@ export function skillStore(deps: SkillStoreDeps) {
     undoSkillEdit(id: number) {
       const e = editOf(id);
       if (!e || e.state !== "accepted") throw new HelperError("Only an accepted skill edit can be undone.");
-      if (!isZeno(e.skill)) throw new HelperError(`"${e.skill}" is not one of ATOM's own skills any more.`);
-      const current = readZeno(e.skill);
+      if (!isArk(e.skill)) throw new HelperError(`"${e.skill}" is not one of ARK's own skills any more.`);
+      const current = readArk(e.skill);
       if (current.body.trim() !== e.newBody.trim()) throw new HelperError(`The ${e.skill} skill has changed since this edit, so undoing it would overwrite newer steps.`);
       writeSkill(skillsDir!, e.skill, current.description, e.oldBody);
       t.setEdit.run("undone", null, id);
       emit({ action: "skillEdit", edit: id, job: e.jobId, skill: e.skill, state: "undone" });
     },
 
-    /** ADR-098 item 8: one skill edit by id, and whether a name is one of ATOM's own skills. */
+    /** ADR-098 item 8: one skill edit by id, and whether a name is one of ARK's own skills. */
     skillEdit: editOf,
-    isZenoSkill: isZeno,
+    isArkSkill: isArk,
 
     skillDrafts: () => (t.drafts.all() as unknown as DraftRow[]).map(toDraft),
     skillEdits: () => (t.edits.all() as unknown as EditRow[]).map(toEdit),

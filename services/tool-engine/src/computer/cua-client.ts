@@ -1,7 +1,7 @@
 import { spawn, type ChildProcessByStdio } from "node:child_process";
 import type { Readable, Writable } from "node:stream";
 import { createInterface } from "node:readline";
-import type { ToolImage } from "@atom/contracts";
+import type { ToolImage } from "@ark/contracts";
 
 export interface CuaResult {
   images?: ToolImage[];
@@ -153,7 +153,7 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
       c.pending.delete(message.id);
       message.error ? p.reject(new Error(String(message.error.message ?? "Cua Driver error"))) : p.resolve(message.result);
     });
-    c.ready = request(c, "initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "atom", version: "0" } }, initializeTimeoutMs)
+    c.ready = request(c, "initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "ark", version: "0" } }, initializeTimeoutMs)
       .then(() => { send(c, { jsonrpc: "2.0", method: "notifications/initialized" }); })
       .then(() => { c.startupMs = elapsed(started); onTiming?.({ stage: "initialize", durationMs: c.startupMs, ok: true }); })
       .catch((error) => {
@@ -180,7 +180,7 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
     const reused = Boolean(active);
     const c = connection();
     const abort = () => {
-      for (const requestId of c.pending.keys()) send(c, { jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId, reason: "ATOM cancelled" } });
+      for (const requestId of c.pending.keys()) send(c, { jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId, reason: "ARK cancelled" } });
       void retire(c, new Error("Cancelled. The action outcome may be unknown; look again before continuing."));
     };
     signal?.addEventListener("abort", abort, { once: true });

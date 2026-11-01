@@ -202,7 +202,7 @@ export interface HelperView {
   codexPinnedModel?: string;
   /** Task 3.8: its new tasks plan first. */
   planFirst: boolean;
-  /** ADR-098: its runs get the browser (Playwright, ATOM's own profile). Default false. */
+  /** ADR-098: its runs get the browser (Playwright, ARK's own profile). Default false. */
   browser: boolean;
   /** Task 3.9: its routines, oldest first. */
   routines: Routine[];
@@ -356,17 +356,17 @@ export interface HelperStore {
   makeSkill(id: number): void;
   /** What Tinker reads for one of its draft tasks, or undefined when the task is gone. Throws HelperError for another kind of task. */
   skillDraftTarget(tinkerTaskId: number): SkillDraftTarget | undefined;
-  /** What Tinker reads for one of its edit tasks, or undefined when the task is gone or the skill is not ATOM's any more. */
+  /** What Tinker reads for one of its edit tasks, or undefined when the task is gone or the skill is not ARK's any more. */
   skillEditTarget(tinkerTaskId: number): SkillEditTarget | undefined;
   /** Saves Tinker's draft for Keshab's OK. Throws HelperError for a bad name, description or steps, or a second draft. */
   addSkillDraft(tinkerTaskId: number, draft: { name: string; description: string; body: string }): SkillDraft;
   /**
    * Approve writes data/skills/<name>/SKILL.md (front matter and steps); a name already used by one of Keshab's skills
-   * or ATOM's is refused. Reject only marks it. Both throw HelperError when no draft waits.
+   * or ARK's is refused. Reject only marks it. Both throw HelperError when no draft waits.
    */
   approveSkillDraft(id: number): void;
   rejectSkillDraft(id: number): void;
-  /** Saves Tinker's edit (the whole new steps) for Keshab's OK. Throws HelperError unless the skill is one of ATOM's own. */
+  /** Saves Tinker's edit (the whole new steps) for Keshab's OK. Throws HelperError unless the skill is one of ARK's own. */
   addSkillEdit(tinkerTaskId: number, edit: { body: string; reason: string }): SkillEdit;
   /** Accept writes the new steps (keeping what was there for undo); reject marks it; undo (after accept) restores the old steps. */
   acceptSkillEdit(id: number): void;
@@ -383,7 +383,7 @@ export interface HelperStore {
   audit(limit: number): AuditEntry[];
   /** The main agent proposes a skill from a finished task; Keshab approves or rejects it like Tinker's drafts. Throws HelperError. */
   proposeSkill(jobId: number, draft: { name: string; description: string; body: string }): SkillDraft;
-  /** The main agent's edit to one of ATOM's skills, after the user said in a chat that it did not work well (no task: job 0). The user still accepts or rejects it. */
+  /** The main agent's edit to one of ARK's skills, after the user said in a chat that it did not work well (no task: job 0). The user still accepts or rejects it. */
   proposeSkillEdit(skill: string, edit: { body: string; reason: string }): SkillEdit;
   plan(id: number): PlanView | undefined;
   /** The newest plan of a chat. */
@@ -448,7 +448,7 @@ export interface HelperStore {
   skillHubInstalled(): HubInstalled[];
   /**
    * ADR-098 item 8: saves a done task as a test case for its agent's soul ("soul", target its agent id) or for a
-   * ATOM-made skill its run used ("skill", target the skill's name). Throws HelperError for another task or target, a
+   * ARK-made skill its run used ("skill", target the skill's name). Throws HelperError for another task or target, a
    * task saved already for that target, or an 11th case (MAX_TEST_CASES).
    */
   saveTestCase(jobId: number, kind: TestKind, target: string): TestCase;
@@ -587,7 +587,7 @@ export interface HelperStoreOptions {
   home?: string;
   /** ADR-088: the folder of agents Keshab added (each `<id>/soul.md`). Without it, only the built-in workers. */
   agentsDir?: string;
-  /** ADR-094: ATOM's own skills folder (each `<name>/SKILL.md`). Without it, drafts cannot be approved. */
+  /** ADR-094: ARK's own skills folder (each `<name>/SKILL.md`). Without it, drafts cannot be approved. */
   skillsDir?: string;
   /** B3.4: where the copies of files a run changed are kept (`<dir>/<task>/<n>`). Without it, nothing is kept. */
   checkpointsDir?: string;

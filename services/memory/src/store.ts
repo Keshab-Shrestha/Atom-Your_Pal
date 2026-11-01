@@ -5,7 +5,7 @@ import { openSourceAnalysis, type SourceAnalysisStore } from "./source-analysis.
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import type { InputSource } from "@atom/contracts";
+import type { InputSource } from "@ark/contracts";
 import { openChats, type ChatStore } from "./chats.ts";
 import { openFilePermissions, type FilePermissions } from "./file-permissions.ts";
 import { openForeground, type ForegroundStore } from "./foreground.ts";
@@ -15,12 +15,12 @@ import { foldFact, openSuggestions, type Suggestions } from "./suggestions.ts";
 import { openBriefs, type Briefs } from "./briefs.ts";
 import { openRecallReceipts, type RecallReceipts } from "./recall-receipts.ts";
 
-// ADR-058: facts the user asks ATOM to keep, in one local SQLite file. Each memory has an owner, a scope,
+// ADR-058: facts the user asks ARK to keep, in one local SQLite file. Each memory has an owner, a scope,
 // provenance and a lifecycle (SECURITY.md §17). Forgetting deletes the row.
 
 export const MAX_MEMORY_CHARS = 300;
 export const DEFAULT_MAX_MEMORIES = 500;
-/** The single local user, until ATOM has identities. */
+/** The single local user, until ARK has identities. */
 export const LOCAL_OWNER = "local";
 
 export type MemoryScope = "personal";

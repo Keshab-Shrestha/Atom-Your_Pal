@@ -4,7 +4,7 @@ Implemented 2026-10-18, ADR-161. This is a read-only inspection step toward comm
 
 ## Available behavior
 
-Codex folders workers in an active project can request `atom_ProjectCommand` with a command name and a plain string arguments array. Supported utilities are pwd, ls, cat, wc, head, tail and grep. The host selects the absolute system executable, allowed flags and canonical file operands; it never interprets model arguments as shell syntax. Glob patterns, substitutions, pipes and redirects are not expanded.
+Codex folders workers in an active project can request `ark_ProjectCommand` with a command name and a plain string arguments array. Supported utilities are pwd, ls, cat, wc, head, tail and grep. The host selects the absolute system executable, allowed flags and canonical file operands; it never interprets model arguments as shell syntax. Glob patterns, substitutions, pipes and redirects are not expanded.
 
 Inspection is absent from attachment-only/plain chats, research/think workers and the main model. Host-only project admission and a current runtime check must identify the same non-archived, existing source project/folder. Worker availability/kit/task state is checked again before launch and before returning output. A task in a Git project uses its existing task worktree. Changing the source project or stopping/deleting the chat withholds output/prevents later execution; it does not grant a new folder.
 

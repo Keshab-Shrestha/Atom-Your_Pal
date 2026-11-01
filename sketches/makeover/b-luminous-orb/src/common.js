@@ -1,4 +1,4 @@
-/* ZENO · Direction B · Luminous Orb — shared drawing kit (inlined into each page by build.py) */
+/* ARK · Direction B · Luminous Orb — shared drawing kit (inlined into each page by build.py) */
 
 /* ---------- Icons (one style: 20pt grid, 1.6 stroke, round caps — SF Symbols "regular") ---------- */
 const IC = {
@@ -365,7 +365,7 @@ function panelSettings({ h = 0 } = {}) {
         ${ctl('Size', seg(['Compact', 'Normal', 'Large'], 1, 'sm'))}
         ${ctl('Background', seg(['Glass', 'Solid'], 0, 'sm'))}
       </div>
-      <div class="quit"><span>${ic('power', 14)} Quit ZENO</span><span class="ver">${keys('⌘', 'Q')}</span></div>
+      <div class="quit"><span>${ic('power', 14)} Quit ARK</span><span class="ver">${keys('⌘', 'Q')}</span></div>
     </div>
   </div>`;
 }
@@ -405,7 +405,7 @@ function panelShortcuts({ h = 0 } = {}) {
     ${subHeader('Shortcuts')}
     <div class="body">
       <div class="card">
-        ${ctl('Talk to ZENO', rec(keys('⌃', '⌥')), 'Hold while you speak')}
+        ${ctl('Talk to ARK', rec(keys('⌃', '⌥')), 'Hold while you speak')}
         ${ctl('Dictate', rec(keys('Right ⌥', '⌘')), 'Types into the focused app')}
         ${ctl('Show or hide panel', rec('<span class="typing">Press keys…</span>', 'live'))}
         ${ctl('Cancel', rec(keys('esc')))}

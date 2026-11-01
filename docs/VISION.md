@@ -1,12 +1,12 @@
-# ATOM: Vision and Principles
+# ARK: Vision and Principles
 
-The long-term vision and the principles ATOM is built by, moved here from the README on 2026-10-11 (the README now shows what ATOM does today). The engineering rules for working on ATOM are in CLAUDE.md.
+The long-term vision and the principles ARK is built by, moved here from the README on 2026-10-11 (the README now shows what ARK does today). The engineering rules for working on ARK are in CLAUDE.md.
 
 ## The Intelligence Layer for Your Digital World
 
-ATOM is an AI-native personal intelligence system designed to sit between a person and their digital world.
+ARK is an AI-native personal intelligence system designed to sit between a person and their digital world.
 
-ATOM is not intended to be merely a chatbot or voice assistant.
+ARK is not intended to be merely a chatbot or voice assistant.
 
 It is designed to become a unified intelligence layer that can understand requests, maintain context and memory, reason over knowledge, make decisions, use capabilities, interact with devices, execute tasks, and coordinate activity across a user's digital environment.
 
@@ -18,31 +18,31 @@ The long-term goal is:
 
 ## 1. Vision
 
-ATOM should eventually allow a person to interact with their digital world through one consistent intelligence.
+ARK should eventually allow a person to interact with their digital world through one consistent intelligence.
 
 For example:
 
-> "Hey ATOM, what was I working on yesterday?"
+> "Hey ARK, what was I working on yesterday?"
 
-> "ATOM, remember that this project uses PostgreSQL."
+> "ARK, remember that this project uses PostgreSQL."
 
-> "ATOM, open the project."
+> "ARK, open the project."
 
-> "ATOM, create a reminder for tomorrow."
+> "ARK, create a reminder for tomorrow."
 
-> "ATOM, send this to my computer."
+> "ARK, send this to my computer."
 
-> "ATOM, handle this."
+> "ARK, handle this."
 
 The user should not need to understand which model, device, service, application, or internal capability performs the work.
 
-ATOM should determine the appropriate path.
+ARK should determine the appropriate path.
 
 ---
 
-## 2. What ATOM Is
+## 2. What ARK Is
 
-ATOM combines several systems:
+ARK combines several systems:
 
 - Voice interface
 - Text interface
@@ -72,7 +72,7 @@ The system should gradually grow into these capabilities rather than implementin
 
 ## 3. Core Philosophy
 
-ATOM follows one fundamental development principle:
+ARK follows one fundamental development principle:
 
 > See the whole mountain. Climb only the next step.
 
@@ -89,11 +89,11 @@ This prevents both:
 
 ## 4. System Principles
 
-### 4.1 ATOM is a system, not a chatbot
+### 4.1 ARK is a system, not a chatbot
 
-The LLM is one component inside ATOM.
+The LLM is one component inside ARK.
 
-It is not ATOM itself.
+It is not ARK itself.
 
 ### 4.2 LLMs are reasoning engines
 
@@ -107,11 +107,11 @@ LLMs should not be treated as:
 
 ### 4.3 Deterministic systems come first
 
-If a request can be handled deterministically, ATOM should not invoke a probabilistic reasoning system unnecessarily.
+If a request can be handled deterministically, ARK should not invoke a probabilistic reasoning system unnecessarily.
 
 ### 4.4 Providers are replaceable
 
-ATOM should not be architecturally dependent on one LLM provider.
+ARK should not be architecturally dependent on one LLM provider.
 
 The system should support:
 
@@ -129,7 +129,7 @@ The system decides whether the action is allowed.
 
 ### 4.6 Devices are nodes
 
-A Mac, iPhone, Windows PC, or future device should be treated as a node in the ATOM system.
+A Mac, iPhone, Windows PC, or future device should be treated as a node in the ARK system.
 
 The user should not need to manually choose which device performs an operation.
 
@@ -142,7 +142,7 @@ USER
   ↓
 Voice / Text / UI / API
   ↓
-ATOM CORE
+ARK CORE
   ↓
 Identity / Context / Events
   ↓
@@ -164,7 +164,7 @@ Mac / iPhone / Windows Nodes
   ↓
 Tasks / Events / Results
   ↓
-ATOM
+ARK
 ```
 
 This is the long-term architecture.
@@ -182,7 +182,7 @@ Microphone
     ↓
 Whisper.cpp
     ↓
-ATOM Core
+ARK Core
     ↓
 LLM Gateway
     ↓
@@ -193,9 +193,9 @@ TTS
 Speaker
 ```
 
-Phase 0 establishes the fundamental ATOM request/response loop. It is complete (2026-10-02).
+Phase 0 establishes the fundamental ARK request/response loop. It is complete (2026-10-02).
 
-Phase 0.5 put that loop behind a desktop app, `ATOM.app` (`apps/mac/island/`, Swift): a menu-bar icon with a panel, Wisp, push-to-talk by holding Ctrl+Option in any app, and dictation. Phase 1 added memory, calendar and reminders, timers and weather; Phase 2 adds more things to do. See the Quick start above to build it, and STATUS.md and TASK.md for where things stand.
+Phase 0.5 put that loop behind a desktop app, `ARK.app` (`apps/mac/island/`, Swift): a menu-bar icon with a panel, Wisp, push-to-talk by holding Ctrl+Option in any app, and dictation. Phase 1 added memory, calendar and reminders, timers and weather; Phase 2 adds more things to do. See the Quick start above to build it, and STATUS.md and TASK.md for where things stand.
 
 ---
 
@@ -205,7 +205,7 @@ Phase 0 should provide:
 
 - microphone input
 - local speech-to-text
-- ATOM Core
+- ARK Core
 - LLM Gateway
 - one remote LLM provider
 - text response
@@ -222,7 +222,7 @@ Phase 0 should remain small.
 
 ## 8. Local and Remote AI
 
-ATOM intentionally separates local and remote intelligence.
+ARK intentionally separates local and remote intelligence.
 
 Initial design:
 
@@ -240,7 +240,7 @@ Initial design:
 
 - frontier LLM reasoning
 
-ATOM does not require a local general-purpose LLM.
+ARK does not require a local general-purpose LLM.
 
 Ollama is not a required dependency.
 
@@ -248,7 +248,7 @@ Ollama is not a required dependency.
 
 ## 9. Decision Engine
 
-ATOM may eventually contain a Decision Engine.
+ARK may eventually contain a Decision Engine.
 
 The Decision Engine exists for situations where deterministic routing is insufficient.
 
@@ -280,7 +280,7 @@ Determine appropriate path
 
 ## 10. Memory
 
-ATOM should maintain memory independently of the LLM.
+ARK should maintain memory independently of the LLM.
 
 Memory may include:
 
@@ -344,7 +344,7 @@ Authorization must happen before private information enters model context.
 
 ## 12. Devices
 
-ATOM should eventually support:
+ARK should eventually support:
 
 - macOS
 - iOS
@@ -352,14 +352,14 @@ ATOM should eventually support:
 - Web
 - Cloud
 
-Each device can become a ATOM node.
+Each device can become a ARK node.
 
 For example:
 
 ```text
 iPhone
   ↓
-ATOM
+ARK
   ↓
 Device Registry
   ↓
@@ -369,7 +369,7 @@ Execute Action
   ↓
 Result
   ↓
-ATOM
+ARK
   ↓
 iPhone
 ```
@@ -380,11 +380,11 @@ The user should not need to know that the Mac performed the action.
 
 ## 13. Capabilities
 
-ATOM should eventually have a capability system.
+ARK should eventually have a capability system.
 
 Example:
 
-"Hey ATOM, give yourself a calendar."
+"Hey ARK, give yourself a calendar."
 
 This should not mean that the AI receives unrestricted access.
 
@@ -420,7 +420,7 @@ The fundamental security principle is:
 
 The model can request. The system decides.
 
-ATOM should use:
+ARK should use:
 
 - least privilege
 - deterministic authorization
@@ -431,7 +431,7 @@ ATOM should use:
 - provenance
 - confirmation for sensitive actions
 
-ATOM should not provide unrestricted root or administrator access by default.
+ARK should not provide unrestricted root or administrator access by default.
 
 ---
 
@@ -439,7 +439,7 @@ ATOM should not provide unrestricted root or administrator access by default.
 
 The long-term product is not necessarily limited to one person.
 
-ATOM should eventually support:
+ARK should eventually support:
 
 - multiple users
 - personal knowledge
@@ -457,10 +457,10 @@ Personal data should remain separate unless explicitly shared.
 
 ## 16. Cloud
 
-The long-term ATOM platform can contain:
+The long-term ARK platform can contain:
 
 ```text
-ATOM Cloud
+ARK Cloud
 ├── Identity
 ├── Authentication
 ├── User Data
@@ -481,7 +481,7 @@ Cloud services should coordinate devices without automatically receiving unrestr
 
 ## 17. Development Philosophy
 
-ATOM should initially be a modular monolith.
+ARK should initially be a modular monolith.
 
 Do not begin with:
 
@@ -498,7 +498,7 @@ Build the smallest system that can evolve into the larger system.
 
 ## 18. Documentation
 
-The canonical ATOM documentation set is:
+The canonical ARK documentation set is:
 
 - README.md
 - CLAUDE.md
@@ -526,13 +526,13 @@ Speak
   ↓
 Whisper transcribes
   ↓
-ATOM receives request
+ARK receives request
   ↓
 LLM Gateway sends request
   ↓
 Remote LLM responds
   ↓
-ATOM receives response
+ARK receives response
   ↓
 TTS generates speech
   ↓

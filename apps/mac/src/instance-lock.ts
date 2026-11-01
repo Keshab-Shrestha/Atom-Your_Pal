@@ -1,4 +1,4 @@
-// One ATOM runtime per data folder. A second runtime that opened the helpers store would run its startup recovery
+// One ARK runtime per data folder. A second runtime that opened the helpers store would run its startup recovery
 // and mark the live jobs of the first one as failed (CLOSED_WHILE_RUNNING). The lock file holds the owner's pid.
 
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";

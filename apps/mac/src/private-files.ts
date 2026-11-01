@@ -3,7 +3,7 @@ import { basename, dirname } from "node:path";
 
 // 2026-10-15 (security review): data/helpers.db and data/memory.db hold MCP secrets and every chat; they were mode 0644 in a 0755
 // folder, readable by any other account on the Mac. Only data/api-token was private. This makes the data folder, its databases (with
-// their WAL files) and the log files owner-only. A failure never stops ATOM: it is returned, and the caller logs it.
+// their WAL files) and the log files owner-only. A failure never stops ARK: it is returned, and the caller logs it.
 
 const PRIVATE_DIR = 0o700;
 const PRIVATE_FILE = 0o600;
@@ -27,9 +27,9 @@ export function makePrivate(paths: { dirs?: readonly string[]; files?: readonly 
 }
 
 /**
- * The folders to make private among the folders of these files: only ATOM's own `data` and `logs` (their default names), each once.
- * Never the folder of a file the user pointed ATOM at (ATOM_LOG_FILE, ATOM_MEMORY_FILE in a home or shared folder): changing that
- * folder's mode would be ATOM reaching outside itself. The files themselves are always made private.
+ * The folders to make private among the folders of these files: only ARK's own `data` and `logs` (their default names), each once.
+ * Never the folder of a file the user pointed ARK at (ARK_LOG_FILE, ARK_MEMORY_FILE in a home or shared folder): changing that
+ * folder's mode would be ARK reaching outside itself. The files themselves are always made private.
  */
 export function ownFolders(files: readonly string[]): string[] {
   const folders = files.filter((f) => f !== ":memory:").map((f) => dirname(f)).filter((d) => ["data", "logs"].includes(basename(d)));

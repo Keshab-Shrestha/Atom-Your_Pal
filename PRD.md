@@ -1,27 +1,27 @@
-# ATOM Product Requirements Document
+# ARK Product Requirements Document
 
 ## Product
 
-ATOM
+ARK
 
 ---
 
 ## Positioning
 
-> ATOM — The Intelligence Layer for Your Digital World.
+> ARK — The Intelligence Layer for Your Digital World.
 
 ---
 
 ## 1. Product Vision
 
-ATOM is an AI-native intelligence layer designed to connect a person with their digital world.
+ARK is an AI-native intelligence layer designed to connect a person with their digital world.
 
 It should eventually understand:
 
 - who the user is
 - what they are doing
 - what they know
-- what ATOM remembers
+- what ARK remembers
 - what devices are available
 - what capabilities exist
 - what actions are allowed
@@ -29,7 +29,7 @@ It should eventually understand:
 - which device should execute
 - what happened previously
 
-The user should interact with ATOM as one continuous intelligence rather than a collection of disconnected applications.
+The user should interact with ARK as one continuous intelligence rather than a collection of disconnected applications.
 
 ---
 
@@ -49,13 +49,13 @@ A user may have:
 
 These systems often lack a unified identity, context, memory, and execution layer.
 
-ATOM aims to provide that missing layer.
+ARK aims to provide that missing layer.
 
 ---
 
 ## 3. Product Principle
 
-ATOM should become:
+ARK should become:
 
 ```text
 One Intelligence
@@ -97,14 +97,14 @@ The user should be able to communicate naturally.
 
 Examples:
 
-- "Hey ATOM."
+- "Hey ARK."
 - "Remember that this project uses PostgreSQL."
 - "What was I working on yesterday?"
 - "Open my project."
 - "Create a reminder for tomorrow."
 - "Handle this."
 
-ATOM should determine the appropriate internal path.
+ARK should determine the appropriate internal path.
 
 ---
 
@@ -112,11 +112,11 @@ ATOM should determine the appropriate internal path.
 
 ### Identity
 
-ATOM knows which authenticated user is making a request.
+ARK knows which authenticated user is making a request.
 
 ### Context
 
-ATOM understands relevant:
+ARK understands relevant:
 
 - session context
 - task context
@@ -126,7 +126,7 @@ ATOM understands relevant:
 
 ### Memory
 
-ATOM stores useful long-term information.
+ARK stores useful long-term information.
 
 Memory must have:
 
@@ -140,7 +140,7 @@ Memory must have:
 
 ### Knowledge
 
-ATOM can access knowledge from:
+ARK can access knowledge from:
 
 - personal sources
 - projects
@@ -150,7 +150,7 @@ ATOM can access knowledge from:
 
 ### Reasoning
 
-ATOM may use LLMs for:
+ARK may use LLMs for:
 
 - language understanding
 - reasoning
@@ -161,7 +161,7 @@ ATOM may use LLMs for:
 
 ### Decision Making
 
-ATOM may use a Decision Engine when deterministic routing is insufficient.
+ARK may use a Decision Engine when deterministic routing is insufficient.
 
 Potential systems:
 
@@ -171,7 +171,7 @@ Potential systems:
 
 ### Tools
 
-ATOM can eventually interact with applications and services.
+ARK can eventually interact with applications and services.
 
 Examples:
 
@@ -203,7 +203,7 @@ Examples:
 
 ### Devices
 
-Devices become ATOM nodes.
+Devices become ARK nodes.
 
 Potential devices:
 
@@ -226,7 +226,7 @@ User
  ↓
 iPhone
  ↓
-ATOM
+ARK
  ↓
 Capability Registry
  ↓
@@ -236,7 +236,7 @@ Execute
  ↓
 Result
  ↓
-ATOM
+ARK
  ↓
 iPhone
 ```
@@ -287,7 +287,7 @@ LLMs must not directly control authorization.
 
 ## 10. Multi-User Requirements
 
-Long-term ATOM must support:
+Long-term ARK must support:
 
 - multiple accounts
 - isolated personal data
@@ -301,7 +301,7 @@ Long-term ATOM must support:
 
 ## 11. Provider Requirements
 
-ATOM must not be coupled to a single LLM provider.
+ARK must not be coupled to a single LLM provider.
 
 Initial provider:
 
@@ -326,7 +326,7 @@ Voice
  ↓
 Whisper
  ↓
-ATOM Core
+ARK Core
  ↓
 LLM Gateway
  ↓
@@ -362,10 +362,10 @@ Phase 0.5 makes the Phase 0 loop usable day to day (ADR-033).
 The user can:
 
 - hold Ctrl+Option in any app, speak, and release to send
-- see ATOM's state (listening with a level meter, thinking, speaking) in a small dark glass island at the left edge of the screen, below the menu bar
+- see ARK's state (listening with a level meter, thinking, speaking) in a small dark glass island at the left edge of the screen, below the menu bar
 - reveal the island by pushing the pointer against that edge, and click it to read the conversation, see status details, and choose the AI provider and model
 
-When idle, nothing is on screen. ATOM's intelligence is unchanged from Phase 0.
+When idle, nothing is on screen. ARK's intelligence is unchanged from Phase 0.
 
 ---
 
@@ -391,7 +391,7 @@ Phase 0 does not include:
 
 ## 15. Product Evolution
 
-ATOM should evolve approximately:
+ARK should evolve approximately:
 
 ```text
 Voice Foundation

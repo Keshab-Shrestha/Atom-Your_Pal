@@ -1,4 +1,4 @@
-import type { ToolSpec } from "@atom/contracts";
+import type { ToolSpec } from "@ark/contracts";
 import { MemoryError, type Memory, type MemoryStore } from "./store.ts";
 
 // ADR-058: what the model sees of memory, and the three tools it uses to change it.
@@ -46,7 +46,7 @@ export function createMemoryTools(options: MemoryToolOptions): MemoryTool[] {
           type: "object",
           properties: {
             fact: { type: "string", description: "The fact, one sentence, at most 300 characters." },
-            until: { type: "string", description: "Optional. The last day the fact is true, as YYYY-MM-DD (a trip, a deadline). After it ATOM stops using the fact." },
+            until: { type: "string", description: "Optional. The last day the fact is true, as YYYY-MM-DD (a trip, a deadline). After it ARK stops using the fact." },
             replaces: { type: "number", description: "Optional. The id of an older fact that this one corrects. The old fact is hidden, not deleted, and the user can undo it." },
           },
           required: ["fact"],
@@ -56,7 +56,7 @@ export function createMemoryTools(options: MemoryToolOptions): MemoryTool[] {
         // A missing fact must not become the text "undefined" (review, 2026-10-16).
         const fact = typeof input.fact === "string" ? input.fact.trim() : "";
         if (!fact) throw new MemoryError("Say what to remember: the fact is missing or empty.");
-        if (looksSecret(fact)) throw new MemoryError("That looks like a password or other secret; ATOM does not keep those.");
+        if (looksSecret(fact)) throw new MemoryError("That looks like a password or other secret; ARK does not keep those.");
         const until = parseUntil(input.until);
         if (input.replaces !== undefined && input.replaces !== null) {
           const replaces = Number(input.replaces);
@@ -121,7 +121,7 @@ export function createMemoryTools(options: MemoryToolOptions): MemoryTool[] {
       spec: {
         name: "undo_memory_change",
         description:
-          "Undoes the newest memory change that can still be undone: a fact that remember replaced, or facts that ATOM's own tidy-up " +
+          "Undoes the newest memory change that can still be undone: a fact that remember replaced, or facts that ARK's own tidy-up " +
           "hid as duplicates. The hidden fact comes back. Use it when the user says a replaced or missing fact should be back. " +
           "It cannot bring back a fact that forget deleted.",
         inputSchema: { type: "object", properties: {} },
@@ -138,7 +138,7 @@ export function createMemoryTools(options: MemoryToolOptions): MemoryTool[] {
   ];
 }
 
-/** Always in the prompt when memory is on, so ATOM knows it can keep things and offers to (ADR-059). */
+/** Always in the prompt when memory is on, so ARK knows it can keep things and offers to (ADR-059). */
 export const MEMORY_GUIDANCE =
   "You can keep facts about the user between conversations with the remember tool. When the user mentions a lasting " +
   "personal fact or preference in passing (family, home, work, diet, routines, how they like things done), briefly offer " +
@@ -158,7 +158,7 @@ export interface MemorySelection {
 }
 
 /**
- * What ATOM knows that may matter for this request: memories matching its words, then the newest, up to
+ * What ARK knows that may matter for this request: memories matching its words, then the newest, up to
  * `limit`. Returned as a block for the system prompt, or undefined when nothing is kept.
  */
 export function memoryContext(request: string, options: MemoryContextOptions): string | undefined {

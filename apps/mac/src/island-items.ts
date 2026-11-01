@@ -37,7 +37,7 @@ export interface InfoEvent {
   provider: string;
   model: string;
   providers: { id: string; name: string; available: boolean; models: { id: string; name: string }[] }[];
-  /** ADR-093: the AI tools found on this Mac (found, signed in, what ATOM does with them). */
+  /** ADR-093: the AI tools found on this Mac (found, signed in, what ARK does with them). */
   tools?: { id: string; name: string; found: boolean; signedIn?: boolean; provider?: string; note: string }[];
 }
 
@@ -67,7 +67,7 @@ export interface BriefItem {
   createdAt: string;
   lines: string[];
   source: "model" | "template";
-  preparation?: import("@atom/memory").BriefPreparation;
+  preparation?: import("@ark/memory").BriefPreparation;
 }
 
 /** Daily brief settings. `minute` is minutes after local midnight. */
@@ -199,7 +199,7 @@ export interface ThreadEvent {
   plan?: { summary: string; steps: string };
   /** Task 3.10: the sub-tasks this task handed off. */
   handOffs?: number[];
-  /** ADR-098 item 8: the ATOM-made skills a done task's runs used (each can take it as a test case). */
+  /** ADR-098 item 8: the ARK-made skills a done task's runs used (each can take it as a test case). */
   testSkills?: string[];
   /** B3.1: the run's tool calls, the newest 100, oldest first (redacted summaries; absent when none were recorded). */
   toolCalls?: { id: string; agent?: string; tool: string; input: string; state: "started" | "ok" | "error"; result?: string; at: string; ms?: number }[];
@@ -215,7 +215,7 @@ export interface ThreadEvent {
   goal?: { id: number; text: string; ended: boolean; tasks: number[]; report?: Omit<ReportEvent, "type" | "id"> };
 }
 
-/** ADR-091: one of ATOM's task branches, with the task's title. */
+/** ADR-091: one of ARK's task branches, with the task's title. */
 export interface GitBranchItem {
   worktree?: string;
   uncommitted?: boolean;
@@ -245,7 +245,7 @@ export interface MemoryChatItem {
   updatedAt?: string;
   messages: number;
   kept: boolean;
-  /** True while ATOM writes the summary and the index. */
+  /** True while ARK writes the summary and the index. */
   indexing?: boolean;
   /** ISO 8601. */
   keptAt?: string;
@@ -294,14 +294,14 @@ export interface UsageTotalsItem {
   runs: number;
 }
 
-/** ADR-091: the Dashboard's tokens: today, the week, each day, each worker (name; null for ATOM's chat), each model. */
+/** ADR-091: the Dashboard's tokens: today, the week, each day, each worker (name; null for ARK's chat), each model. */
 export interface UsageItem {
   today: UsageTotalsItem;
   week: UsageTotalsItem;
   days: (UsageTotalsItem & { day: string })[];
   byWorker: (UsageTotalsItem & { helper: string | null; name: string })[];
   byModel: (UsageTotalsItem & { model: string })[];
-  /** ADR-098 item 9: ATOM's last chat answers read nothing from the prompt cache. */
+  /** ADR-098 item 9: ARK's last chat answers read nothing from the prompt cache. */
   chatCacheCold?: boolean;
   /** Token cost, job 4: the newest calls, newest first. Absent from an older runtime. */
   recent?: { at: string; kind: "turn" | "note" | "job" | "other"; model: string; input: number; output: number; cacheRead: number; cacheWrite: number; gapMs?: number }[];
@@ -336,7 +336,7 @@ export interface SkillDraftItem {
   createdAt: string;
 }
 
-/** ADR-094: Tinker's edit to one of ATOM's skills: why, and a compact before and after (from the first changed line). */
+/** ADR-094: Tinker's edit to one of ARK's skills: why, and a compact before and after (from the first changed line). */
 export interface SkillEditItem {
   id: number;
   skill: string;
@@ -403,7 +403,7 @@ export interface BrainNodeItem {
 export interface BrainEdgeItem {
   a: number;
   b: number;
-  /** Found by ATOM, not written in a note. */
+  /** Found by ARK, not written in a note. */
   auto: boolean;
 }
 
@@ -417,7 +417,7 @@ export interface BrainLinkItem {
 
 /** One note with its text, links and backlinks. */
 export interface BrainNoteItem {
-  source?: import("@atom/memory").NoteSource;
+  source?: import("@ark/memory").NoteSource;
   id: number;
   title: string;
   body: string;
@@ -446,7 +446,7 @@ export interface PlanPortionItem {
   job?: number;
   resultJob?: number;
   repairUnavailable?: boolean;
-  recovery?: import("@atom/helpers").WorkflowRecovery;
+  recovery?: import("@ark/helpers").WorkflowRecovery;
   state: "waiting" | "running" | "done" | "failed" | "stopped" | "blocked";
 }
 
@@ -460,7 +460,7 @@ export interface PlanItem {
   stuck: boolean;
 }
 
-/** Task 3.16: a task ATOM handed to Keshab's Paperclip. Titles and results never logged. */
+/** Task 3.16: a task ARK handed to Keshab's Paperclip. Titles and results never logged. */
 export interface PaperclipItem {
   id: string;
   identifier?: string;

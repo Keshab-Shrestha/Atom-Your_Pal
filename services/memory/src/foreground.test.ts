@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { openMemoryStore } from "./store.ts";
 
 test("long human question answers survive recovery and keep their exact receipt identity", () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-long-answer-")), path = join(dir, "memory.db");
+  const dir = mkdtempSync(join(tmpdir(), "ark-long-answer-")), path = join(dir, "memory.db");
   let memory = openMemoryStore({ path });
   const id = "00000000-0000-4000-8000-000000000001", card = "00000000-0000-4000-8000-000000000002";
   const answer = "Fictional Cedar instructions 日本語.\n".repeat(1500);

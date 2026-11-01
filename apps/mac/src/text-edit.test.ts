@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { ModelRequest } from "@atom/contracts";
+import type { ModelRequest } from "@ark/contracts";
 import { createTextEditor, EDIT_INSTRUCTIONS, providerTextWriter } from "./text-edit.ts";
 
 test("a Codex edit uses only the edit target/instruction and never falls back to Claude", async () => {

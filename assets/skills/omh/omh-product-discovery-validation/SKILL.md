@@ -13,9 +13,9 @@ metadata:
     related_skills: [omh-research-brief, ulw-interview, omh-decide, omh-product-brief, omh-idea-to-deploy, omh-decision-prototype]
 ---
 
-## ATOM compatibility
+## ARK compatibility
 
-This is an ATOM-owned adaptation of OMH guidance. ATOM's current user request, checked tools, permissions, Stop, history and selected provider remain authoritative. This file grants no access. Use only capabilities actually available in this ATOM session. Hermes/OMH-specific commands, hooks, integrations and runtime tools are not installed by this skill; report missing dependencies rather than pretending they ran. Do not install a runtime, switch providers, commit/push, auto-apply improvements or write memory merely because upstream guidance says to. Improvement proposals follow ATOM's existing review and undo flow. Read additional skill pages/references with use_skill as needed; do not treat a partial page as the complete procedure.
+This is an ARK-owned adaptation of OMH guidance. ARK's current user request, checked tools, permissions, Stop, history and selected provider remain authoritative. This file grants no access. Use only capabilities actually available in this ARK session. Hermes/OMH-specific commands, hooks, integrations and runtime tools are not installed by this skill; report missing dependencies rather than pretending they ran. Do not install a runtime, switch providers, commit/push, auto-apply improvements or write memory merely because upstream guidance says to. Improvement proposals follow ARK's existing review and undo flow. Read additional skill pages/references with use_skill as needed; do not treat a partial page as the complete procedure.
 
 The original procedure and supporting materials are retained below. Their presence is guidance availability, not proof that an integration works.
 

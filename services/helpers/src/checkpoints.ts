@@ -6,7 +6,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { DENY_READ_DIRS, hasGitPart, isInside, pathProblem, realish } from "./grants.ts";
 
 /**
- * B3.4, ADR-101: checkpoint and undo of a run's file edits. Before the first edit of a file in a run, ATOM copies the
+ * B3.4, ADR-101: checkpoint and undo of a run's file edits. Before the first edit of a file in a run, ARK copies the
  * file (or notes that it is new). Keshab can then undo one file or the whole run. Files in a git worktree are not
  * copied by the ordinary hook (git covers them); ADR-166's explicit reviewed edits require copies there too.
  * Edits made by Bash are not tracked. The copies live in `<dir>/<job>/<n>` (flat numbered
@@ -67,8 +67,8 @@ const SECRET_FILE_PATH = /(^|[\s/="'])\.env(\.[\w.-]+)?(?=$|[\s"'])|data\/api-to
 /** Does this path or command touch .env or data/api-token? */
 export const touchesSecretFile = (text: string) => SECRET_FILE_PATH.test(text);
 
-/** ATOM's own databases (2026-10-15): they hold MCP secrets and every chat, so no agent opens them, whatever folder it was granted. */
-const OWN_DATABASE_FILE = /(^|\/)(data\/(helpers|memory)\.db(-wal|-shm)?|config\/island\.json|logs\/atom\.log)$/;
+/** ARK's own databases (2026-10-15): they hold MCP secrets and every chat, so no agent opens them, whatever folder it was granted. */
+const OWN_DATABASE_FILE = /(^|\/)(data\/(helpers|memory)\.db(-wal|-shm)?|config\/island\.json|logs\/ark\.log)$/;
 
 const SECRET_FILE_NAMES = new Set([".npmrc", ".netrc", ".git-credentials", ".pypirc", ".dockercfg"]);
 
@@ -371,7 +371,7 @@ export function checkpointTable(db: DatabaseSync, dir: string | undefined, home:
   function restore(row: Row, mode: number | undefined) {
     const snap = snapPath(row);
     if (!existsSync(snap) || (row.guarded ? guardedHash(snap) : sha256File(snap)) !== row.sha_before) throw new Error("snapshot damaged");
-    const temp = join(dirname(row.path), `.atom-undo-${process.pid}-${row.id}`);
+    const temp = join(dirname(row.path), `.ark-undo-${process.pid}-${row.id}`);
     try {
       copyFileSync(snap, temp);
       chmodSync(temp, mode !== undefined ? mode & 0o7777 : 0o644);

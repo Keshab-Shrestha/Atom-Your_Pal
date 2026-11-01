@@ -112,7 +112,7 @@ def settings_main(uid="m"):
  {nav("window","","Panel","Normal · Glass")}
 </div>
 </div>'''
-    foot = f'<div class="p-foot"><div class="hint">ZENO 0.9 · up to date</div><button class="btn danger">{ic("power", 14)}Quit ZENO</button></div>'
+    foot = f'<div class="p-foot"><div class="hint">ARK 0.9 · up to date</div><button class="btn danger">{ic("power", 14)}Quit ARK</button></div>'
     return panel_wrap(head + tabs("Settings") + f'<div class="p-body">{body}</div>' + foot)
 
 
@@ -172,10 +172,10 @@ def settings_shortcuts(uid="k"):
     body = f'''<div style="padding:0 2px">
 <div class="subhead"><span class="back">{ic("chevL", 15)}Settings</span><span class="st">Shortcuts &amp; dictation</span></div>
 <div class="card">
- {r("Talk to ZENO","Hold", keys(["⌃","⌥"]))}
+ {r("Talk to ARK","Hold", keys(["⌃","⌥"]))}
  {r("Dictate","Hold, right side", keys(["Right ⌥","⌘"], rec=True))}
  {r("Show or hide panel","Press", keys(["⌃","⌥","Z"]))}
- {r("Cancel","While ZENO is busy", keys(["esc"]))}
+ {r("Cancel","While ARK is busy", keys(["esc"]))}
 </div>
 <div class="glabel">Dictation</div>
 <div class="card">
@@ -195,7 +195,7 @@ def strip(state, uid="ws"):
                 f'<button class="btn soft">{ic("stop", 13, color="var(--coral-deep)")}Stop</button></div></div>')
     if state == "ask":
         return (f'<div class="strip glass"><div class="s-row"><div class="s-ic" style="background:var(--coral-tint);color:var(--coral-deep)">{ic("shield", 16)}</div>'
-                f'<div class="s-main"><div class="s-t">ZENO wants to press a key</div><div class="s-s">Step 3 of 3 · TextEdit</div></div>'
+                f'<div class="s-main"><div class="s-t">ARK wants to press a key</div><div class="s-s">Step 3 of 3 · TextEdit</div></div>'
                 f'</div>'
                 f'<div class="s-ask"><div class="q">Press Return in TextEdit?</div>'
                 f'<button class="btn soft">Decline<span class="kh">esc</span></button><button class="btn primary">Allow<span class="kh">⌘↩</span></button></div></div>')

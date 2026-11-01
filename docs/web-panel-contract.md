@@ -35,12 +35,12 @@ If an action is needed, the panel asks for an **intent**. The host decides.
 1. Use `WKWebsiteDataStore.nonPersistent()`.
 2. Allow the first load. Cancel every later navigation, window open and download.
 3. Turn off link preview and back-forward gestures.
-4. Add one script message handler named `atomPanel`.
+4. Add one script message handler named `arkPanel`.
 5. Run all host code on the main actor.
 
 ## Host to panel
 
-The host calls `window.atomPanel.receive(message)` with `callAsyncJavaScript`.
+The host calls `window.arkPanel.receive(message)` with `callAsyncJavaScript`.
 The host passes the message as an argument. The host never builds JavaScript from text.
 
 Every message has `v` (the contract version, `1`) and `type`.
@@ -59,7 +59,7 @@ Every message has `v` (the contract version, `1`) and `type`.
 
 ## Panel to host
 
-The panel calls `window.webkit.messageHandlers.atomPanel.postMessage(message)`.
+The panel calls `window.webkit.messageHandlers.arkPanel.postMessage(message)`.
 
 | type | Fields | Meaning |
 |---|---|---|
@@ -136,7 +136,7 @@ The Run panel is the Run surface in the workspace pane, beside Files, Changes, G
 
 ## Tests for Phase 1
 
-These tests run with `pnpm island:test`. They live in `AtomIslandCore`.
+These tests run with `pnpm island:test`. They live in `ArkIslandCore`.
 
 - The parser accepts each valid message.
 - The parser rejects each failed check in the list above.

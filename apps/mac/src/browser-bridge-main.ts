@@ -12,7 +12,7 @@ import { dirname, join } from "node:path";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { readEnv } from "@atom/shared";
+import { readEnv } from "@ark/shared";
 import { BRIDGE_TOOLS, createBridge, type BridgeResult } from "./browser-bridge.ts";
 
 const COMMAND_TIMEOUT_MS = 30_000;
@@ -34,8 +34,8 @@ function flag(argv: string[], name: string): string | undefined {
 export function startBridge(argv: string[]) {
   const profile = flag(argv, "--user-data-dir");
   const initScript = flag(argv, "--init-script");
-  const browser = readEnv(process.env, "ATOM_BROWSER_PATH") || (existsSync(DEFAULT_BROWSER) ? DEFAULT_BROWSER : undefined);
-  const session = `atom-${process.pid}-${randomBytes(3).toString("hex")}`;
+  const browser = readEnv(process.env, "ARK_BROWSER_PATH") || (existsSync(DEFAULT_BROWSER) ? DEFAULT_BROWSER : undefined);
+  const session = `ark-${process.pid}-${randomBytes(3).toString("hex")}`;
   const binary = agentBrowserBinary();
   // pnpm does not run the package's install script, which is what marks the native file executable.
   try { chmodSync(binary, 0o755); } catch { /* read-only install: the spawn below reports it */ }
@@ -46,7 +46,7 @@ export function startBridge(argv: string[]) {
     AGENT_BROWSER_SESSION: session,
     AGENT_BROWSER_IDLE_TIMEOUT_MS: String(10 * 60_000), // a lost bridge cannot leave a browser running for the default hour
     AGENT_BROWSER_NO_WEBMCP: "1", // pages register no tools
-    ...(readEnv(process.env, "ATOM_BROWSER_HEADLESS") === "1" ? {} : { AGENT_BROWSER_HEADED: "1" }), // a visible window, so Keshab can watch (as before)
+    ...(readEnv(process.env, "ARK_BROWSER_HEADLESS") === "1" ? {} : { AGENT_BROWSER_HEADED: "1" }), // a visible window, so Keshab can watch (as before)
     ...(profile ? { AGENT_BROWSER_PROFILE: profile } : {}),
     ...(browser ? { AGENT_BROWSER_EXECUTABLE_PATH: browser } : {}),
     ...(initScript ? { AGENT_BROWSER_INIT_SCRIPTS: initScript } : {}),
@@ -72,7 +72,7 @@ export function startBridge(argv: string[]) {
   }
 
   async function screenshot() {
-    const dir = await mkdtemp(join(tmpdir(), "atom-shot-"));
+    const dir = await mkdtemp(join(tmpdir(), "ark-shot-"));
     try {
       const file = join(dir, "page.png");
       const r = await run(["screenshot", file]);
@@ -84,7 +84,7 @@ export function startBridge(argv: string[]) {
   }
 
   const bridge = createBridge({ run, screenshot });
-  const server = new Server({ name: "atom-browser-bridge", version: "1.0.0" }, { capabilities: { tools: {} } });
+  const server = new Server({ name: "ark-browser-bridge", version: "1.0.0" }, { capabilities: { tools: {} } });
   server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: BRIDGE_TOOLS as any }));
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const out = await bridge.call(request.params.name, request.params.arguments);

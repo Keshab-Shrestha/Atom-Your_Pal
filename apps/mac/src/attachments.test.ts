@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { INLINE_FILE_CHARS, MAX_ATTACH_BYTES, MAX_ATTACH_FILES, createAttachments, marker } from "./attachments.ts";
 
 function setup() {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-attach-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-attach-")));
   const src = join(home, "Documents");
   mkdirSync(src);
   const events: string[] = [];
@@ -22,7 +22,7 @@ test("an attached file is copied into the chat's folder and named in the message
   assert.ok("ok" in result);
   if (!("ok" in result)) return;
   assert.equal(result.files[0]!.kind, "text");
-  assert.ok(result.files[0]!.path.includes("attachments"), "the copy lives in ATOM's folder");
+  assert.ok(result.files[0]!.path.includes("attachments"), "the copy lives in ARK's folder");
   assert.equal(readFileSync(result.files[0]!.path, "utf8"), "# Plan\nbuy milk");
   assert.equal(result.text, marker(result.files[0]!));
   assert.deepEqual(events, ["attachment.added"]);

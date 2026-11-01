@@ -2,15 +2,15 @@
 
 Bounded acceptance of the local implementation on `codex/oh-my-hermes-inquiry`, against pre-OMH main `1b6cc685`. These results do not certify full OMH/Sentient parity. The before/after image describes implementation, with acceptance tracked here.
 
-![ATOM architecture before and after](assets/atom-architecture-before-after.png)
+![ARK architecture before and after](assets/ark-architecture-before-after.png)
 
-[Editable SVG](assets/atom-architecture-before-after.svg). Both sides retain the existing chat/history, SQLite store, Gateway, workers, checked tools, Stop and permissions. The new architecture adds coordination and evidence inside those boundaries, without a Hermes runtime.
+[Editable SVG](assets/ark-architecture-before-after.svg). Both sides retain the existing chat/history, SQLite store, Gateway, workers, checked tools, Stop and permissions. The new architecture adds coordination and evidence inside those boundaries, without a Hermes runtime.
 
 ## Build and checks
 
 - Fixed two TypeScript errors: new plan schemas supplied unsupported `enum` fields to the existing narrow ToolSpec. Kept the supported string schemas with explicit choices in descriptions; existing closed runtime validators still reject unsupported values. Removed the unused workflow-ID import.
 - `pnpm typecheck` and `git diff --check` passed.
-- `pnpm island:build` succeeded: AtomIsland release compilation 71.63 s; Calendar/Documents helpers built; packaged with ATOM Local Signing. `codesign --verify --deep --strict` passed.
+- `pnpm island:build` succeeded: ArkIsland release compilation 71.63 s; Calendar/Documents helpers built; packaged with ARK Local Signing. `codesign --verify --deep --strict` passed.
 - Existing warnings remain: IslandSettings generic choice isolation, main.swift implicit capture, and SwiftPM native-build-system deprecation.
 - No Swift test suite, full repository suite, commit or push. No latency/token improvement is inferred.
 
@@ -23,7 +23,7 @@ Used a separate fictional chat, `9e353aa2-564e-42ca-b87a-bac62ed5b42b`, with Cla
 3. **Real contracted worker passed.** Explicitly started P1 with a deliberately wrong dispatch prompt (`Reply BANANA`). Host `plan.claim` and a protected contract context block were logged. Task 37 stored the original planned task, returned a Friday/blue-heron sentence, and recorded its own reported attempt `21ccd59d-819d-478f-8a87-955c2a78353b`. This is one Claude worker check, not Codex acceptance.
 4. **Honest evidence UI passed.** Chat → Tasks → Review result showed the original report and said there were zero inspection records, no independent file-predicate verification and whole-task correctness was unverified. It did not promote worker self-checks to host certification. The model initially declined to expose the task ID in prose; the actual UI/status and database exposed #37 correctly. Treat that response as a presentation inconsistency, not a hidden or missing task.
 5. **History isolation from execution passed in this chat.** Saved plan 2 without dispatch. `plan_history` plus explicit `plan_status(plan=1, portion=1)` inspected the older completed plan and left plan 2 current and unstarted. Cross-chat refusal was separately checked through the host integration harness below.
-6. **Normal restart passed.** Entered `UNSENT Cedar OMH restart check: keep the blue heron.`, quit normally, verified ATOM exited, and relaunched. The exact draft, selected chat/history, model/access and pending plan survived. The catalog briefly showed its refresh placeholder, then restored Haiku/Off. Replaced only that test draft with a follow-up: correct recall, current plan still awaiting start, earlier report historical, no automatic worker dispatch. This trial had no saved file grant to independently certify grant reuse.
+6. **Normal restart passed.** Entered `UNSENT Cedar OMH restart check: keep the blue heron.`, quit normally, verified ARK exited, and relaunched. The exact draft, selected chat/history, model/access and pending plan survived. The catalog briefly showed its refresh placeholder, then restored Haiku/Off. Replaced only that test draft with a follow-up: correct recall, current plan still awaiting start, earlier report historical, no automatic worker dispatch. This trial had no saved file grant to independently certify grant reuse.
 
 ## Stop defect found during actual use
 
@@ -33,11 +33,11 @@ The handler now cancels the foreground loop and stops all active native jobs own
 
 Three focused command-handler checks passed: background state remains busy while a worker runs, repeated Stop affects only current-chat native workers after foreground idle, and recording cancellation still discards input. These are regression checks, separate from live UI acceptance.
 
-**Corrected live Stop passed.** After restarting the host, task 42 (plan 7) used Kame for five sequential reads of a fictional note, with no edits or commands. The parent had already returned `Started` while the worker remained active. Clicking the composer's Stop returned ATOM to Ready. Both the job and its host attempt were recorded stopped at `2026-10-26T12:18:42.940Z` (job event followed at `.941Z`); the provider completion callback respected the existing stopped state instead of rewriting it to done. The Board showed `Unfinished work needs review`, `1 stopped`, a Review button and the explicit no-restart explanation, with zero workers active. No automatic retry was made.
+**Corrected live Stop passed.** After restarting the host, task 42 (plan 7) used Kame for five sequential reads of a fictional note, with no edits or commands. The parent had already returned `Started` while the worker remained active. Clicking the composer's Stop returned ARK to Ready. Both the job and its host attempt were recorded stopped at `2026-10-26T12:18:42.940Z` (job event followed at `.941Z`); the provider completion callback respected the existing stopped state instead of rewriting it to done. The Board showed `Unfinished work needs review`, `1 stopped`, a Review button and the explicit no-restart explanation, with zero workers active. No automatic retry was made.
 
 Two intervening text-only reruns (tasks 39–40) finished before a usable Stop click; neither is counted as cancellation evidence. Task 39 reported that the short worker-report budget prevented its requested 1,200-item deliverable. This is a useful limitation of using a task report as the deliverable, not a passed large-output workflow.
 
-An edit-wait trial (task 41, plan 6) changed only the newly created fictional note at `~/Documents/ATOM-OMH-Stop-Mjj9MG/Cedar fictional stop.txt` from Revision one to two. Host logs record Edit asked at `12:17:18.352Z` and allowed at `12:17:20.664Z`; the approval resolved before the next UI inspection. It therefore did not provide a stable cancellation wait. The parent model's statement that it did not see an approval was not authoritative: the host did ask. No continuing grant was recorded. The note and its correction checkpoint remain available for review; the file was not reverted or deleted.
+An edit-wait trial (task 41, plan 6) changed only the newly created fictional note at `~/Documents/ARK-OMH-Stop-Mjj9MG/Cedar fictional stop.txt` from Revision one to two. Host logs record Edit asked at `12:17:18.352Z` and allowed at `12:17:20.664Z`; the approval resolved before the next UI inspection. It therefore did not provide a stable cancellation wait. The parent model's statement that it did not see an approval was not authoritative: the host did ask. No continuing grant was recorded. The note and its correction checkpoint remain available for review; the file was not reverted or deleted.
 
 Focused regression command:
 

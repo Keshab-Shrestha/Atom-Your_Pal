@@ -7,13 +7,13 @@ import { randomBytes } from "node:crypto";
 import { rmSync } from "node:fs";
 import { enableApi, startRuntime, until, type SmokeRuntime } from "./smoke-harness.ts";
 
-// Live test of the self-improving skill loop (ADR-094 A, ADR-110): an agent uses one of ATOM's own skills in a task, Keshab rates the task "not good",
+// Live test of the self-improving skill loop (ADR-094 A, ADR-110): an agent uses one of ARK's own skills in a task, Keshab rates the task "not good",
 // Tinker (a real model call) proposes an edit to that skill, Keshab accepts it (the skill file changes) and undoes it (the file is back). It uses a
 // little of the plan (a few minutes). Run it with `pnpm test:live`. Everything is in a temp folder; the one file the agent writes is in a folder under
 // ~/Documents that the test removes.
 
-const live = process.env.ATOM_LIVE_TESTS === "1";
-const SKIP = live ? false : "set ATOM_LIVE_TESTS=1 (pnpm test:live) to run the live skill-loop test";
+const live = process.env.ARK_LIVE_TESTS === "1";
+const SKIP = live ? false : "set ARK_LIVE_TESTS=1 (pnpm test:live) to run the live skill-loop test";
 const SKILL = "smoke-greeting";
 const ORIGINAL = `---\nname: ${SKILL}\ndescription: How to write the smoke-test greeting file.\n---\n\nWrite a file with exactly one line: Hello from the smoke test.\n`;
 
@@ -28,7 +28,7 @@ async function goalEnded(runtime: SmokeRuntime, id: number) {
   );
 }
 
-test("live: a task that used one of ATOM's skills and was rated not good makes Tinker propose an edit; accepting changes the skill, undo restores it", { skip: SKIP, timeout: 1_200_000 }, async () => {
+test("live: a task that used one of ARK's skills and was rated not good makes Tinker propose an edit; accepting changes the skill, undo restores it", { skip: SKIP, timeout: 1_200_000 }, async () => {
   const runtime = await startRuntime({
     readyMs: 90_000,
     prepare: (dir) => {
@@ -36,7 +36,7 @@ test("live: a task that used one of ATOM's skills and was rated not good makes T
       writeFileSync(skillFile(dir), ORIGINAL);
     },
   });
-  const folder = join(homedir(), "Documents", `atom-skill-smoke-${randomBytes(4).toString("hex")}`);
+  const folder = join(homedir(), "Documents", `ark-skill-smoke-${randomBytes(4).toString("hex")}`);
   const file = join(folder, "greeting.txt");
   try {
     mkdirSync(folder, { recursive: true });
@@ -51,7 +51,7 @@ test("live: a task that used one of ATOM's skills and was rated not good makes T
     const made = await runtime.api("POST", "/v1/goals", { body: { goal: `Kame, use your ${SKILL} skill, then create the file ${file} the way the skill says. Do nothing else.` } });
     assert.equal(made.status, 200, JSON.stringify(made.json));
     const goalId = made.json.data.goalId as number | null;
-    assert.ok(goalId, `no task was made. ATOM said: ${String(made.json.data.answer).slice(0, 300)}`);
+    assert.ok(goalId, `no task was made. ARK said: ${String(made.json.data.answer).slice(0, 300)}`);
     const done = await goalEnded(runtime, goalId);
     const jobId = done.tasks?.[0]?.id as number | undefined;
     assert.ok(jobId, "the goal has a task");
@@ -77,7 +77,7 @@ test("live: a task that used one of ATOM's skills and was rated not good makes T
     assert.match(changed, /name: smoke-greeting/, "the skill keeps its name");
     runtime.send({ type: "skill.edit.undo", id: edit.id });
     await runtime.waitFor((e) => e.type === "helpers" && e.skillEdits?.some((x: any) => x.id === edit.id && x.state === "undone"), 30_000, "the edit to be undone");
-    // ATOM writes the skill back in its own canonical form (the description in quotes), so the content is compared, not the bytes.
+    // ARK writes the skill back in its own canonical form (the description in quotes), so the content is compared, not the bytes.
     const parts = (text: string) => {
       const m = /^---\nname: (.+)\ndescription: "?(.*?)"?\n---\n\n([\s\S]*)$/.exec(text);
       assert.ok(m, `the skill file keeps its front matter: ${JSON.stringify(text.slice(0, 120))}`);

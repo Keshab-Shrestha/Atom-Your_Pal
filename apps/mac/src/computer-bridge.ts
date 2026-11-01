@@ -1,7 +1,7 @@
-// Connects the computer tool to ATOM Island (ADR-054, Task 0.6.3): what ATOM is doing, and asking the user
+// Connects the computer tool to ARK Island (ADR-054, Task 0.6.3): what ARK is doing, and asking the user
 // before a risky action. Lives in the runtime so the rule "no answer means no" holds even if the island is gone.
 
-import type { ComputerDecisionAnswer, ComputerDecisionState } from "@atom/decision-engine";
+import type { ComputerDecisionAnswer, ComputerDecisionState } from "@ark/decision-engine";
 import { randomUUID } from "node:crypto";
 import type { IslandEvent } from "./island-protocol.ts";
 
@@ -110,7 +110,7 @@ export const COMPUTER_END_MS = 6000;
 
 export function createComputerBridge(options: ComputerBridgeOptions = {}): ComputerBridge {
   const { timeoutMs = 60_000, endAfterMs = COMPUTER_END_MS, newId = randomUUID } = options;
-  // The agent cursor (2026-10-23): on with a task's first step, back to ATOM and hidden when the task ends. It never blocks an action.
+  // The agent cursor (2026-10-23): on with a task's first step, back to ARK and hidden when the task ends. It never blocks an action.
   let working = false;
   let foreground = false;
   let activeActions = 0;
@@ -178,7 +178,7 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
     attach(send) { sendEvent = send; },
     approve: async (request, signal) => Boolean(await ask(request, signal)),
     approveFile: (request, signal) => ask({ ...request, reasonMax: MAX_REASON_CHARS, rememberFile: true }, signal),
-    approveFileEdit: async (request, signal) => validFileReview(request) && Boolean(await ask({ summary: request.summary, reason: "Review the full file change in ATOM on your Mac. An undo copy is required before applying.", timeoutMs: 120_000, fileReview: { path: request.path, before: request.before, after: request.after } }, signal)),
+    approveFileEdit: async (request, signal) => validFileReview(request) && Boolean(await ask({ summary: request.summary, reason: "Review the full file change in ARK on your Mac. An undo copy is required before applying.", timeoutMs: 120_000, fileReview: { path: request.path, before: request.before, after: request.after } }, signal)),
     point(target) {
       if (!sendEvent) return false;
       const whole = (n: number) => Math.round(n);

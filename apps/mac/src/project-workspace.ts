@@ -2,7 +2,7 @@ import { gitWorkspace, gitFileReview, gitPathAvailable, type GitWorkspace, type 
 import { lstatSync, opendirSync, realpathSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { homedir } from "node:os";
-import { checkGrant, isSecretLike, readFilePreview, type HelperStore, type WorkspaceChange, type WorkspaceReview } from "@atom/helpers";
+import { checkGrant, isSecretLike, readFilePreview, type HelperStore, type WorkspaceChange, type WorkspaceReview } from "@ark/helpers";
 
 export type WorkspaceAction = "list" | "read" | "changes" | "review" | "undo" | "git" | "gitReview";
 export interface WorkspaceRequest {

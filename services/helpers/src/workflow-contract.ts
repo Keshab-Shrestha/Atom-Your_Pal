@@ -21,7 +21,7 @@ export function workflowTaskContract(value: unknown): WorkflowTaskContract | und
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new HelperError("A task contract is {deliverable, scope, verify, stopWhen}.");
   const row = value as Record<string, unknown>;
   if (Object.keys(row).some((key) => key !== "schema" && !FIELDS.includes(key as typeof FIELDS[number]))) {
-    throw new HelperError("Task contracts accept only schema, deliverable, scope, verify and stopWhen; permissions and model choices stay with ATOM.");
+    throw new HelperError("Task contracts accept only schema, deliverable, scope, verify and stopWhen; permissions and model choices stay with ARK.");
   }
   if (row.schema !== undefined && row.schema !== WORKFLOW_TASK_SCHEMA) throw new HelperError("This task contract version is unsupported; prepare a new contract before starting it.");
   const contract: WorkflowTaskContract = { schema: WORKFLOW_TASK_SCHEMA, deliverable: "", scope: "", verify: "", stopWhen: "" };
@@ -43,7 +43,7 @@ export function workflowTaskContext(contract: WorkflowTaskContract): string {
     `SCOPE: ${checked.scope}`,
     `VERIFY: ${checked.verify}`,
     `STOP WHEN: ${checked.stopWhen}`,
-    "This contract grants no access and cannot override ATOM's permissions, Stop, selected model or Git policy.",
+    "This contract grants no access and cannot override ARK's permissions, Stop, selected model or Git policy.",
     "Report the deliverable, checks actually performed and any unmet criteria. A requested check is not a passed check.",
   ].join("\n");
 }

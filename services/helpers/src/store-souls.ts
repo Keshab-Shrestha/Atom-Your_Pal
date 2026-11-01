@@ -48,7 +48,7 @@ export function soulMethods(ctx: StoreContext): Pick<HelperStore, "soul" | "save
         return;
       }
       // One review per task: Tinker's task waits in the queue like any other. ADR-094: and one edit
-      // for each of ATOM's skills the task used.
+      // for each of ARK's skills the task used.
       askTinker(id, `Review task ${id} (${current(job.helper).name})`, null);
       skills.askEdits(job);
     },

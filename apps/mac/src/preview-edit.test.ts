@@ -4,14 +4,14 @@ import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openHelperStore } from "@atom/helpers";
+import { openHelperStore } from "@ark/helpers";
 import { createComputerBridge, type ApprovalAsk } from "./computer-bridge.ts";
 import { reviewPreviewEdit } from "./preview-edit.ts";
 
 const sha = (text: string) => createHash("sha256").update(text).digest("hex");
 
 function fixture() {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-reviewed-edit-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-reviewed-edit-")));
   const root = join(home, "project"), path = join(root, "launch.txt"), db = join(home, "helpers.db"), copies = join(home, "checkpoints");
   mkdirSync(root);
   const before = "Cedar launches Wednesday.\n".repeat(35);

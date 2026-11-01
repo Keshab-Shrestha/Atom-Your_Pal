@@ -68,7 +68,7 @@ function explain(p: RecallPayload, state: RecallState): { summary: string; detai
         : "The reply completed; saved-fact selection was not recorded."
     : state === "prepared" ? "Context was prepared; request completion is not confirmed."
       : state === "cancelled" ? "The request was stopped. Prepared context does not confirm delivery."
-        : state === "interrupted" ? "ATOM closed before request completion was confirmed."
+        : state === "interrupted" ? "ARK closed before request completion was confirmed."
           : "The request failed. Prepared context does not confirm delivery.";
   const lines = [p.personal === "disabled" ? "New personal saved-fact selection was disabled by Chat only. Previously sent copies can remain in a resumed provider session."
     : p.facts ? `${p.facts.total} facts were kept at selection time; ${p.facts.chosen.length} were selected automatically. ${p.facts.total - p.facts.chosen.length} were not selected for this background block; they may still be found with recall.`
@@ -76,9 +76,9 @@ function explain(p: RecallPayload, state: RecallState): { summary: string; detai
   if (p.facts?.chosen.length) lines.push("Selected fact IDs: " + p.facts.chosen.map((m) => `${m.id} (${m.via === "match" ? "matching words" : "recent"})`).join(", ") + ". These are historical IDs, not a claim they remain saved now.");
   lines.push(p.history.mode === "replay"
     ? `${p.history.suppliedMessages} earlier messages were supplied in this request; ${p.history.omittedMessages ?? 0} were outside this replay. The saved archive was not changed.`
-    : `An existing provider session also carried conversation context. ${p.history.suppliedMessages} additional earlier messages were supplied. ATOM cannot inspect that session's full retained or compacted contents.`);
+    : `An existing provider session also carried conversation context. ${p.history.suppliedMessages} additional earlier messages were supplied. ARK cannot inspect that session's full retained or compacted contents.`);
   for (const b of p.blocks) lines.push(`${names[b.source]}: ${b.selection === "full" ? "included" : b.selection === "fallback" ? "shortened for the context budget" : "omitted for the context budget"} (${b.retainedBytes}/${b.offeredBytes} UTF-8 bytes).`);
-  lines.push("This records request preparation at ATOM's model-adapter boundary, not proof the model read or used any item. Unlisted sources may not have been searched or observed; no absence or storage failure is inferred. Tool-driven recall and source searches are not traced here. Setup failures before context composition have no receipt. Permissions are checked separately.");
+  lines.push("This records request preparation at ARK's model-adapter boundary, not proof the model read or used any item. Unlisted sources may not have been searched or observed; no absence or storage failure is inferred. Tool-driven recall and source searches are not traced here. Setup failures before context composition have no receipt. Permissions are checked separately.");
   return { summary, details: lines.join("\n\n") };
 }
 

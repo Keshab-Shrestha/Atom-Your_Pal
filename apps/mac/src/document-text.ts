@@ -48,7 +48,7 @@ export function wordDocumentXML(zip: Buffer): Buffer {
 }
 
 function documentHelper(): string | undefined {
-  return ["../island/build/ATOM.app/Contents/MacOS/atom-documents", "../island/.build/release/AtomDocuments"]
+  return ["../island/build/ARK.app/Contents/MacOS/ark-documents", "../island/.build/release/ArkDocuments"]
     .map((path) => fileURLToPath(new URL(path, import.meta.url))).find(existsSync);
 }
 
@@ -57,7 +57,7 @@ export async function extractDocumentText(kind: "pdf" | "docx", input: Buffer, h
   if (input.length > MAX_DOCUMENT_BYTES) throw new Error("Document exceeds the extraction input budget.");
   const payload = kind === "docx" ? wordDocumentXML(input) : input;
   if (kind === "pdf" && !input.subarray(0, 5).equals(Buffer.from("%PDF-"))) throw new Error("Invalid PDF document.");
-  if (!helper) throw new DocumentReaderUnavailable("The PDF/Word reader is unavailable. Rebuild ATOM before importing documents.");
+  if (!helper) throw new DocumentReaderUnavailable("The PDF/Word reader is unavailable. Rebuild ARK before importing documents.");
   return new Promise((resolve, reject) => {
     const child = spawn(helper, [kind === "docx" ? "word-xml" : "pdf"], { stdio: ["pipe", "pipe", "pipe"] });
     const output: Buffer[] = [];

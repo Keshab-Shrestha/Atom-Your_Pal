@@ -1,16 +1,16 @@
-# T3 Code chat design in ATOM
+# T3 Code chat design in ARK
 
 The 19 October [theme and input polish](desktop-input-polish.md) supersedes the neutral-only palettes, Appearance shortcuts, Design system navigation and spacing described below. The original implementation/verification record follows.
 
 ADR-176 extends this chat-specific design across the main desktop shell; see [desktop design](desktop-t3-design.md). The observations below record the original ADR-175 batch.
 
-ADR-175, 2026-10-19. Keshab explicitly requested T3 Code's visuals because ATOM's chat still felt unusual after the compact-menu change. This step adapts the actual T3 chat components and default style tokens to SwiftUI. [Pinned sources, observations and MIT attribution](../reference/t3code-visual-design.md).
+ADR-175, 2026-10-19. Keshab explicitly requested T3 Code's visuals because ARK's chat still felt unusual after the compact-menu change. This step adapts the actual T3 chat components and default style tokens to SwiftUI. [Pinned sources, observations and MIT attribution](../reference/t3code-visual-design.md).
 
 The chat page uses a neutral light/dark canvas, a quiet sidebar, compact title/project breadcrumb and the existing Chat options/workspace controls. Its reading column is based on T3's 46rem width with 24pt gutters. User bubbles keep their natural width and cap at 80%, with 16pt corners, 12pt padding and no ornamental stroke. Plain and rich replies use readable 14pt system text; older messages keep the same contrast. Message menus reveal on hover or keyboard focus and remain visible with VoiceOver. Named copy/quote accessibility actions remain attached to the message groups.
 
 The composer is a rounded 24pt surface with a roomy multiline prompt above the current model, skills, attachment and send/voice controls. It shows the actual current model instead of an extra Model/Default pill. Normal keyboard help is no longer a permanent row; queued/sending state stays visible. Send and voice no longer glow. On an empty chat, the heading and the same composer form a centered start area. The composer remains outside the empty/nonempty conditional, preserving its view identity and bindings. Capability examples, brief cards, queues, held input, attachments, approval/question cards and feedback are retained.
 
-ATOM retains its branding, sidebar destinations, native menus and platform behavior. It does not import T3's server, access modes, providers or telemetry. The existing selected theme supplies the chat's light/dark choice; chat colors are deliberately neutral, while other pages retain their selected palette. No theme preference is rewritten. Shared native conversation typography/composer styling also applies where those components are reused.
+ARK retains its branding, sidebar destinations, native menus and platform behavior. It does not import T3's server, access modes, providers or telemetry. The existing selected theme supplies the chat's light/dark choice; chat colors are deliberately neutral, while other pages retain their selected palette. No theme preference is rewritten. Shared native conversation typography/composer styling also applies where those components are reused.
 
 No model/session/memory/protocol/permission or send policy changes. Existing text input callbacks, per-chat draft bindings, file validation, fork/brief gates and recovery behavior stay authoritative. Copy retains exact original payloads. Rich Markdown, code/table copying, checked file links, Find and workspace behavior remain available.
 
@@ -22,4 +22,4 @@ Live signed app: the original saved chat reopened Ready with its history intact.
 
 Verified the centered empty-chat start area live using New chat, without sending a message, then restored the original saved conversation, prior collapsed project state and empty composer. The app is left Ready with no active task or approval. No provider request or project-file edit was used for the walkthrough. Full physical IME composition, every keyboard-navigation preference, VoiceOver operation and pathological huge-input/window combinations are not live-certified.
 
-Evidence: `/tmp/atom-t3-chat-swift-polish.log`, `/tmp/atom-t3-chat-build-verified.log`, `/tmp/atom-t3-chat-gallery-polished.log`; reviewed gallery `/tmp/atom-t3-chat-gallery-polished`. The bundled upstream notice matches the retained source byte for byte. Existing unrelated Swift warnings remain; no error or new chat-component warning was reported. No TypeScript or backend code changed. This batch is local on main alongside the uncommitted ADR-174 cleanup; the last published commit remains 818b644.
+Evidence: `/tmp/ark-t3-chat-swift-polish.log`, `/tmp/ark-t3-chat-build-verified.log`, `/tmp/ark-t3-chat-gallery-polished.log`; reviewed gallery `/tmp/ark-t3-chat-gallery-polished`. The bundled upstream notice matches the retained source byte for byte. Existing unrelated Swift warnings remain; no error or new chat-component warning was reported. No TypeScript or backend code changed. This batch is local on main alongside the uncommitted ADR-174 cleanup; the last published commit remains 818b644.

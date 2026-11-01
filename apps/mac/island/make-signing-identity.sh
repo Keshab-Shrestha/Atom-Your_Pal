@@ -1,21 +1,21 @@
 #!/bin/sh
-# Creates "ATOM Local Signing", a self-signed code-signing certificate (ADR-040), in its own keychain.
+# Creates "ARK Local Signing", a self-signed code-signing certificate (ADR-040), in its own keychain.
 #
 #   apps/mac/island/make-signing-identity.sh
 #
 # macOS ties permissions (Input Monitoring, Accessibility, Microphone) to an app's signature. An ad hoc
 # signature changes with every build, so permissions would be asked for again after each rebuild. Signed
-# with this certificate, ATOM keeps them. Run once per Mac; build-app.sh uses it when it exists.
+# with this certificate, ARK keeps them. Run once per Mac; build-app.sh uses it when it exists.
 #
-# The certificate lives in ~/Library/Keychains/atom-signing.keychain-db, not the login keychain: in the
+# The certificate lives in ~/Library/Keychains/ark-signing.keychain-db, not the login keychain: in the
 # login keychain, codesign must be approved with your password on every build. This keychain's password
-# is random, kept in ~/.config/atom/signing-keychain-password (readable only by you), and unlocks only
-# this keychain. The certificate is trusted nowhere and is useful only for signing ATOM on this Mac.
+# is random, kept in ~/.config/ark/signing-keychain-password (readable only by you), and unlocks only
+# this keychain. The certificate is trusted nowhere and is useful only for signing ARK on this Mac.
 set -eu
 
-name="ATOM Local Signing"
-keychain="$HOME/Library/Keychains/atom-signing.keychain-db"
-secret_dir="$HOME/.config/atom"
+name="ARK Local Signing"
+keychain="$HOME/Library/Keychains/ark-signing.keychain-db"
+secret_dir="$HOME/.config/ark"
 secret="$secret_dir/signing-keychain-password"
 
 if [ -f "$keychain" ] && [ -f "$secret" ] && security find-certificate -c "$name" "$keychain" >/dev/null 2>&1; then

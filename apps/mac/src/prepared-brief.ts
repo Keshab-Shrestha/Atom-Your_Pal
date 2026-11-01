@@ -1,4 +1,4 @@
-import { checkedBriefPreparation, looksSecret, validChatBrief, type BriefPreparation, type PreparationSource } from "@atom/memory";
+import { checkedBriefPreparation, looksSecret, validChatBrief, type BriefPreparation, type PreparationSource } from "@ark/memory";
 import type { BriefData } from "./brief-gather.ts";
 import { cleanEditReply } from "./text-edit.ts";
 

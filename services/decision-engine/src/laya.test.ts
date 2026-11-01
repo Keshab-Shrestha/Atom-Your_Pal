@@ -73,8 +73,8 @@ test("readScore reads content[0].text and refuses errors and junk", () => {
   assert.throws(() => readScore(null));
 });
 
-test("the server path: ATOM_LAYA_SERVER wins, else ~/laya/.venv/bin/laya-mcp-server", () => {
-  assert.equal(layaServerPath({ ATOM_LAYA_SERVER: "/x/laya" }), "/x/laya");
+test("the server path: ARK_LAYA_SERVER wins, else ~/laya/.venv/bin/laya-mcp-server", () => {
+  assert.equal(layaServerPath({ ARK_LAYA_SERVER: "/x/laya" }), "/x/laya");
   assert.match(layaServerPath({}), /laya\/\.venv\/bin\/laya-mcp-server$/);
 });
 
@@ -143,14 +143,14 @@ test("a missing server falls back at once and is not tried again every job", asy
 });
 
 test("the real connect reports a missing program as LayaMissingError", async () => {
-  const engine = createLayaEngine({ env: { ATOM_LAYA_SERVER: "/nonexistent/laya-mcp-server" } });
+  const engine = createLayaEngine({ env: { ARK_LAYA_SERVER: "/nonexistent/laya-mcp-server" } });
   assert.deepEqual(await engine.chooseTier("a", "x"), { tier: "medium", source: "fallback" });
   await engine.close();
 });
 
-test("ATOM_LAYA=0 never starts Laya", async () => {
+test("ARK_LAYA=0 never starts Laya", async () => {
   const laya = fakeLaya();
-  const engine = createLayaEngine({ connect: laya.connect, env: { ATOM_LAYA: "0" } });
+  const engine = createLayaEngine({ connect: laya.connect, env: { ARK_LAYA: "0" } });
   assert.equal((await engine.chooseTier("a", "x")).source, "fallback");
   assert.equal(laya.starts(), 0);
 });
@@ -185,7 +185,7 @@ test("warm() starts the server ahead of the first job, so a slow start no longer
   assert.equal(laya.starts(), 1, "nothing starts after close");
 });
 
-// 2026-10-16 (review): `failures` never reset, so a second crash days after the first still turned Laya off until ATOM restarted.
+// 2026-10-16 (review): `failures` never reset, so a second crash days after the first still turned Laya off until ARK restarted.
 test("a crash after a long healthy session is a first failure again; two quick crashes still turn Laya off", async () => {
   const laya = fakeLaya();
   const engine = createLayaEngine({ connect: laya.connect, env: {}, stableMs: 30 });

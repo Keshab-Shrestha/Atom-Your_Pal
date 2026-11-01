@@ -1,10 +1,10 @@
 # T3 Code: git and source control
 
-> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ATOM status. Detailed observations below retain the earlier snapshot unless updated explicitly.
+> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ARK status. Detailed observations below retain the earlier snapshot unless updated explicitly.
 
 Source: https://github.com/pingdotgg/t3code (MIT licence). Read at commit `2fbd4318` (2026-10-17), in a shallow clone.
-All paths below are relative to the root of that clone, unless a path starts with `ATOM:`.
-ATOM paths start with `ATOM:` and are relative to this repository.
+All paths below are relative to the root of that clone, unless a path starts with `ARK:`.
+ARK paths start with `ARK:` and are relative to this repository.
 
 How to read this file:
 
@@ -237,32 +237,32 @@ Verified files: `apps/server/src/ws.ts`, `apps/server/src/git/GitWorkflowService
 | Status in the client | `packages/client-runtime/src/state/vcs.ts` |
 | User guide | `docs/user/source-control.md`, `docs/user/project-settings.md` |
 
-## 5. What ATOM has today, and the gap
+## 5. What ARK has today, and the gap
 
-### 5.1 ATOM today (verified)
+### 5.1 ARK today (verified)
 
-- Worktree per task: `ATOM:apps/mac/src/worktree.ts`, `prepareWorkdir(folder, taskId, worktrees)`. Branch `atom/task-<id>` (old `zeno/task-<id>` kept). Worktree path `<worktrees>/task-<id>`, outside the repository.
+- Worktree per task: `ARK:apps/mac/src/worktree.ts`, `prepareWorkdir(folder, taskId, worktrees)`. Branch `ark/task-<id>` (old `ark/task-<id>` kept). Worktree path `<worktrees>/task-<id>`, outside the repository.
 - It runs `git worktree add -b <branch> <tree>`. It gives no start point, so the branch starts at the current `HEAD` of the repository.
-- Commit: `commitWork` runs `git add -A`, then `git commit --no-verify` as "ATOM". The message is `ATOM task <id>`. It runs when the agent ends (`ATOM:apps/mac/src/native-safety.ts`, `agentEnded`).
+- Commit: `commitWork` runs `git add -A`, then `git commit --no-verify` as "ARK". The message is `ARK task <id>`. It runs when the agent ends (`ARK:apps/mac/src/native-safety.ts`, `agentEnded`).
 - Guard: `worktreeIntact` checks that `.git` in the worktree is still a file that points into the repository. Git runs with `core.hooksPath=/dev/null` and `core.fsmonitor=false`.
-- List: `ATOM:apps/mac/src/git-branches.ts`, `zenoBranches(repo)`. For each branch it shows commits since the base, changed files with counts, the remote address without credentials, and `pushed` = `no`, `yes` or `changed`. The base is `origin/HEAD`, else the current branch.
-- Diff: `branchDiff` gives `base...branch` as one text. Limit 200,000 characters. Only task branches (`BRANCH_PATTERN` in `ATOM:apps/mac/src/branch-prefix.ts`).
+- List: `ARK:apps/mac/src/git-branches.ts`, `arkBranches(repo)`. For each branch it shows commits since the base, changed files with counts, the remote address without credentials, and `pushed` = `no`, `yes` or `changed`. The base is `origin/HEAD`, else the current branch.
+- Diff: `branchDiff` gives `base...branch` as one text. Limit 200,000 characters. Only task branches (`BRANCH_PATTERN` in `ARK:apps/mac/src/branch-prefix.ts`).
 - Push: `pushBranch` runs `git push --no-verify origin refs/heads/<b>:refs/heads/<b>`. Never forced. No prompts (`GIT_TERMINAL_PROMPT=0`, `GIT_ASKPASS`, `SSH_ASKPASS` empty). Timeout 120 s. Error text goes through `cleanRemote` and is cut to 200 characters.
-- Wiring: `ATOM:apps/mac/src/island-wiring.ts`, `createIslandGit`. `allowedRepo` refuses a repository that is not in a granted folder. Commands `git.list`, `git.push`, `git.diff` are in `docs/island-protocol.md` (lines 279-281). `ATOM:apps/mac/src/island-commands.ts` checks `repo` is an absolute path and `branch` matches `BRANCH_COMMAND_PATTERN`.
-- UI: `ATOM:apps/mac/island/Sources/AtomIsland/DashboardView.swift` (`GitSection`, `GitBranchCard`, `DiffText`) and `HelpersGit.swift` (`GitBranch`, `canPush`). Push shows an alert with the commit count and the remote. `DiffText` shows 400 lines, colours added and removed lines.
-- Undo of file edits outside git: `ATOM:services/helpers/src/checkpoints.ts` (copies before the first edit, hash check, `force` for a changed file, 14-day sweep). Files inside the worktree are left to git (`checkpointBefore` in `folder-run.ts`).
+- Wiring: `ARK:apps/mac/src/island-wiring.ts`, `createIslandGit`. `allowedRepo` refuses a repository that is not in a granted folder. Commands `git.list`, `git.push`, `git.diff` are in `docs/island-protocol.md` (lines 279-281). `ARK:apps/mac/src/island-commands.ts` checks `repo` is an absolute path and `branch` matches `BRANCH_COMMAND_PATTERN`.
+- UI: `ARK:apps/mac/island/Sources/ArkIsland/DashboardView.swift` (`GitSection`, `GitBranchCard`, `DiffText`) and `HelpersGit.swift` (`GitBranch`, `canPush`). Push shows an alert with the commit count and the remote. `DiffText` shows 400 lines, colours added and removed lines.
+- Undo of file edits outside git: `ARK:services/helpers/src/checkpoints.ts` (copies before the first edit, hash check, `force` for a changed file, 14-day sweep). Files inside the worktree are left to git (`checkpointBefore` in `folder-run.ts`).
 - ADR-129 added a text diff engine in Swift (`TextDiff.hunks`). It diffs two texts, not git patches.
 
 ### 5.2 Gap against T3 Code
 
-| Area | T3 Code | ATOM |
+| Area | T3 Code | ARK |
 | --- | --- | --- |
 | Pull request | Create, open, status, checks, merge | None. The user opens the host by hand after the push |
 | Host detection | From the remote URL, six hosts | Only `origin` address shown. No host name |
 | Base branch | Chosen by the user, saved in git config | Not saved. Guessed at read time (`baseOf`) |
 | Ahead and behind | Counts for upstream and default branch | Commit count since base only. No "behind" |
 | Branch cleanup | Rules, protect dirty trees, remove worktree | None found (no `worktree remove` in `apps/mac/src`) |
-| Commit message | Model writes it from the patch, then it is sanitised | Fixed text `ATOM task <id>` |
+| Commit message | Model writes it from the patch, then it is sanitised | Fixed text `ARK task <id>` |
 | Per-file diff | Lazy per-file, old and new contents | One text for the whole branch |
 | Diff options | Split, wrap, hide whitespace, file tree | Unified text, first 400 lines |
 | Status refresh | Stream with fingerprint, 30 s remote poll | `git.list` when the Dashboard opens only |
@@ -271,21 +271,21 @@ Verified files: `apps/server/src/ws.ts`, `apps/server/src/git/GitWorkflowService
 
 Probable bug or gap (unverified at run time): `createIslandGit` lists only repositories found from `helpers.list()[].grants`. ADR-122 removed per-agent folders, and `prepareWorkdir` now uses `team.project.cwd`. A project folder that no helper has in its grants may never show on the Dashboard. A test would settle it.
 
-## 6. Ideas for ATOM, ranked
+## 6. Ideas for ARK, ranked
 
 Rules that apply to every idea: push only on the user's confirmed click, never by a worker or model, never forced, no secret in code or logs, no new heavy dependency.
 
-### 6.1 Safety checks from T3 Code that ATOM should copy
+### 6.1 Safety checks from T3 Code that ARK should copy
 
-1. `safe.bareRepository=explicit` on every git call (`explicitBareRepositoryEnv`). ATOM guards the worktree link, but the project folder itself can still hold a planted bare repository. Needs git 2.38 or newer; older git ignores it.
-2. `GIT_OPTIONAL_LOCKS=0` on read-only calls, so ATOM never blocks the user's own git.
-3. `--no-ext-diff --no-textconv` on `branchDiff` and `zenoBranches` (`diffCheckpoints` does it). Risk today is low because the sandbox cannot write `.git/config`. The change is cheap.
+1. `safe.bareRepository=explicit` on every git call (`explicitBareRepositoryEnv`). ARK guards the worktree link, but the project folder itself can still hold a planted bare repository. Needs git 2.38 or newer; older git ignores it.
+2. `GIT_OPTIONAL_LOCKS=0` on read-only calls, so ARK never blocks the user's own git.
+3. `--no-ext-diff --no-textconv` on `branchDiff` and `arkBranches` (`diffCheckpoints` does it). Risk today is low because the sandbox cannot write `.git/config`. The change is cheap.
 4. Add `GCM_INTERACTIVE=never` and `SSH_ASKPASS_REQUIRE=never` to the push environment, as `STATUS_UPSTREAM_REFRESH_ENV` does.
 5. Strip control characters from error text, as `transportSafeSourceControlErrorValue` does, and keep the length cap.
-6. Keep stderr out of structured errors. ATOM already cuts and cleans it. Add a `reason` tag (`authentication_failed`, `host_key_unverified`, `remote_unreachable`) so the card can give the fix in plain words.
-7. Restore only in an isolated worktree (`isCheckpointRestoreIsolated`). ATOM's worktree per task already isolates. Keep it if ATOM adds a "reset" action.
-8. Protect work before delete: T3 Code keeps worktrees with uncommitted changes (`worktreeKeepWhen`). Copy this for any ATOM cleanup.
-9. `refuseOptionLikeRefName` and `--`. ATOM covers this with `BRANCH_PATTERN`. Do not loosen the pattern (for example, to add a title slug) without the same checks.
+6. Keep stderr out of structured errors. ARK already cuts and cleans it. Add a `reason` tag (`authentication_failed`, `host_key_unverified`, `remote_unreachable`) so the card can give the fix in plain words.
+7. Restore only in an isolated worktree (`isCheckpointRestoreIsolated`). ARK's worktree per task already isolates. Keep it if ARK adds a "reset" action.
+8. Protect work before delete: T3 Code keeps worktrees with uncommitted changes (`worktreeKeepWhen`). Copy this for any ARK cleanup.
+9. `refuseOptionLikeRefName` and `--`. ARK covers this with `BRANCH_PATTERN`. Do not loosen the pattern (for example, to add a title slug) without the same checks.
 10. Treat generated text as data. Show it to the user before it leaves the Mac (ADR-123).
 
 ### 6.2 Ranked ideas
@@ -293,14 +293,14 @@ Rules that apply to every idea: push only on the user's confirmed click, never b
 **1. "Open pull request" button after a push (size S)**
 
 - What: a button on the branch card that opens the host's "compare" page in the browser.
-- Why: ATOM stops at the push. The user must find the page by hand. T3 Code makes the PR through the host API or the host program; ATOM needs no token for this.
+- Why: ARK stops at the push. The user must find the page by hand. T3 Code makes the PR through the host API or the host program; ARK needs no token for this.
 - Fit: the click only opens an address. No push, no credential, no API. Build the address in code from `cleanRemote(origin)` and a branch that matches `BRANCH_PATTERN`. Allow `https` only. Build it for known hosts only (GitHub, GitLab).
-- First step: add `hostOf(remote)` in `ATOM:apps/mac/src/git-branches.ts` with a test. Return `{ kind, compareUrl }` in the `git` event. Port: `detectSourceControlProviderFromGitRemoteUrl` (`packages/shared/src/git.ts`).
+- First step: add `hostOf(remote)` in `ARK:apps/mac/src/git-branches.ts` with a test. Return `{ kind, compareUrl }` in the `git` event. Port: `detectSourceControlProviderFromGitRemoteUrl` (`packages/shared/src/git.ts`).
 
 **2. Fix the branch list scope and refresh it (size S)**
 
 - What: list repositories from project folders as well as grants. Send a `git` event after `commitWork` returns true.
-- Why: see the gap in 5.2. T3 Code pushes status to the client (`VcsStatusBroadcaster`). ATOM refreshes only when the Dashboard opens.
+- Why: see the gap in 5.2. T3 Code pushes status to the client (`VcsStatusBroadcaster`). ARK refreshes only when the Dashboard opens.
 - Fit: read-only. The `allowedRepo` check must use the same list, so the rule stays "granted or project folder".
 - First step: write a test with a project folder and no grant. Then change `grantedRepos` in `island-wiring.ts`.
 
@@ -308,8 +308,8 @@ Rules that apply to every idea: push only on the user's confirmed click, never b
 
 - What: when `prepareWorkdir` makes the branch, store the base ref and its commit in the helpers store. Show "behind N" with `git rev-list --left-right --count <base>...<branch>`.
 - Why: today `baseOf` guesses at read time, so a diff can change when the user switches branch. T3 Code saves `gh-merge-base` and shows ahead and behind.
-- Fit: read-only git. Keep it in ATOM's store, not in the user's git config.
-- First step: add a `base` column for the task. Add the count to `ZenoBranch`. Show a warning badge in `GitBranchCard`.
+- Fit: read-only git. Keep it in ARK's store, not in the user's git config.
+- First step: add a `base` column for the task. Add the count to `ArkBranch`. Show a warning badge in `GitBranchCard`.
 
 **4. Hardening pack (size S)**
 
@@ -321,16 +321,16 @@ Rules that apply to every idea: push only on the user's confirmed click, never b
 **5. Discard a task branch on a confirmed click (size M)**
 
 - What: a "Discard…" button. It removes the worktree and deletes the branch.
-- Why: ATOM never removes worktrees, so they pile up (I found no removal code). T3 Code has `removeWorktree`, `deleteLocalBranch` and cleanup rules.
-- Fit: the user confirms. The card shows the commit count that would be lost and whether the branch is pushed. Refuse if the worktree has uncommitted changes. Run `git worktree remove` without `--force`. Delete with `-d`; use `-D` only after a second confirmation for an unpushed branch. Only `BRANCH_PATTERN` branches and only worktrees inside ATOM's `worktrees` folder (as `makeIsManagedWorktreePath` does).
+- Why: ARK never removes worktrees, so they pile up (I found no removal code). T3 Code has `removeWorktree`, `deleteLocalBranch` and cleanup rules.
+- Fit: the user confirms. The card shows the commit count that would be lost and whether the branch is pushed. Refuse if the worktree has uncommitted changes. Run `git worktree remove` without `--force`. Delete with `-d`; use `-D` only after a second confirmation for an unpushed branch. Only `BRANCH_PATTERN` branches and only worktrees inside ARK's `worktrees` folder (as `makeIsManagedWorktreePath` does).
 - First step: add `discardBranch(repo, branch)` with tests for dirty tree, unpushed branch and already-gone worktree (treat as success and `prune`).
 
 **6. Better commit message (size S, then M)**
 
 - What: S: use the task's report title as the subject. Clean it with the `sanitizeCommitMessage` rules (first line, no final dot, 72 characters). M: let a small model write it from the staged patch.
-- Why: `ATOM task 7` tells the reviewer nothing. T3 Code writes real messages.
+- Why: `ARK task 7` tells the reviewer nothing. T3 Code writes real messages.
 - Fit: the message is data. It goes only into a local commit. The user sees it on the branch card before any push. The S step uses no new model call (deterministic first).
-- First step: pass `helpers.report(job)?.title` into `commitWork` and sanitise it. Keep `ATOM task <id>` as the fallback.
+- First step: pass `helpers.report(job)?.title` into `commitWork` and sanitise it. Keep `ARK task <id>` as the fallback.
 
 **7. Per-file diff and diff options (size M)**
 
@@ -343,19 +343,19 @@ Rules that apply to every idea: push only on the user's confirmed click, never b
 
 - What: after a push, show the PR state and checks. Run `gh pr view <branch> --json state,statusCheckRollup,mergeable` with fixed arguments.
 - Why: it closes the loop (pushed, PR open, checks green, merged). T3 Code has `PullRequestChecksState` and `PullRequestMergeability`.
-- Fit: uses the user's own `gh` sign-in. ATOM never reads the token. T3 Code runs `gh auth token` and calls the API itself. ATOM should not copy that part. Run on click only, or poll no faster than every 2 minutes as T3 Code's watch does. Show nothing if `gh` is missing. PR titles and comments are data from other people (ADR-123).
+- Fit: uses the user's own `gh` sign-in. ARK never reads the token. T3 Code runs `gh auth token` and calls the API itself. ARK should not copy that part. Run on click only, or poll no faster than every 2 minutes as T3 Code's watch does. Show nothing if `gh` is missing. PR titles and comments are data from other people (ADR-123).
 - First step: write `prStatus(repo, branch)` with a timeout, an output limit and a JSON parser. Test it with a fake `gh`.
 
 **9. Local conflict preview (size S, not from T3 Code)**
 
 - What: run `git merge-tree --write-tree <base> <branch>` to learn whether the branch merges cleanly. Show "may conflict" on the card.
-- Why: T3 Code relies on the host's `mergeability`. ATOM has no host call, and this one needs no working tree.
+- Why: T3 Code relies on the host's `mergeability`. ARK has no host call, and this one needs no working tree.
 - Fit: read-only. Needs git 2.38 or newer. Unverified here: I did not run it.
 - First step: add `mergeCheck(repo, base, branch)` and a test with two branches that edit the same line.
 
 **10. Checkpoint refs for a task with several runs (size L, later)**
 
-- What: save a private ref (for example `refs/atom/checkpoints/<task>/<n>`) with a temporary index, as `captureCheckpoint` does.
+- What: save a private ref (for example `refs/ark/checkpoints/<task>/<n>`) with a temporary index, as `captureCheckpoint` does.
 - Why: it gives per-run diffs and "undo this run". Today one task makes one commit, so it is not needed yet.
 - Fit: private refs are not pushed (`git.push` names one branch). Do it when tasks resume across runs and the user asks for per-run review.
 - First step: none now. Keep the idea. Re-read `GitVcsDriver.ts` lines 793-1060 when needed.
@@ -363,16 +363,16 @@ Rules that apply to every idea: push only on the user's confirmed click, never b
 **11. Hand-off prompts: "Resolve conflicts", "Fix review findings" (size M, later)**
 
 - What: a button that starts an agent task in the same worktree with a fixed prompt.
-- Why: T3 Code does this instead of a conflict UI. It fits ATOM's agent model.
+- Why: T3 Code does this instead of a conflict UI. It fits ARK's agent model.
 - Fit: the user starts the task. The agent commits to the task branch and never pushes. Review comments are untrusted text (ADR-123).
 - First step: wait for idea 8.
 
-### 6.3 Not recommended for ATOM now
+### 6.3 Not recommended for ARK now
 
-- A provider interface for six hosts (`SourceControlDriver`). ATOM needs one link builder first. Add the interface when a second host needs API calls.
-- API tokens for hosts stored in ATOM. They add secrets to handle.
-- Model-written branch names. ATOM's push rule depends on the strict `atom/task-<id>` pattern.
-- Running repository hooks. T3 Code runs them and streams the output. ATOM disables them on purpose, because they would run outside the sandbox.
+- A provider interface for six hosts (`SourceControlDriver`). ARK needs one link builder first. Add the interface when a second host needs API calls.
+- API tokens for hosts stored in ARK. They add secrets to handle.
+- Model-written branch names. ARK's push rule depends on the strict `ark/task-<id>` pattern.
+- Running repository hooks. T3 Code runs them and streams the output. ARK disables them on purpose, because they would run outside the sandbox.
 - Auto-pull, auto-merge, stack merge, `--force-with-lease`. Each acts without a fresh click.
 - A watcher that wakes an agent on PR events (`watch_pull_request`). It lets text from others start work. Needs its own ADR.
 - Cherry-pick, rebase UI, stash. T3 Code has none of these either (not found).

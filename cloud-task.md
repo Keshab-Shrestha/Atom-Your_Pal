@@ -25,11 +25,11 @@ Phases N1 to N4 are done and on `main`.
 - N3: voice, Telegram, API, routines and webhook on the native engine.
 - N4: budgets, the plan limit and "Runs at once" are removed in both engines.
 
-The switch is `ATOM_ENGINE=native|legacy`. The default is `legacy`. The `nativeEngine` value in `apps/mac/src/runtime.ts` is the one place that reads it.
+The switch is `ARK_ENGINE=native|legacy`. The default is `legacy`. The `nativeEngine` value in `apps/mac/src/runtime.ts` is the one place that reads it.
 
 ## Steps
 
-1. Make `native` the default. Remove the `ATOM_ENGINE` switch, `nativeEngine`, its entry in `ENV_NAMES` (`packages/shared/src/env.ts`) and its lines in `.env.example`.
+1. Make `native` the default. Remove the `ARK_ENGINE` switch, `nativeEngine`, its entry in `ENV_NAMES` (`packages/shared/src/env.ts`) and its lines in `.env.example`.
 2. Delete the legacy code, after you move what native still uses:
    - `services/llm-gateway/src/providers/claude-plan.ts`. Move first: `scrubbedEnv`, `planGuard`, `classify`, `tokensOf`, `sourcesFilter`, `sdkToolsFor`, `promptFrom`, `listPlanModels`, `redact`. Put them in a new small file.
    - `sub-agents.ts` and `codex-job.ts` in the same folder.
@@ -45,7 +45,7 @@ The switch is `ATOM_ENGINE=native|legacy`. The default is `legacy`. The `nativeE
    - The webhook's legacy `startRoutine`.
    - `teamContext` (the legacy `standing` uses it).
 4. Delete the Codex fallback code. N4 left it unused: the `codexFallback` storage and command, the `codexJobs` set, `runCodexJob` and `codexReady`. Update `SECURITY.md`.
-5. Search at the end. These names must not appear in code: `runResearch`, `createCore`, `watchGoals`, `startJobRunner`, `ATOM_ENGINE`, `nativeEngine`, `runCodexJob`.
+5. Search at the end. These names must not appear in code: `runResearch`, `createCore`, `watchGoals`, `startJobRunner`, `ARK_ENGINE`, `nativeEngine`, `runCodexJob`.
 
 ## Keep
 

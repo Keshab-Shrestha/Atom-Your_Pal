@@ -7,7 +7,7 @@ import {join} from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {openHelperStore,workflowTaskContract,bindPlanWriteScopes,currentWriteScope,writeScopesOverlap,taskFileChecks,fileCheckManifest} from '../services/helpers/src/index.ts';
 import {captureVerificationWorkspace,verifyTaskFiles} from '../apps/mac/src/task-file-verification.ts';
-const dir=mkdtempSync(join(tmpdir(),'atom-omh-acceptance-')),file=join(dir,'helpers.db'),checks=[];
+const dir=mkdtempSync(join(tmpdir(),'ark-omh-acceptance-')),file=join(dir,'helpers.db'),checks=[];
 const pass=name=>{checks.push(name);console.log('PASS '+name)};
 let store;
 try {

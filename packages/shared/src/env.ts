@@ -1,16 +1,16 @@
-/** ADR-105: ATOM_<x> is the name; ZENO_<x> is the old name, still read when ATOM_<x> is not set. */
-const NAME_PREFIX = "ATOM_";
-const LEGACY_PREFIX = "ZENO_";
+/** ARK_<x> is the name (2026-11-01). The old names, ATOM_<x> (ADR-105) and ZENO_<x> before it, are still read when ARK_<x> is not set. */
+const NAME_PREFIX = "ARK_";
+const LEGACY_PREFIXES = ["ATOM_", "ZENO_"] as const;
 
-/** Every environment variable ATOM reads in TypeScript, by its ATOM_ name. The single list of names that have a ZENO_ fallback. */
+/** Every environment variable ARK reads in TypeScript, by its ARK_ name. The single list of names that have an ATOM_ and ZENO_ fallback. */
 export const ENV_NAMES = [
-  "ATOM_API_HOST", "ATOM_API_PORT", "ATOM_APPS", "ATOM_AUDIO_INPUT_DEVICE", "ATOM_AUDIO_SAMPLE_RATE", "ATOM_BROWSER_HEADLESS", "ATOM_BROWSER_PATH", "ATOM_CALENDAR", "ATOM_CALENDAR_HELPER",
-  "ATOM_CLAUDE_PATH", "ATOM_CODEX_PATH", "ATOM_COMPUTER", "ATOM_EPISODES", "ATOM_FRONT_WINDOW", "ATOM_GEMINI_PATH",
-  "ATOM_HELPERS_FILE", "ATOM_HOME", "ATOM_ISLAND_SETTINGS", "ATOM_LAYA", "ATOM_LAYA_SERVER", "ATOM_LIVE_TESTS",
-  "ATOM_LLM_MODEL", "ATOM_LLM_PROVIDER", "ATOM_LLM_TIMEOUT_MS", "ATOM_LOG_FILE", "ATOM_LOG_LEVEL", "ATOM_MEDIA",
-  "ATOM_MEMORY", "ATOM_MEMORY_FILE", "ATOM_NOTE_QUIET_MS", "ATOM_NOTES", "ATOM_OLLAMA_PATH", "ATOM_PAPERCLIP_COMPANY", "ATOM_PAPERCLIP_URL",
-  "ATOM_PREWARM", "ATOM_SESSION_IDLE_MS", "ATOM_SHORTCUTS", "ATOM_STT_LANGUAGE", "ATOM_STT_MODEL", "ATOM_STT_VOCABULARY", "ATOM_TELEGRAM_BOT_TOKEN",
-  "ATOM_TELEGRAM_CHAT_ID", "ATOM_TELEGRAM_USER_ID", "ATOM_THINKING", "ATOM_TTS_DTYPE", "ATOM_TTS_VOICE", "ATOM_VOICE_ONLY", "ATOM_WEATHER", "ATOM_WEB",
+  "ARK_API_HOST", "ARK_API_PORT", "ARK_APPS", "ARK_AUDIO_INPUT_DEVICE", "ARK_AUDIO_SAMPLE_RATE", "ARK_BROWSER_HEADLESS", "ARK_BROWSER_PATH", "ARK_CALENDAR", "ARK_CALENDAR_HELPER",
+  "ARK_CLAUDE_PATH", "ARK_CODEX_PATH", "ARK_COMPUTER", "ARK_EPISODES", "ARK_FRONT_WINDOW", "ARK_GEMINI_PATH",
+  "ARK_HELPERS_FILE", "ARK_HOME", "ARK_ISLAND_SETTINGS", "ARK_LAYA", "ARK_LAYA_SERVER", "ARK_LIVE_TESTS",
+  "ARK_LLM_MODEL", "ARK_LLM_PROVIDER", "ARK_LLM_TIMEOUT_MS", "ARK_LOG_FILE", "ARK_LOG_LEVEL", "ARK_MEDIA",
+  "ARK_MEMORY", "ARK_MEMORY_FILE", "ARK_NOTE_QUIET_MS", "ARK_NOTES", "ARK_OLLAMA_PATH", "ARK_PAPERCLIP_COMPANY", "ARK_PAPERCLIP_URL",
+  "ARK_PREWARM", "ARK_SESSION_IDLE_MS", "ARK_SHORTCUTS", "ARK_STT_LANGUAGE", "ARK_STT_MODEL", "ARK_STT_VOCABULARY", "ARK_TELEGRAM_BOT_TOKEN",
+  "ARK_TELEGRAM_CHAT_ID", "ARK_TELEGRAM_USER_ID", "ARK_THINKING", "ARK_TTS_DTYPE", "ARK_TTS_VOICE", "ARK_VOICE_ONLY", "ARK_WEATHER", "ARK_WEB",
 ] as const;
 
 export type EnvSource = Record<string, string | undefined>;
@@ -21,7 +21,7 @@ const warned = new Set<string>();
 function warnLegacy(legacyName: string): void {
   if (warned.has(legacyName)) return;
   warned.add(legacyName);
-  process.stderr.write(`${JSON.stringify({ level: "warn", event: "env.legacy_name", name: legacyName, use: legacyName.replace(LEGACY_PREFIX, NAME_PREFIX) })}\n`);
+  process.stderr.write(`${JSON.stringify({ level: "warn", event: "env.legacy_name", name: legacyName, use: NAME_PREFIX + legacyName.slice(legacyName.indexOf("_") + 1) })}\n`);
 }
 
 /** For tests: forget which names were already warned about. */
@@ -29,14 +29,17 @@ export function resetLegacyEnvWarnings(): void {
   warned.clear();
 }
 
-/** The value of `ATOM_<x>`, or else of `ZENO_<x>` (with a one-time warning naming it). Empty counts as unset. */
+/** The value of `ARK_<x>`, or else of `ATOM_<x>`, or else of `ZENO_<x>` (with a one-time warning naming it). Empty counts as unset. */
 export function readEnv(env: EnvSource, name: string, warn: (legacyName: string) => void = warnLegacy): string | undefined {
   const value = env[name];
   if (value) return value;
   if (!name.startsWith(NAME_PREFIX)) return value;
-  const legacyName = LEGACY_PREFIX + name.slice(NAME_PREFIX.length);
-  const old = env[legacyName];
-  if (!old) return value;
-  warn(legacyName);
-  return old;
+  for (const prefix of LEGACY_PREFIXES) {
+    const legacyName = prefix + name.slice(NAME_PREFIX.length);
+    const old = env[legacyName];
+    if (!old) continue;
+    warn(legacyName);
+    return old;
+  }
+  return value;
 }

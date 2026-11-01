@@ -1,4 +1,4 @@
-import type { Message, ZenoInput, ZenoResponse } from "@atom/contracts";
+import type { Message, ArkInput, ArkResponse } from "@ark/contracts";
 
 export class CoreError extends Error {
   constructor(message: string) {
@@ -20,7 +20,7 @@ export interface Core {
    * Receives one input, establishes context, routes it and returns the response.
    * Aborting `signal` cancels the request; a cancelled exchange is not added to history.
    */
-  handle(input: ZenoInput, signal?: AbortSignal, hooks?: HandleHooks): Promise<ZenoResponse>;
+  handle(input: ArkInput, signal?: AbortSignal, hooks?: HandleHooks): Promise<ArkResponse>;
   /** The current session's conversation, oldest first. */
   history(): readonly Message[];
   /** Forgets the conversation and starts a new session. */

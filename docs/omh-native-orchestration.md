@@ -1,14 +1,14 @@
-# OMH architecture within ATOM
+# OMH architecture within ARK
 
-26 October 2026. Keshab selected **ATOM-native integration** of OMH's architectural patterns, extending the existing app rather than bundling Hermes. The baseline is main `1b6cc685`; the local implementation is on `codex/oh-my-hermes-inquiry`. [Pinned source inquiry](oh-my-hermes-feature-inquiry.md).
+26 October 2026. Keshab selected **ARK-native integration** of OMH's architectural patterns, extending the existing app rather than bundling Hermes. The baseline is main `1b6cc685`; the local implementation is on `codex/oh-my-hermes-inquiry`. [Pinned source inquiry](oh-my-hermes-feature-inquiry.md).
 
-![ATOM architecture before and after](assets/atom-architecture-before-after.png)
+![ARK architecture before and after](assets/ark-architecture-before-after.png)
 
-[Editable SVG](assets/atom-architecture-before-after.svg) · [Actual acceptance results and remaining checks](omh-acceptance-2026-10-26.md)
+[Editable SVG](assets/ark-architecture-before-after.svg) · [Actual acceptance results and remaining checks](omh-acceptance-2026-10-26.md)
 
 ## Ownership and authority
 
-Existing chat owns conversation history, HelperStore owns plans/jobs in SQLite, Gateway owns provider access and checked tools own actions. Permissions, Stop, selected models and explicit Git handoff remain authoritative. There is no second daemon, autonomous repair loop or new permission source. A subsequent user-authorized [ATOM-owned skill catalog](omh-skill-library.md) adds 151 pinned OMH guidance entries without importing its runtime. A workflow contract describes expected work; it cannot approve an action or prove success.
+Existing chat owns conversation history, HelperStore owns plans/jobs in SQLite, Gateway owns provider access and checked tools own actions. Permissions, Stop, selected models and explicit Git handoff remain authoritative. There is no second daemon, autonomous repair loop or new permission source. A subsequent user-authorized [ARK-owned skill catalog](omh-skill-library.md) adds 151 pinned OMH guidance entries without importing its runtime. A workflow contract describes expected work; it cannot approve an action or prove success.
 
 Ordinary conversation remains direct. Eligible current requests can receive a small research/build/review guide, with explicit skills taking precedence. Workflow selection supplies guidance; it does not itself dispatch a worker or change providers.
 
@@ -32,7 +32,7 @@ Ordinary conversation remains direct. Eligible current requests can receive a sm
 
 A contract accepts only `schema`, `deliverable`, `scope`, `verify` and `stopWhen`. The canonical schema is `atom.workflow-task/v1`; every text field is nonempty and the generated metadata envelope is 6,000 UTF-8 bytes. These are generated-context limits, not user composer limits. Unknown fields/versions and incomplete contracts refuse admission.
 
-Eligible folder portions can separately declare up to six literal file predicates (`exists`, `contains`, `sha256`). ATOM pins the execution workspace before dispatch and checks policy, cancellation and workspace identity around readback. Symlinks, hard links, incomplete/binary/control text and unavailable workspaces fail closed. The complete UTF-8 reader is bounded to 32 KiB/1,000 lines. No shell, model judge, arbitrary expression or test runner is used by this collector. A worker report remains unchanged and distinct from host evidence.
+Eligible folder portions can separately declare up to six literal file predicates (`exists`, `contains`, `sha256`). ARK pins the execution workspace before dispatch and checks policy, cancellation and workspace identity around readback. Symlinks, hard links, incomplete/binary/control text and unavailable workspaces fail closed. The complete UTF-8 reader is bounded to 32 KiB/1,000 lines. No shell, model judge, arbitrary expression or test runner is used by this collector. A worker report remains unchanged and distinct from host evidence.
 
 For Claude isolated workspaces, actual SDK hook `cwd` must corroborate the captured workspace before a positive receipt is possible. A missing/mismatched observation stays unavailable. Real-provider acceptance of this path is still pending; the isolated collector check does not establish SDK behavior.
 

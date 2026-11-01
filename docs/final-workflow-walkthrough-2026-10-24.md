@@ -1,6 +1,6 @@
 # Final daily, developer and computer walkthrough
 
-Actual native-app acceptance on 24 October 2026 Japan time (23 October UTC in logs), following the [workflow fixes](workflow-fixes.md) and [recovery/speed checks](provider-recovery-and-latency-2026-10-24.md). Used the existing fictional Cedar fixtures. No production application code changed, build, Swift suite or general TypeScript suite ran, or commit/push occurred in this walkthrough. The only executed checks were the two fictional project tests, inside ATOM's coder and Terminal.
+Actual native-app acceptance on 24 October 2026 Japan time (23 October UTC in logs), following the [workflow fixes](workflow-fixes.md) and [recovery/speed checks](provider-recovery-and-latency-2026-10-24.md). Used the existing fictional Cedar fixtures. No production application code changed, build, Swift suite or general TypeScript suite ran, or commit/push occurred in this walkthrough. The only executed checks were the two fictional project tests, inside ARK's coder and Terminal.
 
 ## Daily chat: functional pass
 
@@ -12,7 +12,7 @@ Opened What this chat remembers. It showed 55 saved messages and the short expla
 
 Started a **new task 36** from the fictional Cedar Numbers baseline, explicitly requiring a fresh isolated task worktree, only a subtraction-to-addition fix in `fruit.mjs`, unchanged tests, an actual check, and **no commit, push, merge or original-project change**.
 
-The coder completed in about 9.75 seconds from its recorded start/end. Main-chat delegation and final task delivery are separate; the initial 10-second chat work duration is not the full workflow time. Its report accurately identified `data/worktrees/task-36`, branch `atom/task-36`, the actual one-line change and unstaged Git state.
+The coder completed in about 9.75 seconds from its recorded start/end. Main-chat delegation and final task delivery are separate; the initial 10-second chat work duration is not the full workflow time. Its report accurately identified `data/worktrees/task-36`, branch `ark/task-36`, the actual one-line change and unstaged Git state.
 
 Through Tasks from this chat → Review result → Show changes, the chat displayed:
 

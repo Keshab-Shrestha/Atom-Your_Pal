@@ -40,7 +40,7 @@ Deleting/pruning a saved chat removes its receipts through a trigger. Runtime de
 ## Validation
 
 - `pnpm typecheck` and `git diff --check`: pass.
-- Native release compilation with `swift build --build-system native -c release --product AtomIsland --package-path apps/mac/island`: pass, 66.68 seconds. Existing IslandSettings/main warnings remain. The initial default build-system attempt failed on SwiftTerm's optional Metal compiler; the repository's native build-system setting succeeded.
+- Native release compilation with `swift build --build-system native -c release --product ArkIsland --package-path apps/mac/island`: pass, 66.68 seconds. Existing IslandSettings/main warnings remain. The initial default build-system attempt failed on SwiftTerm's optional Metal compiler; the repository's native build-system setting succeeded.
 - Source review covered both chat paths, resume recovery, cancellation, same-chat UI/inspection, bounded retention and deletion.
 - No test suite, model call, benchmark, installation, running-app restart, commit or push. Live behavior remains pending the agreed end-stage verification.
 

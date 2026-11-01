@@ -1,10 +1,10 @@
-# Sentient-inspired ATOM upgrades
+# Sentient-inspired ARK upgrades
 
 **Forward plan, 22 October:** Keshab has requested release readiness and full Sentient parity beyond these initial seven groups. The [parity and release plan](sentient-parity-release-plan.md) now governs next steps, starting with the stale note-search bug and hosted visual failure. The historical implementation notes below remain evidence of the initial scope, not a claim of full parity.
 
 Keshab authorized this direction on 21 October 2026, following the [source inquiry](sentient-os-feature-inquiry.md). Improve existing equivalents before adding another system. Implement one capability at a time, as required by CLAUDE.md. Preserve full chat archives, drafts, per-chat settings and deterministic permission continuity.
 
-Remote models through ATOM's Gateway remain primary. A general local model is an optional fallback/backup, never a required installation or a silent change of provider. Do not repeat an uncertain external action on a backup model.
+Remote models through ARK's Gateway remain primary. A general local model is an optional fallback/backup, never a required installation or a silent change of provider. Do not repeat an uncertain external action on a backup model.
 
 **Combined validation update (22 October):** after all seven initial coding groups and Keshab's continuation, the automated gate passes: 1,205 TypeScript tests, 787 Swift tests, two isolated-provider smoke tests/eight actual responses, release build, 114 gallery scenes and 43 visual comparisons. [Results and remaining release acceptance](sentient-adoption-results.md) supersede the intermediate compiler-only status below. Native install/restart/workflow/device acceptance and controlled efficiency measurements remain; no full parity/release claim or push occurred.
 
@@ -36,9 +36,9 @@ Graph visuals, worker/team controls, local API/MCP, Telegram, projects, files, B
 
 The seven capabilities above group the inquiry's 33 features; a group is not a claim that all its stages have shipped.
 
-| Inquiry features | ATOM treatment |
+| Inquiry features | ARK treatment |
 | --- | --- |
-| 1–5, 8: notch/voice, screen handoff, app/browser control and continuing conversation/activity | Improve existing assistant entry points, current-chat routing and checked computer use. Preserve ATOM's multiple chats/projects; do not collapse them into a new single global conversation. |
+| 1–5, 8: notch/voice, screen handoff, app/browser control and continuing conversation/activity | Improve existing assistant entry points, current-chat routing and checked computer use. Preserve ARK's multiple chats/projects; do not collapse them into a new single global conversation. |
 | 6–7: compaction and editable standing memory | Sequence 4 extends replay/archive retrieval, explicit Chat brief and existing memory. Derived summaries are separate from editable standing facts and grants. |
 | 9–11: unsent reply, writing examples, independent drafting model | Sequence 3 extends Quick actions. Editable opt-in examples and a Gateway model choice can be scoped there; no second direct provider client or default sending. |
 | 12, 26–27: local reader, provider choices and all-local option | Existing primary model/reasoning choices remain. Sequence 7 adds optional backup capability; evaluate text/vision/tool support separately. A local reader is not evidence of a local computer agent. |
@@ -53,7 +53,7 @@ The seven capabilities above group the inquiry's 33 features; a group is not a c
 ## Decisions to bring to Keshab when the relevant capability is scoped
 
 - **Protected personal sources:** recommend explicit per-source opt-in, a preview and deletion controls. Ask before adding Mail/Messages databases, Full Disk Access or broad background screen collection; an ordinary selected-folder pilot does not require those.
-- **Native computer transport:** recommend keeping ATOM's checked wrapper while evaluating a different transport. Do not copy Sentient's competing-helper termination or approval-bypass behavior. Ask if a desired backend cannot preserve the current controls.
+- **Native computer transport:** recommend keeping ARK's checked wrapper while evaluating a different transport. Do not copy Sentient's competing-helper termination or approval-bypass behavior. Ask if a desired backend cannot preserve the current controls.
 - **Sleep/wake:** recommend ordinary app-running schedules first. Ask before installing a privileged wake helper or changing system power settings.
 - **Hosted memory or paid endpoints:** recommend local storage and existing signed-in Gateway providers first. Ask before cloud mirroring, new billing or raw writing-example uploads outside an explicitly requested draft.
 - **Implementation reuse:** independently implement the concepts. Sentient's AGPL/commercial source is not imported; direct source/assets reuse would need a separate licensing decision.
@@ -65,5 +65,5 @@ These are future decision boundaries, not requests to approve unspecified work n
 - `computer` gains an explicit `status` action that initializes the driver and checks its advertised methods without enumerating apps, reading windows, capturing screenshots or injecting input.
 - Report startup versus probe duration and reuse; distinguish transport availability from untested macOS permissions. Keep normal calls lazy and reuse the helper within its existing idle lifetime.
 - Instrument initialization, probe and actual driver-call durations without arguments, typed text or desktop content.
-- Timeout/cancellation/crash cannot silently retry an action. Retire only ATOM's owned helper, bound termination and require fresh observation before further input. Old session tokens cannot cross a restart.
+- Timeout/cancellation/crash cannot silently retry an action. Retire only ARK's owned helper, bound termination and require fresh observation before further input. Old session tokens cannot cross a restart.
 - Verify with controlled protocol/process fixtures and existing computer policy/screenshot/host bridge checks. No real desktop capture or model request is required for the content-free probe.

@@ -1,16 +1,16 @@
 # Speech-to-Text Benchmark
 
-Renamed ZENO -> ATOM on 2026-10-13. This file keeps the test words as written under the old name.
+The product was called ZENO, then ATOM (ADR-105, ADR-213). This file now uses the name ARK.
 
 Date: 2026-10-02. Machine: Mac mini (Apple Silicon), whisper.cpp via Homebrew `whisper-cli`, English.
 
 ## Method
 
-- 8 typical ATOM commands, including names and places (Kathmandu, Keshab, Rohan, Tokyo).
+- 8 typical ARK commands, including names and places (Kathmandu, Keshab, Rohan, Tokyo).
 - Spoken by 4 macOS voices (Aman, Daniel, Samantha, Rishi) at 190 words per minute.
 - Processed to match the Mac mini's default microphone: 16 kHz mono, peak about -16 dB, pink room noise, 120 Hz–6 kHz band.
 - Word error rate after normalizing punctuation and numbers ("seven thirty" = "7:30").
-- Vocabulary prompt: `Zeno, Keshab, Kathmandu, Nepali, Tokyo, TypeScript.`
+- Vocabulary prompt: `Ark, Keshab, Kathmandu, Nepali, Tokyo, TypeScript.`
 
 ## Results
 
@@ -27,7 +27,7 @@ Suppressing non-speech tokens (`-sns`) made no difference.
 
 ## Typical errors (base.en, no prompt)
 
-- "Hey Zeno" → "As you know"
+- "Hey Ark" → "As you know"
 - "Kathmandu" → "Cartman do", "Cartman"
 - "Keshab's" → "Keshev's"
 - "Rohan" → "Rowan" (all models)

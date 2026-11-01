@@ -1,11 +1,11 @@
 // Task 3.13, ADR-094: Tinker's runs. Each has no tools and answers in one structured shape: a review proposes one soul
-// change, a draft turns a task rated good into a skill, an edit improves one of ATOM's skills after a task that used it
+// change, a draft turns a task rated good into a skill, an edit improves one of ARK's skills after a task that used it
 // went badly. Whatever Tinker writes waits for Keshab's OK in the store; nothing here changes a soul or a skill.
 
-import { runReview, runSkillDraft, runSkillEdit, type ClaudeSdk, type PlanUsage, type TokenUsage } from "@atom/llm-gateway";
-import { reviewBrief, skillDraftBrief, skillEditBrief, chooseJobModel, instructionsFor, tieredModels, type HelperStore, type Job, type ReportInput, type TestKind } from "@atom/helpers";
-import { CLAUDE_PLAN, type Logger, type ProviderKeys } from "@atom/shared";
-import type { createLayaEngine } from "@atom/decision-engine";
+import { runReview, runSkillDraft, runSkillEdit, type ClaudeSdk, type PlanUsage, type TokenUsage } from "@ark/llm-gateway";
+import { reviewBrief, skillDraftBrief, skillEditBrief, chooseJobModel, instructionsFor, tieredModels, type HelperStore, type Job, type ReportInput, type TestKind } from "@ark/helpers";
+import { CLAUDE_PLAN, type Logger, type ProviderKeys } from "@ark/shared";
+import type { createLayaEngine } from "@ark/decision-engine";
 import type { ModelSettings } from "./model-settings.ts";
 
 export interface TinkerRun {
@@ -40,7 +40,7 @@ export async function runTinker({ store, job, run, count, test }: TinkerRun): Pr
   }
   if (job.reviewKind === "edit") {
     const target = store.skillEditTarget(job.id);
-    if (!target) throw new Error("The skill to improve is gone, or is not one of ATOM's own.");
+    if (!target) throw new Error("The skill to improve is gone, or is not one of ARK's own.");
     const { edit, costUsd, tokens } = await runSkillEdit({ ...run, task: skillEditBrief(target) });
     count(costUsd, tokens);
     if (!edit.change || !edit.body.trim() || edit.body.trim() === target.body.trim()) return report(`No change to the ${target.skill} skill`, edit.reason);

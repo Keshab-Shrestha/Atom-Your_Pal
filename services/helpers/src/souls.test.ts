@@ -72,9 +72,9 @@ test("cleanSoul refuses bad names, empty personality, long fields and missing te
   for (const [soul, why] of [
     [{ name: "" }, /letters only/],
     [{ name: "R2D2" }, /letters only/],
-    [{ name: "pal" }, /taken by ATOM/],
-    [{ name: "Atom" }, /taken by ATOM/],
-    [{ name: "Zeno" }, /taken by ATOM/],
+    [{ name: "pal" }, /taken by ARK/],
+    [{ name: "Ark" }, /taken by ARK/],
+    [{ name: "Ark" }, /taken by ARK/],
     [{ name: "penny" }, /already called/],
     [{ personality: "   " }, /personality is empty/],
     [{ lessons: 3 as unknown as string }, /"lessons" as text/],
@@ -94,7 +94,7 @@ test("only the newest versions are listed; every version is kept", () => {
 });
 
 test("souls survive a restart", () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-souls-"));
+  const dir = mkdtempSync(join(tmpdir(), "ark-souls-"));
   try {
     const path = join(dir, "helpers.db");
     const first = openHelperStore({ path });
@@ -111,7 +111,7 @@ test("souls survive a restart", () => {
 
 test("instructions carry the soul, then the role's fixed rules, which a soul edit cannot remove", () => {
   const text = instructionsFor(edited, "researcher");
-  assert.match(text, /^You are Sid, ATOM's researcher\./);
+  assert.match(text, /^You are Sid, ARK's researcher\./);
   assert.match(text, /Personality: Curious/);
   assert.match(text, /Lessons from earlier jobs: Give at least three sources\./);
   assert.doesNotMatch(instructionsFor(sid, "researcher"), /Lessons/, "an empty field is left out");

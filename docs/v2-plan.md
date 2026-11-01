@@ -1,10 +1,10 @@
-# ATOM v2 plan: a notch harness with swarm, company and learning-loop abilities
+# ARK v2 plan: a notch harness with swarm, company and learning-loop abilities
 
 Status: proposal (2026-10-14). Nothing here is built. Read `CLAUDE.md` first: one capability at a time.
 
 ## Goal
 
-ATOM lives in the notch and works like three projects at once:
+ARK lives in the notch and works like three projects at once:
 
 - **jcode** (Rust coding-agent harness): many agents on one daemon, agents that tell each other about file changes, cheap sessions, cache-miss warnings.
 - **Paperclip** (control plane for a company of agents): org chart, goals, tasks with locks, heartbeats, budgets, approvals, audit log.
@@ -12,9 +12,9 @@ ATOM lives in the notch and works like three projects at once:
 
 This table comes from each project's README only. Check the details before you build.
 
-## Where ATOM stands after N5
+## Where ARK stands after N5
 
-| Ability | ATOM now |
+| Ability | ARK now |
 | --- | --- |
 | One long-lived Claude Code session per chat, byte-stable prefix, 1 h cache | Built (ADR-110 N1) |
 | Sub-agents with a Board, kits, grants, plan-first, worktrees | Built (N2) |
@@ -31,7 +31,7 @@ Each row is one task with its own test. Order: top to bottom inside a column.
 
 ### From Hermes (learning loop and reach)
 
-1. **Session search for the main agent.** A tool that searches past chats (FTS) and returns short hits. ATOM has `chats.search`; expose it as an `atom` tool. Smallest first step.
+1. **Session search for the main agent.** A tool that searches past chats (FTS) and returns short hits. ARK has `chats.search`; expose it as an `ark` tool. Smallest first step.
 2. **Skill creation after a hard task, by the agent.** Tinker drafts skills after a good rating today. Add: the main agent proposes a skill at the end of a long task. Keshab still approves.
 3. **User model.** A short, editable profile that memory builds from many chats. Memory facts exist; the profile is new. Needs a privacy decision first.
 4. **More gateways.** One gateway interface; Telegram becomes the first adapter; then one more (Slack or Discord). Only after (1) to (3).
@@ -51,9 +51,9 @@ Each row is one task with its own test. Order: top to bottom inside a column.
 12. **Shared state between running agents.** When agent A edits a file agent B read, B gets a note. Needs file-change events from the hooks in `native-safety.ts`.
 13. **Peer messages.** Agents send a note to one peer or to all agents of a repo. The main agent routes them; no new daemon.
 14. **Cache-miss warning.** `session.open` already logs the prefix hash. Show a warning in the notch when the cache goes cold or the hash changes.
-15. **Grep with structure and context-aware truncation.** An `atom` tool for project chats. Measure token savings first.
+15. **Grep with structure and context-aware truncation.** An `ark` tool for project chats. Measure token savings first.
 16. **Cross-harness session resume.** Import a Claude Code or Codex session into a chat. Low priority.
-17. **Self-development mode.** ATOM edits its own repo in a worktree, runs `pnpm typecheck`, and asks Keshab to restart. High risk. SECURITY.md first.
+17. **Self-development mode.** ARK edits its own repo in a worktree, runs `pnpm typecheck`, and asks Keshab to restart. High risk. SECURITY.md first.
 
 ### The notch
 

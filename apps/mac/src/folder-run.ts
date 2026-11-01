@@ -4,9 +4,9 @@
 import { existsSync, mkdirSync, openSync, readSync, closeSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve, sep } from "node:path";
-import type { FilePermissionScope } from "@atom/memory";
+import type { FilePermissionScope } from "@ark/memory";
 import type { FileApproval } from "./computer-bridge.ts";
-import { DENY_READ_DIRS, WRITE_TOOLS, classifyCommand, expandHome, floorProblem, folderForTask, hasGitPart, isInside, isSecretLike, pathProblem, realish, toolPaths } from "@atom/helpers";
+import { DENY_READ_DIRS, WRITE_TOOLS, classifyCommand, expandHome, floorProblem, folderForTask, hasGitPart, isInside, isSecretLike, pathProblem, realish, toolPaths } from "@ark/helpers";
 
 /** Never readable by sandboxed commands: keys, tokens and other apps' secrets. */
 export function denyRead(home = homedir()): string[] {
@@ -145,7 +145,7 @@ export function folderCheck(options: FolderCheckOptions) {
       if (problem) return say(name, "refused"), problem;
       const target = realish(isAbsolute(p) ? p : resolve(options.cwd, p));
       if ((name === "Glob" || name === "Grep") && target === realish(home)) return say(name, "refused"), "Search inside a folder, not the whole home folder.";
-      // 2026-10-15 (security review): a folder that holds ATOM's own data (or any .env or key) let a folders agent read the API token and the databases.
+      // 2026-10-15 (security review): a folder that holds ARK's own data (or any .env or key) let a folders agent read the API token and the databases.
       if (isSecretLike(target, home) || isSecretLike(resolve(options.cwd, p), home)) return say(name, "refused"), "Secret files and key folders are never opened by an agent.";
       if (name === "Read" && holdsSecret(target)) return say(name, "refused"), "This file holds a secret (an API key, a token or a private key), so an agent does not read it. Say in the report that you skipped it.";
     }
@@ -200,8 +200,8 @@ export function checkpointBefore(options: { roots: string[]; tree?: string; keep
 export const FOLDER_WAIT_MS = 10 * 60_000;
 
 /**
- * ADR-090: a file worker with no folder asks on Pal's card for the one its task names (else ~/Documents/ATOM). Allowed:
- * ATOM makes the folder and grants it, and the worker's folders come back. Refused or no answer in `waitMs`: an error
+ * ADR-090: a file worker with no folder asks on Pal's card for the one its task names (else ~/Documents/ARK). Allowed:
+ * ARK makes the folder and grants it, and the worker's folders come back. Refused or no answer in `waitMs`: an error
  * that says which one happened.
  */
 export async function askForFolder(options: {
@@ -235,7 +235,7 @@ export async function askForFolder(options: {
       {
         // The folder is in the summary: the card and Telegram cut the reason short.
         summary: `${name} needs a folder to save files in: ${shown}`,
-        reason: `Let ${name} read, write, copy and edit files in ${shown}? ATOM makes the folder if it is missing. Change it on ${name}'s page.`,
+        reason: `Let ${name} read, write, copy and edit files in ${shown}? ARK makes the folder if it is missing. Change it on ${name}'s page.`,
         timeoutMs: waitMs + 5_000, // a backstop: the timer above decides and says so
       },
       options.signal ? AbortSignal.any([options.signal, timer.signal]) : timer.signal,

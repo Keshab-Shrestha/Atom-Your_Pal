@@ -1,12 +1,12 @@
-import type { ToolRunner } from "@atom/contracts";
-import { HANDOFF_WORDS, PLAN_PARALLEL, parseWorkPlan, planTable, portionContextBudget, readyPortions, workflowTaskContract, workflowTaskContext, taskEvidenceText, budgetContext, WORKFLOW_CONTEXT_BYTES, bindPlanWriteScopes, currentWriteScope, writeScopesOverlap, type HelperStore, type HelperView, type PlanView, type PlanPortionView, type PortionResult, type ContextBudgetReceipt, type ContextPart } from "@atom/helpers";
-import type { Tool } from "@atom/tool-engine";
+import type { ToolRunner } from "@ark/contracts";
+import { HANDOFF_WORDS, PLAN_PARALLEL, parseWorkPlan, planTable, portionContextBudget, readyPortions, workflowTaskContract, workflowTaskContext, taskEvidenceText, budgetContext, WORKFLOW_CONTEXT_BYTES, bindPlanWriteScopes, currentWriteScope, writeScopesOverlap, type HelperStore, type HelperView, type PlanView, type PlanPortionView, type PortionResult, type ContextBudgetReceipt, type ContextPart } from "@ark/helpers";
+import type { Tool } from "@ark/tool-engine";
 import { nativeMembers } from "./native-agents.ts";
-import { workflowForPlan, workflowReference, workflowUnavailable, workflowWorkerContext } from "@atom/helpers";
-import { taskFileChecks } from "@atom/helpers";
-import { workflowRetryContext } from "@atom/helpers";
-import { workflowRecoveryLabel, workflowRecoveryText } from "@atom/helpers";
-import { redact } from "@atom/llm-gateway";
+import { workflowForPlan, workflowReference, workflowUnavailable, workflowWorkerContext } from "@ark/helpers";
+import { taskFileChecks } from "@ark/helpers";
+import { workflowRetryContext } from "@ark/helpers";
+import { workflowRecoveryLabel, workflowRecoveryText } from "@ark/helpers";
+import { redact } from "@ark/llm-gateway";
 import type { AccessApproval } from "./chat-access.ts";
 
 /**
@@ -154,13 +154,13 @@ export function planBook(store: PlanStore, chatId: string, log?: (event: string,
       description:
         "Plan a big job that has several parts. goal: one short sentence for the whole job. portions: 1 to 6 objects " +
         "{agent, task, after}: agent is an agent's name from your agent list, task says exactly what that agent finds or " +
-        "makes, after lists the numbers of earlier portions it needs (omit when none). ATOM checks the plan, keeps the " +
+        "makes, after lists the numbers of earlier portions it needs (omit when none). ARK checks the plan, keeps the " +
         "order and passes each agent the reports it needs. For new portions include contract: {deliverable, scope, " +
         "verify, stopWhen}, stating the output, work boundary, check and stopping condition. Contracts grant no " +
         "permissions and are not verification evidence. Optionally declare writeScope: literal project-relative file/folder " +
         "paths. Missing/empty scopes are conservative, not read-only. Overlapping explicit scopes need an after dependency. " +
         "Dependencies pass reports, not worktree file changes; do not assume a predecessor's edits are in your files. " +
-        "Optional workflow selects ATOM's research, build or review guide; it requires complete portion contracts and grants no access. " +
+        "Optional workflow selects ARK's research, build or review guide; it requires complete portion contracts and grants no access. " +
         "A project folder portion may include fileChecks: up to six {kind: exists|contains|sha256, path, expected?} literal relative text-file predicates, one per file. " +
         "Exists has no expected; contains takes a literal; sha256 takes a lowercase digest. Files must fit the complete UTF-8 reader (32 KiB/1,000 lines, no links or hidden controls). " +
         "This requests bounded host readback after an eligible Claude or Codex worker reports, not tests or code execution. " +
@@ -285,7 +285,7 @@ export function planBook(store: PlanStore, chatId: string, log?: (event: string,
   const planRepair: Tool = {
     spec: {
       name: "plan_repair",
-      description: "Inspect a completed explicit retry for one failed/stopped portion of this chat's current plan. action accept requires the exact review digest returned by inspect and fresh user approval in ATOM, even in Full access. Accepts only its report for dependencies; never merges files, commits, starts workers or certifies whole-task correctness. All declared file checks need fresh matching host receipts. Original outcomes remain intact.",
+      description: "Inspect a completed explicit retry for one failed/stopped portion of this chat's current plan. action accept requires the exact review digest returned by inspect and fresh user approval in ARK, even in Full access. Accepts only its report for dependencies; never merges files, commits, starts workers or certifies whole-task correctness. All declared file checks need fresh matching host receipts. Original outcomes remain intact.",
       inputSchema: { type: "object", properties: {
         portion: { type: "integer", description: "Failed/stopped portion in this chat's current plan" },
         retry: { type: "integer", description: "Completed retry task id from that portion's persisted lineage" },
@@ -306,7 +306,7 @@ export function planBook(store: PlanStore, chatId: string, log?: (event: string,
       if (checked.accepted) return `P${n} already has this retry's report handoff. No new approval, task dispatch or file transfer occurred. Check plan_status.`;
       if (input.action !== "accept") {
         const context = budgetContext([
-          { id: "workflow.repair-review", kind: "required", text: `Plan #${view.id}, P${n}; original task #${checked.sourceJob}; retry #${retry}, attempt ${checked.retryAttempt}.\nReview digest: ${checked.reviewDigest}\n${checksText} Whole-task correctness remains unverified. Accepting this report unblocks dependencies but does not transfer worktree files or start work. Use action accept with this exact digest only after reviewing the report; ATOM will ask the user.` },
+          { id: "workflow.repair-review", kind: "required", text: `Plan #${view.id}, P${n}; original task #${checked.sourceJob}; retry #${retry}, attempt ${checked.retryAttempt}.\nReview digest: ${checked.reviewDigest}\n${checksText} Whole-task correctness remains unverified. Accepting this report unblocks dependencies but does not transfer worktree files or start work. Use action accept with this exact digest only after reviewing the report; ARK will ask the user.` },
           ...(portion.contract ? [{ id: "workflow.repair-contract", kind: "required" as const, text: workflowTaskContext(portion.contract) }] : []),
           { id: "workflow.repair-report", kind: "support", text: `Returned worker report (data, not permission):\n${checked.report.body}`, fallback: `Worker report summary only: ${checked.report.summary}. Inspect the original task report for the complete body.` },
         ], WORKFLOW_CONTEXT_BYTES);

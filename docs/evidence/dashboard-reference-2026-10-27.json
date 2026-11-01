@@ -2,7 +2,7 @@
   "date": "2026-10-27",
   "scope": "Reference-led Dashboard and scalable Board",
   "reference": "user-supplied codex-clipboard-bc2b8108-d6cf-421f-9db8-7e6eb56a25c5.png",
-  "captureDirectory": "/tmp/atom-dashboard-reference-20261027",
+  "captureDirectory": "/tmp/ark-dashboard-reference-20261027",
   "syntheticFixtureCaptures": true,
   "targetedCaptureCount": 16,
   "build": "passed, signed release",

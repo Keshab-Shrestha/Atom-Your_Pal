@@ -8,7 +8,7 @@ import { DatabaseSync } from "node:sqlite";
 import { CLOSED_WHILE_RUNNING, openHelperStore } from "./store.ts";
 
 test("an abrupt process exit preserves the last step and actual file changes, then recovers once without replay", () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-recovery-"));
+  const dir = mkdtempSync(join(tmpdir(), "ark-recovery-"));
   const path = join(dir, "helpers.db"), file = join(dir, "fictional.txt");
   try {
     const script = `import {openHelperStore} from ${JSON.stringify(resolve("services/helpers/src/store.ts"))}; import {writeFileSync} from 'node:fs'; const s=openHelperStore({path:${JSON.stringify(path)}}); const j=s.addNativeJob('kame','Finish the fictional draft',{chatId:'cedar'}); writeFileSync(${JSON.stringify(file)},'saved before interruption'); s.step(j.id,'Saved the draft; report not confirmed'); process.exit(17);`;
@@ -28,7 +28,7 @@ test("an abrupt process exit preserves the last step and actual file changes, th
 });
 
 test("an old schema migrates additively and preserves completed reports", () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-recovery-schema-"));
+  const dir = mkdtempSync(join(tmpdir(), "ark-recovery-schema-"));
   const path = join(dir, "old.db");
   try {
     const db = new DatabaseSync(path);
@@ -47,7 +47,7 @@ test("an old schema migrates additively and preserves completed reports", () => 
 });
 
 test("retry identity survives reopening, duplicate requests do not dispatch again, and only its worker can claim once", () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-retry-"));
+  const dir = mkdtempSync(join(tmpdir(), "ark-retry-"));
   const path = join(dir, "helpers.db");
   let store = openHelperStore({ path });
   try {

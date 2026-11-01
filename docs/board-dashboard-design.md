@@ -4,15 +4,15 @@
 
 Requested: visible agent creation, editing and availability controls on the Board, plus a clearer Board and Dashboard using the Impeccable workflow. The owner selected **Ready/Paused availability**, with task states continuing to follow actual Start/Stop/Retry outcomes.
 
-Mode: **Operate**. This is a code-led replacement of two page layouts inside ATOM's existing macOS visual identity, not a new global brand or illustration system. Native SF typography, SF Symbols, theme palettes, app text scaling, navigation rail, character art and office floor remain the visual authority. No image comp, concept-seed exercise, new display font, design hooks or detector was used.
+Mode: **Operate**. This is a code-led replacement of two page layouts inside ARK's existing macOS visual identity, not a new global brand or illustration system. Native SF typography, SF Symbols, theme palettes, app text scaling, navigation rail, character art and office floor remain the visual authority. No image comp, concept-seed exercise, new display font, design hooks or detector was used.
 
 - **THESIS:** make managing an agent and finding work needing attention immediate, while keeping accounting secondary.
-- **OWN-WORLD:** a quiet native Mac workspace, token-defined light/dark surfaces, hairline separators, ordinary menus/buttons, and ATOM's existing illustrated office. Preserve the current Theme/ChatAppearance/WorkspaceColors grounds rather than inventing a new palette.
+- **OWN-WORLD:** a quiet native Mac workspace, token-defined light/dark surfaces, hairline separators, ordinary menus/buttons, and ARK's existing illustrated office. Preserve the current Theme/ChatAppearance/WorkspaceColors grounds rather than inventing a new palette.
 - **STORY:** Board leads with team actions and agents; Dashboard leads with actionable work totals, then readable usage and deeper accounting.
 - **FIRST VIEWPORT:** Board exposes All agents and Add agent before the floor and editable roster. Dashboard exposes review/running/team links before usage and daily activity.
 - **FORM:** fluid content width; Board splits floor/roster at 840 points and stacks below; Dashboard uses three work links across the width and four usage columns when they fit, otherwise two. No decorative card grid, eyebrow or hero metric.
 
-Impeccable reference: `pbakaus/impeccable`, pinned to `0dd67516c6387706e7b7e7f47f1c715efe6947c6`. Its guidance was read from a temporary checkout, not installed globally or bundled into ATOM. The existing `design/atom-design-system/DESIGN.md` predates recent navigation changes; this task preserves its confirmed theme/type principles without claiming the old sidebar/680-point description still matches the app.
+Impeccable reference: `pbakaus/impeccable`, pinned to `0dd67516c6387706e7b7e7f47f1c715efe6947c6`. Its guidance was read from a temporary checkout, not installed globally or bundled into ARK. The existing `design/ark-design-system/DESIGN.md` predates recent navigation changes; this task preserves its confirmed theme/type principles without claiming the old sidebar/680-point description still matches the app.
 
 ## Implemented behavior
 
@@ -37,7 +37,7 @@ Deferred: automated regression suites, real provider-driven pause-during-work ac
 
 ## Reference-led activity layout refinement
 
-The owner corrected the first timeline-heavy direction with a supplied 398×230 dashboard image. Its structural authority is a slim metric strip above three aligned work areas: stacked trend charts on the left, a contribution-style activity grid and donut in the center, compact lists on the right. ATOM follows that composition with its existing native theme and real data; the tiny reference's domain-specific labels and values are not copied or invented.
+The owner corrected the first timeline-heavy direction with a supplied 398×230 dashboard image. Its structural authority is a slim metric strip above three aligned work areas: stacked trend charts on the left, a contribution-style activity grid and donut in the center, compact lists on the right. ARK follows that composition with its existing native theme and real data; the tiny reference's domain-specific labels and values are not copied or invented.
 
 Current direction supersedes the earlier Dashboard single-column FORM: six compact metrics; three columns above 1140 content points, two above 760, one below. Left: seven-day tokens, cached-input and recorded-call trends. Middle: dated local commit activity, a token-mix donut and four initial expandable task-branch summaries with explicit View all/Show fewer. Right: current brief, a compact archive with in-place expansion and View all, and reviewed prepared work. Recent turns and accounting remain in disclosures below. Charts show the seven samples actually recorded rather than fabricated high-frequency telemetry.
 

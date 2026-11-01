@@ -1,9 +1,9 @@
 # T3 Code: right panel, devices, connections and shell
 
-> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ATOM status. Detailed observations below retain the earlier snapshot unless updated explicitly.
+> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ARK status. Detailed observations below retain the earlier snapshot unless updated explicitly.
 
 Source: https://github.com/pingdotgg/t3code (MIT licence), shallow clone at commit `2fbd4318` (2026-10-17).
-All paths below are relative to that clone unless a path starts with `apps/mac` or names an ATOM file.
+All paths below are relative to that clone unless a path starts with `apps/mac` or names an ARK file.
 A claim marked "unverified" was not confirmed in the code. "Not found" means the search gave no result.
 
 ## Summary
@@ -12,7 +12,7 @@ A claim marked "unverified" was not confirmed in the code. "Not found" means the
 - The "Devices" tab shows an iOS Simulator or Android Emulator. Paired clients are listed in Settings → Connections.
 - "Open in ..." starts an editor from a fixed list of ids. It uses no shell.
 - A second device pairs with a one-time link or QR code. Tunnels: Tailscale, SSH, T3 Connect (cloud relay).
-- A tray icon was not found. ATOM has no right panel and no device list.
+- A tray icon was not found. ARK has no right panel and no device list.
 
 ---
 
@@ -98,7 +98,7 @@ A disabled action shows a hint in a tooltip (`SURFACE_UNAVAILABLE_HINTS` in `Rig
   - Device settings do not go through the hub's shell channel. A typed RPC `device.action` runs `simctl` and `adb` itself.
   - Agents get four tools only: list, open, screenshot, close. A setting "Agent device access" turns them off.
 - SSH device hosts let a remote Mac run the simulators (`SshDeviceHost.ts`).
-- ATOM fit: low. ATOM has no mobile work to test. Do not copy this tab.
+- ARK fit: low. ARK has no mobile work to test. Do not copy this tab.
 
 ### 1.7 Browser, Terminal and Pull request tabs
 
@@ -303,34 +303,34 @@ Package: `apps/mobile` (React Native with Expo, native modules, Expo Dev Client)
 
 ---
 
-## 7. What ATOM has today, and the gap
+## 7. What ARK has today, and the gap
 
-### 7.1 What ATOM has
+### 7.1 What ARK has
 
-| ATOM part | Facts (verified in the code) |
+| ARK part | Facts (verified in the code) |
 | --- | --- |
-| ATOM window | `apps/mac/island/Sources/AtomIsland/MainWindow.swift`. One `NSWindow`, 920 x 640, minimum 760 x 500. Frame saved as "AtomMain". The window gives ATOM a Dock icon and a small menu while open. |
+| ARK window | `apps/mac/island/Sources/ArkIsland/MainWindow.swift`. One `NSWindow`, 920 x 640, minimum 760 x 500. Frame saved as "ArkMain". The window gives ARK a Dock icon and a small menu while open. |
 | Layout | `HelpersView.swift`. Left `HelperSidebar` (224 pt, can hide, ADR-128). Top bar `WindowTopBar`. One main pane chosen by `WindowPage`: dashboard, chat, scheduled, agents, plugins, brain, settings. |
-| Sidebar order | `AtomIslandCore/SidebarLayout.swift`. The user can drag pages between a top and a bottom group. |
-| Settings pages | `AtomIslandCore/PanelPages.swift` (`SettingsPage`): What can I ask, Appearance, Design system, AI model, Shortcuts, Dictation, ATOM, Sounds, General. |
+| Sidebar order | `ArkIslandCore/SidebarLayout.swift`. The user can drag pages between a top and a bottom group. |
+| Settings pages | `ArkIslandCore/PanelPages.swift` (`SettingsPage`): What can I ask, Appearance, Design system, AI model, Shortcuts, Dictation, ARK, Sounds, General. |
 | Dashboard | `DashboardView.swift`. Token use by day, worker and model. Plan use. Daily brief. Git branches of the team's work (`GitBranchCard`). |
-| Git view | `AtomIslandCore/HelpersGit.swift`: `GitBranch`, `GitCommit`, `GitFile`. The Dashboard lets the user push a task branch. |
+| Git view | `ArkIslandCore/HelpersGit.swift`: `GitBranch`, `GitCommit`, `GitFile`. The Dashboard lets the user push a task branch. |
 | Edit review | `EditReviewView.swift` and `TextDiff` (ADR-129, ADR-133). Accept or deny each change. |
-| Projects | `ProjectsSection.swift`, `AtomIslandCore/Projects.swift` (ADR-107). A project is a named folder and its chats. A chat shows a `ProjectChip`. |
+| Projects | `ProjectsSection.swift`, `ArkIslandCore/Projects.swift` (ADR-107). A project is a named folder and its chats. A chat shows a `ProjectChip`. |
 | "Opens in" | `HelpersView.swift`, `AppPicker`. Each helper has an app that opens its reports. `apps/mac/src/open-in-app.ts` does it: a browser opens web sources as tabs, Notes gets a note, any other app gets a text file. It uses `open -a` with `execFile`, no shell. |
 | "@" mentions | ADR-126. A helper, a Second brain page, or a file. |
 | Search | ADR-130. One search over chats, tasks, reports, brain pages, facts, projects, agents, skills. Key ⌘F in the window. |
 | Local API | `apps/mac/src/api-server.ts` (ADR-098, 120, 121). Node `http`. Listens on `127.0.0.1` only (port 4790). One token in `data/api-token` (32 random bytes, hex, mode 0600). It is off until the user turns on Settings → General → Local API. |
-| API safety | Timing-safe token compare. Host check (`127.0.0.1`, `localhost`, one `ATOM_API_HOST` name). Ten wrong tokens lock the API for a minute. "Regenerate" makes a new token and kills all old ones. Body limit 64 KiB. Logs hold no bodies and no token. Plan and retry cards only (`API_ANSWERABLE_KINDS`). |
+| API safety | Timing-safe token compare. Host check (`127.0.0.1`, `localhost`, one `ARK_API_HOST` name). Ten wrong tokens lock the API for a minute. "Regenerate" makes a new token and kills all old ones. Body limit 64 KiB. Logs hold no bodies and no token. Plan and retry cards only (`API_ANSWERABLE_KINDS`). |
 | Phone page | `apps/mac/src/api-app-page.ts`, route `/app`. Served over `tailscale serve --bg 4790`. The page keeps the token in `localStorage`. How-to: `docs/mobile.md`. |
-| MCP server | `apps/mac/src/mcp-serve.ts`. Stdio server, thin client of the Local API. Tools: `atom_give_goal`, `atom_goal_status`, `atom_chat`, `atom_list_tasks`, `atom_task_report`, `atom_needs_you`, `atom_answer_need`. |
+| MCP server | `apps/mac/src/mcp-serve.ts`. Stdio server, thin client of the Local API. Tools: `ark_give_goal`, `ark_goal_status`, `ark_chat`, `ark_list_tasks`, `ark_task_report`, `ark_needs_you`, `ark_answer_need`. |
 | Telegram | `apps/mac/src/telegram-bot.ts`, `docs/telegram.md`. One configured chat. Needs you buttons, tasks, reports. |
-| Notifications | `Notifier.swift`. macOS notifications for team notices, approvals (only when ATOM is not in front) and the daily brief. Each kind can be turned off. A click opens the task. |
-| Menu | `MainWindow.mainMenu()`: ATOM (Quit), Edit (with Find), View (Hide/Show Sidebar ⌥⌘H), Go (Back ⌘[), Window. The mouse back button goes back (ADR-096). |
+| Notifications | `Notifier.swift`. macOS notifications for team notices, approvals (only when ARK is not in front) and the daily brief. Each kind can be turned off. A click opens the task. |
+| Menu | `MainWindow.mainMenu()`: ARK (Quit), Edit (with Find), View (Hide/Show Sidebar ⌥⌘H), Go (Back ⌘[), Window. The mouse back button goes back (ADR-096). |
 
 ### 7.2 The gap
 
-| T3 Code feature | ATOM today |
+| T3 Code feature | ARK today |
 | --- | --- |
 | Right panel with tabs | Not found. The window has no right pane. |
 | Files tab (tree, search, preview) | Not found. A file can be added with "@" in the chat box. |
@@ -346,33 +346,33 @@ Package: `apps/mobile` (React Native with Expo, native modules, Expo Dev Client)
 
 ---
 
-## 8. Ideas for ATOM, ranked
+## 8. Ideas for ARK, ranked
 
 Rules used: minimal change, one capability at a time, no new heavy dependency, least privilege, no secrets in code or logs, local API stays on `127.0.0.1`.
 Every idea needs an ADR before code, as the repository rules say.
 
-### Rank 1: A right panel in the ATOM window, with a Changes tab first (size M)
+### Rank 1: A right panel in the ARK window, with a Changes tab first (size M)
 
 - What: A pane on the right of the main pane. It has a tab strip. The first tab is "Changes" for the open chat's project. It shows the files the agent changed and a diff.
-- Why: T3 Code users like to see the work next to the chat. ATOM already has `TextDiff`, `EditReviewView` and `GitFile`. A pane makes them visible at the right time.
-- Fit: Good. Pure state goes in `AtomIslandCore` (a `RightPanelState` struct with open, width and tab). Views go in `AtomIsland`. No new dependency. It reads files only inside granted folders (ADR-122).
+- Why: T3 Code users like to see the work next to the chat. ARK already has `TextDiff`, `EditReviewView` and `GitFile`. A pane makes them visible at the right time.
+- Fit: Good. Pure state goes in `ArkIslandCore` (a `RightPanelState` struct with open, width and tab). Views go in `ArkIsland`. No new dependency. It reads files only inside granted folders (ADR-122).
 - First small step: Add `RightPanelState` with open, width (min 320 pt) and the active tab, plus unit tests. Add a toggle button in `WindowTopBar` and a menu item "Show Inspector" with ⌥⌘I (check for clashes first). Show an empty pane. Save open state and width in `IslandSettings`, as ADR-128 does for the sidebar.
-- Keep from T3: toggle key, saved width, a minimum width, the main pane keeps a minimum width, a sheet or hide at small window widths (ATOM minimum 760 pt).
+- Keep from T3: toggle key, saved width, a minimum width, the main pane keeps a minimum width, a sheet or hide at small window widths (ARK minimum 760 pt).
 - Leave out: tab drag, split terminals, maximize, floating windows.
 
 ### Rank 2: "Open in ..." for the project folder (size S)
 
 - What: A split button in the top bar of a project chat. The main part opens the project folder in the preferred app. The arrow lists installed apps. A "Reveal in Finder" item sits in the list.
-- Why: This is the most liked small control. ATOM has projects as folders (ADR-107) and already launches apps with `open -a` in `open-in-app.ts`.
+- Why: This is the most liked small control. ARK has projects as folders (ADR-107) and already launches apps with `open -a` in `open-in-app.ts`.
 - Fit: Good. Use `execFile("/usr/bin/open", ["-a", app, folder])`. No shell. The app name comes from a fixed list in code, like `BROWSERS`. The folder must be a registered project folder and not "missing". Failure shows words, as now.
-- First small step: In `open-in-app.ts`, add `EDITORS` (Cursor, Visual Studio Code, Zed, Xcode, Terminal, Finder) and a pure function `openFolderIn(app, folder, deps)` with tests. Detect an installed app by checking `/Applications/<name>.app` and `~/Applications/<name>.app` (T3 checks PATH commands; ATOM is a Mac app, so bundle checks fit better. Unverified on this Mac). Add the menu to `ProjectChip` or the top bar. Remember the last choice in `IslandSettings`.
+- First small step: In `open-in-app.ts`, add `EDITORS` (Cursor, Visual Studio Code, Zed, Xcode, Terminal, Finder) and a pure function `openFolderIn(app, folder, deps)` with tests. Detect an installed app by checking `/Applications/<name>.app` and `~/Applications/<name>.app` (T3 checks PATH commands; ARK is a Mac app, so bundle checks fit better. Unverified on this Mac). Add the menu to `ProjectChip` or the top bar. Remember the last choice in `IslandSettings`.
 - Safety from T3 to copy: the client sends an id, the runtime maps it to a command, an unknown id is an error, no silent fallback.
 
 ### Rank 3: A paired device list with one token per device (size M, needs a new ADR)
 
 - What: In Settings → General → Local API, show each paired phone: a name, status, last seen and a Revoke button. Each phone gets its own token.
 - Why: Today one token serves all phones. A lost phone forces "Regenerate", which cuts every device. ADR-121 listed per-device tokens as "left out on purpose until a second user". A second phone is enough reason to revisit it.
-- Fit: Good if scoped. Store only a hash of each token (ATOM already stores a digest in memory). Keep the 10-wrong-tokens lock. Keep ADR-120: plans and retries only. Log the device id, never the token.
+- Fit: Good if scoped. Store only a hash of each token (ARK already stores a digest in memory). Keep the 10-wrong-tokens lock. Keep ADR-120: plans and retries only. Log the device id, never the token.
 - First small step: Change `data/api-token` to a small JSON file of `{id, label, hash, createdAt, lastSeenAt}` with the old single token as the first device. Add `POST /v1/devices/revoke` only in the window (not through the API). Show a read-only list in Settings first. Add revoke second.
 - Open risk: Migration of the old file. Test that an old token still works once, then writes the new format.
 
@@ -385,16 +385,16 @@ Every idea needs an ADR before code, as the repository rules say.
 
 ### Rank 5: Tailscale helper in Settings (size S)
 
-- What: A "Phone" row that runs `tailscale status --json` and shows the Mac's `.ts.net` name, the exact command, and whether `ATOM_API_HOST` matches.
+- What: A "Phone" row that runs `tailscale status --json` and shows the Mac's `.ts.net` name, the exact command, and whether `ARK_API_HOST` matches.
 - Why: ADR-121 asks the user to find the name and edit `.env` by hand. T3 Code reads the same CLI output (`packages/tailscale/src/tailscale.ts`: `readTailscaleStatus`, `parseTailscaleStatus`).
-- Fit: Good. It is read-only. Use `execFile` with a timeout (T3 uses 1.5 s). Parse only the name field. Map errors to fixed labels (not logged and not shown raw, since stderr can hold keys). ATOM still never runs `tailscale serve` on its own, as ADR-121 says.
+- Fit: Good. It is read-only. Use `execFile` with a timeout (T3 uses 1.5 s). Parse only the name field. Map errors to fixed labels (not logged and not shown raw, since stderr can hold keys). ARK still never runs `tailscale serve` on its own, as ADR-121 says.
 - First small step: A pure parser for the status JSON with tests on sample output. Then the row.
 
 ### Rank 6: Files tab, read-only (size M)
 
 - What: A tab with a tree of the project folder, a search field, and a preview of text, Markdown and images. A row has "Add to chat", which inserts the "@" file mention (ADR-126).
-- Why: The user sees what the agent can see, and mentions a file with one click. T3 Code does this with drag. ATOM's "@" file mention already exists.
-- Fit: Fair. It reads files, so it must obey ADR-122 and ADR-123. Hide secret-like files (`isSecretLike` in `@atom/helpers`). Preview only. No edit. Limit the preview size. Do not follow symlinks out of the folder.
+- Why: The user sees what the agent can see, and mentions a file with one click. T3 Code does this with drag. ARK's "@" file mention already exists.
+- Fit: Fair. It reads files, so it must obey ADR-122 and ADR-123. Hide secret-like files (`isSecretLike` in `@ark/helpers`). Preview only. No edit. Limit the preview size. Do not follow symlinks out of the folder.
 - First small step: A runtime command `files.list` for one folder (names, sizes, kinds), with path checks and tests. Then a flat list view in the right panel. Add search and preview after.
 
 ### Rank 7: Open the Changes tab by itself after a turn (size S, needs rank 1)
@@ -406,35 +406,35 @@ Every idea needs an ADR before code, as the repository rules say.
 
 ### Rank 8: Dock badge for items that wait (size S)
 
-- What: The Dock icon shows the number of Needs you cards while the ATOM window is open. The badge clears when the window is in front.
+- What: The Dock icon shows the number of Needs you cards while the ARK window is open. The badge clears when the window is in front.
 - Why: T3 Code sets a badge count and clears it on focus (`notificationBadge.ts`). Notifier.swift has the data (`approval`, notices).
-- Fit: Good. `NSApp.dockTile.badgeLabel`. No new permission. The ATOM Dock icon exists only while the window is open (`MainWindowController.show`), so the badge works only then. Unverified: whether the menu-bar item could show the count instead.
+- Fit: Good. `NSApp.dockTile.badgeLabel`. No new permission. The ARK Dock icon exists only while the window is open (`MainWindowController.show`), so the badge works only then. Unverified: whether the menu-bar item could show the count instead.
 - First small step: A pure function `badgeText(count)` and one call from the place that updates Needs you.
 
 ### Ranks 9 and 10: lower value (size S each)
 
-- Reopen a closed view: a key (T3 uses `mod+shift+t`) brings back the last closed tab. ATOM has Back history (ADR-096). Low value before rank 1.
+- Reopen a closed view: a key (T3 uses `mod+shift+t`) brings back the last closed tab. ARK has Back history (ADR-096). Low value before rank 1.
 - Resource line in Settings: CPU and memory of the runtime from `process.cpuUsage()` and `process.memoryUsage()`, no new dependency. Do it only if users report slowness.
 
 ### Not recommended now
 
-- Device (simulator) tab. ATOM has no mobile app work.
+- Device (simulator) tab. ARK has no mobile app work.
 - T3 Connect style cloud relay and push alerts. They need accounts and a hosted service. ADR-121 defers them. Telegram already gives alerts.
 - Scopes per token. Revisit after rank 3.
 - Several routes with failover. One Mac and one Tailscale name are enough.
-- Browser, terminal and pull request tabs. They are large and ATOM has a computer tool and a task view already.
-- A tray menu. ATOM has the menu-bar item. Unverified what it shows.
+- Browser, terminal and pull request tabs. They are large and ARK has a computer tool and a task view already.
+- A tray menu. ARK has the menu-bar item. Unverified what it shows.
 
-### Sketch: the ATOM window with a right panel
+### Sketch: the ARK window with a right panel
 
 ```text
 +--------------------------------------------------------------------------------+
 | o o o  [<]  Chat: Fix login bug             [Open in v]  [Inspector]           |
 +-------------+------------------------------------------+-----------------------+
-| ATOM        |                                          | Changes | Files  [x]  |
+| ARK        |                                          | Changes | Files  [x]  |
 | Dashboard   |  You: why does login fail?               +-----------------------+
 | Board       |                                          | 3 files changed       |
-| Scheduled   |  ATOM: I found two causes...             |  M  src/login.ts  +8 -2|
+| Scheduled   |  ARK: I found two causes...             |  M  src/login.ts  +8 -2|
 | Second brain|                                          |  M  src/auth.ts   +3 -1|
 |             |                                          |  A  test/login.ts +40  |
 | Projects    |                                          |-----------------------|

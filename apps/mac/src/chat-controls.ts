@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import type { Message } from "@atom/contracts";
-import { validChatBrief, type ChatStore, type RecallView } from "@atom/memory";
+import type { Message } from "@ark/contracts";
+import { validChatBrief, type ChatStore, type RecallView } from "@ark/memory";
 import { CHAT_REPLAY_BYTES, chatContext, excerpt } from "./chat-history.ts";
 import type { ContinuityView } from "./chat-continuity.ts";
 
@@ -32,7 +32,7 @@ export interface ChatControlResponse {
   continuity?: ContinuityView;
   recall?: RecallView;
   info?: { messages: number; archiveBytes: number; replayBytes: number; replayBudget: number; omitted: number; lastUser?: number;
-    access?: { mode?: import("@atom/contracts").ChatAccessMode; provider: string; hostTools: boolean; project: boolean; fileGrants: number; computer: boolean; web: boolean } };
+    access?: { mode?: import("@ark/contracts").ChatAccessMode; provider: string; hostTools: boolean; project: boolean; fileGrants: number; computer: boolean; web: boolean } };
   page?: { messages: { seq: number; role: string; offset: number; text: string }[]; nextMessage?: number; nextOffset?: number };
   branch?: { id: string; kind: string; draft: string; created: boolean };
   metadata?: { pinned: boolean; archived: boolean; version: number; previousPinned: boolean; previousArchived: boolean };
@@ -48,7 +48,7 @@ export function parseChatControl(value: Record<string, unknown>): { command: Cha
   if (!actions.includes(action) || Object.keys(value).some((key) => ![...common, ...extra].includes(key))
       || typeof value.id !== "string" || !/^[\w-]{1,100}$/.test(value.id)
       || typeof value.request !== "string" || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value.request)) return { error: "chat.control needs a saved chat, a known action and a request UUID." };
-  if (action === "page" && (!integer("message", 1) || !integer("offset", 0) || (value.revision !== undefined && !revision()))) return { error: "Use the history cursor and revision returned by ATOM." };
+  if (action === "page" && (!integer("message", 1) || !integer("offset", 0) || (value.revision !== undefined && !revision()))) return { error: "Use the history cursor and revision returned by ARK." };
   if (action === "brief" && (!validChatBrief(value.text) || !integer("version", 0) || value.version === 2_000_000_000)) return { error: "A chat brief needs the current version and text without hidden controls." };
   if (action === "continuity" && (typeof value.enabled !== "boolean" || !integer("version", 0) || value.version === 2_000_000_000)) return { error: "Automatic summaries need a boolean and the current version." };
   if (action === "flags" && (!integer("version", 0) || (value.pinned === undefined && value.archived === undefined)

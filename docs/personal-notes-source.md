@@ -13,8 +13,8 @@ One connected folder is stored locally across restarts. Refresh explicitly reads
 Sources displays its canonical folder, last checked time, imported/corrected/conflicting/missing/excluded counts and skipped entries. Each note shows its original relative path, scan time and state:
 
 - **Current:** matches the last imported source version; freshness means the last explicit scan, not a live filesystem watch.
-- **Corrected:** the saved ATOM copy changed locally while the file is unchanged. Refresh preserves the correction.
-- **Conflict:** both the file and ATOM copy changed. Refresh preserves the correction; the user can explicitly choose Use file version after confirmation. Unsaved editor text must first be saved or discarded. Source title/body are used for that replacement, with collision-safe titles.
+- **Corrected:** the saved ARK copy changed locally while the file is unchanged. Refresh preserves the correction.
+- **Conflict:** both the file and ARK copy changed. Refresh preserves the correction; the user can explicitly choose Use file version after confirmation. Unsaved editor text must first be saved or discarded. Source title/body are used for that replacement, with collision-safe titles.
 - **Missing:** the file was absent or skipped on the latest successful full scan. Its last copy is kept and labeled; model retrieval warns about stale/conflicting copies.
 
 Deleting an imported note excludes that path from later refreshes while the folder stays connected. Remove source explicitly confirms removal of all imported copies, including saved local corrections; original files, unrelated notes, chats and permissions remain untouched. Existing incoming wikilinks can retain a title as an empty ghost, as with ordinary note deletion. Removal is not secure erasure of SQLite backups, already attached/sent content or model conversations. Reconnecting starts a new source and clears its old exclusions.

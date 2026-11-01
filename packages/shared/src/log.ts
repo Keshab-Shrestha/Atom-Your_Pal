@@ -26,7 +26,7 @@ export interface LoggerOptions {
  * Structured log: one JSON object per line, for looking at what happened after the fact.
  * Callers log what happened (events, timings, error kinds), not what was said: SECURITY.md asks
  * for sensitive content to be minimized in logs, so transcripts and replies are never passed in.
- * Logging must never break ATOM, so write failures are reported once and then ignored.
+ * Logging must never break ARK, so write failures are reported once and then ignored.
  */
 export function createLogger(options: LoggerOptions): Logger {
   const { level, file, now = () => new Date() } = options;
@@ -52,7 +52,7 @@ export function createLogger(options: LoggerOptions): Logger {
   return { debug: log("debug"), info: log("info"), warn: log("warn"), error: log("error") };
 }
 
-/** ADR-105: the log was `logs/zeno.log`. Once, at start: rename it to the new name when the new file is not there yet. */
+/** ADR-105: the log was `logs/ark.log`. Once, at start: rename it to the new name when the new file is not there yet. */
 export function migrateLegacyLog(file: string, legacyFile: string): void {
   if (file === legacyFile || existsSync(file) || !existsSync(legacyFile)) return;
   try {

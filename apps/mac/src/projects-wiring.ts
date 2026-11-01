@@ -1,8 +1,8 @@
 import { homedir } from "node:os";
-import { checkGrant, HelperError, type HelperStore } from "@atom/helpers";
-import type { Message, ProjectFiles } from "@atom/contracts";
-import { cleanProjectName, MAX_PROJECTS, ProjectError, type ChatSummary, type MemoryStore, type Project } from "@atom/memory";
-import type { Logger } from "@atom/shared";
+import { checkGrant, HelperError, type HelperStore } from "@ark/helpers";
+import type { Message, ProjectFiles } from "@ark/contracts";
+import { cleanProjectName, MAX_PROJECTS, ProjectError, type ChatSummary, type MemoryStore, type Project } from "@ark/memory";
+import type { Logger } from "@ark/shared";
 import { createProjectSource } from "./project-sources.ts";
 import { projectReadCheck } from "./folder-run.ts";
 import type { IslandProjects, ProjectResult } from "./island.ts";

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { openHelperStore } from "@atom/helpers";
+import { openHelperStore } from "@ark/helpers";
 import { startTinkerRunner } from "./tinker-runner.ts";
 
 // ADR-110 N5: the small runner for Tinker's queued tasks, on a real in-memory store.

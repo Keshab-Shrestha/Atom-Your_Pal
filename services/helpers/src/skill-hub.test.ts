@@ -14,8 +14,8 @@ const file = (name = "compare-things", t = text(), sha = SHA) => ({ repo: "anthr
 const kinds = (t: string) => reviewFlags(t).map((f) => f.kind);
 
 function setup() {
-  const home = mkdtempSync(join(tmpdir(), "atom-home-"));
-  const skillsDir = mkdtempSync(join(tmpdir(), "atom-skills-"));
+  const home = mkdtempSync(join(tmpdir(), "ark-home-"));
+  const skillsDir = mkdtempSync(join(tmpdir(), "ark-skills-"));
   const store = openHelperStore({ path: ":memory:", home, skillsDir });
   const changes: HelperChange[] = [];
   store.onChange((c) => changes.push(c));
@@ -86,7 +86,7 @@ test("preview stores a waiting row and writes nothing; approve writes the skill 
   assert.throws(() => store.approveSkillHub(p.id), /No skill from the hub waits/);
 });
 
-test("approve refuses a name Keshab or ATOM has, and a hub skill is not ATOM's own (Tinker never edits it)", () => {
+test("approve refuses a name Keshab or ARK has, and a hub skill is not ARK's own (Tinker never edits it)", () => {
   const { store, home, skillsDir, installed } = setup();
   mkdirSync(join(home, ".claude", "skills", "mine"), { recursive: true });
   writeFileSync(join(home, ".claude", "skills", "mine", "SKILL.md"), "x");
@@ -96,7 +96,7 @@ test("approve refuses a name Keshab or ATOM has, and a hub skill is not ATOM's o
   mkdirSync(join(skillsDir, "zenos"), { recursive: true });
   writeFileSync(join(skillsDir, "zenos", "SKILL.md"), "x");
   const zenos = store.previewSkillHub(file("zenos"));
-  assert.throws(() => store.approveSkillHub(zenos.id), /ATOM already has a skill called "zenos"/);
+  assert.throws(() => store.approveSkillHub(zenos.id), /ARK already has a skill called "zenos"/);
   assert.equal(readFileSync(join(skillsDir, "zenos", "SKILL.md"), "utf8"), "x");
   installed("from-hub");
   assert.throws(() => store.previewSkillHub(file("from-hub")), /installed from the hub already/);
@@ -110,10 +110,10 @@ test("approve refuses a name Keshab or ATOM has, and a hub skill is not ATOM's o
 test("names and paths that are not one plain folder are refused", () => {
   const { store, skillsDir } = setup();
   for (const path of ["skills/../SKILL.md", "../x/SKILL.md", "skills/a/b/SKILL.md", "a\\b/SKILL.md", "skills/A_B/SKILL.md", "skills/a/OTHER.md", "skills/x/SKILL.md", "/abs/SKILL.md"]) {
-    assert.throws(() => store.previewSkillHub({ ...file(), path }), /not a skill ATOM can take/, path);
+    assert.throws(() => store.previewSkillHub({ ...file(), path }), /not a skill ARK can take/, path);
   }
-  assert.throws(() => store.previewSkillHub({ ...file(), sha: "short" }), /not a skill ATOM can take/);
-  assert.throws(() => store.previewSkillHub({ ...file(), repo: "a/b/c" }), /not a skill ATOM can take/);
+  assert.throws(() => store.previewSkillHub({ ...file(), sha: "short" }), /not a skill ARK can take/);
+  assert.throws(() => store.previewSkillHub({ ...file(), repo: "a/b/c" }), /not a skill ARK can take/);
   assert.deepEqual(store.skillHubPending(), []);
   assert.equal(existsSync(join(skillsDir, "x")), false);
 });

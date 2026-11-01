@@ -1,6 +1,6 @@
 # Reopen the last saved chat
 
-ATOM now returns to the saved writable chat you last had open. Its conversation, project/model choice, saved brief, existing file permissions and locally saved draft remain associated with that same chat. Open a saved chat once after this update to establish the choice. No newest-chat guess is made for an installation that has no recorded selection.
+ARK now returns to the saved writable chat you last had open. Its conversation, project/model choice, saved brief, existing file permissions and locally saved draft remain associated with that same chat. Open a saved chat once after this update to establish the choice. No newest-chat guess is made for an installation that has no recorded selection.
 
 **New chat** is an explicit fresh start: quitting before its first saved exchange will reopen fresh, rather than revive the previous conversation. Once a new chat's first exchange is saved, it becomes the remembered selection automatically. Unsaved new-chat drafts remain in the existing held-input recovery flow; they do not turn an unsaved session into a saved conversation.
 
@@ -8,7 +8,7 @@ ATOM now returns to the saved writable chat you last had open. Its conversation,
 
 The existing memory database stores one window-selection identifier. Only island/window mode uses it; terminal, Telegram, API and routine cores keep their existing startup behavior. Background exchanges do not select their chats on the window's behalf.
 
-At runtime construction, before command listeners and voice requests can run, ATOM validates the saved chat's metadata and project availability and resumes its existing replay. Transcript selection uses the same replay path as manually opening the chat. Native tools still check the project's actual folder/access on use.
+At runtime construction, before command listeners and voice requests can run, ARK validates the saved chat's metadata and project availability and resumes its existing replay. Transcript selection uses the same replay path as manually opening the chat. Native tools still check the project's actual folder/access on use.
 
 After voice warm-up, the runtime sends Ready and the current conversation/list through existing protocol events. It takes the current selection at that moment, so a manual New chat or other choice made during warm-up cannot be overwritten by late startup history. When idle and a fresh start is appropriate, an empty conversation snapshot also clears the previous runtime's displayed history.
 

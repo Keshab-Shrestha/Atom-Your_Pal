@@ -35,7 +35,7 @@ test("explicit computer warm-up is local fictional input, deduplicated, and resp
   const requests: unknown[] = [];
   let starts = 0;
   const connect = async () => { starts++; return { predict: async (state: unknown) => { requests.push(state); return {}; }, close: async () => {} }; };
-  const disabled = createLayaEngine({ env: { ATOM_LAYA: "0" }, connect });
+  const disabled = createLayaEngine({ env: { ARK_LAYA: "0" }, connect });
   disabled.warmComputer!(); await disabled.close(); assert.equal(starts, 0);
   const ready = createLayaEngine({ connect });
   ready.warmComputer!(); ready.warmComputer!();

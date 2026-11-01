@@ -1,14 +1,14 @@
-// ADR-093: ATOM's chat on another subscription tool Keshab has signed in to on this Mac, through its own program run
+// ADR-093: ARK's chat on another subscription tool Keshab has signed in to on this Mac, through its own program run
 // headless and read-only: Codex (`codex exec`, on his ChatGPT plan) or the Gemini CLI (`gemini -p`, on his Google
-// sign-in). Chat only: these programs get no ATOM tools (the Core's tools and the team stay on Claude). API keys are
-// taken out of their environment, so they always run on the sign-in, never as billed API use. ATOM never reads their
+// sign-in). Chat only: these programs get no ARK tools (the Core's tools and the team stay on Claude). API keys are
+// taken out of their environment, so they always run on the sign-in, never as billed API use. ARK never reads their
 // login files.
 
 import { execFile } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ModelRequest } from "@atom/contracts";
+import type { ModelRequest } from "@ark/contracts";
 import { ProviderError, systemText, type ProviderAdapter } from "../gateway.ts";
 
 export const CLI_TIMEOUT_MS = 120_000;
@@ -46,8 +46,8 @@ export function promptText(request: ModelRequest): string {
 }
 
 /** What a failed run means, in words for Keshab. Never the program's full output. */
-/** ADR-107: a project chat needs file tools, which only Claude Code runs under ATOM's checks. */
-export const PROJECTS_NEED_CLAUDE = "This text-only adapter cannot read project files. Pick Claude or Codex in ATOM's chat to use its checked file tools.";
+/** ADR-107: a project chat needs file tools, which only Claude Code runs under ARK's checks. */
+export const PROJECTS_NEED_CLAUDE = "This text-only adapter cannot read project files. Pick Claude or Codex in ARK's chat to use its checked file tools.";
 
 export function failure(tool: string, signIn: string, error: unknown, signal: AbortSignal): ProviderError {
   if (signal.aborted) return new ProviderError("cancelled", `${tool} was stopped.`);
@@ -78,7 +78,7 @@ export function createCodexAdapter(options: CliToolOptions): ProviderAdapter {
     name: "codex",
     async complete(request, signal) {
       if (request.files) throw new ProviderError("bad_request", PROJECTS_NEED_CLAUDE);
-      const dir = mkdtempSync(join(tmpdir(), "atom-codex-"));
+      const dir = mkdtempSync(join(tmpdir(), "ark-codex-"));
       const out = join(dir, "reply.txt");
       try {
         const args = ["exec", "--sandbox", "read-only", "--skip-git-repo-check", "--ephemeral", "--output-last-message", out];
@@ -113,7 +113,7 @@ export function createGeminiCliAdapter(options: CliToolOptions): ProviderAdapter
     async complete(request, signal) {
       if (request.access && request.access !== "checked") throw new ProviderError("bad_request", "The Gemini CLI cannot enforce this chat access mode. Choose Claude or Codex, or return to Saved permissions.");
       if (request.files) throw new ProviderError("bad_request", PROJECTS_NEED_CLAUDE);
-      const dir = mkdtempSync(join(tmpdir(), "atom-gemini-"));
+      const dir = mkdtempSync(join(tmpdir(), "ark-gemini-"));
       try {
         // A fresh folder each time: --skip-trust lets the CLI run headless there (it would otherwise ask).
         const args = ["--prompt", promptText(request), "--output-format", "json", "--approval-mode", "plan", "--skip-trust"];

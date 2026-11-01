@@ -9,12 +9,12 @@ import { createLocalBackup } from "./local-backup.ts";
 import { localDay } from "./brief-due.ts";
 import { createChatWork, type ChatWorkBridge } from "./chat-work.ts";
 // The parts of the Mac runtime shared by both interfaces (terminal and island):
-// Microphone → Whisper → ATOM Core → LLM Gateway → provider → Kokoro → speaker.
+// Microphone → Whisper → ARK Core → LLM Gateway → provider → Kokoro → speaker.
 
 import { createChatTurns, type ChatTurns } from "./chat-turns.ts";
 import { installBundledSkills } from "./bundled-skills.ts";
 import { dirname, join, resolve } from "node:path";
-import type { Core } from "@atom/core";
+import type { Core } from "@ark/core";
 import { createComputerBridge, type ComputerBridge } from "./computer-bridge.ts";
 import {
   calendarRunner,
@@ -37,8 +37,8 @@ import {
   type Capability,
   type ScreenShot,
   type TimerInfo,
-} from "@atom/tool-engine";
-import { createGateway, createProviderAdapter, createSwitchableModel, createCodexSessionAdapter, listCodexModels, listPlanModels, runBrief, runChatDigest, runEdit, type ChatSession, type ChatSessions, type PlanUsage } from "@atom/llm-gateway";
+} from "@ark/tool-engine";
+import { createGateway, createProviderAdapter, createSwitchableModel, createCodexSessionAdapter, listCodexModels, listPlanModels, runBrief, runChatDigest, runEdit, type ChatSession, type ChatSessions, type PlanUsage } from "@ark/llm-gateway";
 import { createCodexToolRouter } from "./codex-tools.ts";
 import { createNoteModel, createNotes } from "./notes.ts";
 import { createChatUsageRecorder, createOverheadRecorder } from "./usage-report.ts";
@@ -49,7 +49,7 @@ import { createTinkerRun } from "./tinker.ts";
 import { startTinkerRunner, TINKER_TIME_LIMIT_MS, type TinkerRunner } from "./tinker-runner.ts";
 import { agentModel, createAgentTool } from "./native-agents.ts";
 import { browserServer } from "./browser.ts";
-import { CLAUDE_PLAN, createLogger, readEnv, type Config, type LlmChoice, type Logger, type LogFields, type ProviderKeys } from "@atom/shared";
+import { CLAUDE_PLAN, createLogger, readEnv, type Config, type LlmChoice, type Logger, type LogFields, type ProviderKeys } from "@ark/shared";
 import {
   createMemoryTools,
   DEFAULT_MAX_EPISODES,
@@ -57,7 +57,7 @@ import {
   episodeContext,
   MEMORY_GUIDANCE,
   memoryContextSelection,
-} from "@atom/memory";
+} from "@ark/memory";
 import {
   createScheduleTool,
   tieredModels,
@@ -66,9 +66,9 @@ import {
   type TestKind,
   type HelperView,
   type ContextPart,
-} from "@atom/helpers";
-import { createLayaEngine, acceptedComputerPlan } from "@atom/decision-engine";
-import type { InputSource, Message, ZenoInput } from "@atom/contracts";
+} from "@ark/helpers";
+import { createLayaEngine, acceptedComputerPlan } from "@ark/decision-engine";
+import type { InputSource, Message, ArkInput } from "@ark/contracts";
 import type { IslandBrain, IslandChats, IslandGit, IslandHelpers, IslandMemory, IslandOptions, IslandProjects } from "./island.ts";
 import { islandHelpers } from "./island-helpers.ts";
 import { createHubCommands } from "./hub-commands.ts";
@@ -114,7 +114,7 @@ const PLAN_TIMEOUT_MS = 120_000;
 /** Points around a spot from a screenshot marker (ADR-080), about the size of a menu-bar icon. */
 const POINT_BOX = 20;
 
-/** Claude Code's own web search on the Claude plan (ADR-069): not a ATOM tool, so listed here (ADR-076). */
+/** Claude Code's own web search on the Claude plan (ADR-069): not a ARK tool, so listed here (ADR-076). */
 const WEB_SEARCH: Capability = { title: "Search the web", examples: ["What's in the news today?", "Who won the match last night?"] };
 
 export interface Runtime {
@@ -130,9 +130,9 @@ export interface Runtime {
   record: VoiceLoopOptions["record"];
   /** The microphone actually in use: with ":default" this follows macOS, which changes when devices are plugged in. */
   micName(): Promise<string>;
-  /** Computer control's link to the island (steps and approvals). Used only when ATOM_COMPUTER=1. */
+  /** Computer control's link to the island (steps and approvals). Used only when ARK_COMPUTER=1. */
   computer: ComputerBridge;
-  /** ADR-054: computer control is on in this run (ATOM_COMPUTER=1); the island's switch shows it. */
+  /** ADR-054: computer control is on in this run (ARK_COMPUTER=1); the island's switch shows it. */
   computerOn: boolean;
   /** The memory as Settings sees it (list, forget, clear, change updates). Undefined when memory is off. */
   islandMemory?: IslandMemory;
@@ -142,30 +142,30 @@ export interface Runtime {
   islandSkillFiles: NonNullable<IslandOptions["skillFiles"]>;
   /** The "/" picker: Keshab's Claude commands (ADR-117). */
   islandSlashCommands: NonNullable<IslandOptions["slashCommands"]>;
-  /** ADR-091: Keshab's chat sessions as the ATOM window sees them. Undefined when memory is off. */
+  /** ADR-091: Keshab's chat sessions as the ARK window sees them. Undefined when memory is off. */
   islandChats?: IslandChats;
   /** Who is answering in which chat (the window and the Local API share chats). */
   chatTurns: ChatTurns;
-  /** ADR-107: projects as the ATOM window sees them. Undefined when memory is off. */
+  /** ADR-107: projects as the ARK window sees them. Undefined when memory is off. */
   islandProjects?: IslandProjects;
   islandWorkspace?: IslandOptions["workspace"];
   /** Search everything (upgrades.md C1). */
   everything?: IslandOptions["everything"];
   /** Remembering by itself (upgrades.md C2). Undefined when memory is off. */
   islandSuggestions?: IslandOptions["suggestions"];
-  /** Ask ATOM (upgrades.md B3). Undefined when the Claude plan is not in use. */
+  /** Ask ARK (upgrades.md B3). Undefined when the Claude plan is not in use. */
   islandTextEdit?: IslandOptions["textEdit"];
   islandReplyDrafts?: IslandOptions["replyDrafts"];
   /** Daily brief (upgrades.md C3). Undefined when memory is off. */
   islandBrief?: IslandOptions["dailyBrief"];
   /** ADR-113: files attached to a typed message. Undefined in tests. */
   islandAttachments?: IslandOptions["attachments"];
-  /** The helpers as the ATOM window sees them. Undefined when the store could not open. */
+  /** The helpers as the ARK window sees them. Undefined when the store could not open. */
   islandHelpers?: IslandHelpers;
   taskActivity: NonNullable<IslandOptions["taskActivity"]>;
   chatWork: ChatWorkBridge;
   foreground?: IslandOptions["foreground"];
-  /** ADR-091: ATOM's task branches, and Keshab's push. Undefined when the helpers store could not open. */
+  /** ADR-091: ARK's task branches, and Keshab's push. Undefined when the helpers store could not open. */
   islandGit?: IslandGit;
   /** Pal dropped on a window (ADR-074): that app's read, held for the next request only. */
   screen: WindowPointer;
@@ -180,10 +180,10 @@ export interface Runtime {
    * then `after` asks on Pal's approval card). Returns a function that stops listening.
    */
   onGoalLine(listener: (line: string, after?: () => void) => void): () => void;
-  /** ADR-098: ATOM's Telegram bot. Undefined unless ATOM_TELEGRAM_BOT_TOKEN and ATOM_TELEGRAM_CHAT_ID are both set. */
+  /** ADR-098: ARK's Telegram bot. Undefined unless ARK_TELEGRAM_BOT_TOKEN and ARK_TELEGRAM_CHAT_ID are both set. */
   telegram?: TelegramBot;
   /** ADR-098 item 3: Keshab's messages to running tasks, and interrupts. Undefined when the helpers store could not open. */
-  /** ADR-098 item 5: the local HTTP API, off until Settings turns it on. Undefined with ATOM_VOICE_ONLY=1. */
+  /** ADR-098 item 5: the local HTTP API, off until Settings turns it on. Undefined with ARK_VOICE_ONLY=1. */
   api?: ApiServer;
   /** ADR-108: writes the notes that wait for a quiet chat. Called when the app quits; may take a few seconds. */
   flushNotes(): Promise<void>;
@@ -196,9 +196,9 @@ export interface RuntimeOptions {
   keys?: ProviderKeys;
   /** Where a model switch is saved (config/island.json). */
   settingsPath?: string;
-  /** The memory file (ADR-058). Default: ATOM_MEMORY_FILE or data/memory.db; ":memory:" for tests. */
+  /** The memory file (ADR-058). Default: ARK_MEMORY_FILE or data/memory.db; ":memory:" for tests. */
   memoryPath?: string;
-  /** The helpers file (ADR-081). Default: ATOM_HELPERS_FILE or data/helpers.db; ":memory:" for tests. */
+  /** The helpers file (ADR-081). Default: ARK_HELPERS_FILE or data/helpers.db; ":memory:" for tests. */
   helpersPath?: string;
 }
 
@@ -216,7 +216,7 @@ export function createRuntime(
     onDecisionWarm: () => { if (decisions.warmComputer) decisions.warmComputer(); else decisions.warm(); },
     onCursorError: () => log.warn("computer.cursor_failed", {}),
   });
-  const memory = openMemory(options.memoryPath ?? readEnv(process.env, "ATOM_MEMORY_FILE") ?? "data/memory.db", log);
+  const memory = openMemory(options.memoryPath ?? readEnv(process.env, "ARK_MEMORY_FILE") ?? "data/memory.db", log);
   let foregroundReady = Boolean(memory);
   try { memory?.foreground.recover(); }
   catch { foregroundReady = false; log.error("foreground.unavailable", {}); }
@@ -253,7 +253,7 @@ export function createRuntime(
           claudePath: keys["claude-plan"] ?? "",
           model: small,
           task: brief,
-          instructions: "You are ATOM's memory keeper.",
+          instructions: "You are ARK's memory keeper.",
           signal: AbortSignal.timeout(120_000),
           onUsage: reportUsage,
         });
@@ -281,7 +281,7 @@ export function createRuntime(
       return () => memoryListeners.delete(listener);
     },
   };
-  // ADR-091: Keshab's chat sessions: saved after every exchange, listed, opened and deleted from the ATOM window.
+  // ADR-091: Keshab's chat sessions: saved after every exchange, listed, opened and deleted from the ARK window.
   const chatListeners = new Set<() => void>();
   // ADR-109: a goal's result was posted into a chat; the window refreshes that chat if it is open.
   const postedListeners = new Set<(chatId: string) => void>();
@@ -351,7 +351,7 @@ export function createRuntime(
         const mode = memory.chats.access(command.id);
         result.info.access = { mode, provider: choice.provider, hostTools: mode !== "chat-only" && (choice.provider === CLAUDE_PLAN || choice.provider === "codex"),
           project: Boolean(projectId), fileGrants: memory.filePermissions.forChat(command.id).list().length,
-          computer: mode !== "chat-only" && computerOn, web: mode !== "chat-only" && readEnv(process.env, "ATOM_WEB") !== "0" && (!project || project.web) };
+          computer: mode !== "chat-only" && computerOn, web: mode !== "chat-only" && readEnv(process.env, "ARK_WEB") !== "0" && (!project || project.web) };
       }
       return result;
     },
@@ -416,10 +416,10 @@ export function createRuntime(
       return () => postedListeners.delete(listener);
     },
   };
-  const helpersPath = options.helpersPath ?? readEnv(process.env, "ATOM_HELPERS_FILE") ?? "data/helpers.db";
+  const helpersPath = options.helpersPath ?? readEnv(process.env, "ARK_HELPERS_FILE") ?? "data/helpers.db";
   // ADR-088: agents Keshab adds live beside the helpers file, each data/agents/<id>/soul.md.
   const agentsDir = join(dirname(resolve(helpersPath === ":memory:" ? "data/x" : helpersPath)), "agents");
-  // ADR-094: ATOM's own skills, approved by Keshab, live beside it too: data/skills/<name>/SKILL.md.
+  // ADR-094: ARK's own skills, approved by Keshab, live beside it too: data/skills/<name>/SKILL.md.
   const skillsDir = helpersPath === ":memory:" ? undefined : join(dirname(resolve(helpersPath)), "skills");
   if (skillsDir) {
     try { log.info("skills.bundle", installBundledSkills(skillsDir)); }
@@ -434,9 +434,9 @@ export function createRuntime(
     retryTask(id);
   });
   // 2026-10-15: the databases hold MCP secrets and every chat; keep them (and the log) owner-only. Files always; a folder only when it is
-  // ATOM's own data or logs folder (private-files.ts), and never ":memory:", which is not a path.
+  // ARK's own data or logs folder (private-files.ts), and never ":memory:", which is not a path.
   {
-    const memoryPath = options.memoryPath ?? readEnv(process.env, "ATOM_MEMORY_FILE") ?? "data/memory.db";
+    const memoryPath = options.memoryPath ?? readEnv(process.env, "ARK_MEMORY_FILE") ?? "data/memory.db";
     const databases = [helpersPath, memoryPath].filter((p) => p !== ":memory:").map((p) => resolve(p));
     const logFile = resolve(config.log.file);
     const failed = makePrivate({ dirs: ownFolders([...databases, logFile]), databases, files: [logFile] });
@@ -457,16 +457,16 @@ export function createRuntime(
         }),
       })
     : undefined;
-  // ADR-091: ATOM's task branches in the repositories Keshab granted; pushing one is his alone, asked from the window.
+  // ADR-091: ARK's task branches in the repositories Keshab granted; pushing one is his alone, asked from the window.
   // Task 3.11: the tasks' git worktrees live beside the helpers file, never inside a granted repository.
   const worktrees = join(dirname(resolve(helpersPath === ":memory:" ? "data/x" : helpersPath)), "worktrees");
   const islandGit: IslandGit | undefined = helpers && createIslandGit(helpers, { worktrees, ...(projects ? { projectFolders: () => projects.gitFolders() } : {}) });
-  // ADR-087, Task 3.16: Keshab's own Paperclip, only when ATOM_PAPERCLIP_URL names a loopback address. Anything else
-  // sends nothing. ATOM never installs or starts it.
-  const paperclipApi = paperclipBase(readEnv(process.env, "ATOM_PAPERCLIP_URL"));
-  if (readEnv(process.env, "ATOM_PAPERCLIP_URL") && !paperclipApi) log.warn("paperclip.refused", { reason: "not_loopback_http" });
+  // ADR-087, Task 3.16: Keshab's own Paperclip, only when ARK_PAPERCLIP_URL names a loopback address. Anything else
+  // sends nothing. ARK never installs or starts it.
+  const paperclipApi = paperclipBase(readEnv(process.env, "ARK_PAPERCLIP_URL"));
+  if (readEnv(process.env, "ARK_PAPERCLIP_URL") && !paperclipApi) log.warn("paperclip.refused", { reason: "not_loopback_http" });
   const paperclip = paperclipApi
-    ? { client: createPaperclip(paperclipApi, { company: readEnv(process.env, "ATOM_PAPERCLIP_COMPANY") || undefined }), tracker: issueTracker(join(dirname(worktrees), "paperclip.json")) }
+    ? { client: createPaperclip(paperclipApi, { company: readEnv(process.env, "ARK_PAPERCLIP_COMPANY") || undefined }), tracker: issueTracker(join(dirname(worktrees), "paperclip.json")) }
     : undefined;
   const paperclipListeners = new Set<() => void>();
   const paperclipChanged = () => {
@@ -481,24 +481,24 @@ export function createRuntime(
       for (const listener of timerListeners) listener(timer);
     },
   });
-  // ADR-062: Open-Meteo, no key. ATOM_WEATHER=0 turns it off; ATOM_HOME sets "here" (default: the time zone's city).
+  // ADR-062: Open-Meteo, no key. ARK_WEATHER=0 turns it off; ARK_HOME sets "here" (default: the time zone's city).
   // Home's forecast is fetched at start and every 30 minutes, so "what's the weather" needs no network wait.
-  const weather = readEnv(process.env, "ATOM_WEATHER") === "0" ? undefined : weatherTool(readEnv(process.env, "ATOM_HOME") ? { home: () => readEnv(process.env, "ATOM_HOME")! } : {});
+  const weather = readEnv(process.env, "ARK_WEATHER") === "0" ? undefined : weatherTool(readEnv(process.env, "ARK_HOME") ? { home: () => readEnv(process.env, "ARK_HOME")! } : {});
   if (weather) {
     void weather.warm();
     setInterval(() => void weather.warm(), 30 * 60_000).unref();
   }
-  // ADR-074: off with the front window tool (ATOM_FRONT_WINDOW=0), whose limits it shares.
-  const screen = createWindowPointer({ enabled: readEnv(process.env, "ATOM_FRONT_WINDOW") !== "0", log });
+  // ADR-074: off with the front window tool (ARK_FRONT_WINDOW=0), whose limits it shares.
+  const screen = createWindowPointer({ enabled: readEnv(process.env, "ARK_FRONT_WINDOW") !== "0", log });
   // ADR-080: the screenshot the model was given this turn, so the reply's [POINT:…] marker can be checked against it.
   // ADR-083/200: shared local worker-tier/optional computer-plan classifier; no automatic downloads.
   const decisions = createLayaEngine({ log });
-  const computerOn = readEnv(process.env, "ATOM_COMPUTER") === "1";
+  const computerOn = readEnv(process.env, "ARK_COMPUTER") === "1";
   let lastShot: ScreenShot | undefined;
   const cua = computerOn ? createCuaTransport({ onTiming: (timing) => log.info("computer.transport", { ...timing }) }) : undefined;
   const calendarHelper = findCalendarHelper();
   log.info("calendar.helper", { available: Boolean(calendarHelper) });
-  // The tools ATOM can use. Built before the model because "Claude (my plan)" runs the tool loop itself and
+  // The tools ARK can use. Built before the model because "Claude (my plan)" runs the tool loop itself and
   // needs them; the other providers get them from the Core.
   const tools = [
     // Task 3.16: only with Keshab's own Paperclip on this Mac. Approvals are answered only after his OK on the card.
@@ -506,21 +506,21 @@ export function createRuntime(
       ? createPaperclipTools({ ...paperclip, confirm: (request) => computer.approve(request), onChange: paperclipChanged, onCall: (e) => log.info("paperclip.call", e) })
       : []),
     timeTool(),
-    // ADR-066: open apps and web pages. Always on: no screen access, no clicks. ATOM_APPS=0 turns it off.
-    ...(readEnv(process.env, "ATOM_APPS") === "0" ? [] : createAppTools()),
-    // ADR-068: music (Spotify or Music) and the Mac's volume. ATOM_MEDIA=0 turns it off.
-    ...(readEnv(process.env, "ATOM_MEDIA") === "0" ? [] : createMediaTools()),
-    // Task 2.x: open ATOM's Settings and press the play/pause key, both done by the island.
+    // ADR-066: open apps and web pages. Always on: no screen access, no clicks. ARK_APPS=0 turns it off.
+    ...(readEnv(process.env, "ARK_APPS") === "0" ? [] : createAppTools()),
+    // ADR-068: music (Spotify or Music) and the Mac's volume. ARK_MEDIA=0 turns it off.
+    ...(readEnv(process.env, "ARK_MEDIA") === "0" ? [] : createMediaTools()),
+    // Task 2.x: open ARK's Settings and press the play/pause key, both done by the island.
     ...createIslandTools({ openSettings: () => computer.openSettings(), playPause: () => computer.playPause() }),
-    // ADR-070: "take a note" into Apple Notes (adding only). ATOM_NOTES=0 turns it off.
-    ...(readEnv(process.env, "ATOM_NOTES") === "0" ? [] : createNoteTools()),
+    // ADR-070: "take a note" into Apple Notes (adding only). ARK_NOTES=0 turns it off.
+    ...(readEnv(process.env, "ARK_NOTES") === "0" ? [] : createNoteTools()),
     // ADR-072: the app in front and, in Chrome/Arc/Edge/Brave, the tab title and address. Read-only, on request.
-    // Logs the bundle id and field names only. ATOM_FRONT_WINDOW=0 turns it off.
-    ...(readEnv(process.env, "ATOM_FRONT_WINDOW") === "0" ? [] : [createFrontWindowTool({ onRead: (e) => log.info("front_window.read", { ...e, fields: e.fields.join(",") }) })]),
+    // Logs the bundle id and field names only. ARK_FRONT_WINDOW=0 turns it off.
+    ...(readEnv(process.env, "ARK_FRONT_WINDOW") === "0" ? [] : [createFrontWindowTool({ onRead: (e) => log.info("front_window.read", { ...e, fields: e.fields.join(",") }) })]),
     ...timers.tools,
-    // ADR-062: Open-Meteo, no key. ATOM_WEATHER=0 turns it off; ATOM_HOME sets "here" (default: the time zone's city).
+    // ADR-062: Open-Meteo, no key. ARK_WEATHER=0 turns it off; ARK_HOME sets "here" (default: the time zone's city).
     ...(weather ? [weather] : []),
-    // ADR-060: Calendar and Reminders when the helper is there (inside ZENO.app). ATOM_CALENDAR=0 turns it off.
+    // ADR-060: Calendar and Reminders when the helper is there (inside ARK.app). ARK_CALENDAR=0 turns it off.
     ...(calendarHelper ? createCalendarTools({ run: calendarRunner(calendarHelper) }) : []),
     ...(memory
       ? createMemoryTools({
@@ -532,7 +532,7 @@ export function createRuntime(
           },
         })
       : []),
-    // ADR-054: off unless ATOM_COMPUTER=1. Steps and approvals go through the bridge to the island;
+    // ADR-054: off unless ARK_COMPUTER=1. Steps and approvals go through the bridge to the island;
     // with no island, or no answer, an approval is a refusal.
     ...(cua
       ? [
@@ -625,7 +625,7 @@ export function createRuntime(
     onCall: (e) => log.info("tool.call", e),
   });
   const planUsageListeners = new Set<(usage: PlanUsage) => void>();
-  // Plan use goes in the log so it is visible how much of the plan a day of ATOM takes. No keys, no text.
+  // Plan use goes in the log so it is visible how much of the plan a day of ARK takes. No keys, no text.
   // ADR-076: and to the island's meters. Helper jobs report theirs here too.
   const reportUsage = (usage: PlanUsage) => {
     log.info("plan.usage", { ...usage });
@@ -634,7 +634,7 @@ export function createRuntime(
   const recordChatUsage = createChatUsageRecorder(helpers, log); // Job 1 (token cost)
   const recordOverhead = createOverheadRecorder(helpers, log); // 2026-10-15: the calls Claude Code makes itself
 
-  // ADR-110 N5: ATOM answers on the Claude plan in its native sessions. The gateway stays only for the model switch of
+  // ADR-110 N5: ARK answers on the Claude plan in its native sessions. The gateway stays only for the model switch of
   // Settings (ADR-092): `ModelSettings` replaces it when Keshab picks a provider.
   const createModel = (choice: LlmChoice, apiKey: string) =>
     createGateway({ provider: createProviderAdapter({ ...choice, apiKey }), timeoutMs: config.llm.timeoutMs });
@@ -656,9 +656,9 @@ export function createRuntime(
       : {}),
   });
   const episodes = createNotes({ memory, model: noteModel, env: process.env, log, changed: () => memoryListeners.forEach((listener) => listener()) });
-  // ADR-071: plain commands run in code, before any model. ATOM_SHORTCUTS=0 turns these off. Logs the name only.
+  // ADR-071: plain commands run in code, before any model. ARK_SHORTCUTS=0 turns these off. Logs the name only.
   const toolShortcuts =
-    readEnv(process.env, "ATOM_SHORTCUTS") === "0"
+    readEnv(process.env, "ARK_SHORTCUTS") === "0"
       ? undefined
       : createShortcuts({
           tools: toolEngine,
@@ -673,12 +673,12 @@ export function createRuntime(
     const report = helpers?.report(taskId);
     if (!helpers || !job || !report) throw new Error("That task has no report.");
     const worker = helpers.list().find((h) => h.id === job.helper)!;
-    if (!worker.app) throw new Error(`Choose where ${worker.name} opens things in the ATOM window first.`);
+    if (!worker.app) throw new Error(`Choose where ${worker.name} opens things in the ARK window first.`);
     const said = await openInApp(worker.app, taskId, report, openDeps);
     log.info("report.opened", { helper: job.helper, job: taskId });
     return said;
   };
-  // ATOM_VOICE_ONLY=1: test speech in and out without the AI. ATOM reads back what Whisper heard, and no
+  // ARK_VOICE_ONLY=1: test speech in and out without the AI. ARK reads back what Whisper heard, and no
   // request is made to any model. (Typed as `Core` so every caller treats it the same.)
   const keys = { ...options.keys, [config.llm.provider]: config.llm.apiKey };
   // ADR-110: each open chat has one long-lived Claude Code session (native-core.ts). One Core setup serves the window's
@@ -766,7 +766,7 @@ export function createRuntime(
               if (choice.provider !== "codex" || !program) return undefined;
               let gateway = models.get(choice.model);
               if (!gateway) {
-                const onUsage = (u: { input: number; output: number; cacheRead: number; cacheWrite: number }, request: import("@atom/contracts").ModelRequest, actualModel: string) => {
+                const onUsage = (u: { input: number; output: number; cacheRead: number; cacheWrite: number }, request: import("@ark/contracts").ModelRequest, actualModel: string) => {
                   const match = /^job:(\d+)$/.exec(request.context.requestId);
                   if (match && helpers) {
                     const job = Number(match[1]);
@@ -787,7 +787,7 @@ export function createRuntime(
                   },
                   webAllowed: (chat) => {
                     if (chatTurns.wasDeleted(chat) || chatTurns.wasDeleted(taskContextChat(chat))) return false;
-                    if (readEnv(process.env, "ATOM_WEB") === "0") return false;
+                    if (readEnv(process.env, "ARK_WEB") === "0") return false;
                     const projectId = projects?.projectOf(taskContextChat(chat));
                     return !projectId || memory?.projects.get(projectId)?.web === true;
                   },
@@ -810,7 +810,7 @@ export function createRuntime(
               if (!other) otherModels.set(id, (other = createModel(choice, apiKey)));
               return other;
             },
-            contextParts: (input: ZenoInput): ChatContextPart[] => {
+            contextParts: (input: ArkInput): ChatContextPart[] => {
               const facts = memory ? memoryContextSelection(input.text, { store: memory }) : undefined;
               const pointed = screen.take();
               return [{ id: "turn.time", kind: "required", text: nowLine() },
@@ -854,9 +854,9 @@ export function createRuntime(
             ...(chatSessions ? { chatSessions } : {}),
             clientComposed: composed,
             screenReplies: !composed,
-            web: readEnv(process.env, "ATOM_WEB") !== "0",
+            web: readEnv(process.env, "ARK_WEB") !== "0",
             timeoutMs: Math.max(config.llm.timeoutMs, PLAN_TIMEOUT_MS),
-            ...(Number(readEnv(process.env, "ATOM_SESSION_IDLE_MS")) > 0 ? { idleMs: Number(readEnv(process.env, "ATOM_SESSION_IDLE_MS")) } : {}),
+            ...(Number(readEnv(process.env, "ARK_SESSION_IDLE_MS")) > 0 ? { idleMs: Number(readEnv(process.env, "ARK_SESSION_IDLE_MS")) } : {}),
             onUsage: reportUsage,
             onTokens: (tokens, model, meta) => recordChatUsage(tokens, model, meta),
             onModelTotals: recordOverhead,
@@ -865,7 +865,7 @@ export function createRuntime(
     nativeCores.add(native);
     return native;
   };
-  const baseCore: Core = readEnv(process.env, "ATOM_VOICE_ONLY") === "1" ? createEchoCore() : makeCore();
+  const baseCore: Core = readEnv(process.env, "ARK_VOICE_ONLY") === "1" ? createEchoCore() : makeCore();
   // ADR-080: with computer control on, replies lose their [POINT:…] marker before speech, and a valid one points.
   const core: Core = computerOn
     ? withPointing(baseCore, {
@@ -936,7 +936,7 @@ export function createRuntime(
     beforeWrite: () => continuity?.interrupt(),
     write: (profile, task, job, signal) => writeIsolated({ ...profile, chat: job }, task, SOURCE_ANALYSIS_INSTRUCTIONS, signal, 4),
     log: (event, fields) => log.info(event, fields as LogFields) });
-  // ADR-098 item 3: Keshab's messages to running tasks (the ATOM window; Telegram calls the same). ADR-110 N5: a note to a
+  // ADR-098 item 3: Keshab's messages to running tasks (the ARK window; Telegram calls the same). ADR-110 N5: a note to a
   // task is a message to the main agent of the chat that runs it.
   const steering = helpers ? nativeSteering(() => nativeCores) : undefined;
   /** The Claude plan's models for worker jobs, by tier; empty on any other provider. */
@@ -975,7 +975,7 @@ export function createRuntime(
       run: createTinkerRun({ helpers, settings, keys, decisions, planModels, reportUsage, log, runTests: (kind, id, signal, tinkerJob) => runTests(kind, id, signal, tinkerJob) }),
       onRun: (e) => log.info("job.run", e),
     });
-  // Task 3.16: the Paperclip tasks ATOM handed over are looked at every minute; a finished one is said once.
+  // Task 3.16: the Paperclip tasks ARK handed over are looked at every minute; a finished one is said once.
   if (paperclip) {
     const look = () =>
       void checkIssues(paperclip.client, paperclip.tracker)
@@ -991,13 +991,13 @@ export function createRuntime(
   // Lines to say aloud (the island's goal lines): a sub-agent's report in the voice chat (routeWake), a Paperclip task.
   const goalLineListeners = new Set<(line: string, after?: () => void) => void>();
   const tts = createSpeaker(createKokoroSynthesizer({ voice: config.tts.voice, dtype: config.tts.dtype }));
-  // ADR-098: ATOM's own Telegram bot, only when both .env values are set. Its turns go to a Core of their own, saved as
+  // ADR-098: ARK's own Telegram bot, only when both .env values are set. Its turns go to a Core of their own, saved as
   // the chat "Telegram". The token and the messages are never logged.
-  const telegramToken = readEnv(process.env, "ATOM_TELEGRAM_BOT_TOKEN")?.trim();
-  const telegramChat = readEnv(process.env, "ATOM_TELEGRAM_CHAT_ID")?.trim();
-  const telegramUser = readEnv(process.env, "ATOM_TELEGRAM_USER_ID")?.trim(); // the one person obeyed in a group; a private chat needs none
+  const telegramToken = readEnv(process.env, "ARK_TELEGRAM_BOT_TOKEN")?.trim();
+  const telegramChat = readEnv(process.env, "ARK_TELEGRAM_CHAT_ID")?.trim();
+  const telegramUser = readEnv(process.env, "ARK_TELEGRAM_USER_ID")?.trim(); // the one person obeyed in a group; a private chat needs none
   let telegram: TelegramBot | undefined;
-  if (telegramToken && telegramChat && readEnv(process.env, "ATOM_VOICE_ONLY") !== "1") {
+  if (telegramToken && telegramChat && readEnv(process.env, "ARK_VOICE_ONLY") !== "1") {
     const telegramCore = makeCore(true);
     telegramCore.resume(TELEGRAM_CHAT, memory?.chats.messages(TELEGRAM_CHAT) ?? []);
     telegram = startTelegramBot({
@@ -1046,12 +1046,12 @@ export function createRuntime(
     ...(memory ? { messages: (chat: string) => memory.chats.messages(chat) } : {}),
   });
   const api: ApiServer | undefined =
-    readEnv(process.env, "ATOM_VOICE_ONLY") === "1"
+    readEnv(process.env, "ARK_VOICE_ONLY") === "1"
       ? undefined
       : createApiServer({
           log,
-          port: readEnv(process.env, "ATOM_API_PORT"),
-          host: readEnv(process.env, "ATOM_API_HOST"),
+          port: readEnv(process.env, "ARK_API_PORT"),
+          host: readEnv(process.env, "ARK_API_HOST"),
           ask: apiAsk,
           ...(helpers ? { helpers } : {}),
           approvals: computer,
@@ -1060,7 +1060,7 @@ export function createRuntime(
           said: (chatId: string) => memory?.chats.messages(chatId).find((m) => m.role === "user")?.content,
           ...(nativeStart ? { startRoutine: nativeStart } : {}),
         });
-  // Task 3.9: routines come due on the clock. At start, one catch-up for each that came due while ATOM was closed. A
+  // Task 3.9: routines come due on the clock. At start, one catch-up for each that came due while ARK was closed. A
   // routine starts by `nativeStart` (ADR-110 N3).
   if (helpers && nativeStart) {
     const tick = () => scheduleTick(helpers, log, (error) => ({ ...errorFields(error) }), nativeStart);
@@ -1234,7 +1234,7 @@ export function createRuntime(
         },
         claude: async (task, signal) => {
           const small = modelForTier(planModels(), "small");
-          if (!small) throw new Error("Ask ATOM needs the Claude plan.");
+          if (!small) throw new Error("Ask ARK needs the Claude plan.");
           const { text, tokens } = await runEdit({ claudePath: keys[CLAUDE_PLAN] ?? "", model: small, task, instructions: EDIT_INSTRUCTIONS, signal, onUsage: reportUsage });
           if (tokens) recordChatUsage(tokens, small, { background: true });
           return text;
@@ -1319,7 +1319,7 @@ export function createRuntime(
       return () => timerListeners.delete(listener);
     },
     capabilities: () =>
-      capabilityItems(settings.info().provider === "claude-plan" && readEnv(process.env, "ATOM_WEB") !== "0" ? [...tools, { capability: WEB_SEARCH }] : tools),
+      capabilityItems(settings.info().provider === "claude-plan" && readEnv(process.env, "ARK_WEB") !== "0" ? [...tools, { capability: WEB_SEARCH }] : tools),
     onPlanUsage(listener) {
       planUsageListeners.add(listener);
       return () => planUsageListeners.delete(listener);
@@ -1328,7 +1328,7 @@ export function createRuntime(
       goalLineListeners.add(listener);
       return () => goalLineListeners.delete(listener);
     },
-    /** ADR-054: computer control is on in this run (ATOM_COMPUTER=1). Reported to the island, whose switch shows it. */
+    /** ADR-054: computer control is on in this run (ARK_COMPUTER=1). Reported to the island, whose switch shows it. */
     computerOn,
     taskActivity,
     chatWork,

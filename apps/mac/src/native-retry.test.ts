@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { openHelperStore } from "@atom/helpers";
-import { createGateway, createCodexSessionAdapter } from "@atom/llm-gateway";
+import { openHelperStore } from "@ark/helpers";
+import { createGateway, createCodexSessionAdapter } from "@ark/llm-gateway";
 import { createNativeCore } from "./native-core.ts";
 import { createCodexToolRouter } from "./codex-tools.ts";
 import { nativeRetryStarter, retrySourceChat, taskStarter } from "./native-entry.ts";
@@ -12,7 +12,7 @@ import { fakeCodex } from "../../../tests/codex-harness.ts";
 
 const log = { info() {}, warn() {} };
 test("a recovered file task retried twice dispatches one checked worker and preserves both attempt records", { timeout: 10_000 }, async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-native-retry-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-native-retry-")));
   const path = join(home, "helpers.db"), file = join(home, "draft.txt");
   writeFileSync(file, "partial draft from previous attempt");
   let initial = openHelperStore({ path, home });
@@ -25,12 +25,12 @@ test("a recovered file task retried twice dispatches one checked worker and pres
     assert.match(text, /Finish the fictional draft/);
     assert.match(text, /Inspect the actual files/);
     assert.doesNotMatch(text, /MODEL-REPLACED-TASK/);
-    const read = await call("atom_Read", { file_path: file }); assert.equal(read.success, true, JSON.stringify(read));
-    const write = await call("atom_Write", { file_path: file, content: `finished once ${++writes}` }); assert.equal(write.success, true, JSON.stringify(write));
+    const read = await call("ark_Read", { file_path: file }); assert.equal(read.success, true, JSON.stringify(read));
+    const write = await call("ark_Write", { file_path: file, content: `finished once ${++writes}` }); assert.equal(write.success, true, JSON.stringify(write));
     return "Saved the finished draft.";
   });
   const main = fakeCodex(async ({ call }) => {
-    const response = await call("atom_delegate", { subagent_type: "kame", description: "Retry", prompt: "MODEL-REPLACED-TASK" });
+    const response = await call("ark_delegate", { subagent_type: "kame", description: "Retry", prompt: "MODEL-REPLACED-TASK" });
     assert.equal(response.success, true, JSON.stringify(response));
     return "The worker saved the finished draft.";
   });
@@ -55,7 +55,7 @@ test("a recovered file task retried twice dispatches one checked worker and pres
     assert.equal(writes, 1); assert.equal(approvals, 1);
     assert.equal(main.wires.length, 1); assert.equal(worker.wires.length, 1);
     assert.equal(readFileSync(file, "utf8"), "finished once 1");
-    const denied = await router.forRequest({ system: "ATOM", messages: [], context: { sessionId: `task-retry-${next}`, requestId: "again", source: "text", receivedAt: new Date() } }).run({ id: "new-delegation", name: "atom_delegate", input: { subagent_type: "kame", description: "Again", prompt: "write twice" } });
+    const denied = await router.forRequest({ system: "ARK", messages: [], context: { sessionId: `task-retry-${next}`, requestId: "again", source: "text", receivedAt: new Date() } }).run({ id: "new-delegation", name: "ark_delegate", input: { subagent_type: "kame", description: "Again", prompt: "write twice" } });
     assert.equal(denied.isError, true);
     assert.equal(writes, 1);
   } finally { model.close?.(); router.close(); store.close(); rmSync(home, { recursive: true, force: true }); }

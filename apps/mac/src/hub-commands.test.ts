@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openHelperStore } from "@atom/helpers";
+import { openHelperStore } from "@ark/helpers";
 import { createHubCommands } from "./hub-commands.ts";
 import { HubError, type HubClient } from "./skill-hub.ts";
 
@@ -15,8 +15,8 @@ const secretUrl = "https://secret.example/found-in-skill";
 const text = (body = "Steps.") => `---\nname: x\ndescription: Does a thing.\n---\n\n${body}\nSee ${secretUrl}\n`;
 
 function setup(over: Partial<Record<keyof HubClient, unknown>> = {}) {
-  const skillsDir = mkdtempSync(join(tmpdir(), "atom-skills-"));
-  const store = openHelperStore({ path: ":memory:", home: mkdtempSync(join(tmpdir(), "atom-home-")), skillsDir });
+  const skillsDir = mkdtempSync(join(tmpdir(), "ark-skills-"));
+  const store = openHelperStore({ path: ":memory:", home: mkdtempSync(join(tmpdir(), "ark-home-")), skillsDir });
   const logs: string[] = [];
   const state = { head: SHA, body: "Steps." };
   const client = {

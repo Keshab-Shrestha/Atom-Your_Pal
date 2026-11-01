@@ -10,7 +10,7 @@ Reply Copy now opens a menu with **Markdown**, **Plain text** and **Rich text**.
 
 Each nonempty user message has **Copy message** below its bubble plus an accessibility action. It copies the transcript exactly as typed, including literal Markdown, without HTML. Shared control feedback and the generic Copied/Copy failed announcement remain.
 
-**Edit → Copy Last Reply (⌘⇧C)** copies the latest nonempty finished reply as Markdown from the current visible conversation. It skips a newer streaming reply; a settled failed reply's received text can still be copied. Validation and execution both require ATOM's active main Chat window, no attached sheet and no shortcut recording. With no finished reply, or outside that scope, it is disabled. It is not a global shortcut and does not read older archived turns. Ordinary ⌘C is unchanged.
+**Edit → Copy Last Reply (⌘⇧C)** copies the latest nonempty finished reply as Markdown from the current visible conversation. It skips a newer streaming reply; a settled failed reply's received text can still be copied. Validation and execution both require ARK's active main Chat window, no attached sheet and no shortcut recording. With no finished reply, or outside that scope, it is disabled. It is not a global shortcut and does not read older archived turns. Ordinary ⌘C is unchanged.
 
 Table copy remains Markdown+HTML by default, with TSV/CSV alternatives. Reply default copying deliberately changes ADR-143's automatic Markdown+HTML combination: choose Rich text explicitly for formatted paste.
 
@@ -19,13 +19,13 @@ Table copy remains Markdown+HTML by default, with TSV/CSV alternatives. Reply de
 - **Copy code** copies only the displayed parsed code body, with no Markdown fences or language tag.
 - **Copy table** uses Markdown as plain text plus a rich HTML table in the same clipboard item. Its menu also offers TSV and CSV. Each action copies only that table, including its header.
 - **ADR-174:** whole-reply copy formats now live in the compact Reply actions ellipsis and right-click menu. The persistent footer row is removed; timing information is inside the menu. Code and table controls remain adjacent to their content.
-- ADR-175 message/reply menus reveal on pointer hover or keyboard focus, and remain visible with VoiceOver; named message accessibility actions are retained. Code/table controls remain adjacent to their content. Buttons/menus retain native keyboard behavior; reply/code/table groups expose named accessibility actions. Message groups say You said and ATOM said. Actual focus order and VoiceOver behavior remain unverified.
+- ADR-175 message/reply menus reveal on pointer hover or keyboard focus, and remain visible with VoiceOver; named message accessibility actions are retained. Code/table controls remain adjacent to their content. Buttons/menus retain native keyboard behavior; reply/code/table groups expose named accessibility actions. Message groups say You said and ARK said. Actual focus order and VoiceOver behavior remain unverified.
 - Inline code/table copy controls show Copied with a checkmark for about 1.4 seconds, or Copy failed if clipboard preparation/write fails. Accessibility also announces that generic outcome. Custom accessibility actions use the same writer/announcement.
 - Code/table controls are visible but disabled during streaming, with an explanatory tooltip. They become active once the reply settles, including received text from a failed reply.
 
 ## Serialization
 
-`MarkdownCopy` in AtomIslandCore contains pure clipboard formatting. It does not access AppKit, providers, tools, files or the clipboard. `ChatClipboard` prepares one `NSPasteboardItem`, checks each representation, clears the old clipboard only after preparation, and checks the final write. A failed final write may still leave the clipboard empty; its previous contents are not read or restored.
+`MarkdownCopy` in ArkIslandCore contains pure clipboard formatting. It does not access AppKit, providers, tools, files or the clipboard. `ChatClipboard` prepares one `NSPasteboardItem`, checks each representation, clears the old clipboard only after preparation, and checks the final write. A failed final write may still leave the clipboard empty; its previous contents are not read or restored.
 
 | Format | Plain-text representation | Additional clipboard representation |
 | --- | --- | --- |

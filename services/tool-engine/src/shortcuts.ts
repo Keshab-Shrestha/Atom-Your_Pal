@@ -1,4 +1,4 @@
-import type { ToolCall, ToolRunner } from "@atom/contracts";
+import type { ToolCall, ToolRunner } from "@ark/contracts";
 
 /** A sentence claimed by a shortcut: its name (for the log) and the tool call it stands for. */
 export interface ShortcutMatch {
@@ -10,10 +10,10 @@ export interface ShortcutMatch {
 const MAX_QUERY = 200;
 
 /** Spoken extras around a command that do not change it. */
-const LEAD = /^(?:(?:hey )?(?:atom|zeno)|please|can you|could you)\s+/;
+const LEAD = /^(?:(?:hey )?ark|please|can you|could you)\s+/;
 const TAIL = /\s+please$/;
 
-/** Lower case, no commas or end punctuation, no "please", "ATOM" or "Zeno". */
+/** Lower case, no commas or end punctuation, no "please", "ARK" or "Ark". */
 function normalize(text: string): string {
   let s = text.toLowerCase().replace(/[,!?]/g, " ").replace(/[.\s]+$/, "").replace(/\s+/g, " ").trim();
   for (let before = ""; before !== s; ) {
@@ -39,7 +39,7 @@ function exactApp(spoken: string, apps: readonly string[]): string | undefined {
 
 const query = (q: string) => (q.trim() && q.length <= MAX_QUERY ? q.trim() : undefined);
 
-const SETTINGS = /^(?:open|show)(?: the| my| your| atom'?s?| zeno'?s?)? settings$/;
+const SETTINGS = /^(?:open|show)(?: the| my| your| ark'?s?| ark'?s?)? settings$/;
 const OPEN = /^(?:open|launch|start|switch to)(?: the| my)? (.+?)(?: app)?$/;
 const PLAY_PAUSE =
   /^(?:play|pause|resume|unpause|play pause|play\/pause)(?: the)?(?: music| video| song| youtube(?: video)?)?(?: (?:in|on) (?:brave|brave browser|the browser|youtube))?$/;
@@ -55,7 +55,7 @@ const firstMatch = (patterns: RegExp[], s: string) => patterns.map((re) => re.ex
  */
 export function matchShortcut(text: string, context: { apps: readonly string[] }): ShortcutMatch | undefined {
   const s = normalize(text);
-  if (SETTINGS.test(s)) return { name: "atom_settings", call: { name: "open_atom_settings", input: {} } };
+  if (SETTINGS.test(s)) return { name: "ark_settings", call: { name: "open_ark_settings", input: {} } };
   if (PLAY_PAUSE.test(s)) return { name: "play_pause", call: { name: "play_pause", input: {} } };
 
   const youtube = query(firstMatch(YOUTUBE, s) ?? "");

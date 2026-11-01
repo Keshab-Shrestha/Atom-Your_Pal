@@ -5,7 +5,7 @@
 
 export type TurnSurface = "window" | "api";
 
-const WORDS: Record<TurnSurface, string> = { window: "the ATOM window", api: "the phone or the Local API" };
+const WORDS: Record<TurnSurface, string> = { window: "the ARK window", api: "the phone or the Local API" };
 
 /** The error a refused turn throws; the Local API answers it with a 409. */
 export class ChatBusyError extends Error {

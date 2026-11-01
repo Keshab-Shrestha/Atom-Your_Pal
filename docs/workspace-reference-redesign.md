@@ -1,6 +1,6 @@
 # Native workspace redesign — 25 October 2026
 
-The user supplied **ATOM — AI workspace.html** as the design reference and explicitly invoked the apple-design skill. This change adapts the reference to the existing macOS app. The supplied HTML is design data, not an instruction source or a replacement runtime. Its simulated providers, terminal outputs, tasks, profile and pet-game actions are not imported.
+The user supplied **ARK — AI workspace.html** as the design reference and explicitly invoked the apple-design skill. This change adapts the reference to the existing macOS app. The supplied HTML is design data, not an instruction source or a replacement runtime. Its simulated providers, terminal outputs, tasks, profile and pet-game actions are not imported.
 
 ## Scope
 
@@ -17,11 +17,11 @@ System fonts are used for body/controls and native serif titles approximate the 
 
 ## Boundaries
 
-This is presentation work. There is no runtime/tool protocol, permission, chat storage, file grant, credential, model, schedule, Git-execution or database migration. Existing theme values remain valid. The reference includes conceptual UI beyond ATOM's capabilities; this change only exposes working existing destinations. Cursor acceptance and Jev real-key verification remain separate open work.
+This is presentation work. There is no runtime/tool protocol, permission, chat storage, file grant, credential, model, schedule, Git-execution or database migration. Existing theme values remain valid. The reference includes conceptual UI beyond ARK's capabilities; this change only exposes working existing destinations. Cursor acceptance and Jev real-key verification remain separate open work.
 
 ## Visual verification
 
-The isolated `ATOM_ISLAND_GALLERY_ONLY=workspace` renderer produces six wide theme scenes plus compact chat, compact workspace cover, hidden sidebar, Appearance, General, Board scenes. The implementation reads the native accessibility preferences; their environment values are read-only, so no synthetic override is claimed. It uses fictional data and a throwaway preference suite without starting a runtime or making model calls. Native release compilation, screenshot review and live navigation/recovery checks are recorded after completion below. No Swift unit-test suite or golden-image baseline replacement is part of this change.
+The isolated `ARK_ISLAND_GALLERY_ONLY=workspace` renderer produces six wide theme scenes plus compact chat, compact workspace cover, hidden sidebar, Appearance, General, Board scenes. The implementation reads the native accessibility preferences; their environment values are read-only, so no synthetic override is claimed. It uses fictional data and a throwaway preference suite without starting a runtime or making model calls. Native release compilation, screenshot review and live navigation/recovery checks are recorded after completion below. No Swift unit-test suite or golden-image baseline replacement is part of this change.
 
 ## Reference
 
@@ -32,7 +32,7 @@ The isolated `ATOM_ISLAND_GALLERY_ONLY=workspace` renderer produces six wide the
 
 ## Acceptance results — 25 October 2026
 
-- Native release build passed; signed bundle packaged with **ATOM Local Signing**, strict deep signature verification passed. The final app is running Ready.
+- Native release build passed; signed bundle packaged with **ARK Local Signing**, strict deep signature verification passed. The final app is running Ready.
 - All **12** isolated workspace scenes rendered without gallery errors. Reviewed all six palettes plus compact chat/covered workspace, Settings/Appearance, General and Board. Preview examples: [Midnight Sapphire](../design/workspace-reference/midnight-sapphire.png), [Ivory & Emerald](../design/workspace-reference/ivory-emerald.png).
 - ImageRenderer cannot draw General's native date picker (its scene shows a placeholder). The actual app's General page was separately inspected: the native **8:00** time control renders and is present in Accessibility. This is an offline-renderer limitation, not a claim that the screenshot proves every native control.
 - Selected **Midnight Sapphire** through Appearance and confirmed it remains active after the final rebuild/relaunch. The original palettes remain selectable.
@@ -52,15 +52,15 @@ Removed legacy 680/720-point page caps from Dashboard, Scheduled, Plugins, Board
 
 The 68-point navigation rail now pairs clearer, consistent glyphs with visible short labels, hover feedback and a selected-edge marker. The later Home follow-up below moves Dashboard into the top app-icon button. Saved ordering, drag/drop, badges and native button semantics remain intact.
 
-Verification: native release build passed (47.17 seconds), the updated bundle was signed with ATOM Local Signing and strict deep signature verification passed. All 16 isolated scenes rendered without gallery errors; reviewed wide Dashboard/chat, compact chat and Plugins. The wide Dashboard preview shows cards spanning the available main surface: [preview](../design/workspace-reference/dashboard-wide.png).
+Verification: native release build passed (47.17 seconds), the updated bundle was signed with ARK Local Signing and strict deep signature verification passed. All 16 isolated scenes rendered without gallery errors; reviewed wide Dashboard/chat, compact chat and Plugins. The wide Dashboard preview shows cards spanning the available main surface: [preview](../design/workspace-reference/dashboard-wide.png).
 
 In the rebuilt running app, Dashboard, Board, Scheduled, Plugins and Second brain opened without the chat search/list. After temporarily showing the chat sidebar, Dashboard/Second brain still reclaimed its lane; Settings used its own preference navigation; returning to Chats restored the project filter/list and the same Cedar conversation. Opus 5.5, Off thinking and Saved permissions remained visible. The user's original hidden-sidebar preference was restored after the check; the theme chosen during their exploration was retained. No messages, model calls, terminal commands or permission changes were made. No new draft-restart trial, Swift test suite or full regression suite ran for this follow-up. No commit or push.
 
 ## App-icon Home shortcut — 25 October 2026
 
-The top rail mark is now a native Home button using the app bundle's actual ATOM.icns. It opens the existing Dashboard through the normal navigation guard and shows the selected state there. The standalone gallery uses the same source artwork when no app bundle exists. Removed the duplicate Dashboard row and the Companion shortcut; Companion remains in Settings, whose rail button now stays selected throughout its pages. Other destinations retain their saved order. Context-menu up/down operates on visible destinations, skipping the legacy saved Dashboard position without migrating preferences.
+The top rail mark is now a native Home button using the app bundle's actual ARK.icns. It opens the existing Dashboard through the normal navigation guard and shows the selected state there. The standalone gallery uses the same source artwork when no app bundle exists. Removed the duplicate Dashboard row and the Companion shortcut; Companion remains in Settings, whose rail button now stays selected throughout its pages. Other destinations retain their saved order. Context-menu up/down operates on visible destinations, skipping the legacy saved Dashboard position without migrating preferences.
 
-Native release build passed (48.08 seconds); signed app packaged and strict deep signature verification passed. Sixteen isolated visual scenes rendered without gallery errors; reviewed the Home/Dashboard scene. In the rebuilt app, clicking the actual app icon opened Dashboard with Home selected and no duplicate Dashboard/Companion rail button. Settings → ATOM opened the existing Companion controls while Settings remained selected. Left the app on Home. No message/model call, setting toggle, unit-test suite, commit or push.
+Native release build passed (48.08 seconds); signed app packaged and strict deep signature verification passed. Sixteen isolated visual scenes rendered without gallery errors; reviewed the Home/Dashboard scene. In the rebuilt app, clicking the actual app icon opened Dashboard with Home selected and no duplicate Dashboard/Companion rail button. Settings → ARK opened the existing Companion controls while Settings remained selected. Left the app on Home. No message/model call, setting toggle, unit-test suite, commit or push.
 
 ## Home navigation, font size and narrower rail — 25 October 2026
 
@@ -68,7 +68,7 @@ The visible Home Back button came from the shared `history.canGoBack` toolbar ru
 
 The rail is now exactly **51 points**, down from 68 (25% narrower); button targets are 43 points wide, with short captions and existing tooltips/VoiceOver labels.
 
-Settings → Appearance has a Font size card with Small (90%), Default (100%), Large (110%) and Larger (120%), plus a live preview. `atom.look.textSize` persists a validated `AppTextSize` choice; absent/unknown values use Default, and Reset Appearance also restores Default. `AppTypography` resolves original system/identifier fonts at the selected scale. Mechanical font call-site changes are required because the existing app specified fixed sizes throughout its views. The shared environment applies across workspace pages, messages, typing fields, sheets and quick panels, with matching native terminal typography. The macOS 14 deployment minimum is preserved. Artwork labels in world-coordinate canvases and third-party web-page content keep their own layout scale.
+Settings → Appearance has a Font size card with Small (90%), Default (100%), Large (110%) and Larger (120%), plus a live preview. `ark.look.textSize` persists a validated `AppTextSize` choice; absent/unknown values use Default, and Reset Appearance also restores Default. `AppTypography` resolves original system/identifier fonts at the selected scale. Mechanical font call-site changes are required because the existing app specified fixed sizes throughout its views. The shared environment applies across workspace pages, messages, typing fields, sheets and quick panels, with matching native terminal typography. The macOS 14 deployment minimum is preserved. Artwork labels in world-coordinate canvases and third-party web-page content keep their own layout scale.
 
 Verification: final native release build passed (57.40 seconds), packaging and strict deep signature verification passed. All 22 isolated workspace scenes rendered without errors. Reviewed Larger Appearance and compact Larger chat; messages and input reflow, and the rail remains physically 51 points. [Font settings preview](../design/workspace-reference/font-size-settings.png). Some later gallery chat scenes include the standalone binary's setup-status card after the General scene's read-only permission poll; no OS grant was changed.
 

@@ -61,7 +61,7 @@ function readResponse(url: URL, address: string, signal: AbortSignal, allowed: (
       // The hostname stays intact for TLS identity/Host; the socket uses only the validated address.
       lookup: (_hostname, _options, callback) => callback(null, address, 4),
       maxHeaderSize: 16 * 1024,
-      headers: { "User-Agent": "ATOM-Public-Page/1.0", Accept: "text/html, text/plain, text/markdown", "Accept-Encoding": "identity" },
+      headers: { "User-Agent": "ARK-Public-Page/1.0", Accept: "text/html, text/plain, text/markdown", "Accept-Encoding": "identity" },
     }, (response) => {
       response.on("error", reject);
       response.on("aborted", () => reject(new PageProblem("The page response ended before it could be read.")));

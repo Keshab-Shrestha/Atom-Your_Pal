@@ -8,7 +8,7 @@ import { BROWSER_SERVER, acquireBrowser, browserCheck, browserServer } from "./b
 
 // ADR-098 item 4: the browser policy (pure; no browser starts).
 
-const root = mkdtempSync(join(tmpdir(), "atom-browser-"));
+const root = mkdtempSync(join(tmpdir(), "ark-browser-"));
 after(() => rmSync(root, { recursive: true, force: true }));
 // ADR-122: the test's "home" is `root`. Files are uploaded from anywhere in it that the file rules allow, and Keshab is asked for each upload.
 const home = realpathSync(root);
@@ -152,7 +152,7 @@ test("a declined password question denies; fill_form checks every field", async 
   assert.ok("step" in (await p.check(T("fill_form"), { fields: [{ target: "e2", value: "a" }, { target: "e4", value: "b" }] })));
 });
 
-test("an element ATOM cannot resolve asks (missing ref, no ref, a ref from an old page)", async () => {
+test("an element ARK cannot resolve asks (missing ref, no ref, a ref from an old page)", async () => {
   const p = await onShop();
   await p.check(T("type"), { target: "e99", text: "a" });
   await p.check(T("type"), { text: "a" });

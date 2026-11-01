@@ -89,7 +89,7 @@ test("the tool exposes one `computer` spec with an action enum", () => {
   assert.deepEqual(tool.spec.inputSchema.required, ["action"]);
 });
 
-test("list_apps shows apps but hides ones ATOM may not control", async () => {
+test("list_apps shows apps but hides ones ARK may not control", async () => {
   const s = setup();
   const r = await s.run({ action: "list_apps" });
   assert.equal(r.ok, true);
@@ -856,7 +856,7 @@ test("status reports driver permissions read-only, never prompts, and names whos
   assert.match(r.text, /Accessibility: granted/);
   assert.match(r.text, /Screen Recording: missing/);
   assert.match(r.text, /com\.trycua\.driver/);
-  assert.match(r.text, /ATOM did not change any permission/);
+  assert.match(r.text, /ARK did not change any permission/);
   assert.deepEqual(s.asked, []);
 });
 

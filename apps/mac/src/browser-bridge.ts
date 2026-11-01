@@ -1,5 +1,5 @@
 // The worker browser runs agent-browser (a Rust daemon that talks to the browser directly) instead of Playwright MCP (Node).
-// This bridge keeps ATOM's own policy layer untouched: it offers the same `browser_*` tools with the same fixed arguments, and prints
+// This bridge keeps ARK's own policy layer untouched: it offers the same `browser_*` tools with the same fixed arguments, and prints
 // results in the shape `browserCheck` (browser.ts) and the Codex adapter (codex-browser.ts) already read ("- Page URL:", "[ref=eN]").
 // It exposes only the tools below. agent-browser's own extra arguments (state files, certificates, extra flags, script evaluation)
 // are never offered to the model.
@@ -157,7 +157,7 @@ export function createBridge(options: BridgeOptions) {
         return { text: await state() };
       }
       case "close": await run(["close"]); return { text: "Browser closed.\n" };
-      default: throw new Error("ATOM does not offer that browser tool.");
+      default: throw new Error("ARK does not offer that browser tool.");
     }
   }
 
@@ -198,7 +198,7 @@ export function createBridge(options: BridgeOptions) {
     /** Runs one tool. Never throws: a failure is an error result with a short, secret-free message. */
     async call(name: string, input: unknown): Promise<BridgeOutput> {
       try {
-        if (!BRIDGE_TOOLS.some((t) => t.name === name)) throw new Error("ATOM does not offer that browser tool.");
+        if (!BRIDGE_TOOLS.some((t) => t.name === name)) throw new Error("ARK does not offer that browser tool.");
         const args = input && typeof input === "object" && !Array.isArray(input) ? (input as Record<string, any>) : {};
         return await act(name.slice("browser_".length), args);
       } catch (error) {

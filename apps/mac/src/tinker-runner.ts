@@ -1,4 +1,4 @@
-import type { HelperStore, Job, ReportInput } from "@atom/helpers";
+import type { HelperStore, Job, ReportInput } from "@ark/helpers";
 
 // ADR-110 N5: runs Tinker's queued tasks (a soul review, a skill draft, a skill edit) in the background. Everything else
 // runs as a native sub-agent of a chat; Tinker's tasks have no chat, so they keep this small runner. Every Tinker task

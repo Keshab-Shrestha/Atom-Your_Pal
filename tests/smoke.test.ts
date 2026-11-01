@@ -20,7 +20,7 @@ test("a real runtime starts, serves the Local API and the phone page, and refuse
       assert.ok(String(page.headers["content-type"]).includes(type), `${path}: ${page.headers["content-type"]}`);
       assert.match(String(page.headers["content-security-policy"]), /default-src 'self'/, path);
     }
-    assert.match((await runtime.api("GET", "/app", { token: null })).text, /<title>ATOM<\/title>/);
+    assert.match((await runtime.api("GET", "/app", { token: null })).text, /<title>ARK<\/title>/);
 
     // Data needs the token; a foreign Host is refused first.
     assert.equal((await runtime.api("GET", "/v1/tasks", { token: null })).status, 401);

@@ -1,6 +1,6 @@
 # T3 Code: overview
 
-> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ATOM status. Detailed observations below retain the earlier snapshot unless updated explicitly.
+> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ARK status. Detailed observations below retain the earlier snapshot unless updated explicitly.
 
 Source: github.com/pingdotgg/t3code (MIT licence). Read on 2026-10-17 from a shallow clone at commit `2fbd4318` (2026-10-17).
 This file is a map. The detail is in the topic files listed in `README.md`; later corrections are in the second review.
@@ -8,7 +8,7 @@ This file is a map. The detail is in the topic files listed in `README.md`; late
 ## What T3 Code is
 
 T3 Code calls itself an "agent harness control surface". It lets one person control coding agents that run on their own machine.
-It controls provider tools on the host. It supports subscription sign-ins and API-key/custom-endpoint configurations. ATOM currently keeps a narrower plan-only policy; the two products do not have the same billing rules.
+It controls provider tools on the host. It supports subscription sign-ins and API-key/custom-endpoint configurations. ARK currently keeps a narrower plan-only policy; the two products do not have the same billing rules.
 
 - Providers named in the README: Claude Code, Codex, Cursor, Grok Build, OpenCode, Google Antigravity.
   The repository also has packages for Pi, Muse and a generic ACP provider.
@@ -24,7 +24,7 @@ It controls provider tools on the host. It supports subscription sign-ins and AP
 4. Multi-surface: web, desktop and mobile all get the feature where it makes sense.
 5. Small models: "fight for the smallest model that makes the correct behavior unsurprising".
 
-ATOM can use rules 2 and 5 as they are. Rule 3 matters for ATOM only if it adds a second device (see the devices file).
+ARK can use rules 2 and 5 as they are. Rule 3 matters for ARK only if it adds a second device (see the devices file).
 
 ## Technology (verified in `package.json` and `pnpm-workspace.yaml`)
 
@@ -37,7 +37,7 @@ ATOM can use rules 2 and 5 as they are. Rule 3 matters for ATOM only if it adds 
 | Mobile | React Native with Expo (`@clerk/expo`) |
 | Quality | knip (unused code), oxlint with a custom plugin, many `*.test.ts` files next to the code |
 
-ATOM is Swift plus Node. T3 Code is almost all TypeScript. The ideas move across; the code does not.
+ARK is Swift plus Node. T3 Code is almost all TypeScript. The ideas move across; the code does not.
 
 ## Repository map
 
@@ -78,9 +78,9 @@ ATOM is Swift plus Node. T3 Code is almost all TypeScript. The ideas move across
 - Clients and servers upgrade on their own. The client reads the server's capability flags and never assumes a version.
 - Settings have an owner: client preferences stay in the client, environment defaults and project overrides stay on the server.
 
-## Compare with ATOM in one table
+## Compare with ARK in one table
 
-| Topic | T3 Code | ATOM |
+| Topic | T3 Code | ARK |
 | --- | --- | --- |
 | Main use | Coding agents in projects | Voice and chat assistant with a team of agents, notch UI |
 | Platform | Web, desktop, mobile | macOS only |

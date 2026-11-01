@@ -1,13 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
-import type { ModelRequest } from "@atom/contracts";
+import type { ModelRequest } from "@ark/contracts";
 import { PROJECTS_NEED_CLAUDE, createCodexAdapter, failure, createGeminiCliAdapter, promptText, signedInEnv, type CliRunner } from "./cli-tools.ts";
 
-// ADR-093: ATOM's chat on Codex (ChatGPT plan) or the Gemini CLI (Google sign-in), headless and read-only.
+// ADR-093: ARK's chat on Codex (ChatGPT plan) or the Gemini CLI (Google sign-in), headless and read-only.
 
 const request = (): ModelRequest => ({
-  system: "You are ATOM.",
+  system: "You are ARK.",
   systemExtra: "It is Sunday.",
   messages: [{ role: "user", content: "Hi" }, { role: "assistant", content: "Hello!" }, { role: "user", content: "Weather?" }],
   context: { requestId: "r", sessionId: "s", source: "text", receivedAt: new Date(0) },
@@ -16,7 +16,7 @@ const live = () => new AbortController().signal;
 
 test("the prompt carries the instructions, the conversation and no tools", () => {
   const text = promptText(request());
-  assert.match(text, /^You are ATOM\.\n\nIt is Sunday\./);
+  assert.match(text, /^You are ARK\.\n\nIt is Sunday\./);
   assert.match(text, /User: Hi\n\nAssistant: Hello!\n\nUser: Weather\?/);
   assert.match(text, /no tools here/);
 });
@@ -72,7 +72,7 @@ test("failures are said in words: not signed in, not found, a limit", async () =
     (e: unknown) => (e as { kind: string }).kind === "auth");
 });
 
-// ADR-107: a project chat needs the file tools only Claude Code runs under ATOM's checks.
+// ADR-107: a project chat needs the file tools only Claude Code runs under ARK's checks.
 test("Codex and the Gemini CLI refuse a project chat, before any process starts", async () => {
   const run: CliRunner = async () => assert.fail("no process may start");
   const files = { cwd: "/x", check: async () => undefined };

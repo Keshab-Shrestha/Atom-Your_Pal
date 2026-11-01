@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { ModelRequest, ToolRunner } from "@atom/contracts";
+import type { ModelRequest, ToolRunner } from "@ark/contracts";
 import { createCodexSessionAdapter, listCodexModels, type CodexTurnDiagnostic } from "./codex-session.ts";
 import { fakeCodex } from "../../../../tests/codex-harness.ts";
 
-const request = (messages: ModelRequest["messages"]): ModelRequest => ({ system: "You are ATOM.", messages, context: { requestId: "r", sessionId: "chat", source: "text", receivedAt: new Date() } });
-const runner: ToolRunner = { specs: () => [{ name: "atom_test", description: "Test", inputSchema: { type: "object" } }], run: async (c) => ({ callId: c.id, content: "Cedar" }) };
+const request = (messages: ModelRequest["messages"]): ModelRequest => ({ system: "You are ARK.", messages, context: { requestId: "r", sessionId: "chat", source: "text", receivedAt: new Date() } });
+const runner: ToolRunner = { specs: () => [{ name: "ark_test", description: "Test", inputSchema: { type: "object" } }], run: async (c) => ({ callId: c.id, content: "Cedar" }) };
 
 test("Codex keeps a live thread, sends later turns once, and rehydrates after an external transcript change", async () => {
   const fake = fakeCodex(({ turn }) => `answer ${turn}`);
@@ -29,10 +29,10 @@ test("Codex keeps a live thread, sends later turns once, and rehydrates after an
 test("only registered host tools run; native execution approvals and unknown requests cannot grant access", async () => {
   let calls = 0;
   const fake = fakeCodex(async ({ call, start }) => {
-    assert.equal(start.permissions, "atom_host_tools");
+    assert.equal(start.permissions, "ark_host_tools");
     assert.equal(start.config["features.shell_tool"], false);
     assert.equal(start.config["features.view_image"], false);
-    const good = await call("atom_test", {});
+    const good = await call("ark_test", {});
     assert.equal(good.success, true);
     assert.equal((await call("not_registered", {})).success, false);
     assert.equal((await call("shell", {}, "item/commandExecution/requestApproval")).decision, "decline");
@@ -83,8 +83,8 @@ test("effective config disables inherited servers, plugins and local skills with
     assert.deepEqual(start.config.mcp_servers, { external: { enabled: false } });
     assert.deepEqual(start.config.plugins, { "private-plugin": { enabled: false } });
     assert.deepEqual(start.config.skills, { config: [{ path: "/fictional/local/SKILL.md", enabled: false }] });
-    assert.equal(start.baseInstructions, "You are ATOM.");
-    assert.equal(start.dynamicTools[0].name, "atom_test");
+    assert.equal(start.baseInstructions, "You are ARK.");
+    assert.equal(start.dynamicTools[0].name, "ark_test");
     return "done";
   }, { config: { mcp_servers: { external: { enabled: true } }, plugins: { "private-plugin": { enabled: true } } }, skills: { data: [{ skills: [{ path: "/fictional/local/SKILL.md" }], errors: [] }] } });
   const adapter = createCodexSessionAdapter({ program: "fake", model: "codex-default", runner: () => runner, transport: fake.factory });
@@ -132,7 +132,7 @@ test("diagnostics distinguish real zero-cache reuse, retain raw counters and rec
     assert.equal(diagnostics[1]!.usage!.last.cachedInputTokens, 0);
     assert.deepEqual(usage, [{ input: 200, output: 10, cacheRead: 800, cacheWrite: 0 }, { input: 1000, output: 10, cacheRead: 0, cacheWrite: 0 }]);
     for (const d of diagnostics) assert.ok(d.completed && d.firstTextMs! >= d.readyMs && d.firstTextMs! <= d.totalMs);
-    assert.doesNotMatch(JSON.stringify(diagnostics), /PRIVATE-FICTIONAL-PROMPT|You are ATOM/);
+    assert.doesNotMatch(JSON.stringify(diagnostics), /PRIVATE-FICTIONAL-PROMPT|You are ARK/);
   } finally { adapter.close?.(); }
 });
 
@@ -163,7 +163,7 @@ test("Codex applies effort per turn without restarting or changing the host tool
     }
     assert.equal(fake.wires.length, 1);
     assert.deepEqual(fake.wires[0]!.sent.filter((m) => m.method === "turn/start").map((m) => m.params.effort), ["low", "medium", "high"]);
-    assert.equal(fake.wires[0]!.sent.find((m) => m.method === "thread/start")!.params.permissions, "atom_host_tools");
+    assert.equal(fake.wires[0]!.sent.find((m) => m.method === "thread/start")!.params.permissions, "ark_host_tools");
   } finally { adapter.close?.(); }
 });
 

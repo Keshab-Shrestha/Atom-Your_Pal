@@ -3,19 +3,19 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openHelperStore } from "@atom/helpers";
-import { loadConfig, readEnv } from "@atom/shared";
+import { openHelperStore } from "@ark/helpers";
+import { loadConfig, readEnv } from "@ark/shared";
 import { createNativeCore } from "./native-core.ts";
 
 // ADR-111 on the real Claude Code: the safety gate rewrites a planned portion's prompt, and the sub-agent must receive
 // the rewritten one. The cloud tests cannot show this: they use a fake SDK. Costs one short chat on the Claude plan.
-// Run with: ATOM_LIVE_TESTS=1 pnpm test:live
-const enabled = readEnv(process.env, "ATOM_LIVE_TESTS") === "1";
+// Run with: ARK_LIVE_TESTS=1 pnpm test:live
+const enabled = readEnv(process.env, "ARK_LIVE_TESTS") === "1";
 const MARKER = "PINEAPPLE-4217";
 
-test("live: a planned portion's stored task reaches the sub-agent, not the main agent's own words", { skip: !enabled && "set ATOM_LIVE_TESTS=1 (pnpm test:live)", timeout: 240_000 }, async () => {
+test("live: a planned portion's stored task reaches the sub-agent, not the main agent's own words", { skip: !enabled && "set ARK_LIVE_TESTS=1 (pnpm test:live)", timeout: 240_000 }, async () => {
   const config = loadConfig();
-  const dir = mkdtempSync(join(tmpdir(), "atom-plan-live-"));
+  const dir = mkdtempSync(join(tmpdir(), "ark-plan-live-"));
   const store = openHelperStore({ path: ":memory:", home: dir });
   try {
     const core = createNativeCore({
@@ -29,7 +29,7 @@ test("live: a planned portion's stored task reaches the sub-agent, not the main 
     });
     await core.handle({
       text:
-        `Test of ATOM's plan tools. Do exactly this: 1) Call plan_work with goal "Say a word" and one portion {agent: "Sid", task: "Reply with only the word ${MARKER} and nothing else."}. ` +
+        `Test of ARK's plan tools. Do exactly this: 1) Call plan_work with goal "Say a word" and one portion {agent: "Sid", task: "Reply with only the word ${MARKER} and nothing else."}. ` +
         `2) Start portion P1 with the Agent tool: description "P1", subagent_type "sid", prompt "Reply with only the word BANANA." 3) When the agent has reported, answer in one short sentence.`,
       source: "text",
     });

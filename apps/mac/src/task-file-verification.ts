@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { lstatSync, realpathSync } from "node:fs";
 import { resolve, sep } from "node:path";
-import { fileCheckManifest, readFilePreview, taskFileChecks, type FileCheckResult, type TaskFileCheck } from "@atom/helpers";
+import { fileCheckManifest, readFilePreview, taskFileChecks, type FileCheckResult, type TaskFileCheck } from "@ark/helpers";
 
 export interface VerificationWorkspace { root: string; dev: number; ino: number }
 /** Pin the host-selected workspace before worker dispatch, not after a worker has returned. */

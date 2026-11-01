@@ -108,7 +108,7 @@ test("removing a project keeps its chats as plain chats, or deletes them when as
 });
 
 test("a file made before projects is migrated: chats keep their rows and gain a project column", () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-mem-"));
+  const dir = mkdtempSync(join(tmpdir(), "ark-mem-"));
   const path = join(dir, "memory.db");
   const db = new DatabaseSync(path);
   db.exec(`
@@ -148,7 +148,7 @@ test("a chat can be renamed; the name stays when the chat is saved again; a titl
 });
 
 test("an old file without the name flag is migrated", () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-mem-"));
+  const dir = mkdtempSync(join(tmpdir(), "ark-mem-"));
   const path = join(dir, "memory.db");
   const db = new DatabaseSync(path);
   db.exec(`
@@ -165,7 +165,7 @@ test("an old file without the name flag is migrated", () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-// 2026-10-16 (code check): keeping a project's chats could make more plain chats than ATOM keeps, and the next save deleted the oldest.
+// 2026-10-16 (code check): keeping a project's chats could make more plain chats than ARK keeps, and the next save deleted the oldest.
 test("removing a project and keeping its chats is refused when the plain chats would pass the limit; the plain list is not filled by project chats", () => {
   let n = 0;
   const { chats, projects } = openMemoryStore({ path: ":memory:", now: () => new Date(Date.UTC(2026, 0, 1) + ++n * 1000) });

@@ -1,11 +1,11 @@
-// ATOM on the Mac. Two interfaces over the same voice loop:
+// ARK on the Mac. Two interfaces over the same voice loop:
 //   pnpm start                    terminal: Space to talk (terminal.ts)
-//   node apps/mac/src/main.ts --island   driven by ATOM Island over stdin / stdout (island.ts)
+//   node apps/mac/src/main.ts --island   driven by ARK Island over stdin / stdout (island.ts)
 
 import { execFile } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
-import { GatewayError } from "@atom/llm-gateway";
-import { ConfigError, createLogger, loadConfig, migrateLegacyLog, readEnv, readProviderKeys, type Config } from "@atom/shared";
+import { GatewayError } from "@ark/llm-gateway";
+import { ConfigError, createLogger, loadConfig, migrateLegacyLog, readEnv, readProviderKeys, type Config } from "@ark/shared";
 import { encodeEvent, type ErrorStage } from "./island-protocol.ts";
 import { runIsland } from "./island.ts";
 import { acquireInstanceLock } from "./instance-lock.ts";
@@ -31,7 +31,7 @@ function islandFatal(stage: ErrorStage, message: string, code: number): void {
   setTimeout(() => process.exit(code), 500).unref(); // in case the island is no longer reading
 }
 
-// The model chosen in ATOM Island (config/island.json) overrides ATOM_LLM_PROVIDER / ATOM_LLM_MODEL in
+// The model chosen in ARK Island (config/island.json) overrides ARK_LLM_PROVIDER / ARK_LLM_MODEL in
 // both modes. Keys of every provider are kept so the island can switch; they never leave this process.
 const keys = readProviderKeys();
 const savedPath = settingsPath();
@@ -55,7 +55,7 @@ const config = readConfig();
 if (config) start(config);
 
 function start(config: Config) {
-  migrateLegacyLog(config.log.file, "logs/zeno.log"); // ADR-105: once; the Swift side still writes logs/zeno.log (TODO in the Swift step)
+  for (const old of ["logs/atom.log", "logs/zeno.log"]) migrateLegacyLog(config.log.file, old); // the old names' logs, once (ADR-105, 2026-11-01)
   const log = createLogger({ level: config.log.level, file: config.log.file });
   log.info("app.start", {
     mode: island ? "island" : "terminal",
@@ -74,7 +74,7 @@ function start(config: Config) {
   const crash = (error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
     log.error("app.crash", { message, stack: error instanceof Error ? error.stack : undefined });
-    const text = `ATOM stopped because of an unexpected error: ${message}. Details are in ${config.log.file}.`;
+    const text = `ARK stopped because of an unexpected error: ${message}. Details are in ${config.log.file}.`;
     if (island) islandFatal("runtime", text, 1);
     else {
       console.error(text);
@@ -85,11 +85,11 @@ function start(config: Config) {
   process.on("unhandledRejection", crash);
 
   // One runtime per data folder: a second one would run startup recovery and fail the live jobs of the first.
-  const helpersFile = readEnv(process.env, "ATOM_HELPERS_FILE") ?? "data/helpers.db";
+  const helpersFile = readEnv(process.env, "ARK_HELPERS_FILE") ?? "data/helpers.db";
   if (helpersFile !== ":memory:") {
-    const lock = acquireInstanceLock(join(dirname(resolve(helpersFile)), ".atom.lock"));
+    const lock = acquireInstanceLock(join(dirname(resolve(helpersFile)), ".ark.lock"));
     if (!lock.ok) {
-      const text = `ATOM already runs on this data folder (pid ${lock.pid}).`;
+      const text = `ARK already runs on this data folder (pid ${lock.pid}).`;
       log.warn("app.refused", { pid: lock.pid });
       // Temporary ownership conflict, not broken credentials/configuration. The supervisor retries with bounded backoff.
       if (island) islandFatal("runtime", `${text} Wait for that runtime to finish, then retry. No settings need changing.`, 75);
@@ -172,5 +172,5 @@ function start(config: Config) {
   // The island has gone away (broken pipe): nobody is listening, so stop.
   process.stdout.on("error", () => session.quit());
   // Printed last: once this appears, the runtime is set up and handles SIGTERM cleanly.
-  console.error(`ATOM runtime (island mode): ${config.llm.provider} / ${config.llm.model}, microphone ${config.audio.inputDevice}`);
+  console.error(`ARK runtime (island mode): ${config.llm.provider} / ${config.llm.model}, microphone ${config.audio.inputDevice}`);
 }

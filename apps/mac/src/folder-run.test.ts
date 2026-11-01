@@ -3,12 +3,12 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, truncateSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openHelperStore } from "@atom/helpers";
-import { openMemoryStore } from "@atom/memory";
+import { openHelperStore } from "@ark/helpers";
+import { openMemoryStore } from "@ark/memory";
 import { MAX_OUTSIDE_WRITES, PROJECT_FILE_BYTES, holdsSecret, askForFolder, checkpointBefore, denyRead, folderCheck, newFolderMemory, projectReadCheck } from "./folder-run.ts";
 
 test("explicit chat approval survives a new task; other files, other chats, revocation and the floor still ask or refuse", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-grant-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-grant-")));
   const memory = openMemoryStore({ path: ":memory:" });
   const file = join(home, "page.html");
   const other = join(home, "other.html");
@@ -35,7 +35,7 @@ test("explicit chat approval survives a new task; other files, other chats, revo
 });
 
 test("allowing one edit does not grant a later task access", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-grant-once-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-grant-once-")));
   const memory = openMemoryStore({ path: ":memory:" });
   const file = join(home, "page.html");
   let asks = 0;
@@ -51,7 +51,7 @@ test("allowing one edit does not grant a later task access", async () => {
 // Task 3.11: every tool call of a run in folders, checked in code; risky commands ask on Pal's card.
 
 test("paths outside are refused, risky commands ask, refused ones never ask; the log keeps verdicts only", async () => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "atom-run-")));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "ark-run-")));
   try {
     const asked: string[] = [];
     let answer = true;
@@ -85,11 +85,11 @@ test("sandboxed commands cannot read keys and tokens", () => {
 
 // ADR-090: Quill had no folder, ran without file tools and could not save. Now it asks for the folder its task names.
 test("a file worker with no folder asks for the one its task names; allowed, it is made and granted", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-home-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-home-")));
   try {
     const store = openHelperStore({ path: ":memory:", home });
     const asked: string[] = [];
-    const task = "Save it as a text document in a folder named ZenoDoc in the user's home directory.";
+    const task = "Save it as a text document in a folder named ArkDoc in the user's home directory.";
     const grants = await askForFolder({
       task,
       name: "Quill",
@@ -97,9 +97,9 @@ test("a file worker with no folder asks for the one its task names; allowed, it 
       approve: async (r) => (asked.push(`${r.summary} | ${r.reason}`), true),
       grant: (folder) => (store.addGrant("quill", folder), store.list().find((h) => h.id === "quill")!.grants),
     });
-    assert.deepEqual(grants, [join(home, "ZenoDoc")]);
-    assert.ok(existsSync(join(home, "ZenoDoc")));
-    assert.match(asked[0]!, /^Quill needs a folder to save files in: ~\/ZenoDoc \| .*~\/ZenoDoc/);
+    assert.deepEqual(grants, [join(home, "ArkDoc")]);
+    assert.ok(existsSync(join(home, "ArkDoc")));
+    assert.match(asked[0]!, /^Quill needs a folder to save files in: ~\/ArkDoc \| .*~\/ArkDoc/);
     // Said no (or no answer): a clear error, nothing made.
     await assert.rejects(
       askForFolder({ task: "Save it to ~/Other", name: "Kame", home, approve: async () => false, grant: () => [] }),
@@ -113,7 +113,7 @@ test("a file worker with no folder asks for the one its task names; allowed, it 
 
 // B3.4: the before-hook runs for tools that change files, after the checks pass, and never fails the run.
 test("before runs only for file-changing tools whose paths passed; a throw does not fail the call", async () => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "atom-run-")));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "ark-run-")));
   try {
     const seen: [string, string[]][] = [];
     const failed: string[] = [];
@@ -153,7 +153,7 @@ test("before runs only for file-changing tools whose paths passed; a throw does 
 });
 
 test("checkpointBefore keeps files outside the git worktree and leaves the worktree to git", () => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "atom-run-")));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "ark-run-")));
   try {
     const tree = join(root, "tree");
     const other = join(root, "other");
@@ -174,7 +174,7 @@ test("checkpointBefore keeps files outside the git worktree and leaves the workt
 // ADR-107: a project chat reads its folder directly (Read, Glob, Grep) and never writes. Each refusal below comes with
 // its twin that passes, so removing the check would fail one of the pair.
 function projectFixture() {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-proj-home-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-proj-home-")));
   const root = join(home, "Developer", "app");
   for (const d of ["src", ".git", "docs"]) mkdirSync(join(root, d), { recursive: true });
   mkdirSync(join(home, ".ssh"), { recursive: true });
@@ -280,7 +280,7 @@ test("project reads: a grep that names no glob is given an exclusion for secrets
 test("a folder question waits 10 minutes, then the error says you did not answer", async (t) => {
   t.after(() => mock.timers.reset());
   mock.timers.enable({ apis: ["setTimeout"] });
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-home-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-home-")));
   try {
     const seen: { timeoutMs: number; summary: string }[] = [];
     let waiting = 0;
@@ -311,7 +311,7 @@ test("a folder question waits 10 minutes, then the error says you did not answer
 test("a folder question answered late (inside 10 minutes) is allowed; stopping the job withdraws it", async (t) => {
   t.after(() => mock.timers.reset());
   mock.timers.enable({ apis: ["setTimeout"] });
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-home-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-home-")));
   try {
     let yes!: (v: boolean) => void;
     const late = askForFolder({ task: "Save it to ~/Late", name: "Quill", home, approve: () => new Promise<boolean>((r) => (yes = r)), grant: (f) => [f] });
@@ -335,9 +335,9 @@ test("a folder question answered late (inside 10 minutes) is allowed; stopping t
 });
 
 // 2026-10-15 (security review): a folders agent had no secret-file check (only the project chat had), so a granted folder that held
-// ATOM's own data or a .env let it read the API token and the databases, or write over the token.
-test("a folders agent never opens .env files, keys, the API token or ATOM's databases, even inside its granted folder", async () => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "atom-secret-")));
+// ARK's own data or a .env let it read the API token and the databases, or write over the token.
+test("a folders agent never opens .env files, keys, the API token or ARK's databases, even inside its granted folder", async () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "ark-secret-")));
   try {
     mkdirSync(join(root, "data"));
     const check = folderCheck({ roots: [root], cwd: root, name: "Kame", home: "/Users/nobody", approve: async () => true });
@@ -356,7 +356,7 @@ test("a folders agent never opens .env files, keys, the API token or ATOM's data
 
 // ADR-122, ADR-123: no per-agent folders. A new file is free anywhere the floor allows; a file that exists asks once; the 200-file stop; searches never take the whole home.
 test("tiers: a new file is free, an existing one asks once per task, the whole-home search and the floor are refused", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-tier-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-tier-")));
   try {
     mkdirSync(join(home, "Documents"), { recursive: true });
     writeFileSync(join(home, "Documents", "old.txt"), "old");
@@ -390,7 +390,7 @@ test("tiers: a new file is free, an existing one asks once per task, the whole-h
 });
 
 test("tiers: more than 200 files outside the task's folder asks once more", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-tier-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-tier-")));
   try {
     mkdirSync(join(home, "out"), { recursive: true });
     const asked: string[] = [];
@@ -407,7 +407,7 @@ test("tiers: more than 200 files outside the task's folder asks once more", asyn
 
 // ADR-123: a file that holds a secret is not read; an edit card says what will change.
 test("a file that holds a secret shape is not read; an ordinary file is", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-sec-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-sec-")));
   try {
     mkdirSync(join(home, "Documents"), { recursive: true });
     const write = (name: string, text: string) => (writeFileSync(join(home, "Documents", name), text), join(home, "Documents", name));
@@ -434,7 +434,7 @@ test("a file that holds a secret shape is not read; an ordinary file is", async 
 });
 
 test("the edit card says what will change", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-card-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-card-")));
   try {
     mkdirSync(join(home, "Documents"), { recursive: true });
     writeFileSync(join(home, "Documents", "plan.md"), "old");
@@ -452,7 +452,7 @@ test("the edit card says what will change", async () => {
 
 // 2026-10-16 (security review): ~ paths, climbing patterns, Grep lines outside the task's folder, more secret shapes.
 test("~ paths, climbing patterns and Grep content outside the task's folder are refused", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-sec2-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-sec2-")));
   try {
     const proj = join(home, "Developer", "app");
     mkdirSync(proj, { recursive: true });
@@ -479,7 +479,7 @@ test("~ paths, climbing patterns and Grep content outside the task's folder are 
 });
 
 test("Full access skips overwrite/install cards without creating grants or bypassing floors, resource caps and cancellation", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-full-files-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-full-files-")));
   const memory = openMemoryStore({ path: ":memory:" });
   const path = join(home, "page.txt"); writeFileSync(path, "old");
   let full = true, stopped = false, asks = 0, checkpoints = 0;

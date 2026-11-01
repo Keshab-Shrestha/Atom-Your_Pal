@@ -23,12 +23,12 @@ The worker browser no longer uses Playwright MCP (Node) and its own Chromium dow
 
 | Name | Effect |
 |---|---|
-| `ATOM_BROWSER_PATH` | Path to another Chromium browser. Default: Brave in `/Applications`. |
-| `ATOM_BROWSER_HEADLESS=1` | No visible window. Default: a visible window, as before. |
+| `ARK_BROWSER_PATH` | Path to another Chromium browser. Default: Brave in `/Applications`. |
+| `ARK_BROWSER_HEADLESS=1` | No visible window. Default: a visible window, as before. |
 
 ## Profile and cleanup
 
-- ATOM keeps its own profile for each agent in `data/browser-profile/<agent>`. It never uses the Brave profile of the user.
+- ARK keeps its own profile for each agent in `data/browser-profile/<agent>`. It never uses the Brave profile of the user.
 - Each bridge process uses its own agent-browser session and closes it when the process ends. A lost bridge ends the browser after 10 minutes.
 
 ## Known limits

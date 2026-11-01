@@ -1,9 +1,9 @@
 /**
  * Deterministic rules for computer control (ADR-054, SECURITY.md §8 and §12). Plain functions, no model in
- * the loop: what ATOM refuses and what it asks about is decided here, from facts Cua reports.
+ * the loop: what ARK refuses and what it asks about is decided here, from facts Cua reports.
  */
 
-/** Apps ATOM never controls, matched by bundle id. */
+/** Apps ARK never controls, matched by bundle id. */
 const BLOCKED_BUNDLES = [
   /^com\.apple\.terminal$/i,
   /^com\.googlecode\.iterm2$/i,
@@ -22,9 +22,10 @@ const BLOCKED_BUNDLES = [
   /^com\.nousresearch\./i, // Hermes
   /^com\.trycua\./i, // Cua itself
   /^com\.anthropic\./i, // Claude desktop and Claude Code
-  /^com\.zeno\./i, // the island under its old name
-  /^dev\.zeno\./i, // ADR-105: the bundle id ZENO moves to
-  /^dev\.atom\./i, // ATOM's own island
+  /^com\.zeno\./i, // the island under its oldest name
+  /^dev\.zeno\./i, // the bundle id under the name ZENO
+  /^dev\.atom\./i, // the bundle id under the name ATOM (ADR-105); an old ATOM.app can still be on the Mac
+  /^dev\.ark\./i, // ARK's own island (ADR-213)
   // 2026-10-16 (code check): apps that run scripts or shell commands (or hold an integrated terminal), so a click on "Run" would be code on the Mac.
   /^com\.apple\.scripteditor/i,
   /^com\.apple\.automator$/i,
@@ -39,10 +40,10 @@ const BLOCKED_BUNDLES = [
   /^co\.zeit\.hyper$/i,
 ];
 
-/** Why an app is off limits, or undefined if ATOM may control it. An app with no bundle id is not trusted. */
+/** Why an app is off limits, or undefined if ARK may control it. An app with no bundle id is not trusted. */
 export function appBlock(bundleId: string | undefined, name: string): string | undefined {
-  if (!bundleId) return `${name} has no app identity, so ATOM will never control it.`;
-  if (BLOCKED_BUNDLES.some((re) => re.test(bundleId))) return `ATOM will never control ${name} (terminals, password managers, system settings and AI agents are off limits).`;
+  if (!bundleId) return `${name} has no app identity, so ARK will never control it.`;
+  if (BLOCKED_BUNDLES.some((re) => re.test(bundleId))) return `ARK will never control ${name} (terminals, password managers, system settings and AI agents are off limits).`;
   return undefined;
 }
 
@@ -86,7 +87,7 @@ export function labelApproval(label: string | undefined, role: string | undefine
   if (role && CONTENT_ROLES.has(role)) return undefined;
   if (!text) {
     return role === "AXButton" || role === "AXMenuItem" || role === "AXMenuButton" || role === "AXPopUpButton"
-      ? "a button with no name, so ATOM cannot tell what it does"
+      ? "a button with no name, so ARK cannot tell what it does"
       : undefined;
   }
   const risky = role && PLAIN_ROLES.has(role) ? STRONG_LABEL.test(text) : RISKY_LABEL.test(text);
@@ -94,7 +95,7 @@ export function labelApproval(label: string | undefined, role: string | undefine
 }
 
 /**
- * ADR-123: ATOM never deletes. A control whose label names a delete (Move to Trash, Empty Trash, Delete, Erase, Uninstall) is refused outright, not
+ * ADR-123: ARK never deletes. A control whose label names a delete (Move to Trash, Empty Trash, Delete, Erase, Uninstall) is refused outright, not
  * asked, so a web page or a confused model cannot get a "yes" for it. Returns the refusal text, or undefined. Only an action role counts, like a button;
  * a text area's label is the document itself.
  */
@@ -102,14 +103,14 @@ const DELETE_LABEL = /\b(?:move to (?:the )?(?:trash|bin)|empty (?:the )?(?:tras
 export function deleteDenial(label: string | undefined, role: string | undefined): string | undefined {
   if (role && CONTENT_ROLES.has(role)) return undefined;
   const text = normalizeLabel(label ?? "");
-  return text && DELETE_LABEL.test(text) ? `ATOM never deletes. "${text.length > 40 ? `${text.slice(0, 40)}…` : text}" is refused. Ask the user to do it in Finder.` : undefined;
+  return text && DELETE_LABEL.test(text) ? `ARK never deletes. "${text.length > 40 ? `${text.slice(0, 40)}…` : text}" is refused. Ask the user to do it in Finder.` : undefined;
 }
 
 /** ADR-123: the keys that delete files in Finder (Command+Delete moves to the Trash, with Shift it empties it, with Option it deletes at once). */
 export function deleteKeyDenial(keys: string[]): string | undefined {
   const lower = chord(keys); // "cmd+delete" as one string, or ["delete", "cmd"], is the same chord as ["cmd", "delete"]
   const key = lower[lower.length - 1] ?? "";
-  return DELETE_KEYS.has(key) && lower.includes("cmd") ? "ATOM never deletes files. Ask the user to do it in Finder." : undefined;
+  return DELETE_KEYS.has(key) && lower.includes("cmd") ? "ARK never deletes files. Ask the user to do it in Finder." : undefined;
 }
 
 /** Other names for the same key, so "command", "alt" or "kp_enter" cannot get past a rule written for "cmd", "option" or "enter". */
@@ -178,7 +179,7 @@ export function keyApproval(keys: string[], justTyped: boolean): string | undefi
 const SECRET_LABEL =
   /\b(passwords?|passcode|pass\s*phrase|pin|otp|one[-\s]*time|verification\s+code|security\s+code|cvv|cvc|card\s+(number|no\b)|credit\s+card|secret|token|recovery\s+key|api[-\s]*keys?|access\s+keys?|private\s+keys?|ssn|social\s+security|account\s+number|iban|routing\s+number)\b/i;
 
-/** Why ATOM must not type into this element, or undefined. */
+/** Why ARK must not type into this element, or undefined. */
 export function secretField(el: { role?: string; label?: string }): string | undefined {
   if (el.role === "AXSecureTextField") return "a password field";
   if (el.label && SECRET_LABEL.test(normalizeLabel(el.label))) return `a field named "${el.label}"`;

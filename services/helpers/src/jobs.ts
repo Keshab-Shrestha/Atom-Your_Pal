@@ -1,6 +1,6 @@
 // ADR-081/082: the team, their souls and the life of a job. Pure: no storage, no clock.
 
-/** A worker's soul (ADR-082): who it is and how it works. Editable in the ATOM window, kept with versions. */
+/** A worker's soul (ADR-082): who it is and how it works. Editable in the ARK window, kept with versions. */
 export interface Soul {
   name: string;
   personality: string;
@@ -110,8 +110,8 @@ export const HELPERS = [
 
 /** Editable soul fields; text is preserved without per-field character caps. */
 const SOUL_FIELDS = ["name", "personality", "howItWorks", "rules", "lessons"] as const;
-// ADR-095: ATOM is the manager's name now; "pal" (its old name) stays taken too.
-const RESERVED_NAMES = new Set(["atom", "pal", "zeno"]);
+// ADR-095: ARK is the manager's name now; "pal" (its old name) stays taken too.
+const RESERVED_NAMES = new Set(["ark", "pal", "atom", "zeno"]); // ARK, its pal, and its old names
 
 /** How each role is named in the instructions. */
 const ROLE_TITLES: Readonly<Record<string, string>> = {
@@ -149,7 +149,7 @@ export function cleanSoul(input: Soul, others: readonly string[]): Soul {
   }
   soul.name = soul.name.replace(/\s+/g, " ");
   if (!/^\p{L}[\p{L} '-]*$/u.test(soul.name)) throw new HelperError("A name needs letters only (spaces, hyphens and apostrophes are fine).");
-  if (RESERVED_NAMES.has(soul.name.toLowerCase())) throw new HelperError(`"${soul.name}" is taken by ATOM itself.`);
+  if (RESERVED_NAMES.has(soul.name.toLowerCase())) throw new HelperError(`"${soul.name}" is taken by ARK itself.`);
   if (others.some((n) => n.toLowerCase() === soul.name.toLowerCase())) throw new HelperError(`Another worker is already called ${soul.name}.`);
   if (!soul.personality) throw new HelperError("The personality is empty.");
   return soul;
@@ -160,7 +160,7 @@ const label = (key: keyof Soul) => (key === "howItWorks" ? "how it works" : key)
 /** The instructions for a job: who the worker is (its soul), then the role's fixed rules. */
 export function instructionsFor(soul: Soul, role: string): string {
   const parts = [
-    `You are ${soul.name}, ATOM's ${ROLE_TITLES[role] ?? role}. Keshab gives you a task; you do it and write him a report.`,
+    `You are ${soul.name}, ARK's ${ROLE_TITLES[role] ?? role}. Keshab gives you a task; you do it and write him a report.`,
     `Personality: ${soul.personality}`,
     soul.howItWorks && `How you work: ${soul.howItWorks}`,
     soul.rules && `Your rules: ${soul.rules}`,

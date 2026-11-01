@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { openMemoryStore } from "./store.ts";
 import { BrainError, linkTitles, namesIn, tagsOf } from "./brain.ts";
 
-// The second brain: notes, [[links]], #tags, ghosts, backlinks, the graph, search, mirrored notes and ATOM's own links.
+// The second brain: notes, [[links]], #tags, ghosts, backlinks, the graph, search, mirrored notes and ARK's own links.
 
 const open = () => openMemoryStore({ path: ":memory:" }).brain;
 
@@ -97,7 +97,7 @@ test("autolink: a note that names another note's title links to it, and a name t
   const mira = brain.byTitle("Mira Haugen")!;
   assert.equal(mira.kind, "entity");
   assert.deepEqual(brain.backlinks(mira.id).map((b) => b.title).sort(), ["Chat note", "Sister"]);
-  // Running it again gives the same graph (ATOM's links are rebuilt, not piled up).
+  // Running it again gives the same graph (ARK's links are rebuilt, not piled up).
   const edges = brain.graph().edges.length;
   brain.autolink();
   assert.equal(brain.graph().edges.length, edges);

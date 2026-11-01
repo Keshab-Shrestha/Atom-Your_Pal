@@ -3,11 +3,11 @@ import { fileURLToPath } from "node:url";
 import type { Readable, Writable } from "node:stream";
 import { resolve } from "node:path";
 
-/** Text-to-speech boundary. The rest of ATOM depends on this, not on Kokoro or ffmpeg. */
+/** Text-to-speech boundary. The rest of ARK depends on this, not on Kokoro or ffmpeg. */
 export interface TextToSpeech {
   /** Loads models ahead of time so the first reply is not delayed. Safe to call more than once. */
   warmUp(): Promise<void>;
-  /** Stops speaking and releases the speech engine; used when ATOM quits. */
+  /** Stops speaking and releases the speech engine; used when ARK quits. */
   close(): void;
   /** Speaks the text aloud. Resolves when playback ends; aborting stops it immediately. */
   speak(text: string, signal?: AbortSignal, hooks?: SpeakHooks): Promise<void>;
@@ -295,7 +295,7 @@ export function createKokoroSynthesizer(options: KokoroOptions): Synthesizer {
   let nextId = 0;
   const pending = new Map<number, { resolve: (a: SpeechAudio) => void; reject: (e: Error) => void }>();
 
-  // The child keeps ATOM running only while it has work to do.
+  // The child keeps ARK running only while it has work to do.
   const updateRef = () => {
     if (!child) return;
     const ipc = child.channel as { ref(): void; unref(): void } | undefined;
@@ -323,7 +323,7 @@ export function createKokoroSynthesizer(options: KokoroOptions): Synthesizer {
         child = proc;
         let stderr = "";
         proc.stderr?.on("data", (chunk: Buffer) => (stderr = (stderr + chunk.toString()).slice(-2000)));
-        (proc.stderr as unknown as { unref?(): void } | null)?.unref?.(); // only the IPC channel decides whether ATOM stays alive
+        (proc.stderr as unknown as { unref?(): void } | null)?.unref?.(); // only the IPC channel decides whether ARK stays alive
         proc.on("message", (message: WorkerMessage) => {
           if (message.type === "ready") {
             updateRef();

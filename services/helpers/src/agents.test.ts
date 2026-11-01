@@ -8,7 +8,7 @@ import { agentId, formatSoulMd, openHelperStore, parseSoulMd } from "./index.ts"
 // ADR-088: agents Keshab adds, each a folder with its own role, kit and soul.md.
 
 function setup() {
-  const root = mkdtempSync(join(tmpdir(), "atom-agents-"));
+  const root = mkdtempSync(join(tmpdir(), "ark-agents-"));
   const agentsDir = join(root, "agents");
   return { root, agentsDir, store: openHelperStore({ path: ":memory:", agentsDir }), done: () => rmSync(root, { recursive: true, force: true }) };
 }

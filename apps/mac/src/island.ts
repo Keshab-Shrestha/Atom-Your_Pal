@@ -1,4 +1,4 @@
-// Island mode (`main.ts --island`): ATOM Island drives the voice loop with JSON-line commands on
+// Island mode (`main.ts --island`): ARK Island drives the voice loop with JSON-line commands on
 // stdin and receives JSON-line events on stdout. Specification: docs/island-protocol.md.
 
 import type { HubCommands } from "./hub-commands.ts";
@@ -11,10 +11,10 @@ import { createInterface } from "node:readline";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import type { Message } from "@atom/contracts";
+import type { Message } from "@ark/contracts";
 import { clearChats, exportChats } from "./chat-export.ts";
 import { PROTOCOL_VERSION, createLevelThrottle, encodeEvent, parseCommand, planUsageEvent, type IslandCommand, type IslandEvent, type SearchHitItem } from "./island-protocol.ts";
-import { spokenDuration } from "@atom/tool-engine";
+import { spokenDuration } from "@ark/tool-engine";
 import { createVoiceLoop, type LoopNotice, type VoiceLoop } from "./voice-loop.ts";
 import type { ProjectSourceResponse } from "./project-sources.ts";
 import type { IslandHelpers, IslandOptions, IslandProjects, ProjectResult } from "./island-types.ts";
@@ -113,7 +113,7 @@ export function runIsland(options: IslandOptions): IslandSession {
       chats.rememberOpened(selected); remembered = selected;
     } catch {
       options.log?.warn("chat.selection_save_failed", {});
-      send({ type: "error", stage: "settings", message: "ATOM could not save the open-chat choice. Your saved conversations are still available in Chats." });
+      send({ type: "error", stage: "settings", message: "ARK could not save the open-chat choice. Your saved conversations are still available in Chats." });
     }
   }
   let accessActivation: AbortController | undefined;
@@ -166,7 +166,7 @@ export function runIsland(options: IslandOptions): IslandSession {
           try { options.foreground?.finish(deliveryId, "completed", result.text); receipt(); }
           catch {
             try { options.foreground?.finish(deliveryId, "failed"); receipt(); } catch { /* Preserve the existing uncertain record. */ }
-            send({ type: "error", stage: "settings", message: "The reply could not be confirmed in recovery storage. Keep or copy it before closing ATOM; review Recovery and saved history before retrying." });
+            send({ type: "error", stage: "settings", message: "The reply could not be confirmed in recovery storage. Keep or copy it before closing ARK; review Recovery and saved history before retrying." });
           }
           finishWork?.("completed");
           try { if (!input.deliveryId) options.foreground?.dismiss(deliveryId, true); }
@@ -691,12 +691,12 @@ export function runIsland(options: IslandOptions): IslandSession {
         }
         return;
       case "memory.list":
-        memoryWatched = true; // from now on, changes ATOM makes by itself are sent too
+        memoryWatched = true; // from now on, changes ARK makes by itself are sent too
         sendMemory();
         return;
       case "text.edit": {
         const editor = options.textEdit;
-        if (!editor) return send({ type: "text.edit.result", id: command.id, error: "Ask ATOM needs the Claude plan, which is not in use." });
+        if (!editor) return send({ type: "text.edit.result", id: command.id, error: "Ask ARK needs the Claude plan, which is not in use." });
         edits.get(command.id)?.abort(); // a new request with the same id replaces the old one
         const controller = new AbortController();
         edits.set(command.id, controller);
@@ -1128,7 +1128,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     else openThread = undefined;
   });
 
-  /** ADR-098: one search over chats, tasks and reports; upgrades.md C1: and over everything else ATOM keeps. Logs the counts only, never the query. */
+  /** ADR-098: one search over chats, tasks and reports; upgrades.md C1: and over everything else ARK keeps. Logs the counts only, never the query. */
   function search(query: string) {
     const empty = { tasks: [], reports: [] };
     let found: { chats: SearchHitItem<string>[]; tasks: SearchHitItem<number>[]; reports: SearchHitItem<number>[] };
@@ -1154,7 +1154,7 @@ export function runIsland(options: IslandOptions): IslandSession {
   }
   let memoryWatched = false;
   let brainWatched = false;
-  const edits = new Map<string, AbortController>(); // Ask ATOM: requests that run, by id
+  const edits = new Map<string, AbortController>(); // Ask ARK: requests that run, by id
   const replyRuns = new Map<string, AbortController>();
   let suggestionsWatched = false;
   let briefWatched = false;
@@ -1233,7 +1233,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     sendOpened(chatId, turns, options.chats?.replay?.(chatId, [...turns]).trimmed ?? false);
   });
 
-  // ADR-061: a timer ended. Shown at once; spoken now if ATOM is idle, else as soon as it is. Task 3.5: a goal's line
+  // ADR-061: a timer ended. Shown at once; spoken now if ARK is idle, else as soon as it is. Task 3.5: a goal's line
   // waits its turn the same way.
   const timerQueue: { message: string; timer?: { id: number; label: string; message: string }; after?: () => void }[] = [];
   let announcing = false;
@@ -1254,7 +1254,7 @@ export function runIsland(options: IslandOptions): IslandSession {
         } catch (error) {
           options.log?.warn("announce.chime_failed", { message: describe(error) });
         }
-        // Task 3.15: Pal flies over with the line while ATOM says it.
+        // Task 3.15: Pal flies over with the line while ARK says it.
         if (!timer) send({ type: "worker.line", line: message });
         if (spoken) {
           send({ type: "state", state: "speaking" });
@@ -1312,7 +1312,7 @@ export function runIsland(options: IslandOptions): IslandSession {
       send({ type: "error", stage: "protocol", message: parsed.error });
       return;
     }
-    // 2026-10-15: an error here reached the app's crash handler and ended ATOM; one failed command must not.
+    // 2026-10-15: an error here reached the app's crash handler and ended ARK; one failed command must not.
     try {
       handle(parsed.command);
     } catch (error) {
@@ -1398,7 +1398,7 @@ export function runIsland(options: IslandOptions): IslandSession {
  */
 export function noteFile(title: string, body: string): string {
   const name = title.replace(/[\/\\:]+/g, "-").replace(/[\u0000-\u001f]/g, " ").replace(/^[.\s]+/, "").trim().slice(0, 80) || "Note";
-  const file = join(mkdtempSync(join(tmpdir(), "atom-note-")), `${name}.md`);
+  const file = join(mkdtempSync(join(tmpdir(), "ark-note-")), `${name}.md`);
   writeFileSync(file, `# ${title}\n\n${body.trimEnd()}\n`);
   return file;
 }

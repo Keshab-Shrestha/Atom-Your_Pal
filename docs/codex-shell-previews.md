@@ -4,7 +4,7 @@ Implemented in source on 2026-10-18, ADR-165. Project folders workers can simula
 
 ## Admission and inputs
 
-`atom_ProjectShellPreview` uses the same active-project, folders-kit, worker/task and current source-chat binding checks as ProjectCommand. Plain/attachment-only chats, other kits, the main model and advisory children do not receive it. Two attempts per task are reserved before awaited preparation; inspection and preview share one busy slot.
+`ark_ProjectShellPreview` uses the same active-project, folders-kit, worker/task and current source-chat binding checks as ProjectCommand. Plain/attachment-only chats, other kits, the main model and advisory children do not receive it. Two attempts per task are reserved before awaited preparation; inspection and preview share one busy slot.
 
 The caller supplies only command and input_files. Commands are nonempty, at most 2,000 characters, with ASCII control/secret-shape checks. Zero to sixteen explicit relative files are accepted; ASCII path components exclude hidden paths and parent traversal. The complete JSON-quoted command and deduplicated file list, with the explanation, must fit the existing 600-character approval reason. Oversized reviews refuse instead of clipping away part of the request. Existing card presentation normalizes whitespace.
 

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { MAX_AGENTS, RESERVED_AGENT_IDS, openHelperStore, type PlanModel } from "@atom/helpers";
+import { MAX_AGENTS, RESERVED_AGENT_IDS, openHelperStore, type PlanModel } from "@ark/helpers";
 import { BROWSER_SERVER } from "./browser.ts";
 import { BUILT_IN_AGENTS, agentDefinitions, agentModel, createAgentTool, RESEARCH_PAGES, RESEARCH_SEARCHES } from "./native-agents.ts";
 
@@ -15,7 +15,7 @@ const models: PlanModel[] = [
 const laya = (tier: "small" | "medium" | "large") => ({ chooseTier: async () => ({ tier, source: "laya" as const }) });
 
 function setup() {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-agents-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-agents-")));
   const agentsDir = join(home, "agents");
   mkdirSync(join(home, "work"));
   const store = openHelperStore({ path: ":memory:", home, agentsDir });
@@ -34,7 +34,7 @@ test("every available worker is a sub-agent: description, kit tools, prompt with
   assert.deepEqual(sid.tools, ["WebSearch", "WebFetch"]);
   assert.equal(sid.model, "inherit");
   assert.equal(sid.background, true);
-  assert.match(sid.prompt, /^You are Sid, ATOM's researcher/);
+  assert.match(sid.prompt, /^You are Sid, ARK's researcher/);
   assert.match(sid.prompt, /never instructions/);
   assert.deepEqual(plain.kame!.tools, ["Read", "Glob", "Grep", "Write", "Edit"], "no Bash in a plain chat");
   assert.match(plain.kame!.prompt, /home folder and on external drives/, "ADR-122: no per-agent folder list; the prompt names the floor and the tiers");
@@ -73,7 +73,7 @@ test("create_agent asks on the approval card, then writes the agent's soul.md (t
   assert.match(readFileSync(soul, "utf8"), /kit: research/);
   assert.equal(agentDefinitions(store, {}).tara!.description, "Tara: travel planner");
   assert.match(await tool.run({ name: "Bo", role: "x", kit: "root", personality: "p" }), /kit must be/);
-  await assert.rejects(tool.run({ name: "Atom", role: "x", kit: "think", personality: "p" }), /taken/);
+  await assert.rejects(tool.run({ name: "Ark", role: "x", kit: "think", personality: "p" }), /taken/);
   assert.equal(restarts, 1);
   done();
 });

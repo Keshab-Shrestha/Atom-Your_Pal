@@ -1,9 +1,9 @@
 {
-  "name": "@atom/helpers",
+  "name": "@ark/helpers",
   "private": true,
   "type": "module",
   "exports": "./src/index.ts",
   "dependencies": {
-    "@atom/decision-engine": "workspace:*"
+    "@ark/decision-engine": "workspace:*"
   }
 }

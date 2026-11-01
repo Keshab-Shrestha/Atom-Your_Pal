@@ -3,14 +3,14 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openHelperStore } from "@atom/helpers";
-import { openMemoryStore } from "@atom/memory";
+import { openHelperStore } from "@ark/helpers";
+import { openMemoryStore } from "@ark/memory";
 import { createProjects } from "./projects-wiring.ts";
 
 // ADR-107: projects in the runtime: folders checked like grants, the project's Agent, the chat's note and read access.
 
 function setup(options: { noHelpers?: boolean; onChatsDeleted?: (chatIds: readonly string[]) => void } = {}) {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "atom-projects-")));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "ark-projects-")));
   const home = join(root, "home");
   for (const d of ["Developer/haat", "Developer/other", "Library/Keys", ".ssh", "Documents/.hidden/x", "Developer/notes"]) mkdirSync(join(home, d), { recursive: true });
   writeFileSync(join(home, "Developer", "haat", "main.ts"), "x");

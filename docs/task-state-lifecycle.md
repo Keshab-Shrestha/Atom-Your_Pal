@@ -26,7 +26,7 @@ A background completion emits the existing idle state only when the foreground l
 
 ## Real app acceptance
 
-The app was idle before restarting its backend normally to load the changes. A fictional file in `~/Documents/ATOM-Task-Stop-b2rwt9kh/cedar.txt` was the only file used.
+The app was idle before restarting its backend normally to load the changes. A fictional file in `~/Documents/ARK-Task-Stop-b2rwt9kh/cedar.txt` was the only file used.
 
 1. Native Claude worker #28 (`claude-sonnet-5-5`) reached a file approval. Pressing its task's Stop immediately removed the approval, marked the task Stopped and showed Ready with zero pending/failed/running work. Direct file verification found its original content unchanged, and no continuing file grant existed. The later “From the team” notice was the stopped worker's report, not continuing work.
 2. The source chat was explicitly changed to Codex without changing the global default. Retry created one linked attempt #29 on signed-in Codex (`gpt-6-astra`). The header showed Thinking, then Needs your OK for the fresh file request. Allow for task saved the expected fictional content. The task/report completed and the header returned to Ready with zero pending/failed/running work **without another restart**. Neither attempt created a continuing grant.

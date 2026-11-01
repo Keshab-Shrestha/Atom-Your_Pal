@@ -1,13 +1,13 @@
 // ADR-093: the AI tools installed on this Mac, for Settings → AI model: each found or not, signed in or not (when the
-// tool can say so without ATOM reading its login), and whether ATOM can run on it. Claude Code, Codex and the Gemini
-// CLI are subscription tools ATOM can use; Ollama and LM Studio run local models, which ATOM's rules leave out
+// tool can say so without ARK reading its login), and whether ARK can run on it. Claude Code, Codex and the Gemini
+// CLI are subscription tools ARK can use; Ollama and LM Studio run local models, which ARK's rules leave out
 // (CLAUDE.md §11), so they are listed but not used.
 
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { CLAUDE_PLAN, CODEX, GEMINI_CLI, findClaudeProgram, findProgram } from "@atom/shared";
+import { CLAUDE_PLAN, CODEX, GEMINI_CLI, findClaudeProgram, findProgram } from "@ark/shared";
 
 export interface AiToolItem {
   id: "claude-code" | "codex" | "gemini-cli" | "ollama" | "lm-studio";
@@ -15,9 +15,9 @@ export interface AiToolItem {
   found: boolean;
   /** Undefined when the tool cannot be asked without reading its login. */
   signedIn?: boolean;
-  /** The provider ATOM runs it as, when it can. */
+  /** The provider ARK runs it as, when it can. */
   provider?: string;
-  /** What it means for ATOM, in words. */
+  /** What it means for ARK, in words. */
   note: string;
 }
 
@@ -61,28 +61,28 @@ async function codexSignedIn(program: string, deps: ScanDeps): Promise<boolean> 
   }
 }
 
-/** Every AI tool ATOM knows to look for, found or not. */
+/** Every AI tool ARK knows to look for, found or not. */
 export async function scanAiTools(deps: ScanDeps = defaultScanDeps()): Promise<AiToolItem[]> {
   const { env, exists, home } = deps;
   const claude = findClaudeProgram(env, exists, home);
-  const codex = findProgram("codex", "ATOM_CODEX_PATH", env, exists, home);
-  const gemini = findProgram("gemini", "ATOM_GEMINI_PATH", env, exists, home);
-  const ollama = findProgram("ollama", "ATOM_OLLAMA_PATH", env, exists, home) ?? ["/Applications/Ollama.app"].find(exists);
+  const codex = findProgram("codex", "ARK_CODEX_PATH", env, exists, home);
+  const gemini = findProgram("gemini", "ARK_GEMINI_PATH", env, exists, home);
+  const ollama = findProgram("ollama", "ARK_OLLAMA_PATH", env, exists, home) ?? ["/Applications/Ollama.app"].find(exists);
   const lmStudio = ["/Applications/LM Studio.app", join(home, ".lmstudio/bin/lms")].find(exists);
   const [claudeIn, codexIn] = await Promise.all([claude ? claudeSignedIn(claude, deps) : undefined, codex ? codexSignedIn(codex, deps) : undefined]);
   // The Gemini CLI has no status command: its saved Google sign-in is looked for, never read.
   const geminiIn = gemini && exists(join(home, ".gemini/oauth_creds.json")) ? true : undefined;
   const signedNote = (signedIn: boolean | undefined, how: string) =>
-    signedIn === false ? `Found, not signed in: ${how}` : signedIn ? "Signed in: ATOM can use it" : "Found: ATOM can use it once you have signed in";
+    signedIn === false ? `Found, not signed in: ${how}` : signedIn ? "Signed in: ARK can use it" : "Found: ARK can use it once you have signed in";
   const with_ = (signedIn: boolean | undefined) => (signedIn === undefined ? {} : { signedIn });
   return [
     { id: "claude-code", name: "Claude Code", found: Boolean(claude), ...with_(claudeIn), provider: CLAUDE_PLAN,
       note: claude ? signedNote(claudeIn, "run `claude auth login`") : "Not found: install Claude Code to use your Claude plan" },
     { id: "codex", name: "Codex", found: Boolean(codex), ...with_(codexIn), provider: CODEX,
-      note: codex ? `${signedNote(codexIn, "run `codex login`")} (chat, ATOM tools and checked file agents)` : "Not found: Codex comes with the ChatGPT app or its editor extension" },
+      note: codex ? `${signedNote(codexIn, "run `codex login`")} (chat, ARK tools and checked file agents)` : "Not found: Codex comes with the ChatGPT app or its editor extension" },
     { id: "gemini-cli", name: "Gemini CLI", found: Boolean(gemini), ...with_(geminiIn), provider: GEMINI_CLI,
       note: gemini ? `${signedNote(geminiIn, "run `gemini` and sign in with Google")} (chat only)` : "Not found: install it with `brew install gemini-cli`" },
-    { id: "ollama", name: "Ollama", found: Boolean(ollama), note: ollama ? "Found: local models are not used by ATOM" : "Not found" },
-    { id: "lm-studio", name: "LM Studio", found: Boolean(lmStudio), note: lmStudio ? "Found: local models are not used by ATOM" : "Not found" },
+    { id: "ollama", name: "Ollama", found: Boolean(ollama), note: ollama ? "Found: local models are not used by ARK" : "Not found" },
+    { id: "lm-studio", name: "LM Studio", found: Boolean(lmStudio), note: lmStudio ? "Found: local models are not used by ARK" : "Not found" },
   ];
 }

@@ -1,11 +1,11 @@
-import type { LanguageModel, Message } from "@atom/contracts";
+import type { LanguageModel, Message } from "@ark/contracts";
 import type { Episode, MemoryStore } from "./store.ts";
 
 // ADR-059: a short summary of each conversation, made in the background, so the next conversation (after "New
 // conversation" or a restart) can pick up where this one left off. ADR-108: written once when the chat goes quiet or is left.
 
 export const SUMMARY_PROMPT =
-  "You write ATOM's private notes about a conversation between the user and ATOM, a voice assistant. In at most two " +
+  "You write ARK's private notes about a conversation between the user and ARK, a voice assistant. In at most two " +
   "short sentences (under 60 words), note what the user wanted, what was done or decided, and anything left open, so " +
   "a later conversation can pick up from it. Call the user by name if you know it, else \"the user\". Plain text only. Leave out greetings, " +
   "small talk, and any password, PIN, card number or other secret. If nothing worth noting happened (only a greeting " +
@@ -16,7 +16,7 @@ export const NOTE_QUIET_MS = 600_000;
 /** ADR-108: a chat with fewer exchanges than this gets no note (when notes wait for quiet). */
 export const NOTE_MIN_EXCHANGES = 2;
 
-/** ADR-108: `ATOM_NOTE_QUIET_MS` as milliseconds; a missing or bad value is the default; 0 notes after every reply. */
+/** ADR-108: `ARK_NOTE_QUIET_MS` as milliseconds; a missing or bad value is the default; 0 notes after every reply. */
 export function noteQuietMs(value: string | undefined): number {
   const n = value === undefined || value.trim() === "" ? NaN : Number(value);
   return Number.isFinite(n) && n >= 0 ? Math.round(n) : NOTE_QUIET_MS;
@@ -66,7 +66,7 @@ export function createEpisodeRecorder(options: EpisodeRecorderOptions): EpisodeR
   async function write(sessionId: string, turns: readonly Message[]) {
     const exchanges = exchangesOf(turns);
     const transcript = turns
-      .map((t) => `${t.role === "user" ? "User" : "ATOM"}: ${t.content.replace(/\s+/g, " ").trim().slice(0, 600)}`)
+      .map((t) => `${t.role === "user" ? "User" : "ARK"}: ${t.content.replace(/\s+/g, " ").trim().slice(0, 600)}`)
       .join("\n");
     const reply = await model.complete({
       system: SUMMARY_PROMPT,
