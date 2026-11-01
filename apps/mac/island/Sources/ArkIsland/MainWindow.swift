@@ -65,6 +65,9 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSMenuItemValidati
         if model.windowPage == .chat { model.openChatFind() } else { model.focusSearch() }
     }
     @objc private func searchAll(_ sender: Any?) { if canFind { model.focusSearch() } }
+    /// ⌘N and ⇧⌘N (Keshab, 2026-11-02): window menu shortcuts, like the sidebar's buttons.
+    @objc private func newChat(_ sender: Any?) { if canFind { model.startNewChat() } }
+    @objc private func newProject(_ sender: Any?) { if canFind && model.canOpenProjectSources { model.openProjectSources() } }
 
     /// ADR-144: an ordinary window menu shortcut, never a global shortcut or a clipboard read.
     private var copyLastReplyText: String? {
@@ -157,7 +160,7 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSMenuItemValidati
         return window
     }
 
-    /// The menu bar while the window is open: Quit, the standard Edit commands, Back, Close and Minimize.
+    /// The menu bar while the window is open: Quit, New Chat and New Project, the standard Edit commands, Back, Close and Minimize.
     private func mainMenu() -> NSMenu {
         let main = NSMenu()
         func add(_ title: String, _ items: [NSMenuItem]) {
@@ -173,6 +176,11 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSMenuItemValidati
             return item
         }
         add("ARK", [item("Quit ARK", #selector(NSApplication.terminate(_:)), "q")])
+        let newChat = item("New Chat", #selector(newChat(_:)), "n")
+        newChat.target = self
+        let newProject = item("New Project…", #selector(newProject(_:)), "n", [.command, .shift])
+        newProject.target = self
+        add("File", [newChat, newProject])
         let find = item("Find", #selector(find(_:)), "f")
         find.target = self
         let searchAll = item("Search All", #selector(searchAll(_:)), "f", [.command, .shift])

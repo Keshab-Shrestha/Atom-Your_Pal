@@ -16,6 +16,17 @@ extension IslandModel {
             self.send(.projectCreateCancel(request: request.request)); self.projectSource.expire(request.request)
         }
     }
+    /// A new chat in the selected project, or a plain one: the sidebar's button and ⌘N (2026-11-02).
+    var canStartNewChat: Bool { chats?.projects?.first(where: { $0.id == sidebarProjectFilter })?.archived != true }
+    func startNewChat() {
+        guard canStartNewChat else { return }
+        navigate {
+            if let id = self.sidebarProjectFilter { self.newChat(inProject: id) } else { self.newConversation() }
+            self.windowPage = .chat
+        }
+    }
+    /// The sidebar's new project button and ⇧⌘N (2026-11-02).
+    var canOpenProjectSources: Bool { chats?.projects != nil && projectSource.pending == nil }
     func cancelProjectSource() {
         guard let request = projectSource.pending?.request, !projectSource.cancelling else { return }
         projectSource.cancelling = true; send(.projectCreateCancel(request: request))
@@ -30,7 +41,7 @@ struct NewProjectButton: View {
             Glyph(systemName: "folder.badge.plus").appFont(.system(size: 13)).foregroundStyle(theme.text2.color)
                 .frame(width: 28, height: 30).contentShape(Rectangle())
         }.buttonStyle(.plain).help("New project or repository").accessibilityLabel("New project")
-            .disabled(model.chats?.projects == nil || model.projectSource.pending != nil)
+            .disabled(!model.canOpenProjectSources)
     }
 }
 
