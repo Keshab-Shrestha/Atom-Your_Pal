@@ -105,7 +105,7 @@ struct ReplyDraftPane: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Draft a reply").appFont(.system(size: 16, weight: .semibold)).foregroundStyle(theme.text.color)
                 Spacer()
@@ -119,7 +119,7 @@ struct ReplyDraftPane: View {
                     .disabled(session.contextID != nil || session.draftID != nil || session.inserting)
             }
             Scrollable {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 12) {
                     if let message = session.message { ProblemLine(text: message) }
                     if session.hasDraft {
                         SoulField(label: "Your reply — edit before using", text: binding(\.draft), lines: 5)
@@ -148,7 +148,7 @@ struct ReplyDraftPane: View {
                     if !session.included.isEmpty || session.useExamples || !session.background.isEmpty {
                         Text(includedSummary).appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
                     }
-                }.padding(.trailing, 5)
+                }.padding(.trailing, 4)
             }
             Text("Draft stays unsent. Review it, then Copy or Insert when ready.")
                 .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
@@ -215,9 +215,9 @@ struct ReplyDraftPane: View {
                     // ImageRenderer cannot draw native text fields; keep their visible label and layout in fixtures.
                     Text(session.query.isEmpty ? "Find saved facts or notes…" : session.query)
                         .appFont(.system(size: 12)).foregroundStyle(theme.text3.color)
-                        .padding(.horizontal, 7).frame(maxWidth: .infinity, minHeight: 22, alignment: .leading)
-                        .background(RoundedRectangle(cornerRadius: 4).fill(theme.fill1.color))
-                        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(theme.separator.color, lineWidth: 1))
+                        .padding(.horizontal, 8).frame(maxWidth: .infinity, minHeight: 22, alignment: .leading)
+                        .background(RoundedRectangle(cornerRadius: Radius.card).fill(theme.fill1.color))
+                        .overlay(RoundedRectangle(cornerRadius: Radius.card).strokeBorder(theme.separator.color, lineWidth: 1))
                 } else {
                     TextField("Find saved facts or notes…", text: binding(\.query)).textFieldStyle(.roundedBorder)
                         .onSubmit { if session.draftID == nil { session.find() } }
@@ -229,7 +229,7 @@ struct ReplyDraftPane: View {
                 .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
             ForEach(session.candidates) { item in
                 Toggle(isOn: Binding(get: { session.selected[item.id] != nil }, set: { on in session.selected[item.id] = on ? item : nil })) {
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text(item.title).appFont(.system(size: 12, weight: .medium))
                         Text(item.text).appFont(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(3)
                     }
@@ -237,7 +237,7 @@ struct ReplyDraftPane: View {
             }
             if !session.included.isEmpty {
                 DisclosureGroup("Included context (\(session.included.count)) — review exact excerpts") {
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 12) {
                         ForEach(session.included) { item in
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack {
@@ -252,7 +252,7 @@ struct ReplyDraftPane: View {
                                 Text(item.text).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).textSelection(.enabled)
                             }
                         }
-                    }.padding(.top, 5)
+                    }.padding(.top, 4)
                 }
             }
         }

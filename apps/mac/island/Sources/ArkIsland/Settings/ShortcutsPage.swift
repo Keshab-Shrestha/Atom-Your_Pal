@@ -25,13 +25,13 @@ struct ShortcutSection: View {
                             .appFont(.system(size: 10.5))
                             .foregroundStyle(theme.problem.color)
                             .padding(.horizontal, Spacing.well)
-                            .padding(.bottom, 6)
+                            .padding(.bottom, 8)
                     }
                 }
             }
             if let engine = model.shortcuts, !engine.canTrackKeys {
                 RowDivider()
-                VStack(alignment: .leading, spacing: 7) {
+                VStack(alignment: .leading, spacing: 8) {
                     Label("Hold shortcuts need Input Monitoring", systemImage: "keyboard.badge.ellipsis")
                         .appFont(.system(size: 11.5, weight: .semibold))
                         .foregroundStyle(theme.attention.color)

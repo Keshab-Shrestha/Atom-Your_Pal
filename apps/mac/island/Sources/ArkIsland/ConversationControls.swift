@@ -111,18 +111,18 @@ struct ConversationControls: View {
     private func bytes(_ value: Int) -> String { String(format: "%.1f KB", Double(value) / 1000) }
 
     private var contextDetails: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("What this chat remembers").appFont(.headline)
             Text("Your messages stay saved. ARK uses recent messages to continue this conversation, and can summarize older ones in long chats. Memory never grants file or tool access.")
             if let note = model.cacheExpiredNotice { Text(note) }
             if let info = model.chatControls.snapshot?.info {
                 Text("\(info.messages) messages saved")
                 DisclosureGroup("Replay and context details") {
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 8) {
                         ProgressView(value: Double(max(0, info.replayBytes)), total: Double(max(1, info.replayBudget)))
                         Text("Fresh replay estimate: \(bytes(info.replayBytes)) of \(bytes(info.replayBudget)). \(info.omitted) earlier messages omitted from that estimate; the archive stays intact.")
                         Text("This byte estimate excludes system prompts, tools, in-flight input and SDK memory. It is not a provider token meter. ARK manages replay automatically; manual Compact is unavailable.")
-                    }.padding(.top, 6)
+                    }.padding(.top, 8)
                 }
             } else { Text("Send a message to save this chat, or refresh its details.") }
             if let saved = model.chatControls.snapshot, saved.id == model.savedChat?.id, let recall = saved.recall {
@@ -130,10 +130,10 @@ struct ConversationControls: View {
                 Text("Latest recorded request").fontWeight(.medium)
                 Text(recall.summary)
                 DisclosureGroup("Memory context details") {
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 8) {
                         Text("Prepared: " + recall.at).foregroundStyle(theme.text3.color)
                         Text(recall.details).textSelection(.enabled)
-                    }.padding(.top, 6)
+                    }.padding(.top, 8)
                 }
             } else {
                 Text("No memory context record is available here yet. Records start with requests made by the updated runtime.")
@@ -144,14 +144,14 @@ struct ConversationControls: View {
                 Text("Older-message summaries").fontWeight(.medium)
                 Text(continuity.status)
                 DisclosureGroup("How summaries work") {
-                    Text("Uses the selected Claude/Codex model at low or its supported default effort in a separate tool-free request. This uses additional plan tokens. Current messages and your Chat brief take precedence; summaries never grant access. Clearing stops future inclusion, but copies already sent may remain in the provider session. Original messages stay saved.").padding(.top, 6)
+                    Text("Uses the selected Claude/Codex model at low or its supported default effort in a separate tool-free request. This uses additional plan tokens. Current messages and your Chat brief take precedence; summaries never grant access. Clearing stops future inclusion, but copies already sent may remain in the provider session. Original messages stay saved.").padding(.top, 8)
                 }
                 if let summary = continuity.summary {
                     DisclosureGroup("Review derived summary") {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("m1–m\(summary.through) · \(summary.provider) / \(summary.model)").foregroundStyle(theme.text3.color)
                             ForEach(Array(summary.items.enumerated()), id: \.offset) { _, item in
-                                VStack(alignment: .leading, spacing: 3) {
+                                VStack(alignment: .leading, spacing: 4) {
                                     Text(item.text + " (" + item.refs.map { "m\($0)" }.joined(separator: ", ") + ")")
                                         .textSelection(.enabled)
                                     if let first = item.refs.first {
@@ -162,7 +162,7 @@ struct ConversationControls: View {
                                     }
                                 }
                             }
-                        }.padding(.top, 6)
+                        }.padding(.top, 8)
                     }
                 }
                 Button(continuity.enabled ? "Pause and clear automatic summary" : "Enable automatic summaries") {
@@ -215,7 +215,7 @@ struct SavedChatHistory: View {
             ArkScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     ForEach(model.chatControls.history?.page?.messages ?? []) { message in
-                        VStack(alignment: .leading, spacing: 6) {
+                        VStack(alignment: .leading, spacing: 8) {
                             Text("m\(message.seq) · \(message.role == "user" ? "You" : "ARK") · text offset \(message.offset)")
                                 .appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
                             Text(message.text).appFont(.system(size: 12.5)).textSelection(.enabled)
@@ -232,11 +232,11 @@ struct SavedChatHistory: View {
                             .disabled(!model.chatBranchAvailable)
                         }
                     }
-                }.padding(6)
+                }.padding(8)
             }
             ChatControlFeedback(model: model)
         }
-        .padding(18).frame(width: 700, height: 520)
+        .padding(16).frame(width: 700, height: 520)
         .background(theme.surfaceSolid.color).foregroundStyle(theme.text.color)
     }
 

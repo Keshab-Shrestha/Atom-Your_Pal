@@ -27,8 +27,8 @@ private struct ToolbarPillModifier: ViewModifier {
     @Environment(\.theme) private var theme
     func body(content: Content) -> some View {
         content
-            .padding(.horizontal, 9).frame(height: 26)
-            .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(theme.border.color, lineWidth: 1))
+            .padding(.horizontal, 8).frame(height: 26)
+            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(theme.border.color, lineWidth: 1))
     }
 }
 

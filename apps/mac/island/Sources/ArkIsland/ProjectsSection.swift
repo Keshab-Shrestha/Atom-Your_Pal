@@ -45,7 +45,7 @@ struct ProjectsSection: View {
             if let list = model.chats, list.projectsOn {
                 let shown = ProjectSidebarScope.projects(list.projects ?? [], selected: model.sidebarProjectFilter, showArchived: showArchived)
                 header
-                if let error = model.projectError { ProblemLine(text: error).padding(.horizontal, 10).padding(.vertical, 2) }
+                if let error = model.projectError { ProblemLine(text: error).padding(.horizontal, 12).padding(.vertical, 2) }
                 if (list.projects ?? []).isEmpty {
                     emptyState
                 } else {
@@ -75,7 +75,7 @@ struct ProjectsSection: View {
             .help("Make a project from a folder")
             .accessibilityLabel("New project")
         }
-        .padding(.horizontal, 10).padding(.top, 8)
+        .padding(.horizontal, 12).padding(.top, 8)
         .sheet(item: $adding) { pending in NewProjectSheet(pending: pending) { name in
             model.sendProject(.projectAdd(name: name, path: pending.path))
         } }
@@ -87,18 +87,18 @@ struct ProjectsSection: View {
                 .appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
             QuietButton(title: "New project", symbol: "folder.badge.plus", action: chooseFolder)
         }
-        .padding(.horizontal, 10).padding(.vertical, 4)
+        .padding(.horizontal, 12).padding(.vertical, 4)
     }
 
     private func archivedRow(_ count: Int) -> some View {
         Button { settle(reduceMotion) { showArchived.toggle() } } label: {
-            HStack(spacing: 6) {
-                Image(systemName: showArchived ? "chevron.down" : "chevron.right").appFont(.system(size: 8, weight: .bold))
+            HStack(spacing: 8) {
+                Glyph(systemName: showArchived ? "chevron.down" : "chevron.right").appFont(.system(size: 8, weight: .bold))
                 Text(showArchived ? "Hide archived (\(count))" : "Show archived (\(count))").appFont(.system(size: 11))
                 Spacer(minLength: 0)
             }
             .foregroundStyle(theme.text3.color)
-            .padding(.horizontal, 10).padding(.vertical, 4).contentShape(Rectangle())
+            .padding(.horizontal, 12).padding(.vertical, 4).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(showArchived ? "Hide archived projects" : "Show archived projects")
@@ -122,7 +122,7 @@ struct ProjectsSection: View {
             VStack(alignment: .leading, spacing: 0) {
                 if chats.isEmpty {
                     Text("No active chats in this project.").appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
-                        .padding(.horizontal, 10).padding(.vertical, 6)
+                        .padding(.horizontal, 12).padding(.vertical, 8)
                 }
                 ForEach(ProjectList.shown(chats, all: more)) { chat in
                     SidebarChatRow(model: model, chat: chat, current: chat.id == list.current)
@@ -130,13 +130,13 @@ struct ProjectsSection: View {
                 if chats.count > ProjectList.firstChats && !more {
                     Button { settle(reduceMotion) { _ = allChats.insert(project.id) } } label: {
                         Text("Show more (\(chats.count - ProjectList.firstChats))").appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
-                            .padding(.horizontal, 10).padding(.vertical, 4)
+                            .padding(.horizontal, 12).padding(.vertical, 4)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Show more chats in \(project.name)")
                 }
             }
-            .padding(.leading, 14)
+            .padding(.leading, 16)
             .transition(reduceMotion ? .identity : .opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
         }
     }
@@ -144,9 +144,9 @@ struct ProjectsSection: View {
     private func projectRow(_ project: ProjectInfo, open: Bool) -> some View {
         let editing = renaming == project.id
         return HStack(spacing: 8) {
-            Image(systemName: "chevron.right").appFont(.system(size: 8, weight: .bold)).foregroundStyle(theme.text3.color)
+            Glyph(systemName: "chevron.right").appFont(.system(size: 8, weight: .bold)).foregroundStyle(theme.text3.color)
                 .rotationEffect(.degrees(open ? 90 : 0)).frame(width: 10)
-            Image(systemName: "folder").appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+            Glyph(systemName: "folder").appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
             VStack(alignment: .leading, spacing: 1) {
                 if editing { renameField(project) } else {
                     Text(project.name).appFont(.system(size: 12.5, weight: .semibold)).foregroundStyle(project.archived ? theme.text3.color : theme.text.color).lineLimit(1)
@@ -164,7 +164,7 @@ struct ProjectsSection: View {
             // A new chat in this project: a plus on the folder's own row, not a whole line under it.
             if !project.archived { newChatButton(project) }
         }
-        .padding(.leading, 10).padding(.trailing, 6).padding(.vertical, 4)
+        .padding(.leading, 12).padding(.trailing, 8).padding(.vertical, 4)
         .contentShape(Rectangle())
         .focusable()
         .focused($focused, equals: project.id)
@@ -201,7 +201,7 @@ struct ProjectsSection: View {
                 model.windowPage = .chat
             }
         } label: {
-            Image(systemName: "plus").appFont(.system(size: 10.5, weight: .semibold)).foregroundStyle(theme.text2.color)
+            Glyph(systemName: "plus").appFont(.system(size: 10.5, weight: .semibold)).foregroundStyle(theme.text2.color)
                 .frame(width: 22, height: 22).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -237,7 +237,7 @@ struct ProjectsSection: View {
             // `ImageRenderer` cannot draw a text field: draw it as it would look.
             Text(draft + "|").appFont(.system(size: 12.5, weight: .semibold)).foregroundStyle(theme.text.color).lineLimit(1)
                 .padding(.horizontal, 4).padding(.vertical, 1)
-                .background(RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(theme.accent.color, lineWidth: 1))
+                .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(theme.accent.color, lineWidth: 1))
         } else {
             RenameField(text: $draft, label: "Project name") { endRename(project, commit: true) } onCancel: { endRename(project, commit: false) }
         }
@@ -284,7 +284,7 @@ struct RenameField: View {
             .onSubmit(onCommit)
             .onExitCommand(perform: onCancel)
             .padding(.horizontal, 4).padding(.vertical, 1)
-            .background(RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(theme.accent.color, lineWidth: 1))
+            .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(theme.accent.color, lineWidth: 1))
             .onAppear { focused = true }
             .accessibilityLabel(label)
     }
@@ -305,7 +305,7 @@ private struct NewProjectSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 16) {
             Text("New project").appFont(.headline).accessibilityAddTraits(.isHeader)
             Text(ProjectList.grantQuestion(folderLabel: pending.label)).fixedSize(horizontal: false, vertical: true)
             TextField("Project name", text: $name).focused($focused).onSubmit(submit).accessibilityLabel("Project name")
@@ -344,12 +344,12 @@ struct SidebarChatRow: View {
             .overlay(alignment: .trailing) {
                 if hovering && !renaming && !snapshot {
                     Button { confirming = true } label: {
-                        Image(systemName: "trash").appFont(.system(size: 10.5, weight: .medium)).foregroundStyle(theme.text2.color)
+                        Glyph(systemName: "trash").appFont(.system(size: 10.5, weight: .medium)).foregroundStyle(theme.text2.color)
                             .frame(width: 22, height: 22).background(Circle().fill(theme.fill2.color)).contentShape(Circle())
                     }
                     .buttonStyle(.plain)
                     .opacity(hovering ? 1 : 0.55)
-                    .padding(.trailing, 6)
+                    .padding(.trailing, 8)
                     .help("Delete this chat")
                     .accessibilityLabel("Delete chat \(chat.title)")
                 }
@@ -395,9 +395,9 @@ struct SidebarChatRow: View {
                 if renaming, !snapshot {
                     RenameField(text: $draft, label: "Chat title") { finish(commit: true) } onCancel: { finish(commit: false) }
                 } else {
-                    HStack(spacing: 5) {
-                        if chat.pinned { Image(systemName: "pin.fill").appFont(.system(size: 10)).accessibilityLabel("Pinned") }
-                        if chat.archived { Image(systemName: "archivebox").appFont(.system(size: 10)).accessibilityLabel("Archived") }
+                    HStack(spacing: 4) {
+                        if chat.pinned { Glyph(systemName: "pin.fill").appFont(.system(size: 10)).accessibilityLabel("Pinned") }
+                        if chat.archived { Glyph(systemName: "archivebox").appFont(.system(size: 10)).accessibilityLabel("Archived") }
                         Text(chat.title).appFont(.system(size: 12.5, weight: current ? .medium : .regular))
                             .foregroundStyle(theme.text.color).lineLimit(1)
                         Spacer(minLength: 6)
@@ -411,12 +411,12 @@ struct SidebarChatRow: View {
                 // 2026-10-15: the time is not a second line any more (one line is a shorter row); it is the tip and VoiceOver's.
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.leading, 8).padding(.trailing, hovering && !renaming && !snapshot ? 30 : 8).padding(.vertical, 6)
+            .padding(.leading, 8).padding(.trailing, hovering && !renaming && !snapshot ? 30 : 8).padding(.vertical, 8)
             .frame(minHeight: 30)
             // The open chat: a surface step with a hairline (unslop), not an accent tint and a bar.
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .fill(selected ? theme.fill3.color : hovering ? theme.fill2.color : .clear))
-            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(selected ? theme.separator.color : .clear, lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(selected ? theme.separator.color : .clear, lineWidth: 1))
             .contentShape(Rectangle())
             .animation(Motion.hover(false, ghost: theme.isGhost), value: hovering)
         }
@@ -452,22 +452,22 @@ struct ProjectChip: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: project.missing ? "exclamationmark.triangle.fill" : "folder").appFont(.system(size: 10.5, weight: .medium))
+        HStack(spacing: 8) {
+            Glyph(systemName: project.missing ? "exclamationmark.triangle.fill" : "folder").appFont(.system(size: 10.5, weight: .medium))
                 .foregroundStyle(project.missing ? theme.attention.color : theme.text3.color)
             Text(project.chipTitle).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(1).truncationMode(.tail)
             Button {
                 let url = URL(fileURLWithPath: project.folderPath)
                 NSWorkspace.shared.activateFileViewerSelecting([url])
             } label: {
-                Image(systemName: "arrow.up.forward.square").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text2.color)
+                Glyph(systemName: "arrow.up.forward.square").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text2.color)
                     .frame(width: 20, height: 20).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help("Reveal folder")
             .accessibilityLabel("Reveal folder")
         }
-        .padding(.leading, 10).padding(.trailing, 4).frame(height: 24)
+        .padding(.leading, 12).padding(.trailing, 4).frame(height: 24)
         .background(Capsule().fill(theme.fill1.color))
         .overlay(Capsule().strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.5))
         .accessibilityElement(children: .contain)

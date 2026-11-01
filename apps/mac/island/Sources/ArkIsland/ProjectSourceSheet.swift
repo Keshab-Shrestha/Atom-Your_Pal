@@ -27,7 +27,7 @@ struct NewProjectButton: View {
     @Environment(\.theme) private var theme
     var body: some View {
         Button { model.openProjectSources() } label: {
-            Image(systemName: "folder.badge.plus").appFont(.system(size: 13)).foregroundStyle(theme.text2.color)
+            Glyph(systemName: "folder.badge.plus").appFont(.system(size: 13)).foregroundStyle(theme.text2.color)
                 .frame(width: 28, height: 30).contentShape(Rectangle())
         }.buttonStyle(.plain).help("New project or repository").accessibilityLabel("New project")
             .disabled(model.chats?.projects == nil || model.projectSource.pending != nil)
@@ -70,7 +70,7 @@ struct ProjectSourceSheet: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 8) {
                 if source != nil, !busy, !finished {
-                    Button { source = nil; model.projectSource = ProjectSourceState() } label: { Image(systemName: "chevron.left") }
+                    Button { source = nil; model.projectSource = ProjectSourceState() } label: { Glyph(systemName: "chevron.left") }
                         .accessibilityLabel("Back to project sources")
                 }
                 Text(source?.title ?? "New project").appFont(.system(size: 18, weight: .semibold)).accessibilityAddTraits(.isHeader)
@@ -98,7 +98,7 @@ struct ProjectSourceSheet: View {
                     .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
             }
         }
-        .padding(22).frame(width: 500, alignment: .leading).foregroundStyle(theme.text.color)
+        .padding(24).frame(width: 500, alignment: .leading).foregroundStyle(theme.text.color)
         .background(theme.surfaceSolid.color).buttonStyle(SnapshotBorderlessButtonStyle())
         .interactiveDismissDisabled(busy)
         .onAppear { if !snapshot { searchFocused = true } }
@@ -106,10 +106,10 @@ struct ProjectSourceSheet: View {
     }
     private var chooser: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if snapshot { Text("Search sources…").appFont(.system(size: 13)).foregroundStyle(theme.text3.color).padding(.vertical, 6) }
+            if snapshot { Text("Search sources…").appFont(.system(size: 13)).foregroundStyle(theme.text3.color).padding(.vertical, 8) }
             else {
                 TextField("Search sources…", text: $query).textFieldStyle(.plain).focused($searchFocused)
-                    .accessibilityLabel("Search project sources").padding(.vertical, 6)
+                    .accessibilityLabel("Search project sources").padding(.vertical, 8)
                     .onChange(of: query) { cursor = 0 }
                     .onKeyPress(.downArrow) { cursor = min(max(0, choices.count - 1), cursor + 1); return .handled }
                     .onKeyPress(.upArrow) { cursor = max(0, cursor - 1); return .handled }
@@ -120,15 +120,15 @@ struct ProjectSourceSheet: View {
             ForEach(Array(choices.enumerated()), id: \.element) { index, item in
                 Button { source = item } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: item.symbol).appFont(.system(size: 15)).frame(width: 22)
-                        VStack(alignment: .leading, spacing: 3) {
+                        Glyph(systemName: item.symbol).appFont(.system(size: 15)).frame(width: 22)
+                        VStack(alignment: .leading, spacing: 4) {
                             Text(item.title).appFont(.system(size: 13, weight: .medium))
                             Text(item.detail).appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
                         }
                         Spacer()
-                        Image(systemName: "chevron.right").appFont(.system(size: 10)).foregroundStyle(theme.text3.color)
-                    }.padding(10).contentShape(Rectangle())
-                        .background(index == cursor ? theme.fill2.color : .clear, in: RoundedRectangle(cornerRadius: 7))
+                        Glyph(systemName: "chevron.right").appFont(.system(size: 10)).foregroundStyle(theme.text3.color)
+                    }.padding(12).contentShape(Rectangle())
+                        .background(index == cursor ? theme.fill2.color : .clear, in: RoundedRectangle(cornerRadius: Radius.card))
                 }.accessibilityLabel("Source: " + item.title)
             }
         }
@@ -165,7 +165,7 @@ struct ProjectSourceSheet: View {
         }.disabled(busy || finished)
     }
     @ViewBuilder private func field(_ label: String, value: Binding<String>, placeholder: String) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(label).appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
             if snapshot { Text(value.wrappedValue.isEmpty ? placeholder : value.wrappedValue).appFont(.system(size: 13)).foregroundStyle(theme.text2.color) }
             else { TextField(placeholder, text: value).textFieldStyle(.roundedBorder).accessibilityLabel(label) }

@@ -18,7 +18,7 @@ struct GitCommitActivity: View {
     var body: some View {
         let commits = dated
         if !commits.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 12) {
                 ActivityHeatmap(events: commits.compactMap(\.at), unit: "commits")
                 Text("Local branch snapshots only; shared commits counted once per repository. Push status appears on each branch.")
                     .appFont(.system(size: 11)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)

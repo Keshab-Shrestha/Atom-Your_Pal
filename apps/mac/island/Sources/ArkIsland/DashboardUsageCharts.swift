@@ -18,7 +18,7 @@ struct DashboardTokenMix: View {
     var body: some View {
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .center, spacing: 16) { ring; legend }.frame(minWidth: 330)
-            VStack(alignment: .leading, spacing: 14) { ring; legend }
+            VStack(alignment: .leading, spacing: 16) { ring; legend }
         }
     }
     private var ring: some View {
@@ -36,7 +36,7 @@ struct DashboardTokenMix: View {
                         .opacity(hovered == nil || hovered == index ? 1 : 0.3)
                 }
             }
-            VStack(spacing: 3) {
+            VStack(spacing: 4) {
                 let focus = hovered.map { parts[$0] }
                 Text(TokenTotals.short(focus?.1 ?? usage.week.total)).appFont(.system(size: 20, weight: .semibold)).monospacedDigit().foregroundStyle(theme.text.color)
                     .contentTransition(.numericText())
@@ -49,11 +49,11 @@ struct DashboardTokenMix: View {
             .accessibilityLabel("Seven-day token mix. " + parts.map { "\($0.0): \($0.1)" }.joined(separator: ", "))
     }
     private var legend: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             ForEach(parts.indices, id: \.self) { index in
                 let part = parts[index]
                 VStack(alignment: .leading, spacing: 4) {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Circle().fill(part.2).frame(width: 6, height: 6).alignmentGuide(.firstTextBaseline) { $0[.bottom] - 1 }
                         Text(part.0).appFont(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(1)
                         Spacer(minLength: 4)
@@ -63,8 +63,8 @@ struct DashboardTokenMix: View {
                     }
                     ShareBar(fraction: Double(part.1) / Double(max(1, usage.week.total)), color: part.2)
                 }
-                .padding(.horizontal, 6).padding(.vertical, 4)
-                .background(theme.fill3.color.opacity(hovered == index ? 1 : 0), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .padding(.horizontal, 8).padding(.vertical, 4)
+                .background(theme.fill3.color.opacity(hovered == index ? 1 : 0), in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
                 .padding(.horizontal, -6).padding(.vertical, -4)
                 .contentShape(Rectangle())
                 .onHover { inside in hovered = inside ? index : (hovered == index ? nil : hovered) }

@@ -31,7 +31,7 @@ struct MemorySection: View {
                     Card(footer: "Deletes every fact for good. ARK cannot get them back.") {
                         Row(title: "Forget all facts") {
                             if confirming.wrappedValue {
-                                HStack(spacing: 6) {
+                                HStack(spacing: 8) {
                                     PillButton(title: "Cancel") { confirming.wrappedValue = false }
                                     PillButton(title: "Forget all", prominent: true) {
                                         confirming.wrappedValue = false
@@ -61,8 +61,8 @@ private struct EmptyMemoryCard: View {
 
     var body: some View {
         Card(footer: "Kept on this Mac only, and shared with the AI model when it helps answer.") {
-            VStack(spacing: 6) {
-                Image(systemName: "brain.head.profile").appFont(.system(size: 20, weight: .regular)).foregroundStyle(theme.text2.color)
+            VStack(spacing: 8) {
+                Glyph(systemName: "brain.head.profile").appFont(.system(size: 20, weight: .regular)).foregroundStyle(theme.text2.color)
                 Text("Nothing kept yet").appFont(.system(size: 12, weight: .semibold)).foregroundStyle(theme.text.color)
                 Text("Say “Remember that…” and ARK keeps it, even after a restart.")
                     .appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color).multilineTextAlignment(.center)
@@ -115,12 +115,12 @@ private struct KeptChatsCard: View {
 
     @ViewBuilder private func trailing(_ chat: MemoryChatItem) -> some View {
         if chat.indexing {
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 ProgressView().controlSize(.small)
                 Text("Keeping…").appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)
             }
         } else if chat.kept {
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 Label("Kept", systemImage: "checkmark.circle.fill").labelStyle(.titleAndIcon)
                     .appFont(.system(size: 10.5, weight: .medium)).foregroundStyle(theme.text2.color)
                 PillButton(title: "Remove") { model.dropKeptChat(chat.id) }
@@ -190,7 +190,7 @@ private struct NoteRow: View {
             }
             Spacer(minLength: 4)
             Button(action: remove) {
-                Image(systemName: "xmark")
+                Glyph(systemName: "xmark")
                     .appFont(.system(size: 9, weight: .bold))
                     .foregroundStyle(theme.text2.color)
                     .frame(width: 20, height: 20)
@@ -225,7 +225,7 @@ private struct MemoryRow: View {
             }
             Spacer(minLength: 4)
             Button(action: forget) {
-                Image(systemName: "xmark")
+                Glyph(systemName: "xmark")
                     .appFont(.system(size: 9, weight: .bold))
                     .foregroundStyle(theme.text2.color)
                     .frame(width: 20, height: 20)

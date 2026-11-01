@@ -11,7 +11,7 @@ struct MarkdownReply: View {
 
     var body: some View {
         let blocks = MarkdownBlocks.parse(text)
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in MarkdownBlockView(block: block, latest: latest, copyEnabled: copyEnabled) }
         }
         .appFont(.system(size: 14))
@@ -35,13 +35,13 @@ private struct MarkdownBlockView: View {
         case .heading(let level, let s):
             inline(s).appFont(.system(size: level <= 1 ? 16 : level == 2 ? 15 : 14, weight: .semibold))
         case .list(let items, let number):
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 4) {
                 ForEach(Array(items.enumerated()), id: \.offset) { index, item in
-                    HStack(alignment: .top, spacing: 7) {
+                    HStack(alignment: .top, spacing: 8) {
                         HStack(spacing: 4) {
                             if let number { Text("\(number + index).").foregroundStyle(theme.text3.color) }
                             if let checked = item.checked {
-                                Image(systemName: checked ? "checkmark.square" : "square")
+                                Glyph(systemName: checked ? "checkmark.square" : "square")
                                     .foregroundStyle(theme.text3.color)
                                     .accessibilityLabel(checked ? "Completed task" : "Incomplete task")
                                     .padding(.top, 2)
@@ -49,7 +49,7 @@ private struct MarkdownBlockView: View {
                                 Text("•").foregroundStyle(theme.text3.color)
                             }
                         }
-                        VStack(alignment: .leading, spacing: 5) {
+                        VStack(alignment: .leading, spacing: 4) {
                             if !item.text.isEmpty { inline(item.text).fixedSize(horizontal: false, vertical: true) }
                             if !item.children.isEmpty { children(item.children) }
                         }
@@ -59,14 +59,14 @@ private struct MarkdownBlockView: View {
             }
         case .quote(let blocks):
             children(blocks)
-                .padding(.leading, 12).padding(.vertical, 3)
+                .padding(.leading, 12).padding(.vertical, 4)
                 .overlay(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 1.5).fill(theme.text3.color.opacity(0.5)).frame(width: 3)
                 }
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel("Block quote")
         case .rule:
-            Rectangle().fill(theme.separator.color).frame(height: 1).padding(.vertical, 5)
+            Rectangle().fill(theme.separator.color).frame(height: 1).padding(.vertical, 4)
                 .accessibilityLabel("Section separator")
         case .code(let s, let language):
             VStack(alignment: .leading, spacing: 0) {
@@ -77,12 +77,12 @@ private struct MarkdownBlockView: View {
                         .disabled(!copyEnabled)
                         .help(copyEnabled ? "Copy only this code block, without its fences" : "Copy is available when this reply finishes")
                 }
-                .padding(.horizontal, 10).padding(.top, 4)
+                .padding(.horizontal, 12).padding(.top, 4)
                 SideScroll {
-                    Text(s).appFont(.system(size: 12, design: .monospaced)).padding(10)
+                    Text(s).appFont(.system(size: 12, design: .monospaced)).padding(12)
                 }
             }
-            .background(RoundedRectangle(cornerRadius: 8).fill(theme.text.color.opacity(0.06)))
+            .background(RoundedRectangle(cornerRadius: Radius.card).fill(theme.text.color.opacity(0.06)))
             .accessibilityElement(children: .contain)
             .accessibilityLabel(language.map { "\($0) code block" } ?? "Code block")
             .accessibilityActions {
@@ -142,16 +142,16 @@ private struct MarkdownBlockView: View {
                 GridRow { ForEach(Array(row.enumerated()), id: \.offset) { _, c in cell(c) } }
             }
         }
-        .padding(10)
-        .background(RoundedRectangle(cornerRadius: 8).fill(theme.text.color.opacity(0.05)))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.border.color, lineWidth: 0.5))
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: Radius.card).fill(theme.text.color.opacity(0.05)))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(theme.border.color, lineWidth: 0.5))
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func cards(header: [String], rows: [[String]]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 4) {
                     inline(row.first ?? "").fontWeight(.semibold)
                     ForEach(Array(zip(header, row).dropFirst().enumerated()), id: \.offset) { _, pair in
                         (inline(pair.0).fontWeight(.semibold).foregroundColor(theme.text3.color) + Text(": ").foregroundColor(theme.text3.color) + inline(pair.1))
@@ -159,9 +159,9 @@ private struct MarkdownBlockView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(10)
-                .background(RoundedRectangle(cornerRadius: 8).fill(theme.text.color.opacity(0.05)))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.border.color, lineWidth: 0.5))
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: Radius.card).fill(theme.text.color.opacity(0.05)))
+                .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(theme.border.color, lineWidth: 0.5))
             }
         }
     }
@@ -190,7 +190,7 @@ private struct SideScroll<Content: View>: View {
         if snapshot {
             content.fixedSize(horizontal: true, vertical: false).frame(maxWidth: .infinity, alignment: .leading).clipped() // natural width, as a scroll view starts
         } else {
-            ArkScrollView(.horizontal, showsIndicators: true) { content.padding(.bottom, 6) }
+            ArkScrollView(.horizontal, showsIndicators: true) { content.padding(.bottom, 8) }
         }
     }
 }

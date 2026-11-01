@@ -25,7 +25,7 @@ struct ProjectSettingsSheet: View {
         self.model = model; self.initial = initial; _name = State(initialValue: initial.name)
     }
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 16) {
             header
             if let project {
                 if project.archived {
@@ -41,7 +41,7 @@ struct ProjectSettingsSheet: View {
                         }
                     }
                     .accessibilityLabel("Project settings name")
-                    .padding(.horizontal, 16).padding(.bottom, 14)
+                    .padding(.horizontal, 16).padding(.bottom, 16)
                 }
                 .disabled(model.projectSettingsBusy || project.archived)
                 SettingsCard(title: "Folder", detail: "The registered folder stays under the existing project permissions.") {
@@ -68,7 +68,7 @@ struct ProjectSettingsSheet: View {
                         .disabled(model.projectSettingsBusy || project.archived)
                     }
                 }
-                HStack(spacing: 10) {
+                HStack(spacing: 12) {
                     QuietButton(title: project.archived ? "Unarchive" : "Archive", symbol: project.archived ? "tray.and.arrow.up" : "archivebox") {
                         guard let current = self.project, !model.projectSettingsBusy else { return }
                         model.sendProject(.projectArchive(id: current.id, archived: !current.archived))

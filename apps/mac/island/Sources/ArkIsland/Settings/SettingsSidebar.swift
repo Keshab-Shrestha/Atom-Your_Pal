@@ -13,8 +13,8 @@ struct SettingsSidebar: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass").foregroundStyle(theme.text3.color)
+            HStack(spacing: 8) {
+                Glyph(systemName: "magnifyingglass").foregroundStyle(theme.text3.color)
                 if snapshot {
                     Text("Filter settings").foregroundStyle(theme.text3.color).frame(maxWidth: .infinity, alignment: .leading)
                 } else {
@@ -24,12 +24,12 @@ struct SettingsSidebar: View {
                         .onExitCommand { query = "" }
                 }
                 if !query.isEmpty {
-                    Button { query = "" } label: { Image(systemName: "xmark.circle.fill") }
+                    Button { query = "" } label: { Glyph(systemName: "xmark.circle.fill") }
                         .buttonStyle(.plain).accessibilityLabel("Clear settings filter")
                 }
             }
-            .appFont(.system(size: 12.5)).padding(.horizontal, 10).frame(height: 30)
-            .background(theme.fill1.color, in: RoundedRectangle(cornerRadius: 8))
+            .appFont(.system(size: 12.5)).padding(.horizontal, 12).frame(height: 30)
+            .background(theme.fill1.color, in: RoundedRectangle(cornerRadius: Radius.card))
             Scrollable {
                 if query.isEmpty {
                     category(title: "Overview", symbol: "slider.horizontal.3", selected: model.settingsPage == nil) { model.settingsPage = nil }
@@ -38,7 +38,7 @@ struct SettingsSidebar: View {
                     let matches = pages.filter { query.isEmpty || $0.rawValue.localizedStandardContains(query) }
                     if !matches.isEmpty {
                         Text(title).appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
-                            .padding(.horizontal, 10).padding(.top, 16).padding(.bottom, 4)
+                            .padding(.horizontal, 12).padding(.top, 16).padding(.bottom, 4)
                             .accessibilityAddTraits(.isHeader)
                         ForEach(matches) { page in
                             category(title: page.rawValue, symbol: page.symbol, selected: model.settingsPage == page) {
@@ -48,7 +48,7 @@ struct SettingsSidebar: View {
                     }
                 }
                 if !query.isEmpty && !groups.flatMap(\.1).contains(where: { $0.rawValue.localizedStandardContains(query) }) {
-                    Text("No matching categories").appFont(.system(size: 12)).foregroundStyle(theme.text3.color).padding(10)
+                    Text("No matching categories").appFont(.system(size: 12)).foregroundStyle(theme.text3.color).padding(12)
                 }
             }
             .frame(maxHeight: .infinity)

@@ -16,7 +16,7 @@ struct IconButton: View {
     var body: some View {
         let large = diameter >= 26
         Button(action: action) {
-            Image(systemName: symbol)
+            Glyph(systemName: symbol)
                 .appFont(.system(size: large ? 11 : 10, weight: large ? .semibold : .bold))
                 .foregroundStyle(hovering.wrappedValue ? theme.text.color : theme.text2.color)
                 .frame(width: diameter, height: diameter)
@@ -55,7 +55,7 @@ struct Card<Content: View>: View {
                 Text(title)
                     .appFont(.system(size: 11.5, weight: .medium))
                     .foregroundStyle(theme.text3.color)
-                    .padding(.leading, 6)
+                    .padding(.leading, 8)
             }
             VStack(alignment: .leading, spacing: 0) { content }
                 .cardWell(theme)
@@ -64,7 +64,7 @@ struct Card<Content: View>: View {
                     .appFont(.system(size: 10.5))
                     .foregroundStyle(theme.text3.color)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 6)
+                    .padding(.horizontal, 8)
             }
         }
     }
@@ -78,7 +78,7 @@ struct Row<Trailing: View>: View {
     @Environment(\.desktopDesign) private var appDesign
 
     var body: some View {
-        HStack(alignment: .center, spacing: 10) {
+        HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).appFont(.system(size: appDesign ? 13 : 12, weight: .medium)).foregroundStyle(theme.text.color)
                 if let detail, !detail.isEmpty {
@@ -205,16 +205,16 @@ struct MenuLabel: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 4) {
             Text(text)
                 .appFont(identifier ? theme.appIdentifierFont(.system(size: 11.5, weight: .medium), size: 11) : .system(size: 11.5, weight: .medium))
                 .foregroundStyle(dimmed ? theme.text2.color : theme.text.color)
                 .lineLimit(1)
-            Image(systemName: "chevron.up.chevron.down")
+            Glyph(systemName: "chevron.up.chevron.down")
                 .appFont(.system(size: 8, weight: .bold))
                 .foregroundStyle(theme.text2.color)
         }
-        .padding(.horizontal, 9)
+        .padding(.horizontal, 8)
         .frame(height: 24)
         .background(ControlFill(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous), fill: theme.fill2.color))
         .contentShape(Rectangle())
@@ -232,8 +232,8 @@ struct PillButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 5) {
-                if let symbol { Image(systemName: symbol).appFont(.system(size: 10, weight: .semibold)) }
+            HStack(spacing: 4) {
+                if let symbol { Glyph(systemName: symbol).appFont(.system(size: 10, weight: .semibold)) }
                 Text(title).appFont(.system(size: 11.5, weight: .semibold))
             }
             .foregroundStyle(prominent && !theme.isGhost ? theme.onAccent.color : theme.text.color)
@@ -260,9 +260,8 @@ extension View {
     /// A card's well: the theme's faint fill and a soft hairline, or in Void (ADR-086) black with a full 1 px hairline.
     func cardWell(_ theme: ThemePalette, radius: CGFloat? = nil) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius ?? theme.radiusCard, style: .continuous)
-        // Void's black cards get a faint lift so a card reads as a surface, not only an outline (2026-10-31).
-        return background(shape.fill(theme.isFlat ? theme.fill2.color.opacity(0.5) : theme.fill1.color))
-            .overlay(shape.strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color.opacity(0.6), lineWidth: theme.isFlat ? 1 : 0.5))
+        // 2026-11-01 redesign: a card is one tone step above its page, with no outline (taste-skill: no 1 px boxes).
+        return background(shape.fill(theme.fill1.color))
     }
 }
 

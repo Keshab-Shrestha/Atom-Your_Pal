@@ -24,20 +24,20 @@ struct WindowTopBar<Trailing: View>: View {
             if let showSidebar { SidebarToggleButton(hidden: true, action: showSidebar) }
             if let back {
                 Button(action: back) {
-                    Image(systemName: "chevron.left").appFont(.system(size: 12, weight: .semibold)).foregroundStyle(theme.text2.color)
+                    Glyph(systemName: "chevron.left").appFont(.system(size: 12, weight: .semibold)).foregroundStyle(theme.text2.color)
                         .frame(width: 24, height: 24).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .help("Back (⌘[)")
                 .accessibilityLabel("Back")
             }
-            if !compact { Image(systemName: symbol).appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color) }
+            if !compact { Glyph(systemName: symbol).appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color) }
             if !centeredTitle { titleLabel }
             Spacer(minLength: 8)
             trailing()
         }
-        .padding(.leading, 18)
-        .padding(.trailing, 18)
+        .padding(.leading, 16)
+        .padding(.trailing, 16)
         .frame(height: compact ? 52 : HelpersView.titleBarRoom)
         .overlay { if centeredTitle { titleLabel.allowsHitTesting(false) } }
         // 2026-10-15: room above the bar, so the back arrow and the page's name sit level with the app name in the
@@ -53,7 +53,7 @@ struct WindowTopBar<Trailing: View>: View {
         }
     }
     private var titleLabel: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 4) {
                 if compact, let context {
                     Text(context).appFont(.system(size: 10.5, weight: .medium)).foregroundStyle(theme.text3.color).lineLimit(1)
                 }
@@ -94,7 +94,7 @@ struct SidebarToggleButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: "sidebar.left").appFont(.system(size: 13, weight: .regular)).foregroundStyle(theme.text2.color)
+            Glyph(systemName: "sidebar.left").appFont(.system(size: 13, weight: .regular)).foregroundStyle(theme.text2.color)
                 .frame(width: 24, height: 24).contentShape(Rectangle())
         }
         .buttonStyle(.plain)

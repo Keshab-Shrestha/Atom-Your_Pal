@@ -23,7 +23,7 @@ struct BriefCard: View {
                     ProgressView().controlSize(.small)
                     Text("Making your brief…").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }
-                .padding(14)
+                .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(shape.fill(theme.fill1.color))
             }
@@ -48,7 +48,7 @@ struct BriefCard: View {
             }
             Text(footer(entry)).appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
         }
-        .padding(14)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(shape.fill(theme.fill1.color))
         .overlay(shape.strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.5))
@@ -93,19 +93,19 @@ struct BriefHistory: View {
                     ForEach(Array(visible.enumerated()), id: \.element.id) { index, entry in
                         HStack(alignment: .top, spacing: 12) {
                             VStack(spacing: 0) {
-                                Circle().stroke(theme.text3.color, lineWidth: 1.5).frame(width: 8, height: 8).padding(.top, 7)
+                                Circle().stroke(theme.text3.color, lineWidth: 1.5).frame(width: 8, height: 8).padding(.top, 8)
                                 Rectangle().fill(theme.separator.color).frame(width: 1).frame(maxHeight: .infinity)
                             }.frame(width: 12)
-                            VStack(alignment: .leading, spacing: 7) {
+                            VStack(alignment: .leading, spacing: 8) {
                                 Button {
                                     if expanded.wrappedValue.contains(entry.id) { expanded.wrappedValue.remove(entry.id) }
                                     else { expanded.wrappedValue.insert(entry.id) }
                                 } label: {
-                                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                    HStack(alignment: .firstTextBaseline, spacing: 12) {
                                         Text(entry.day).appFont(.system(size: 12, weight: .semibold)).foregroundStyle(theme.text.color)
                                         if let at = entry.createdAt { Text(at.formatted(date: .omitted, time: .shortened)).appFont(.system(size: 11)).foregroundStyle(theme.text3.color) }
                                         Spacer(minLength: 0)
-                                        Image(systemName: expanded.wrappedValue.contains(entry.id) ? "chevron.up" : "chevron.down")
+                                        Glyph(systemName: expanded.wrappedValue.contains(entry.id) ? "chevron.up" : "chevron.down")
                                             .appFont(.system(size: 9)).foregroundStyle(theme.text3.color)
                                     }.contentShape(Rectangle())
                                 }.buttonStyle(.plain).accessibilityLabel("\(expanded.wrappedValue.contains(entry.id) ? "Collapse" : "Read") brief for \(entry.day)\(entry.createdAt.map { " at " + $0.formatted(date: .omitted, time: .shortened) } ?? "")")

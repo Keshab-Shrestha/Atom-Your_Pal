@@ -18,7 +18,7 @@ struct EditReviewView: View {
 
     var body: some View {
         let r = review.wrappedValue
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             header(r)
             if r.isUnchanged {
                 Text("ARK changed nothing.").appFont(.system(size: 12.5)).foregroundStyle(theme.text2.color)
@@ -80,7 +80,7 @@ struct EditReviewView: View {
 
     private func iconButton(_ symbol: String, _ label: String, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: symbol).appFont(.system(size: 11, weight: .semibold)).foregroundStyle(theme.text2.color)
+            Glyph(systemName: symbol).appFont(.system(size: 11, weight: .semibold)).foregroundStyle(theme.text2.color)
                 .frame(width: 26, height: 26).contentShape(Rectangle())
         }
         .buttonStyle(.plain)

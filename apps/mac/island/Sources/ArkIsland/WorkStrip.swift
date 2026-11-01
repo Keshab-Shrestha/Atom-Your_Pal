@@ -150,7 +150,7 @@ private struct StepRow: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        HStack(spacing: 11) {
+        HStack(spacing: 12) {
             WorkGlyph(outcome: model.work.outcome)
                 .frame(width: 14, height: 14)
             Text(model.work.line)
@@ -165,12 +165,12 @@ private struct StepRow: View {
             if let plan = model.helpers.list?.activePlan { PlanDots(plan: plan) }
             if model.work.outcome == .working {
                 Button { model.stopWork() } label: {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 8) {
                         Text("Stop").appFont(.system(size: 12, weight: .medium))
                         KeyHint(text: "esc")
                     }
                     .foregroundStyle(theme.text.color)
-                    .padding(.horizontal, 14)
+                    .padding(.horizontal, 16)
                     .frame(height: 28)
                     .background(ControlFill(Capsule(), fill: theme.fill2.color))
                     .contentShape(Capsule())
@@ -180,7 +180,7 @@ private struct StepRow: View {
                 .accessibilityHint("Stops what ARK is doing on your Mac")
             }
         }
-        .padding(.leading, 18)
+        .padding(.leading, 16)
         .padding(.trailing, (WorkStripLayout.size.height - 28) / 2)
         .frame(maxHeight: .infinity)
     }
@@ -203,7 +203,7 @@ private struct AskingView: View {
                         .appFont(.system(size: 11.5, weight: .medium))
                         .foregroundStyle(theme.statusDots ? theme.text2.color : theme.attention.color) // Void: colour only on the dot
                 }
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(request.summary)
                         .appFont(.system(size: 16, weight: .semibold, design: theme.titleDesign))
                         .foregroundStyle(theme.text.color)
@@ -224,17 +224,17 @@ private struct AskingView: View {
                 .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 20)
-            .padding(.top, 18)
+            .padding(.top, 16)
             Spacer(minLength: 8)
             HStack(spacing: 8) {
                 Spacer(minLength: 0)
                 Button { onAnswer(false, false) } label: {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 8) {
                         Text("Decline").appFont(.system(size: 12.5, weight: .medium))
                         KeyHint(text: "esc")
                     }
                     .foregroundStyle(theme.text.color)
-                    .padding(.horizontal, 18)
+                    .padding(.horizontal, 16)
                     .frame(minWidth: 104, minHeight: 32)
                     .background(ControlFill(Capsule(), fill: theme.fill2.color))
                     .contentShape(Capsule())
@@ -290,9 +290,9 @@ struct WorkGlyph: View {
     @ViewBuilder private var lanternGlyph: some View {
         switch outcome {
         case .working: WorkingLight(color: theme.live.color)
-        case .done: Image(systemName: "checkmark").appFont(.system(size: 11, weight: .bold)).foregroundStyle(theme.success.color)
+        case .done: Glyph(systemName: "checkmark").appFont(.system(size: 11, weight: .bold)).foregroundStyle(theme.success.color)
         case .stopped: RoundedRectangle(cornerRadius: 1.5, style: .continuous).fill(theme.text3.color).frame(width: 7, height: 7)
-        case .failed: Circle().fill(theme.problem.color).frame(width: 7, height: 7).shadow(color: theme.problem.color.opacity(0.7), radius: 3.5)
+        case .failed: Circle().fill(theme.problem.color).frame(width: 7, height: 7)
         }
     }
 }
@@ -423,7 +423,7 @@ struct PointLabelView: View {
     var snapshot = false
 
     var body: some View {
-        HStack(spacing: 7) {
+        HStack(spacing: 8) {
             Circle().fill(palette.live.color).frame(width: 6, height: 6)
                 .shadow(color: palette.live.color.opacity(palette.usesGlow ? 0.8 : 0), radius: 3)
             Text(text)
@@ -432,7 +432,7 @@ struct PointLabelView: View {
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
-        .padding(.horizontal, 11)
+        .padding(.horizontal, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background { SurfaceBackground(shape: Capsule(), glass: !snapshot) }
         .shadow(color: .black.opacity(palette.usesShadows ? (palette.isDark ? 0.34 : 0.14) : 0), radius: 6, y: 3)

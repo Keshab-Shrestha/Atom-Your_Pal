@@ -12,7 +12,7 @@ struct HeldLine: View {
     var body: some View {
         if theme.statusDots {
             // Void (ADR-086): the colour is only the dot; the words stay quiet.
-            HStack(alignment: .firstTextBaseline, spacing: 7) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 StatusDot(color: theme.attention.color, size: 6)
                 Text(reason).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(2)
             }
@@ -29,7 +29,7 @@ struct PlanFirstRow: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Plan first").appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
                 Text("New tasks start with a plan for your OK.").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
@@ -48,7 +48,7 @@ struct BrowserRow: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Browser").appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
                 Text("Opens pages in ARK's own browser. Each new site and each form asks you first.").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
@@ -70,7 +70,7 @@ struct RoutinesSection: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Routines").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             ForEach(routines) { routine in
-                HStack(alignment: .top, spacing: 10) {
+                HStack(alignment: .top, spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(routine.task).appFont(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
                         Text(Self.detail(routine)).appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
@@ -139,7 +139,7 @@ struct ProposalsSection: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Tinker suggests").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             ForEach(proposals.filter { $0.state == "pending" || $0.state == "accepted" }) { p in
                 VStack(alignment: .leading, spacing: 4) {
@@ -234,8 +234,8 @@ struct PaperclipSection: View {
                 Text("No tasks yet. Ask ARK to hand one to a Paperclip agent.").appFont(.system(size: 12)).foregroundStyle(theme.text2.color).padding(.leading, 4)
             }
             ForEach(tasks) { task in
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 6) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
                         Text("Paperclip").appFont(theme.appIdentifierFont(.system(size: 10.5), size: 10)).foregroundStyle(theme.idColor(theme.text2))
                         if let identifier = task.identifier { Text(identifier).appFont(theme.appIdentifierFont(.system(size: 10.5), size: 10)).foregroundStyle(theme.text3.color) }
                         Text(task.status).appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
@@ -244,7 +244,7 @@ struct PaperclipSection: View {
                     Text(task.agent).appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
                     if let result = task.result { Text(result).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(4) }
                 }
-                .padding(.horizontal, 16).padding(.vertical, 10)
+                .padding(.horizontal, 16).padding(.vertical, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
             }

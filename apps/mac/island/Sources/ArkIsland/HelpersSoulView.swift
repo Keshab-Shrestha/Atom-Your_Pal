@@ -21,14 +21,14 @@ struct SoulPane: View {
     var body: some View {
         let changed = draft.wrappedValue.trimmed != helper.soul
         Scrollable {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 8) {
                     QuietButton(title: helper.available ? "Jobs" : helper.name, symbol: "chevron.left") { model.navigateUp { model.helpers.closeSoul() } }
                     Spacer(minLength: 8)
                     VersionsMenu(model: model, helper: helper)
                     SaveButton(enabled: changed, saved: model.savedField == "soul" && model.helpers.problem == nil, commandS: true, label: "Save soul") { save() }
                 }
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text("\(helper.name)'s soul").appFont(theme.isFlat ? .system(size: 24, weight: .regular, design: .serif) : .system(size: 20, weight: .semibold, design: .rounded))
                         .foregroundStyle(theme.text.color)
                     Text("Given to \(helper.name) as instructions for every job. Its tools and limits are set by its role\(helper.roleTitle.isEmpty ? "" : " (\(helper.roleTitle))"), not here.")
@@ -44,7 +44,7 @@ struct SoulPane: View {
             .frame(maxWidth: 560, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Spacing.panel + 4)
-            .padding(.top, 30)
+            .padding(.top, 32)
             .padding(.bottom, Spacing.panel)
         }
         .tracksEdits(model, "soul", changed)
@@ -73,7 +73,7 @@ struct SoulField: View {
     @Environment(\.islandSnapshot) private var snapshot
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(label).appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text2.color)
             Group {
                 if snapshot {
@@ -91,8 +91,8 @@ struct SoulField: View {
             .foregroundStyle(theme.text.color)
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(theme.fill1.color, in: RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(focused ? theme.accent.color : theme.border.color, lineWidth: focused ? 1.5 : 1))
+            .background(theme.fill1.color, in: RoundedRectangle(cornerRadius: Radius.card))
+            .overlay(RoundedRectangle(cornerRadius: Radius.card).strokeBorder(focused ? theme.accent.color : theme.border.color, lineWidth: focused ? 1.5 : 1))
             .accessibilityLabel(label)
         }
     }
@@ -147,7 +147,7 @@ struct SaveButton: View {
                 Text(title)
                     .appFont(.system(size: 11.5, weight: .semibold))
                     .foregroundStyle(enabled ? (theme.isGhost ? theme.text.color : theme.onAccent.color) : theme.text3.color)
-                    .padding(.horizontal, 14)
+                    .padding(.horizontal, 16)
                     .frame(height: 26)
                     .background(ControlFill(RoundedRectangle(cornerRadius: theme.isGhost ? theme.radiusControl : 13, style: .continuous),
                                             fill: enabled ? AnyShapeStyle(theme.accentFill) : AnyShapeStyle(theme.fill2.color), hovering: enabled))
@@ -199,13 +199,13 @@ struct NewAgentPane: View {
         let typed = !(soul.name + soul.personality + soul.howItWorks + soul.rules).isEmpty
             || !role.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         Scrollable {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 8) {
                     QuietButton(title: "Cancel", symbol: "chevron.left") { model.navigateUp { model.helpers.closeNewAgent() } }
                     Spacer(minLength: 8)
                     SaveButton(title: "Create", enabled: typed, commandS: true, label: "Create agent", action: create)
                 }
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text("New agent").appFont(theme.isFlat ? .system(size: 24, weight: .regular, design: .serif) : .system(size: 20, weight: .semibold, design: .rounded))
                         .foregroundStyle(theme.text.color)
                     Text("Saved as data/agents/<name>/soul.md, which you can also edit in any editor. What it may use is its kit, set here and checked in code; its soul cannot add tools.")
@@ -214,7 +214,7 @@ struct NewAgentPane: View {
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
                 SoulField(label: "Name", text: draft.projectedValue.name, lines: 1, submit: create)
                 SoulField(label: "Role (in your words, such as travel planner)", text: role.projectedValue, lines: 1, submit: create)
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("What it may use").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
                     Menu {
                         ForEach(["research", "folders", "think"], id: \.self) { option in
@@ -234,7 +234,7 @@ struct NewAgentPane: View {
             .frame(maxWidth: 560, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Spacing.panel + 4)
-            .padding(.top, 30)
+            .padding(.top, 32)
             .padding(.bottom, Spacing.panel)
         }
         .tracksEdits(model, "new-agent", typed)

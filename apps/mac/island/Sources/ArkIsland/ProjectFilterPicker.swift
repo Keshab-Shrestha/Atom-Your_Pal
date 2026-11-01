@@ -8,17 +8,17 @@ struct ProjectFilterButton: View {
     @Environment(\.theme) private var theme
     var body: some View {
         Button { presented.toggle() } label: {
-            HStack(spacing: 7) {
-                Image(systemName: expanded ? "folder" : "line.3.horizontal.decrease")
+            HStack(spacing: 8) {
+                Glyph(systemName: expanded ? "folder" : "line.3.horizontal.decrease")
                 if expanded {
                     Text(model.chats?.projects?.first { $0.id == model.sidebarProjectFilter }?.name ?? "All projects")
                         .lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
-                    Image(systemName: "chevron.down").appFont(.system(size: 8, weight: .semibold))
+                    Glyph(systemName: "chevron.down").appFont(.system(size: 8, weight: .semibold))
                 }
             }
             .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
             .padding(.horizontal, expanded ? 9 : 0).frame(width: expanded ? nil : 28, height: 32)
-            .background(theme.fill1.color, in: RoundedRectangle(cornerRadius: 8))
+            .background(theme.fill1.color, in: RoundedRectangle(cornerRadius: Radius.card))
         }.buttonStyle(.plain).help("Choose a project. Search still covers all content.")
             .accessibilityLabel("Projects").accessibilityIdentifier("projects.filter")
             .disabled(model.chats?.projects == nil)
@@ -34,13 +34,13 @@ struct ProjectFilterSummary: View {
     var body: some View {
         if let id = model.sidebarProjectFilter {
             let name = model.chats?.projects?.first { $0.id == id }?.name ?? "Selected project"
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
-                    Image(systemName: "folder").appFont(.system(size: 10))
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Glyph(systemName: "folder").appFont(.system(size: 10))
                     Text(name).lineLimit(1).help(name)
                     Spacer(minLength: 0)
                     Button { model.settings.projectFilter = nil } label: {
-                        Image(systemName: "xmark").frame(width: 20, height: 20)
+                        Glyph(systemName: "xmark").frame(width: 20, height: 20)
                     }.buttonStyle(.plain).accessibilityLabel("Show all projects")
                 }.appFont(.system(size: 11, weight: .medium))
                 if !model.searchQuery.isEmpty {
@@ -48,7 +48,7 @@ struct ProjectFilterSummary: View {
                 } else if model.chats?.currentProjectId != id {
                     Text("Current chat is outside this filter.").appFont(.system(size: 10.5))
                 }
-            }.foregroundStyle(theme.text2.color).padding(.horizontal, 8).padding(.bottom, 6)
+            }.foregroundStyle(theme.text2.color).padding(.horizontal, 8).padding(.bottom, 8)
         }
     }
 }
@@ -89,13 +89,13 @@ struct ProjectFilterPicker: View {
                         ForEach(Array(choices.enumerated()), id: \.element.id) { index, choice in
                             row(choice, cursor: index == cursor).id(choice.id)
                         }
-                    }.padding(6)
+                    }.padding(8)
                 }
                 .onChange(of: cursor) { if choices.indices.contains(cursor) { proxy.scrollTo(choices[cursor].id) } }
             }.frame(maxHeight: .infinity)
             Rectangle().fill(theme.separator.color).frame(height: 1)
             Text("Filters lists only · Search covers all content")
-                .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color).padding(10)
+                .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color).padding(12)
         }
         .frame(width: 340, height: 360).background(theme.surfaceSolid.color)
         .onAppear { query = initialQuery; if !snapshot { focused = true } }
@@ -106,7 +106,7 @@ struct ProjectFilterPicker: View {
         return HStack(spacing: 0) {
             Button { choose(choice) } label: {
                 HStack(spacing: 8) {
-                    Image(systemName: choice.project?.missing == true ? "exclamationmark.triangle" : "folder")
+                    Glyph(systemName: choice.project?.missing == true ? "exclamationmark.triangle" : "folder")
                         .frame(width: 18).appFont(.system(size: 12))
                     VStack(alignment: .leading, spacing: 2) {
                         Text(choice.title).appFont(.system(size: 12, weight: .medium)).lineLimit(1)
@@ -116,17 +116,17 @@ struct ProjectFilterPicker: View {
                         }
                     }
                     Spacer(minLength: 4)
-                    if selected { Image(systemName: "checkmark").appFont(.system(size: 10, weight: .semibold)) }
-                }.foregroundStyle(theme.text.color).padding(9).contentShape(Rectangle())
+                    if selected { Glyph(systemName: "checkmark").appFont(.system(size: 10, weight: .semibold)) }
+                }.foregroundStyle(theme.text.color).padding(8).contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityLabel("Filter: " + choice.title)
                 .accessibilityAddTraits(selected ? .isSelected : [])
             if let project = choice.project {
                 Button { close(); model.openProjectSettings(project.id) } label: {
-                    Image(systemName: "gearshape").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    Glyph(systemName: "gearshape").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                         .frame(width: 30, height: 34).contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityLabel("Settings for " + project.name).help("Project settings")
             }
-        }.background(cursor ? theme.fill2.color : .clear, in: RoundedRectangle(cornerRadius: 6))
+        }.background(cursor ? theme.fill2.color : .clear, in: RoundedRectangle(cornerRadius: Radius.card))
     }
     private func choose(_ choice: ProjectFilterChoice) {
         let id = choice.project?.id

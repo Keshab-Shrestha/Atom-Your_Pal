@@ -151,7 +151,7 @@ struct QuickActionView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             header
             switch (found, phase.wrappedValue) {
             case (.refused(let words), _):
@@ -210,8 +210,8 @@ struct QuickActionView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "sparkles").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+        HStack(spacing: 8) {
+            Glyph(systemName: "sparkles").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
             if case .text(let quick) = found {
                 Text(quick.source.label + (quick.truncated ? " (cut to \(SelectionCapture.maxCharacters) characters)" : ""))
                     .appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
@@ -232,7 +232,7 @@ struct QuickActionView: View {
                     if action != QuickAction.allCases.first { RowDivider(inset: 0) }
                     Button { choose(action, quick) } label: {
                         HStack(spacing: 8) {
-                            Image(systemName: action.symbol).appFont(.system(size: 11)).frame(width: 18)
+                            Glyph(systemName: action.symbol).appFont(.system(size: 11)).frame(width: 18)
                             Text(action.title).appFont(.system(size: 12.5))
                             Spacer(minLength: 0)
                             if action.changesText && !quick.canReplace {
@@ -240,7 +240,7 @@ struct QuickActionView: View {
                             }
                         }
                         .foregroundStyle(theme.text.color)
-                        .padding(.horizontal, 12).padding(.vertical, 7)
+                        .padding(.horizontal, 12).padding(.vertical, 8)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)

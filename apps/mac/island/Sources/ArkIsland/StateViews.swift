@@ -13,13 +13,13 @@ struct EmptyStateView: View {
 
     var body: some View {
         // A dashed card that says what is missing, why it is useful, and the one way to start (2026-10-31). No icon.
-        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
         HStack(alignment: .top, spacing: 0) {
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(title).appFont(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
                 Text(detail).appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: 480, alignment: .leading)
-                if let action { PillButton(title: action.title, symbol: action.symbol, prominent: true, action: action.run).padding(.top, 6) }
+                if let action { PillButton(title: action.title, symbol: action.symbol, prominent: true, action: action.run).padding(.top, 8) }
             }
             Spacer(minLength: 0)
         }
@@ -52,10 +52,10 @@ struct LoadingStateView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 // `ImageRenderer` cannot draw a spinner.
-                if snapshot { Image(systemName: "ellipsis").appFont(.system(size: 11)).foregroundStyle(theme.text3.color) } else { ProgressView().controlSize(.small) }
+                if snapshot { Glyph(systemName: "ellipsis").appFont(.system(size: 11)).foregroundStyle(theme.text3.color) } else { ProgressView().controlSize(.small) }
                 Text(text).appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color)
             }
             if slow {
@@ -64,7 +64,7 @@ struct LoadingStateView: View {
                 if let retry { QuietButton(title: "Ask again", symbol: "arrow.clockwise", action: retry) }
             }
         }
-        .padding(.top, 6)
+        .padding(.top, 8)
         .frame(maxWidth: 460, alignment: .leading)
         .task {
             guard automaticallyShowsSlow, !slow else { return }

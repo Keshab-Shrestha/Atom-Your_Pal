@@ -55,7 +55,7 @@ private struct ChatAgentRowView: View {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     mark.frame(width: 12)
                     VStack(alignment: .leading, spacing: 1) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 8) {
                             Text(row.agent).appFont(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color)
                             Text(row.task).appFont(.system(size: 12)).foregroundStyle(theme.text2.color).lineLimit(1).truncationMode(.tail)
                         }
@@ -73,7 +73,7 @@ private struct ChatAgentRowView: View {
             .accessibilityLabel("\(row.agent), \(row.state.title), \(row.detail ?? row.task)")
             .accessibilityValue(open ? "Expanded" : "Collapsed")
             if open {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text(row.task).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).textSelection(.enabled)
                     QuietButton(title: "Open full thread", symbol: "arrow.up.right", action: thread)
                 }
@@ -86,10 +86,10 @@ private struct ChatAgentRowView: View {
     @ViewBuilder private var mark: some View {
         switch row.state {
         case .running: WorkingGlyph()
-        case .queued: Image(systemName: "clock").appFont(.system(size: 10)).foregroundStyle(theme.text3.color)
-        case .done: Image(systemName: "checkmark").appFont(.system(size: 10, weight: .semibold)).foregroundStyle(theme.text2.color)
-        case .failed: Image(systemName: "exclamationmark").appFont(.system(size: 10, weight: .semibold)).foregroundStyle(theme.problem.color)
-        case .stopped: Image(systemName: "stop").appFont(.system(size: 9)).foregroundStyle(theme.text3.color)
+        case .queued: Glyph(systemName: "clock").appFont(.system(size: 10)).foregroundStyle(theme.text3.color)
+        case .done: Glyph(systemName: "checkmark").appFont(.system(size: 10, weight: .semibold)).foregroundStyle(theme.text2.color)
+        case .failed: Glyph(systemName: "exclamationmark").appFont(.system(size: 10, weight: .semibold)).foregroundStyle(theme.problem.color)
+        case .stopped: Glyph(systemName: "stop").appFont(.system(size: 9)).foregroundStyle(theme.text3.color)
         }
     }
 

@@ -62,7 +62,7 @@ struct AskArkPanel: View {
 
     private var askRow: some View {
         HStack(spacing: 8) {
-            Image(systemName: "sparkles").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+            Glyph(systemName: "sparkles").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
             TextField("Ask ARK: make it shorter, fix the spelling…", text: instruction.projectedValue)
                 .textFieldStyle(.plain).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color)
                 .onSubmit(send)

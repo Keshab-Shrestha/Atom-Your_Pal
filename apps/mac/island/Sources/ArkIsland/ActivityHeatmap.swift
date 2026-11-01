@@ -34,7 +34,7 @@ struct ActivityHeatmap: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
                 Text(summary).appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color).monospacedDigit()
                 Spacer(minLength: 8)

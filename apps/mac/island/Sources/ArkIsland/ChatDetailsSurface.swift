@@ -18,7 +18,7 @@ struct ChatDetailsSurface: View {
     var body: some View {
         let saved = model.chatControls.snapshot.flatMap { $0.id == model.savedChat?.id ? $0 : nil }
         Scrollable {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 16) {
                 if let info = saved?.info {
                     let facts = ChatDetailsFacts(info: info)
                     section("Context") {
@@ -71,7 +71,7 @@ struct ChatDetailsSurface: View {
     }
 
     private func section(_ title: String, @ViewBuilder _ content: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(title).appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
                 .accessibilityAddTraits(.isHeader)
             content()

@@ -19,9 +19,9 @@ struct ForegroundRecoveryView: View {
             if let notice = model.recovery.notice { Text(notice).appFont(.system(size: 12)).foregroundStyle(theme.attention.color).textSelection(.enabled) }
             if model.recovery.syncPending || model.recovery.reading != nil { ProgressView("Checking saved records…") }
             ArkScrollView {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 16) {
                     ForEach(model.unconfirmedAnswers) { answer in
-                        VStack(alignment: .leading, spacing: 6) {
+                        VStack(alignment: .leading, spacing: 8) {
                             Text("Answer not confirmed · \(chatTitle(answer.chat))").appFont(.system(size: 12, weight: .medium))
                             Text(answer.question).textSelection(.enabled)
                             Text(answer.answer).textSelection(.enabled)
@@ -29,11 +29,11 @@ struct ForegroundRecoveryView: View {
                                 ChatCopyControl(title: "Copy question and answer") { MarkdownCopy.Content(text: answer.question + "\n" + answer.answer) }
                                 Button("Dismiss local copy…") { dismissAnswer = answer }
                             }.buttonStyle(.borderless)
-                        }.padding(10).background(theme.fill1.color)
+                        }.padding(12).background(theme.fill1.color)
                     }
                     ForEach(model.recovery.attempts) { attempt in
                         HStack(alignment: .top) {
-                            VStack(alignment: .leading, spacing: 3) {
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text(chatTitle(attempt.chat)).fontWeight(.medium)
                                 Text("\(attempt.state.capitalized) · \(attempt.createdAt) · \(attempt.answerCount) saved answers")
                                     .appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
@@ -80,7 +80,7 @@ struct ForegroundRecoveryView: View {
                 }.appFont(.system(size: 12)).frame(maxWidth: .infinity, alignment: .leading).padding(4)
             }
         }
-        .padding(18).frame(width: 720, height: 600).background(theme.surfaceSolid.color).foregroundStyle(theme.text.color)
+        .padding(16).frame(width: 720, height: 600).background(theme.surfaceSolid.color).foregroundStyle(theme.text.color)
         .alert("Dismiss this recovery copy?", isPresented: Binding(get: { dismissID != nil }, set: { if !$0 { dismissID = nil } })) {
             Button("Keep", role: .cancel) { dismissID = nil }
             Button("Dismiss", role: .destructive) { if let id = dismissID { model.dismissForeground(id) }; dismissID = nil }

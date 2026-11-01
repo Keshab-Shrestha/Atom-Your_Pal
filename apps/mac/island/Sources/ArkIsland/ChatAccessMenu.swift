@@ -39,8 +39,8 @@ struct ChatAccessMenu: View {
         }
     }
     private func menuLabel(_ title: String, symbol: String) -> some View {
-        HStack(spacing: 5) {
-            Image(systemName: symbol).appFont(.system(size: 11))
+        HStack(spacing: 4) {
+            Glyph(systemName: symbol).appFont(.system(size: 11))
             Text(title + "  ⌄").appFont(.system(size: 12))
         }.foregroundStyle(theme.text2.color)
     }

@@ -29,9 +29,9 @@ struct ChatTaskResults: View {
                         Button("Refresh") { refresh() }
                     }.appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color)
                     ForEach(tasks.prefix(10)) { item in
-                        VStack(alignment: .leading, spacing: 6) {
+                        VStack(alignment: .leading, spacing: 8) {
                             HStack(alignment: .top) {
-                                VStack(alignment: .leading, spacing: 3) {
+                                VStack(alignment: .leading, spacing: 4) {
                                     Text(item.job.title ?? item.job.task).appFont(.system(size: 12.5, weight: .medium)).lineLimit(2)
                                     Text("#\(item.id) · \(item.helperName) · \(item.job.state == .done ? "Ready for review" : item.job.state.rawValue)")
                                         .appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
@@ -76,7 +76,7 @@ struct ChatTaskResults: View {
                     }
                     if tasks.count > 10 { Text("Showing the newest ten task results.").appFont(.system(size: 11)) }
                     if let problem = model.helpers.problem { Text(problem).foregroundStyle(theme.problem.color) }
-                }.padding(.top, 10)
+                }.padding(.top, 12)
             }
             .appFont(.system(size: 12, weight: .medium))
             .padding(.vertical, 8)

@@ -15,7 +15,8 @@ app="apps/mac/island/build/ARK.app"
 
 dir="${GALLERY_DIR:-$(mktemp -d)}"
 mkdir -p "$dir"
-errors="$(ARK_ISLAND_GALLERY="$dir" "$app/Contents/MacOS/ARK" 2>&1 >/dev/null | grep '^gallery:' || true)"
+# ARK_UICONS=0: SF Symbols in every shot, so the golden shots match on Macs with and without the downloaded UIcons font.
+errors="$(ARK_UICONS=0 ARK_ISLAND_GALLERY="$dir" "$app/Contents/MacOS/ARK" 2>&1 >/dev/null | grep '^gallery:' || true)"
 [ -z "$errors" ] || { echo "FAIL the gallery reported errors:"; echo "$errors"; exit 1; }
 for shot in 13-helpers 13-helpers-chat-table 13-helpers-settings-page 13-helpers-dashboard 40-notes-source-analysis 40-analysis-recovery-dark 40-contextual-reply 40-prepared-brief-cards 40-local-backup 40-local-backup-compact-dark; do
   file="$dir/$shot.png"

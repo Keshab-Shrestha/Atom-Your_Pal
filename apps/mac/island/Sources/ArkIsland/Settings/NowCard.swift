@@ -22,7 +22,7 @@ struct NowCard: View {
 
     var body: some View {
         let facts = NowFacts(status: model.status, info: model.modelInfo, usage: model.planUsage)
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 16) {
             header(facts)
             if let usage = facts.usage { meters(usage) }
             devices(facts)
@@ -36,7 +36,7 @@ struct NowCard: View {
 
     private func header(_ facts: NowFacts) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(facts.provider.isEmpty ? "AI model" : facts.provider)
                     .appFont(.system(size: 14, weight: .semibold, design: theme.titleDesign))
                     .foregroundStyle(theme.text.color)
@@ -68,7 +68,7 @@ struct NowCard: View {
     }
 
     private func devices(_ facts: NowFacts) -> some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 16) {
             fact(symbol: "mic", text: facts.microphone, label: "Microphone")
             fact(symbol: "waveform", text: facts.voice, label: "Voice", dimmed: !facts.voiceLoaded)
             Spacer(minLength: 0)
@@ -76,8 +76,8 @@ struct NowCard: View {
     }
 
     private func fact(symbol: String, text: String, label: String, dimmed: Bool = false) -> some View {
-        HStack(spacing: 5) {
-            Image(systemName: symbol).appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
+        HStack(spacing: 4) {
+            Glyph(systemName: symbol).appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
             Text(text)
                 .appFont(theme.appIdentifierFont(.system(size: 11.5), size: 11))
                 .foregroundStyle(dimmed ? theme.text3.color : theme.text2.color)
@@ -91,15 +91,15 @@ struct NowCard: View {
     /// "Last turn" and its time; a tap opens every stage below it.
     @ViewBuilder private func lastTurn(_ facts: NowFacts) -> some View {
         if let summary = facts.lastTurn {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 12) {
                 Button {
                     withAnimation(Motion.settle(reduceMotion)) { showsTimings.wrappedValue.toggle() }
                 } label: {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 8) {
                         Text("Last turn").appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
                         Spacer(minLength: 6)
                         Text(summary).appFont(theme.appIdentifierFont(.system(size: 11.5).monospacedDigit(), size: 11)).foregroundStyle(theme.text2.color)
-                        Image(systemName: "chevron.right")
+                        Glyph(systemName: "chevron.right")
                             .appFont(.system(size: 9.5, weight: .bold))
                             .foregroundStyle(theme.text3.color)
                             .rotationEffect(.degrees(showsTimings.wrappedValue ? 90 : 0))
@@ -125,7 +125,7 @@ struct NowCard: View {
     }
 
     private func problemLine(_ problem: IslandStatus.Problem) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 4) {
             Label(problem.title, systemImage: "exclamationmark.triangle.fill")
                 .appFont(.system(size: 12, weight: .semibold))
                 .foregroundStyle(theme.problem.color)
@@ -146,9 +146,9 @@ private struct TimingDetail: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: 8) {
             TimingBar(timings: timings)
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
                 legend("Transcribing", theme.live.color.opacity(0.5))
                 legend("AI reply", theme.idColor(theme.accentEnd))
             }

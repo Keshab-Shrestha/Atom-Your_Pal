@@ -19,8 +19,8 @@ struct InlineField<Trailing: View>: View {
     @Environment(\.islandSnapshot) private var snapshot
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
-        HStack(spacing: 6) {
+        let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+        HStack(spacing: 8) {
             Group {
                 if snapshot {
                     Text(text.isEmpty ? placeholder : text).foregroundStyle(text.isEmpty ? theme.text3.color : theme.text.color)
@@ -38,7 +38,7 @@ struct InlineField<Trailing: View>: View {
             .lineLimit(1)
             trailing
         }
-        .padding(.leading, 12).padding(.trailing, 5)
+        .padding(.leading, 12).padding(.trailing, 4)
         .frame(minHeight: size + 20)
         .background(theme.fill2.color, in: shape)
         .composerFocus(focused, shape: shape)
@@ -56,7 +56,7 @@ struct FieldAction: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol)
+            Glyph(systemName: symbol)
                 .appFont(.system(size: 10.5, weight: .bold))
                 .foregroundStyle(prominent ? theme.onAccent.color : theme.text2.color)
                 .frame(width: 24, height: 24)
@@ -79,13 +79,13 @@ struct SettingsCard<Content: View>: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).appFont(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color)
                 if let detail { Text(detail).appFont(.system(size: 11)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true) }
             }
-            .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 10)
+            .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 12)
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -112,7 +112,7 @@ struct SettingsCardRow<Control: View>: View {
                 Spacer(minLength: 12)
                 control
             }
-            .padding(.horizontal, 16).padding(.vertical, 11)
+            .padding(.horizontal, 16).padding(.vertical, 12)
         }
     }
 }

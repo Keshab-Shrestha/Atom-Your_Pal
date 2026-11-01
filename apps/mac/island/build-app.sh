@@ -62,6 +62,8 @@ cp "$root/reference/licenses/SwiftTerm-MIT.txt" "$app/Contents/Resources/ThirdPa
 # Settings > Appearance > Typeface: Inter and Geist (SIL Open Font License 1.1), with their licences.
 mkdir -p "$app/Contents/Resources/fonts"
 cp "$root"/assets/fonts/*.ttf "$app/Contents/Resources/fonts/"
+# Flaticon UIcons, when this Mac downloaded its own copy (scripts/setup.sh; not in git: its licence is per person). Glyph falls back to SF Symbols.
+if [ -d "$root/assets/fonts/vendor" ]; then mkdir -p "$app/Contents/Resources/fonts/vendor" && cp "$root"/assets/fonts/vendor/*.woff "$app/Contents/Resources/fonts/vendor/" 2>/dev/null || true; fi
 cp "$root/reference/licenses/Inter-OFL.txt" "$app/Contents/Resources/ThirdParty-Inter-OFL.txt"
 cp "$root/reference/licenses/Geist-OFL.txt" "$app/Contents/Resources/ThirdParty-Geist-OFL.txt"
 cp "$root/assets/skills/omh/LICENSE" "$app/Contents/Resources/ThirdParty-OhMyHermes.txt"

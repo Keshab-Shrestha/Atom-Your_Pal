@@ -40,16 +40,16 @@ private struct CapabilityRow: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(item.title).appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
             if !item.examples.isEmpty {
-                FlowLayout(spacing: 5) {
+                FlowLayout(spacing: 4) {
                     ForEach(Array(item.examples.enumerated()), id: \.offset) { _, example in ExampleChip(text: example) }
                 }
             }
         }
         .padding(.horizontal, Spacing.well)
-        .padding(.vertical, 9)
+        .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
@@ -96,7 +96,7 @@ struct EmptyConversationExamples: View {
         VStack(spacing: 8) {
             let examples = CapabilityItem.firstExamples(model.capabilities ?? [])
             if !examples.isEmpty {
-                FlowLayout(spacing: 5, centered: true) {
+                FlowLayout(spacing: 4, centered: true) {
                     ForEach(Array(examples.enumerated()), id: \.offset) { _, example in ExampleChip(text: example) }
                 }
                 .frame(maxWidth: 320)
@@ -138,7 +138,7 @@ struct PlanMeter: View {
 
     var body: some View {
         let percent = PlanUsage.percent(fraction)
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             Text(title).appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
                 .frame(width: 52, alignment: .leading)
             GeometryReader { proxy in

@@ -15,7 +15,7 @@ struct PreparedBriefCards: View {
         let latest = model.dailyBrief.history.first(where: { $0.preparation != nil })
         let entry = model.dailyBrief.history.first(where: { $0.preparation?.cards.isEmpty == false }) ?? latest
         if let entry, let work = entry.preparation {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 12) {
                 Text("Prepared for review").appFont(.system(size: 13, weight: .semibold))
                 Text(latest?.preparation?.statusText ?? work.statusText).appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 if entry.id != model.dailyBrief.latest?.id {
@@ -32,14 +32,14 @@ struct PreparedBriefCards: View {
                     Text("\(provider) / \(selected)").foregroundStyle(theme.text3.color)
                 }
                 ForEach(Array(work.cards.enumerated()), id: \.offset) { _, card in
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 8) {
                         Text(card.title).appFont(.system(size: 12.5, weight: .medium))
                         Text(card.body).appFont(.system(size: 12)).lineLimit(4)
                         Text("Sources: " + card.sources.map(\.label).joined(separator: ", ")).foregroundStyle(theme.text3.color)
                         Button("Review and edit") { review = PreparedReview(card: card) }
                     }
                     .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-                    .background(theme.fill1.color, in: RoundedRectangle(cornerRadius: 10))
+                    .background(theme.fill1.color, in: RoundedRectangle(cornerRadius: Radius.card))
                 }
             }
             .appFont(.system(size: 11)).foregroundStyle(theme.text.color)
@@ -81,7 +81,7 @@ private struct PreparedBriefEditor: View {
                             Text("\(source.label) · \(source.id)").fontWeight(.medium)
                             Text(source.collectedAt).foregroundStyle(theme.text3.color)
                             Text(source.text).textSelection(.enabled)
-                        }.padding(10).frame(maxWidth: .infinity, alignment: .leading).background(theme.fill1.color, in: RoundedRectangle(cornerRadius: 8))
+                        }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(theme.fill1.color, in: RoundedRectangle(cornerRadius: Radius.card))
                     }
                 }
             }

@@ -27,7 +27,7 @@ struct TestRunView: View {
 
     var body: some View {
         if tests != nil || hasCases {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
                     Text(tests?.line ?? "Test cases: not run yet").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text2.color)
                     if let tests, !tests.results.isEmpty {
@@ -49,7 +49,7 @@ struct TestRunView: View {
     private func caseView(_ result: TestCaseResult) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(result.task).appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
-            HStack(alignment: .top, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
                 side("Old", result.oldAnswer)
                 side("New", result.newAnswer)
             }
@@ -57,8 +57,8 @@ struct TestRunView: View {
                 .appFont(.system(size: 11)).foregroundStyle(result.better == "new" ? theme.accent.color : theme.text2.color)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(10)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(theme.separator.color, lineWidth: 0.6))
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(theme.separator.color, lineWidth: 0.6))
     }
 
     private func side(_ label: String, _ text: String?) -> some View {
@@ -80,7 +80,7 @@ struct TestCasesList: View {
     var body: some View {
         let cases = model.helpers.list?.testCases(kind: kind, target: target) ?? []
         if !cases.isEmpty {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("Test cases · \(cases.count) of 10").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
                 ForEach(cases) { c in
                     HStack(spacing: 8) {
@@ -104,7 +104,7 @@ struct SaveTestCaseSection: View {
     var body: some View {
         if job.state == .done, let helper = model.helpers.openItem?.helperId {
             let skills = model.helpers.thread?.id == job.id ? model.helpers.thread?.testSkills ?? [] : []
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("Test case").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
                 HStack(spacing: 8) {
                     button(kind: "soul", target: helper, title: "Save as test case")

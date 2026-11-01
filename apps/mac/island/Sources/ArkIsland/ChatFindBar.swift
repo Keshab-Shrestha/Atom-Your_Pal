@@ -8,9 +8,9 @@ struct ChatFindBar: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass").foregroundStyle(theme.text3.color)
+                Glyph(systemName: "magnifyingglass").foregroundStyle(theme.text3.color)
                 TextField("Find in loaded messages", text: Binding(get: { model.chatFindQuery }, set: { model.setChatFindQuery($0) }))
                     .textFieldStyle(.plain).focused($focused)
                     .onSubmit { if !FieldEditor.composing { model.moveChatFind(1) } }
@@ -24,11 +24,11 @@ struct ChatFindBar: View {
                     }
                     .accessibilityLabel("Find in this chat's loaded messages")
                 Text(count).foregroundStyle(theme.text3.color).monospacedDigit()
-                Button { model.moveChatFind(-1) } label: { Image(systemName: "chevron.up") }
+                Button { model.moveChatFind(-1) } label: { Glyph(systemName: "chevron.up") }
                     .accessibilityLabel("Previous match").disabled(results.matches.isEmpty)
-                Button { model.moveChatFind(1) } label: { Image(systemName: "chevron.down") }
+                Button { model.moveChatFind(1) } label: { Glyph(systemName: "chevron.down") }
                     .accessibilityLabel("Next match").disabled(results.matches.isEmpty)
-                Button { model.chatFindShown = false } label: { Image(systemName: "xmark") }
+                Button { model.chatFindShown = false } label: { Glyph(systemName: "xmark") }
                     .accessibilityLabel("Close Find in chat")
             }
             if let match = results.selected(model.chatFindSelection) {

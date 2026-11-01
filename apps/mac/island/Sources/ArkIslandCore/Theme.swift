@@ -156,9 +156,8 @@ public struct ThemePalette: Sendable, Equatable {
 
     public static func `for`(_ theme: AppTheme) -> ThemePalette {
         switch theme {
-        case .void: void
-        case .daylight: daylight
-        case .sapphire, .champagne, .plum, .teal, .ember: WorkspaceColors.for(theme).palette
+        // 2026-11-01 redesign: every theme from one builder (ThemeTones.swift). `void` and `daylight` stay as its dark and light bases.
+        default: ThemeBuilder.palette(theme)
         }
     }
 

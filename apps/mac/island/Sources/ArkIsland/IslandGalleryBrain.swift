@@ -103,15 +103,15 @@ extension IslandGallery {
             return m
         }
         func cell<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(title).font(.system(size: 10.5, weight: .semibold)).foregroundStyle(.white.opacity(0.75))
                 content()
                     .environment(\.islandSnapshot, true)
                     .frame(width: 440, height: 210, alignment: .topLeading)
                     .background(palette.surfaceSolid.color)
                     .themed(palette)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(palette.border.color, lineWidth: 1))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(palette.border.color, lineWidth: 1))
             }
         }
         let sheet = VStack(alignment: .leading, spacing: 16) {

@@ -38,7 +38,7 @@ struct SlashPicker: View {
             Spacer(minLength: 8)
             Text(item.sourceLabel).appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
         }
-        .padding(.horizontal, 8).padding(.vertical, 5)
+        .padding(.horizontal, 8).padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
         .slidingSelection(selected, in: selection, radius: theme.radiusControl, fill: theme.fill3.color)
         .contentShape(Rectangle())
@@ -85,14 +85,14 @@ struct MentionPicker: View {
 
     private func row(_ item: MentionItem, selected: Bool) -> some View {
         HStack(alignment: .center, spacing: 8) {
-            Image(systemName: item.symbol).appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text2.color).frame(width: 16)
+            Glyph(systemName: item.symbol).appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text2.color).frame(width: 16)
             Text(item.kind == .helper ? "@" + item.name : item.name).appFont(.system(size: 12, weight: .medium))
                 .foregroundStyle(item.kind == .helper ? theme.idColor(theme.text) : theme.text.color).lineLimit(1)
             Spacer(minLength: 8)
             Text(item.detail).appFont(.system(size: 10.5))
                 .foregroundStyle(theme.text3.color).lineLimit(1)
         }
-        .padding(.horizontal, 8).padding(.vertical, 5)
+        .padding(.horizontal, 8).padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
         .slidingSelection(selected, in: selection, radius: theme.radiusControl, fill: theme.fill3.color)
         .contentShape(Rectangle())

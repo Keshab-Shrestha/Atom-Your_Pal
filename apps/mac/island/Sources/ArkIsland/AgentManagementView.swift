@@ -31,13 +31,13 @@ struct AgentAvailabilityMenu: View {
     }
     private var title: String { helper.paused ? "Paused" : helper.available ? "Ready" : "Not ready" }
     private var label: some View {
-        HStack(spacing: 5) {
-            Image(systemName: helper.paused ? "pause.circle" : "circle.fill").appFont(.system(size: helper.paused ? 11 : 6))
+        HStack(spacing: 4) {
+            Glyph(systemName: helper.paused ? "pause.circle" : "circle.fill").appFont(.system(size: helper.paused ? 11 : 6))
                 .foregroundStyle(helper.paused ? theme.text3.color : helper.available ? theme.success.color : theme.text3.color)
             Text(title).appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text2.color)
-            Image(systemName: "chevron.down").appFont(.system(size: 8)).foregroundStyle(theme.text3.color)
+            Glyph(systemName: "chevron.down").appFont(.system(size: 8)).foregroundStyle(theme.text3.color)
         }.padding(.horizontal, 8).frame(height: 28)
-            .background(theme.fill2.color, in: RoundedRectangle(cornerRadius: 7))
+            .background(theme.fill2.color, in: RoundedRectangle(cornerRadius: Radius.card))
     }
 }
 
@@ -47,11 +47,11 @@ struct AgentManagementRow: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             Button { open(edit: false) } label: {
-                HStack(spacing: 10) {
+                HStack(spacing: 12) {
                     HelperBadge(helper: helper, size: 30)
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text(helper.name).appFont(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color).lineLimit(1)
                         let running = helper.jobs.filter { $0.state == .running }.count
                         Text(running > 0 ? "\(running) task\(running == 1 ? "" : "s") running" : helper.roleTitle)
@@ -64,8 +64,8 @@ struct AgentManagementRow: View {
             Button("Edit") { open(edit: true) }
                 .buttonStyle(SnapshotBorderlessButtonStyle()).appFont(.system(size: 12)).disabled(helper.soul == nil)
                 .accessibilityLabel("Edit \(helper.name)")
-        }.padding(.vertical, 10).frame(minHeight: 54)
-            .padding(.horizontal, 6).hoverRow(radius: 10).padding(.horizontal, -6)
+        }.padding(.vertical, 12).frame(minHeight: 54)
+            .padding(.horizontal, 8).hoverRow(radius: 10).padding(.horizontal, -6)
     }
     private func open(edit: Bool) {
         model.navigate {
@@ -86,7 +86,7 @@ struct AgentManagementPanel: View {
                 Text("Agents").appFont(.system(size: 17, weight: .semibold)).foregroundStyle(theme.text.color)
                 Spacer()
                 Text("\(everyone.count)").appFont(.system(size: 12)).foregroundStyle(theme.text3.color)
-            }.padding(.bottom, 10)
+            }.padding(.bottom, 12)
             if model.helpers.list == nil {
                 LoadingStateView(text: "Loading agents…", retry: { model.send(.helpersList) })
             } else if everyone.isEmpty {

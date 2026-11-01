@@ -13,8 +13,8 @@ struct ChatModelMenu: View {
             let provider = model.chats?.currentProvider ?? info.provider
             let value = model.chats?.currentModel.map { info.modelName(provider: provider, model: $0) } ?? info.currentModelName
             Button { presentation = Presentation(id: model.chats?.current ?? "") } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: ModelProviderSymbol.name(provider)).appFont(.system(size: 11))
+                HStack(spacing: 4) {
+                    Glyph(systemName: ModelProviderSymbol.name(provider)).appFont(.system(size: 11))
                     Text(value + "  ⌄").appFont(.system(size: 12)).lineLimit(1)
                 }.foregroundStyle(theme.text2.color)
             }
@@ -70,7 +70,7 @@ struct ChatModelPicker: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
-            VStack(spacing: 6) {
+            VStack(spacing: 8) {
                 providerButton("all", name: "All models", symbol: "square.grid.2x2")
                 providerButton("favorites", name: "Favorites", symbol: "star.fill")
                 Rectangle().fill(theme.border.color).frame(height: 1).padding(.vertical, 2)
@@ -78,7 +78,7 @@ struct ChatModelPicker: View {
                     providerButton(provider.id, name: provider.name, symbol: ModelProviderSymbol.name(provider.id))
                 }
                 Spacer(minLength: 0)
-            }.padding(6).frame(width: 44).background(theme.fill1.color)
+            }.padding(8).frame(width: 44).background(theme.fill1.color)
             VStack(alignment: .leading, spacing: 0) {
                 if custom { customForm }
                 else {
@@ -100,8 +100,8 @@ struct ChatModelPicker: View {
     }
 
     private var searchField: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass").foregroundStyle(theme.text3.color)
+        HStack(spacing: 8) {
+            Glyph(systemName: "magnifyingglass").foregroundStyle(theme.text3.color)
             if snapshot { Text("Search models…").foregroundStyle(theme.text3.color); Spacer() }
             else {
                 TextField("Search models…", text: $query).textFieldStyle(.plain).focused($focused, equals: .search)
@@ -111,7 +111,7 @@ struct ChatModelPicker: View {
                     .accessibilityLabel("Search models")
             }
             if !query.isEmpty {
-                Button { query = "" } label: { Image(systemName: "xmark.circle.fill") }
+                Button { query = "" } label: { Glyph(systemName: "xmark.circle.fill") }
                     .buttonStyle(.plain).accessibilityLabel("Clear model search")
             }
         }.appFont(.system(size: 13)).padding(12)
@@ -119,11 +119,11 @@ struct ChatModelPicker: View {
 
     @ViewBuilder private var modelList: some View {
         if snapshot {
-            Scrollable { VStack(alignment: .leading, spacing: 2) { modelRows }.padding(6) }
+            Scrollable { VStack(alignment: .leading, spacing: 2) { modelRows }.padding(8) }
         } else {
             ScrollViewReader { proxy in
                 ArkScrollView {
-                    LazyVStack(alignment: .leading, spacing: 2) { modelRows }.padding(6)
+                    LazyVStack(alignment: .leading, spacing: 2) { modelRows }.padding(8)
                 }
                 .onChange(of: cursor) {
                     if entries.indices.contains(cursor) { proxy.scrollTo(entries[cursor].id, anchor: .center) }
@@ -135,7 +135,7 @@ struct ChatModelPicker: View {
     @ViewBuilder private var modelRows: some View {
         if entries.isEmpty {
             Text(filter == "favorites" && query.isEmpty ? "Star a model to keep it here." : "No matching models.")
-                .appFont(.system(size: 12)).foregroundStyle(theme.text3.color).padding(14)
+                .appFont(.system(size: 12)).foregroundStyle(theme.text3.color).padding(16)
         }
         ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
             modelRow(entry, highlighted: cursor == index).id(entry.id)
@@ -149,31 +149,31 @@ struct ChatModelPicker: View {
         return HStack(spacing: 4) {
             Button { choose(entry) } label: {
                 HStack(spacing: 8) {
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text(entry.name).appFont(.system(size: 12.5, weight: selected ? .medium : .regular)).foregroundStyle(theme.text.color).lineLimit(2)
                         Text(entry.providerName + (entry.available ? "" : " · Unavailable on this Mac"))
                             .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(2)
                     }
                     Spacer(minLength: 0)
-                    if selected { Image(systemName: "checkmark").appFont(.system(size: 10)).foregroundStyle(theme.accent.color) }
-                }.padding(.leading, 9).padding(.vertical, 8).contentShape(Rectangle())
+                    if selected { Glyph(systemName: "checkmark").appFont(.system(size: 10)).foregroundStyle(theme.accent.color) }
+                }.padding(.leading, 8).padding(.vertical, 8).contentShape(Rectangle())
             }.buttonStyle(.plain).disabled(!entry.available)
                 .accessibilityLabel(entry.name + ", " + entry.providerName + (entry.available ? "" : ", unavailable"))
                 .accessibilityAddTraits(selected ? .isSelected : [])
             Button { model.settings.toggleFavoriteModel(provider: entry.provider, model: entry.model) } label: {
-                Image(systemName: favorite ? "star.fill" : "star").appFont(.system(size: 11))
+                Glyph(systemName: favorite ? "star.fill" : "star").appFont(.system(size: 11))
                     .foregroundStyle(favorite ? theme.accent.color : theme.text3.color).frame(width: 26, height: 28)
             }.buttonStyle(.plain).padding(.trailing, 4)
                 .disabled(!favorite && model.settings.favoriteModels.count >= 128)
                 .accessibilityLabel((favorite ? "Unstar " : "Star ") + entry.name + ", " + entry.providerName)
         }
-        .background(selected ? theme.fill2.color : highlighted ? theme.fill1.color : .clear, in: RoundedRectangle(cornerRadius: 6))
+        .background(selected ? theme.fill2.color : highlighted ? theme.fill1.color : .clear, in: RoundedRectangle(cornerRadius: Radius.card))
     }
 
     private func providerButton(_ id: String, name: String, symbol: String) -> some View {
         Button { filter = id; query = "" } label: {
-            Image(systemName: symbol).appFont(.system(size: 15)).foregroundStyle(filter == id ? theme.accent.color : theme.text2.color)
-                .frame(width: 32, height: 30).background(filter == id ? theme.fill3.color : .clear, in: RoundedRectangle(cornerRadius: 6))
+            Glyph(systemName: symbol).appFont(.system(size: 15)).foregroundStyle(filter == id ? theme.accent.color : theme.text2.color)
+                .frame(width: 32, height: 30).background(filter == id ? theme.fill3.color : .clear, in: RoundedRectangle(cornerRadius: Radius.card))
         }.buttonStyle(.plain).help(name).accessibilityLabel("Show " + name)
             .accessibilityAddTraits(filter == id ? .isSelected : [])
     }
@@ -204,7 +204,7 @@ struct ChatModelPicker: View {
                 .appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
             Button("Use model", action: chooseCustom).disabled(customProvider?.available != true || !ModelInfo.isValidModelId(customId.trimmingCharacters(in: .whitespaces)))
             Spacer(minLength: 0)
-        }.padding(14)
+        }.padding(16)
     }
 
     private var isCurrentChat: Bool { chat == nil || chat == (model.chats?.current ?? "") }

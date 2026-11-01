@@ -12,7 +12,7 @@ struct SourceAnalysisSection: View {
     private var view: SourceAnalysisView? { model.sourceAnalysisView?.source == model.brainSources.folder?.id ? model.sourceAnalysisView : nil }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             Divider()
             Text("Background analysis").appFont(.system(size: 14, weight: .semibold))
             Text("Analyze the imported copies in chunks with Claude or Codex. Progress is saved between chunks; source files, notes, chats and permissions stay unchanged. Refresh the folder separately when you want newer copies.")
@@ -32,7 +32,7 @@ struct SourceAnalysisSection: View {
                     ThemedSwitch(isOn: settings.enabled, set: { model.requestSourceAnalysis("configure", enabled: $0) }, label: "Daily source analysis")
                         .disabled(waiting || active || (!settings.enabled && view.profile == nil))
                 }
-                HStack(spacing: 18) {
+                HStack(spacing: 16) {
                     DatePicker("Local time", selection: Binding(get: {
                         var time = BriefSettings(); time.minute = settings.minute; return time.time(on: Date())
                     }, set: { model.requestSourceAnalysis("configure", minute: BriefSettings.minute(of: $0)) }), displayedComponents: .hourAndMinute)
@@ -54,7 +54,7 @@ struct SourceAnalysisSection: View {
                             .foregroundStyle(theme.text3.color)
                     }
                 }
-                HStack(spacing: 10) {
+                HStack(spacing: 12) {
                     Button("Analyze imported copies") { cursor = nil; model.requestSourceAnalysis("start") }
                         .disabled(waiting || active || view.profile == nil || (record.job != nil && record.job?.state != "done"))
                     if let job = record.job {
@@ -92,7 +92,7 @@ struct SourceAnalysisSection: View {
     }
 
     private func reports(_ view: SourceAnalysisView) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             ForEach(view.parts) { part in
                 DisclosureGroup(part.title + (part.stale ? " · source changed or unavailable" : "")) {
                     VStack(alignment: .leading, spacing: 8) {
@@ -104,7 +104,7 @@ struct SourceAnalysisSection: View {
                             ChatCopyControl(title: "Copy analysis") { MarkdownCopy.Content(text: part.text) }
                             Button("Read original note") { openNote(part.note) }
                         }
-                    }.padding(.top, 6)
+                    }.padding(.top, 8)
                 }
             }
             HStack {

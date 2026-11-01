@@ -77,9 +77,9 @@ private struct DesignShowcase: View {
                     .fixedSize(horizontal: false, vertical: true).padding(Spacing.well)
             }
             ShowcaseGroup("Type") {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 8) {
                     ForEach(DesignCatalog.typeScale, id: \.name) { step in
-                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        HStack(alignment: .firstTextBaseline, spacing: 12) {
                             Text(step.size >= 26 ? "1,284" : step.role)
                                 .appFont(.system(size: step.size, weight: step.size >= 15 ? .semibold : .regular).monospacedDigit())
                                 .foregroundStyle(step.size <= 11 ? theme.text3.color : step.size == 12 ? theme.text2.color : theme.text.color)
@@ -195,7 +195,7 @@ private struct DesignShowcase: View {
             content()
         }
         .padding(.horizontal, inset ? Spacing.well : 0)
-        .padding(.vertical, 10)
+        .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardWell(theme)
     }
@@ -277,7 +277,7 @@ private struct TokenRow: View {
 
     var body: some View {
         Button(action: copy) {
-            HStack(alignment: .top, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
                 TokenSample(token: token).frame(width: 32, alignment: .leading).frame(minHeight: 20)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(token.name)
@@ -331,8 +331,8 @@ private struct TokenSample: View {
     var body: some View {
         switch token.value {
         case .color(let c):
-            RoundedRectangle(cornerRadius: 5, style: .continuous).fill(c.color)
-                .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(theme.hairline(), lineWidth: 1))
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(c.color)
+                .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(theme.hairline(), lineWidth: 1))
                 .frame(width: 20, height: 20)
         case .points(let p) where token.group == .radius:
             RoundedRectangle(cornerRadius: min(p, 10), style: .continuous)
@@ -352,13 +352,13 @@ private struct TokenSample: View {
         case .text where token.group == .type:
             Text("Aa").appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color)
         case .text where token.name == "--focus-ring":
-            RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(theme.text.color, lineWidth: 2).frame(width: 20, height: 20)
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(theme.text.color, lineWidth: 2).frame(width: 20, height: 20)
         case .text where token.name == "--elev-ring":
-            RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(theme.hairline(), lineWidth: 1).frame(width: 20, height: 20)
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(theme.hairline(), lineWidth: 1).frame(width: 20, height: 20)
         case .text where token.group == .motion:
             EaseCurve().stroke(theme.text2.color, style: StrokeStyle(lineWidth: 1.5, lineCap: .round)).frame(width: 18, height: 16)
         case .text:
-            RoundedRectangle(cornerRadius: 5, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .strokeBorder(theme.text3.color, style: StrokeStyle(lineWidth: 1, dash: [2, 2])).frame(width: 20, height: 20)
         }
     }

@@ -78,7 +78,7 @@ private struct PlanPortionRow: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text("P\(portion.n)").appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color).frame(width: 24, alignment: .leading)
             VStack(alignment: .leading, spacing: 2) {
                 Text(portion.task).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color).lineLimit(2)
@@ -103,6 +103,6 @@ private struct PlanPortionRow: View {
                 QuietButton(title: portion.recoveryState.needsReview ? "Review" : portion.state == .done ? "Report" : "Open") { model.navigate { model.sendHelpers(model.helpers.openThread(job)) } }
             }
         }
-        .padding(.horizontal, 16).padding(.vertical, 9)
+        .padding(.horizontal, 16).padding(.vertical, 8)
     }
 }

@@ -64,7 +64,7 @@ private struct ChatHistoryCard: View {
                         PillButton(title: "Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: folder)]) }
                     }
                 }
-                .padding(.horizontal, Spacing.well).padding(.vertical, 10)
+                .padding(.horizontal, Spacing.well).padding(.vertical, 12)
             }
         }
         .confirmationDialog("Delete all \(count) chats?", isPresented: $confirming, titleVisibility: .visible) {

@@ -44,6 +44,26 @@ echo
 echo "Installing packages..."
 pnpm install --frozen-lockfile
 
+# Flaticon UIcons for the app's icons (Flaticon License: free with credit, one copy per person, so it is not in git).
+# Without it ARK uses Apple's SF Symbols.
+uicons="assets/fonts/vendor/uicons-regular-rounded.woff"
+if [ ! -f "$uicons" ]; then
+  echo "Downloading Flaticon UIcons (about 11 MB) for this Mac..."
+  tmp=$(mktemp -d)
+  if curl -sfL -o "$tmp/uicons.tgz" https://registry.npmjs.org/@flaticon/flaticon-uicons/-/flaticon-uicons-3.3.1.tgz \
+     && tar -xzf "$tmp/uicons.tgz" -C "$tmp" package/css/uicons-regular-rounded-KDJ23353.woff package/LICENSE; then
+    mkdir -p assets/fonts/vendor
+    cp "$tmp/package/css/uicons-regular-rounded-KDJ23353.woff" "$uicons"
+    cp "$tmp/package/LICENSE" assets/fonts/vendor/UIcons-LICENSE.txt
+    ok "Flaticon UIcons (credit: Uicons by Flaticon)"
+  else
+    echo "note    could not download Flaticon UIcons; ARK uses SF Symbols"
+  fi
+  rm -rf "$tmp"
+else
+  ok "Flaticon UIcons"
+fi
+
 echo
 apps/mac/island/make-signing-identity.sh
 

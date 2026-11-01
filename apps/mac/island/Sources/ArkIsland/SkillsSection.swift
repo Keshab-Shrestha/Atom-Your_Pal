@@ -69,7 +69,7 @@ struct SkillsSection: View {
                 Text(selected.wrappedValue ?? "Choose a skill (\(skills.count))")
                     .appFont(theme.appIdentifierFont(.system(size: 12.5, weight: .medium), size: 12))
                     .foregroundStyle(theme.text.color).lineLimit(1)
-                Image(systemName: "chevron.up.chevron.down").appFont(.system(size: 9, weight: .semibold)).foregroundStyle(theme.text3.color)
+                Glyph(systemName: "chevron.up.chevron.down").appFont(.system(size: 9, weight: .semibold)).foregroundStyle(theme.text3.color)
             }
             .padding(.horizontal, 12).frame(height: 30).frame(maxWidth: 320, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: theme.radiusControl + 2, style: .continuous)

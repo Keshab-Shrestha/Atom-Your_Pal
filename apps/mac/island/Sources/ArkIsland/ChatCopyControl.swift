@@ -84,7 +84,7 @@ struct ChatCopyControl: View {
         Label(notice.wrappedValue ?? title, systemImage: notice.wrappedValue == "Copied" ? "checkmark" : notice.wrappedValue == "Copy failed" ? "exclamationmark.triangle" : "doc.on.doc")
             .appFont(.system(size: 11.5))
             .foregroundStyle(notice.wrappedValue == "Copy failed" ? theme.problem.color : theme.text2.color)
-            .padding(.vertical, 3)
+            .padding(.vertical, 4)
     }
 
     private func copy(_ choice: Choice) {

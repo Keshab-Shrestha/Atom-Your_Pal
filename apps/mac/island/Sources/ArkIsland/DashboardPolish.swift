@@ -14,9 +14,9 @@ private struct StatTileModifier: ViewModifier {
     @Environment(\.theme) private var theme
 
     func body(content: Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
         content
-            .padding(.horizontal, 14).padding(.vertical, 8)
+            .padding(.horizontal, 16).padding(.vertical, 8)
             .background(theme.isDark ? theme.fill2.color : Color.white, in: shape)
             .overlay(shape.strokeBorder(attention ? theme.attention.color.opacity(0.5) : theme.separator.color, lineWidth: 0.6))
             .interactiveTile(radius: 12)
@@ -78,8 +78,8 @@ struct TrendChart: View {
             if labels.indices.contains(index) { Text(labels[index]).appFont(.system(size: 9.5)).foregroundStyle(theme.text2.color) }
         }
         .padding(.horizontal, 8).padding(.vertical, 4)
-        .background(theme.isDark ? theme.fill1.color : .white, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(theme.hairline(true), lineWidth: 0.6))
+        .background(theme.isDark ? theme.fill1.color : .white, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(theme.hairline(true), lineWidth: 0.6))
         .shadow(color: .black.opacity(theme.isFlat ? 0 : 0.18), radius: 6, y: 3)
         .fixedSize()
         .position(x: min(max(point.x, 36), max(36, width - 36)), y: point.y > 34 ? point.y - 24 : point.y + 24)

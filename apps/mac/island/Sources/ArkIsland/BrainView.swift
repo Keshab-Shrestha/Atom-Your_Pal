@@ -71,9 +71,9 @@ struct BrainPane: View {
     // MARK: header
 
     @ViewBuilder private func header(_ state: BrainState) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 10) {
-                VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
                         Circle().fill(hud).frame(width: 7, height: 7).opacity(0.9)
                         Text("Second brain").appFont(.system(size: 20, weight: .medium)).foregroundStyle(theme.text.color)
@@ -110,7 +110,7 @@ struct BrainPane: View {
     /// What ARK keeps: the facts, the conversation notes and the kept chats, with a way to forget each.
     private var memoryTab: some View {
         Scrollable {
-            VStack(alignment: .leading, spacing: 14) { MemorySection(model: model) }
+            VStack(alignment: .leading, spacing: 16) { MemorySection(model: model) }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, Spacing.panel)
                 .padding(.vertical, Spacing.panel)
@@ -127,8 +127,8 @@ struct BrainPane: View {
     }
 
     private var searchField: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass").appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
+        HStack(spacing: 8) {
+            Glyph(systemName: "magnifyingglass").appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
             if snapshot {
                 Text("Search notes").appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color).frame(width: 170, alignment: .leading) // `ImageRenderer` cannot draw a text field
             } else {
@@ -139,13 +139,13 @@ struct BrainPane: View {
                     .onChange(of: words.wrappedValue) { _, value in model.searchBrain(value) }
             }
             if !words.wrappedValue.isEmpty {
-                Button { words.wrappedValue = "" } label: { Image(systemName: "xmark.circle.fill").appFont(.system(size: 11)).foregroundStyle(theme.text3.color) }
+                Button { words.wrappedValue = "" } label: { Glyph(systemName: "xmark.circle.fill").appFont(.system(size: 11)).foregroundStyle(theme.text3.color) }
                     .buttonStyle(.plain)
                     .help("Clear the search")
                     .accessibilityLabel("Clear the search")
             }
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 12)
         .frame(height: 26)
         .background(Capsule().fill(theme.fill1.color))
         .overlay(Capsule().strokeBorder(theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.5))
@@ -166,7 +166,7 @@ struct BrainPane: View {
     }
 
     @ViewBuilder private func legendRow(_ state: BrainState, counts: [BrainKindCount], tags: [BrainTag]) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             ForEach(counts) { entry in
                 let hidden = state.hiddenKinds.contains(entry.kind)
                 Button {
@@ -193,7 +193,7 @@ struct BrainPane: View {
 
     private var emptyState: some View {
         VStack(spacing: 8) {
-            Image(systemName: "brain.head.profile").appFont(.system(size: 26)).foregroundStyle(theme.text3.color)
+            Glyph(systemName: "brain.head.profile").appFont(.system(size: 26)).foregroundStyle(theme.text3.color)
             Text("Your second brain is empty").appFont(.system(size: 14, weight: .semibold)).foregroundStyle(theme.text.color)
             Text("Tell ARK “Note this in my second brain…”, or write a note yourself. Link notes with [[double brackets]] and tag them with #tags. Facts and conversation notes ARK keeps appear here too.")
                 .appFont(.system(size: 12)).foregroundStyle(theme.text2.color).multilineTextAlignment(.center).frame(maxWidth: 420)
@@ -244,14 +244,14 @@ struct BrainPane: View {
             }
         }
         .overlay(alignment: .topLeading) { hudReadout(state, graph) }
-        .overlay { HUDBrackets().stroke(hud.opacity(0.55), lineWidth: 1.2).padding(10).allowsHitTesting(false) }
+        .overlay { HUDBrackets().stroke(hud.opacity(0.55), lineWidth: 1.2).padding(12).allowsHitTesting(false) }
         .task(id: key) { await relayout(graph) }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Graph of \(graph.noteCount) notes")
     }
 
     private var zoomButtons: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             IconButton(symbol: "minus", label: "Zoom out") { setZoom(zoom.wrappedValue / 1.3) }
             IconButton(symbol: "plus", label: "Zoom in") { setZoom(zoom.wrappedValue * 1.3) }
             IconButton(symbol: "arrow.up.left.and.down.right.magnifyingglass", label: "Fit the graph") {
@@ -318,7 +318,7 @@ struct BrainPane: View {
     /// Corner readouts: what is on the screen, and what is locked.
     private func hudReadout(_ state: BrainState, _ graph: BrainGraphData) -> some View {
         // A quiet line, not a HUD: how much is on screen, the zoom, and the note chosen.
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Text("\(graph.nodes.count) notes · \(graph.edges.count) links · \(Int((zoom.wrappedValue * 100).rounded()))%").foregroundStyle(theme.text3.color)
             if let note = state.note {
                 Text("·").foregroundStyle(theme.text3.color)
@@ -326,7 +326,7 @@ struct BrainPane: View {
             }
         }
         .appFont(.system(size: 10.5)).monospacedDigit()
-        .padding(.leading, 22).padding(.top, 20)
+        .padding(.leading, 24).padding(.top, 20)
         .allowsHitTesting(false)
     }
 
@@ -431,7 +431,7 @@ struct BrainPane: View {
             guard !placed.contains(where: { $0.intersects(box) }) else { continue }
             placed.append(box)
             // A soft backdrop in the canvas colour, so a name reads over links and rings.
-            context.fill(Path(roundedRect: box.insetBy(dx: -2, dy: 0), cornerRadius: 4), with: .color(theme.surfaceSolid.color.opacity(0.78)))
+            context.fill(Path(roundedRect: box.insetBy(dx: -2, dy: 0), cornerRadius: Radius.card), with: .color(theme.surfaceSolid.color.opacity(0.78)))
             context.draw(resolved, at: label.at, anchor: .top)
         }
     }
@@ -462,7 +462,7 @@ private struct BrainSidePanel: View {
     var body: some View {
         let state = model.brain
         Scrollable {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 16) {
                 if let problem = state.error { ProblemLine(text: problem) }
                 if creating.wrappedValue {
                     NoteEditor(model: model, note: nil, creating: creating, submitted: submitted).id("new")
@@ -483,7 +483,7 @@ private struct BrainSidePanel: View {
                 } else if let hits = state.hits, !state.query.trimmingCharacters(in: .whitespaces).isEmpty {
                     BrainHitsSection(model: model, hits: hits)
                 } else {
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 8) {
                         Text("Pick a note").appFont(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
                         Text("Click a dot to read it. A dashed line is a link ARK found itself. A dashed ring is a note nobody wrote yet; open it and write it.")
                             .appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
@@ -503,7 +503,7 @@ private struct BrainLinksSection: View {
 
     var body: some View {
         if !links.isEmpty {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("\(title) · \(links.count)").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
                 ForEach(links) { link in
                     Button {
@@ -516,7 +516,7 @@ private struct BrainLinksSection: View {
                             if link.auto { Text("found by ARK").appFont(.system(size: 10)).foregroundStyle(theme.text3.color) }
                             Spacer(minLength: 0)
                         }
-                        .padding(.vertical, 3)
+                        .padding(.vertical, 4)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -540,7 +540,7 @@ private struct BrainHitsSection: View {
                     model.navigate { model.selectBrainNote(hit.id) }
                 } label: {
                     VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 8) {
                             Circle().fill(kindColor(hit.kind, theme)).frame(width: 7, height: 7)
                             Text(hit.title).appFont(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(1)
                         }
@@ -586,10 +586,10 @@ private struct NoteEditor: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             if let note {
-                HStack(spacing: 6) {
-                    Image(systemName: note.kind.symbol).appFont(.system(size: 10.5)).foregroundStyle(kindColor(note.kind, theme))
+                HStack(spacing: 8) {
+                    Glyph(systemName: note.kind.symbol).appFont(.system(size: 10.5)).foregroundStyle(kindColor(note.kind, theme))
                     Text(note.ghost ? "Not written yet" : note.kind.title).appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
                     Spacer(minLength: 0)
                     if let date = note.updatedAt, !note.ghost { Text(date.formatted(date: .abbreviated, time: .omitted)).appFont(.system(size: 11)).foregroundStyle(theme.text3.color) }
@@ -598,7 +598,7 @@ private struct NoteEditor: View {
                 Text("New note").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             }
             if let source = note?.source {
-                VStack(alignment: .leading, spacing: 5) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text("Imported · \(source.state)").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text2.color)
                     Text(source.path + "/" + source.relativePath).appFont(.system(size: 10.5, design: .monospaced)).foregroundStyle(theme.text3.color).textSelection(.enabled)
                     Text("Checked \(source.checkedAt). Edits here stay in ARK. Delete excludes this copy from refresh; the original file stays untouched.")
@@ -612,13 +612,13 @@ private struct NoteEditor: View {
             if let note, !note.ghost, note.kind == .note {
                 let included = model.dailyBrief.settings.preparationNoteIds.contains(note.id)
                 DisclosureGroup(included ? "Included in suggestions" : "Suggestions") {
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 8) {
                         Toggle("Use this note for prepared work", isOn: Binding(get: { included }, set: { model.selectPreparationNote(note.id, included: $0) }))
                             .disabled(model.dailyBrief.preparationBudget == nil || (!included && (changed || note.source?.state == "missing" || note.source?.state == "conflict")))
                         Text("When Prepare work for review is on, an excerpt of this saved note and future saved changes may go to the selected model. Missing/conflicting copies are skipped. Suggestions stay on Dashboard; this note never enters the delivered brief. Remove it here or clear selected notes in Daily brief settings.")
                             .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                         if let error = model.dailyBrief.error { ProblemLine(text: error) }
-                    }.padding(.top, 5)
+                    }.padding(.top, 4)
                 }
                 .appFont(.system(size: 11.5))
                 .onAppear { if let command = model.dailyBrief.open() { model.send(command) } }
@@ -664,7 +664,7 @@ private struct NoteEditor: View {
                     .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
             }
             if let note, !note.tags.isEmpty {
-                HStack(spacing: 5) {
+                HStack(spacing: 4) {
                     ForEach(note.tags, id: \.self) { tag in
                         Text("#\(tag)").appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
                             .padding(.horizontal, 8).frame(height: 20).background(Capsule().fill(theme.fill1.color))
@@ -694,17 +694,17 @@ private struct BrainChip: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             if let dot { Circle().fill(dot).frame(width: 7, height: 7).opacity(dimmed ? 0.3 : 1) }
             Text(title).appFont(.system(size: 11.5, weight: selected ? .semibold : .medium))
                 .foregroundStyle(dimmed ? theme.text3.color : selected ? theme.text.color : theme.text2.color)
             Text("\(count)").appFont(.system(size: 10, weight: .semibold)).monospacedDigit()
                 .foregroundStyle(theme.text2.color.opacity(dimmed ? 0.5 : 1))
-                .padding(.horizontal, 5).frame(minWidth: 18, minHeight: 16)
+                .padding(.horizontal, 4).frame(minWidth: 18, minHeight: 16)
                 .background(Capsule().fill(theme.fill3.color))
         }
         .fixedSize()
-        .padding(.leading, 10).padding(.trailing, 4).frame(height: 26)
+        .padding(.leading, 12).padding(.trailing, 4).frame(height: 26)
         .background(Capsule().fill(selected ? theme.fill3.color : theme.fill1.a > 0 ? theme.fill1.color : theme.fill2.color))
         .overlay(Capsule().strokeBorder(selected ? theme.hairline(true) : theme.separator.color, lineWidth: 0.6))
     }

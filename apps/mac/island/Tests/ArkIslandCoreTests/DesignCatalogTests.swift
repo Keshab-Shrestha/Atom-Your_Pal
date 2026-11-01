@@ -92,6 +92,6 @@ struct DesignCatalogTests {
     @Test func aTokenCopiesAsItsCSSVariable() throws {
         let fg = try #require(DesignCatalog.tokens(for: .void).first { $0.name == "--fg" })
         #expect(fg.cssVariable == "var(--fg)")
-        #expect(fg.display == "#F0F0F0")
+        #expect(fg.display == "#F2F2F2")
     }
 }

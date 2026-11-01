@@ -160,7 +160,7 @@ enum IslandGallery {
             // Void's windows are 24 with a graphite hairline (ADR-086); the real window's corners are the system's.
             let flat = m.settings.theme.palette.isFlat
             let shape = RoundedRectangle(cornerRadius: flat ? 24 : 16, style: .continuous)
-            return VStack(alignment: .leading, spacing: 6) {
+            return VStack(alignment: .leading, spacing: 8) {
                 Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.75))
                 frozen(HelpersView(model: m).environment(\.islandSnapshot, true).frame(width: 720, height: 520))
                     // The window's own buttons, which only the window server draws, over the clear title bar.
@@ -257,39 +257,39 @@ enum IslandGallery {
                                                   },
                                               files: [GitFile(path: "src/theme.css", added: 42, removed: 3), GitFile(path: "src/App.tsx", added: 18, removed: 6)],
                                               remote: "git@github.com:keshab/site.git", pushed: .no)]))
-        let sheet = VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top, spacing: 18) {
+        let sheet = VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 16) {
                 window("Helpers: Sid's model chosen by Laya, jobs show their model", model(theme))
                 window("A task's thread: report, the whole goal, notes, activity (Tasks 3.4, 3.5)", reading)
             }
-            HStack(alignment: .top, spacing: 18) {
+            HStack(alignment: .top, spacing: 16) {
                 let other: AppTheme = theme == .void ? .void : .daylight
                 window("\(other.title): Sid pinned to Sonnet, large model off, a failed job", model(other, pinned: #""claude-sonnet-4-5""#, allowLarge: false, failed: true))
                 window("Sid's soul (Task 3.3)", souled)
             }
-            HStack(alignment: .top, spacing: 18) {
+            HStack(alignment: .top, spacing: 16) {
                 window("The board: Managers' chips; a held task; Hana waits for Sid (ADR-095)", boarded)
                 window("Kame: a granted folder, its own branch, its manager (Task 3.11, ADR-095)", kamed)
             }
-            HStack(alignment: .top, spacing: 18) {
+            HStack(alignment: .top, spacing: 16) {
             }
-            HStack(alignment: .top, spacing: 18) {
+            HStack(alignment: .top, spacing: 16) {
                 window("New agent: its own role, kit and soul.md (ADR-088)", creating)
                 window("One window: Chat (ADR-089)", chatting)
             }
-            HStack(alignment: .top, spacing: 18) {
+            HStack(alignment: .top, spacing: 16) {
                 window("One window: Settings (ADR-089)", setting)
                 window("Overview (ADR-090)", overviewing)
             }
-            HStack(alignment: .top, spacing: 18) {
+            HStack(alignment: .top, spacing: 16) {
                 window("Needs you (ADR-090)", inboxing)
                 window("Plugins: MCP servers and skills (ADR-090)", plugging)
             }
-            HStack(alignment: .top, spacing: 18) {
+            HStack(alignment: .top, spacing: 16) {
                 window("Dashboard: tokens (ADR-091)", dashing)
                 window("Scheduled: routines, wake-ups, team tasks waiting (ADR-094)", scheduling)
             }
-            HStack(alignment: .top, spacing: 18) {
+            HStack(alignment: .top, spacing: 16) {
                 window("Fifty agents: chips for who matters now, then All agents (ADR-094)", crowded)
                 window("All agents: everyone, searchable by name or role (ADR-094)", crowd(listOpen: true))
             }
@@ -369,7 +369,7 @@ enum IslandGallery {
             let usual = tabled.settings.typeface
             for face in AppTypeface.allCases {
                 tabled.settings.typeface = face; dashing.settings.typeface = face
-                save(HStack(alignment: .top, spacing: 18) { window("Chat · \(face.title)", tabled); window("Dashboard · \(face.title)", dashing) }
+                save(HStack(alignment: .top, spacing: 16) { window("Chat · \(face.title)", tabled); window("Dashboard · \(face.title)", dashing) }
                     .padding(24).background(Color(red: 0.36, green: 0.42, blue: 0.52)), name: "44-typeface-\(face.title.lowercased())", to: directory)
             }
             tabled.settings.typeface = usual; dashing.settings.typeface = usual
@@ -396,10 +396,10 @@ enum IslandGallery {
             return m
         }
         func card(_ title: String, _ m: IslandModel, _ content: some View) -> some View {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.75))
                 content.padding(12).frame(width: cardWidth)
-                    .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(m.settings.theme.palette.surfaceSolid.color))
+                    .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(m.settings.theme.palette.surfaceSolid.color))
                     .themed(m.settings.theme.palette)
             }
         }
@@ -412,9 +412,9 @@ enum IslandGallery {
         stopped.status.apply(.failed("ARK's runtime keeps stopping: it exited with code 1"))
         let config = model(.sapphire)
         config.status.apply(.configError("Invalid configuration:\n  - GEMINI_API_KEY is required (set it in .env)"))
-        let sheet = HStack(alignment: .top, spacing: 22) {
+        let sheet = HStack(alignment: .top, spacing: 24) {
             card("Settings → General → Permissions", checklist, PermissionsCard(model: checklist))
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 16) {
                 card("Plain error card", plain, FailureCard(model: plain, failure: plain.status.failure!))
                 card("Stopped after repeated crashes", stopped, FailureCard(model: stopped, failure: stopped.status.failure!))
                 card("Config error (Luminous)", config, FailureCard(model: config, failure: config.status.failure!))
@@ -440,9 +440,9 @@ enum IslandGallery {
         ]
         // ADR-093: the smooth 2D Pal, every mood, a later moment facing left, and how it notices you.
         do {
-            let sheet = VStack(alignment: .leading, spacing: 14) {
+            let sheet = VStack(alignment: .leading, spacing: 16) {
                 Text("ARK — smooth 2D vector art").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     ForEach(Array(moods.enumerated()), id: \.offset) { _, entry in
                         VStack(spacing: 2) {
                             PalView(mood: entry.0, time: 0.55, facing: 1, size: 88)
@@ -450,7 +450,7 @@ enum IslandGallery {
                         }
                     }
                 }
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     ForEach(Array(moods.enumerated()), id: \.offset) { _, entry in
                         PalView(mood: entry.0, time: 1.35, facing: -1, size: 88)
                     }
@@ -466,7 +466,7 @@ enum IslandGallery {
                     ("Hello", .resting, .zero, 0, .hello, 0.5),
                     ("Yawn", .napping, .zero, 0, .yawn, 0.5),
                 ]
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     ForEach(Array(notices.enumerated()), id: \.offset) { _, n in
                         VStack(spacing: 2) {
                             PalView(mood: n.1, time: 0.55, facing: 1, size: 88, gaze: n.2, hover: n.3, reaction: n.4, reactionProgress: n.5)
@@ -475,7 +475,7 @@ enum IslandGallery {
                     }
                 }
             }
-            .padding(22)
+            .padding(24)
             .background(LinearGradient(colors: [Color(red: 0.17, green: 0.21, blue: 0.31), Color(red: 0.24, green: 0.29, blue: 0.42)], startPoint: .top, endPoint: .bottom))
             save(sheet, name: "10-pal", to: directory)
         }
@@ -518,12 +518,12 @@ enum IslandGallery {
                 PointLabelView(text: "the Send button", palette: theme.palette, snapshot: true).frame(width: 150, height: 26 + 2 * PointLabelController.shadowInset)
             }
         }
-        let sheet = VStack(alignment: .leading, spacing: 14) {
+        let sheet = VStack(alignment: .leading, spacing: 16) {
             strip("Working on the Mac", [thinking, step])
             strip("Asks before a risky action", [thinking, step, ask])
             strip("Long wording is held to two lines", [thinking, askLong])
             HStack(alignment: .top, spacing: 20) {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 16) {
                     strip("After the turn", [thinking, step, idle])
                     strip("Stopped", [thinking, step], stop: true)
                 }
@@ -568,8 +568,8 @@ enum IslandGallery {
                 .frame(width: BubbleLayout.size.width + 2 * inset)
             }
         }
-        let sheet = HStack(alignment: .top, spacing: 18) {
-            VStack(alignment: .leading, spacing: 18) {
+        let sheet = HStack(alignment: .top, spacing: 16) {
+            VStack(alignment: .leading, spacing: 16) {
                 scene("Dictating, live words") { m in
                     m.status.apply(DictationPhase.listening)
                     m.status.setPreview("…send the deck before the call")
@@ -589,7 +589,7 @@ enum IslandGallery {
                     if let ask = try? decodeEvent(#"{"type":"approval.request","id":"a1","summary":"Click \"Send\" in Mail","reason":"It sends"}"#) { m.status.apply(ask) }
                 }
             }
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 16) {
                 scene("A notice") { m in m.status.apply(DictationPhase.done(.noSpeech)) }
                 scene("A problem") { m in m.status.apply(DictationPhase.done(.failed(title: "Microphone problem", message: "The microphone stopped. Check it in System Settings"))) }
                 scene("Near the top: flips below ARK", below: true) { m in m.status.apply(DictationPhase.done(.copied(reason: "A password field is focused. Paste it yourself"))) }
@@ -610,7 +610,7 @@ enum IslandGallery {
         let animations = ["idle", "listening", "thinking", "happy", "working", "sleeping", "surprised", "angry"]
         let team = ["pal", "sid", "kame", "puff", "quill", "penny", "hana", "tinker", "rumi"]
         func row(dark: Bool) -> some View {
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 ForEach(animations, id: \.self) { name in
                     VStack(spacing: 2) {
                         PalPortrait(character: pal, animation: name, time: 1.4, size: 150)
@@ -624,7 +624,7 @@ enum IslandGallery {
         let sheet = VStack(alignment: .leading, spacing: 0) {
             row(dark: true)
             row(dark: false)
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 ForEach(team, id: \.self) { id in
                     VStack(spacing: 2) {
                         if let character = id == "pal" ? pal : PalLibrary.character(for: id) {
@@ -646,9 +646,9 @@ enum IslandGallery {
             (.speaking, "Speaking"), (.worried, "Problem"), (.napping, "Napping"), (.carried, "Carried"),
         ]
         let moments = [0.15, 0.55, 1.35]
-        let sheet = VStack(alignment: .leading, spacing: 10) {
+        let sheet = VStack(alignment: .leading, spacing: 12) {
             ForEach(Array(moods.enumerated()), id: \.offset) { _, entry in
-                HStack(spacing: 18) {
+                HStack(spacing: 16) {
                     Text(entry.1)
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.white)
@@ -682,24 +682,24 @@ enum IslandGallery {
             .frame(width: size.width * scale, height: size.height * scale)
         }
         func bar(dark: Bool) -> some View {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 22) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 24) {
                     ForEach(Array(lights.enumerated()), id: \.offset) { _, entry in
-                        HStack(spacing: 10) {
+                        HStack(spacing: 12) {
                             glyph(entry.0, dark: dark, scale: 1)
-                            Image(systemName: "wifi").font(.system(size: 13, weight: .medium)).foregroundStyle(dark ? .white.opacity(0.92) : .black.opacity(0.85))
+                            Glyph(systemName: "wifi").font(.system(size: 13, weight: .medium)).foregroundStyle(dark ? .white.opacity(0.92) : .black.opacity(0.85))
                         }
                         .padding(.horizontal, 8)
                         .frame(height: 24)
                         .background(dark ? Color(red: 0.11, green: 0.12, blue: 0.16) : Color(red: 0.93, green: 0.94, blue: 0.96))
                     }
                 }
-                HStack(spacing: 22) {
+                HStack(spacing: 24) {
                     ForEach(Array(lights.enumerated()), id: \.offset) { _, entry in
                         VStack(spacing: 4) {
                             glyph(entry.0, dark: dark, scale: 4)
                                 .padding(8)
-                                .background(RoundedRectangle(cornerRadius: 10).fill(dark ? Color(red: 0.11, green: 0.12, blue: 0.16) : Color(red: 0.93, green: 0.94, blue: 0.96)))
+                                .background(RoundedRectangle(cornerRadius: Radius.card).fill(dark ? Color(red: 0.11, green: 0.12, blue: 0.16) : Color(red: 0.93, green: 0.94, blue: 0.96)))
                             Text(entry.1).font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.8))
                         }
                         .frame(width: 120)

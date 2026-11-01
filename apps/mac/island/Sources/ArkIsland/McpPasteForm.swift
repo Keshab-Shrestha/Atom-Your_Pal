@@ -37,7 +37,7 @@ struct McpPasteForm: View {
 
     var body: some View {
         let parsed = McpConfigImport.parse(text.wrappedValue, existing: existing)
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Paste a server the way Claude Desktop writes it: the whole config file, its mcpServers block, or one server.")
                 .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
             HStack(spacing: 8) {
@@ -71,7 +71,7 @@ struct McpPasteForm: View {
             } else {
                 TextField("", text: text.projectedValue, axis: .vertical).textFieldStyle(.plain).lineLimit(8...18).fixedSize(horizontal: false, vertical: true)
                 if text.wrappedValue.isEmpty {
-                    Text(Self.example).foregroundStyle(theme.text3.color).padding(.horizontal, 5).padding(.vertical, 8).allowsHitTesting(false)
+                    Text(Self.example).foregroundStyle(theme.text3.color).padding(.horizontal, 4).padding(.vertical, 8).allowsHitTesting(false)
                 }
             }
         }
@@ -82,8 +82,8 @@ struct McpPasteForm: View {
     }
 
     private func entryRow(_ entry: McpConfigImport.Entry) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Image(systemName: entry.exists ? "checkmark.circle" : "plus.circle").appFont(.system(size: 12))
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Glyph(systemName: entry.exists ? "checkmark.circle" : "plus.circle").appFont(.system(size: 12))
                 .foregroundStyle(entry.exists ? theme.text3.color : theme.success.color)
             VStack(alignment: .leading, spacing: 1) {
                 Text(entry.draft.name).appFont(theme.appIdentifierFont(.system(size: 12.5, weight: .medium), size: 12)).foregroundStyle(theme.text.color)

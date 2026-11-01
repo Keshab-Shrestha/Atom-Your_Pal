@@ -17,14 +17,14 @@ struct ActivityPanel: View {
         let rows = ActivityRows.make(model: model).filter { query.isEmpty || $0.matches(query) }
         let working = rows.filter(\.working)
         let idle = rows.filter { !$0.working }
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
                 Label("Agents", systemImage: "person.2").appFont(.system(size: 12.5, weight: .semibold)).foregroundStyle(theme.text.color)
-                    .padding(.horizontal, 10).frame(height: 28)
-                    .background(theme.fill2.color, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .padding(.horizontal, 12).frame(height: 28)
+                    .background(theme.fill2.color, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
                 Spacer(minLength: 0)
                 Button { model.activityShown = false } label: {
-                    Image(systemName: "sidebar.right").appFont(.system(size: 12.5)).foregroundStyle(theme.text2.color).frame(width: 28, height: 28)
+                    Glyph(systemName: "sidebar.right").appFont(.system(size: 12.5)).foregroundStyle(theme.text2.color).frame(width: 28, height: 28)
                 }
                 .buttonStyle(.pressable).help("Hide the Agents panel").accessibilityLabel("Hide the Agents panel")
             }
@@ -35,18 +35,18 @@ struct ActivityPanel: View {
                     group("Idle", count: idle.count, open: $idleOpen, rows: idle)
                     if rows.isEmpty {
                         Text(query.isEmpty ? "No agents yet." : "No agent matches “\(query)”.")
-                            .appFont(.system(size: 12)).foregroundStyle(theme.text3.color).padding(10)
+                            .appFont(.system(size: 12)).foregroundStyle(theme.text3.color).padding(12)
                     }
                 }
             }
         }
-        .padding(.horizontal, 10).padding(.top, 12).padding(.bottom, 10)
+        .padding(.horizontal, 12).padding(.top, 12).padding(.bottom, 12)
         .frame(maxHeight: .infinity, alignment: .top)
     }
 
     private var search: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass").appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+        HStack(spacing: 8) {
+            Glyph(systemName: "magnifyingglass").appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
             if snapshot {
                 Text("Search").foregroundStyle(theme.text3.color).frame(maxWidth: .infinity, alignment: .leading)
             } else {
@@ -55,22 +55,22 @@ struct ActivityPanel: View {
             }
         }
         .appFont(.system(size: 12.5))
-        .padding(.horizontal, 10).frame(height: 30)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(theme.separator.color, lineWidth: 1))
+        .padding(.horizontal, 12).frame(height: 30)
+        .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(theme.separator.color, lineWidth: 1))
     }
 
     @ViewBuilder private func group(_ title: String, count: Int, open: Binding<Bool>, rows: [ActivityRows.Row]) -> some View {
         if count > 0 {
             Button { open.wrappedValue.toggle() } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "chevron.down").appFont(.system(size: 9, weight: .semibold)).foregroundStyle(theme.text3.color)
+                HStack(spacing: 8) {
+                    Glyph(systemName: "chevron.down").appFont(.system(size: 9, weight: .semibold)).foregroundStyle(theme.text3.color)
                         .rotationEffect(.degrees(open.wrappedValue ? 0 : -90))
                     Text(title).appFont(.system(size: 12.5, weight: .semibold)).foregroundStyle(theme.text.color)
                     Text("\(count)").appFont(.system(size: 11)).monospacedDigit().foregroundStyle(theme.text3.color)
                     Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 8).frame(height: 30)
-                .background(theme.fill2.color.opacity(0.6), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .background(theme.fill2.color.opacity(0.6), in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -145,7 +145,7 @@ private struct ActivityRowView: View {
                 Text(SidebarChatRow.shortAge(row.at)).appFont(.system(size: 11)).monospacedDigit().foregroundStyle(theme.text3.color)
             }
             .padding(.horizontal, 8).frame(height: 32)
-            .background(hovering ? theme.fill2.color : .clear, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .background(hovering ? theme.fill2.color : .clear, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             .contentShape(Rectangle())
         }
         .buttonStyle(.pressable)
@@ -197,7 +197,7 @@ struct ActivityToggleButton: View {
     var body: some View {
         let busy = ActivityRows.make(model: model).contains(where: \.working)
         Button { model.activityShown.toggle() } label: {
-            Image(systemName: "person.2.wave.2").appFont(.system(size: 12.5))
+            Glyph(systemName: "person.2.wave.2").appFont(.system(size: 12.5))
                 .foregroundStyle(model.activityShown ? theme.text.color : theme.text2.color)
                 .frame(width: 30, height: 30)
                 .overlay(alignment: .topTrailing) {

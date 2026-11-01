@@ -55,7 +55,7 @@ struct FileEditReviewCard: View {
                 .padding(12)
             }
             .frame(height: 320)
-            .background(theme.fill2.color.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
+            .background(theme.fill2.color.opacity(0.6), in: RoundedRectangle(cornerRadius: Radius.card))
             .accessibilityElement(children: .contain)
             .accessibilityLabel("File change review")
             HStack {
@@ -70,7 +70,7 @@ struct FileEditReviewCard: View {
             }
         }
         .padding(16)
-        .background(theme.fill1.color, in: RoundedRectangle(cornerRadius: 12))
+        .background(theme.fill1.color, in: RoundedRectangle(cornerRadius: Radius.card))
         .task(id: request.id) {
             let before = review.before, after = review.after
             let result = await Task.detached(priority: .userInitiated) { InlineDiff.segments(old: before, new: after) }.value

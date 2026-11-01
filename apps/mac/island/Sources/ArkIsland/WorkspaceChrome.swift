@@ -20,7 +20,7 @@ struct WorkspaceNavigationRail: View {
                 model.navigate { model.windowPage = .dashboard }
             }
             Scrollable {
-                VStack(spacing: 6) {
+                VStack(spacing: 8) {
                     railButton("Chats", symbol: "bubble.left.and.text.bubble.right", selected: model.windowPage == .chat) {
                         model.navigate { model.windowPage = .chat }
                     }
@@ -28,11 +28,11 @@ struct WorkspaceNavigationRail: View {
                 }
             }
             Spacer(minLength: 0)
-            VStack(spacing: 6) {
+            VStack(spacing: 8) {
                 pages(model.settings.sidebar.bottom, bottom: true)
             }
         }
-        .padding(.vertical, 10).frame(width: 51)
+        .padding(.vertical, 12).frame(width: 51)
         .workspaceLane(color: WorkspaceColors.for(model.settings.theme).rail)
         // 2026-10-31: the rail shows glyphs only; the hovered button's name floats out to its right, over the next pane.
         .overlayPreferenceValue(RailHoverKey.self) { hovered in
@@ -137,9 +137,9 @@ private struct RailNameTag: View {
 
     var body: some View {
         Text(title).appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
-            .padding(.horizontal, 10).frame(height: 26)
-            .background(theme.surfaceSolid.color, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(theme.hairline(true), lineWidth: 0.6))
+            .padding(.horizontal, 12).frame(height: 26)
+            .background(theme.surfaceSolid.color, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(theme.hairline(true), lineWidth: 0.6))
             .shadow(color: .black.opacity(theme.isFlat ? 0.25 : 0.3), radius: 8, y: 3)
     }
 }
@@ -172,7 +172,7 @@ private struct WorkspaceRailButton: View {
                 if appIcon {
                     homeIcon.frame(width: Self.homeIconSize, height: Self.homeIconSize).accessibilityHidden(true)
                 } else {
-                    Image(systemName: symbol)
+                    Glyph(systemName: symbol)
                         .font(.system(size: 15, weight: selected ? .semibold : .medium))
                         .symbolRenderingMode(.hierarchical)
                 }
@@ -180,14 +180,14 @@ private struct WorkspaceRailButton: View {
             .foregroundStyle(selected ? theme.text.color : hovering ? theme.text.color : theme.text2.color)
             .frame(width: 36, height: 36)
             .background(selected ? theme.fill3.color : hovering ? theme.fill2.color : .clear,
-                        in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                        in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             .overlay(alignment: .topTrailing) {
                 if badge > 0 {
                     Text(badge > 9 ? "9+" : String(badge)).appFont(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(theme.onAttention.color).padding(3).background(theme.attention.color, in: Capsule())
+                        .foregroundStyle(theme.onAttention.color).padding(4).background(theme.attention.color, in: Capsule())
                 }
             }
-            .contentShape(RoundedRectangle(cornerRadius: 11))
+            .contentShape(RoundedRectangle(cornerRadius: Radius.card))
         }
         .buttonStyle(WorkspacePressStyle())
         .onHover { hovering = $0 }

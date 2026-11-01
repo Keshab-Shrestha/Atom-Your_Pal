@@ -17,7 +17,7 @@ struct ProjectWorkspaceView: View {
     private var scope: [String] { ProjectWorkspaceState.identity(model.chats) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             header
             if model.workspace.tab == "home" {
                 surfaceChooser
@@ -91,11 +91,11 @@ struct ProjectWorkspaceView: View {
             }
             Spacer(minLength: 4)
             if model.workspace.tab != "browser" && model.workspace.tab != "terminal" && model.workspace.tab != "run" && model.workspace.tab != "details" {
-            Button { selected = nil; model.refreshWorkspace() } label: { Image(systemName: "arrow.clockwise") }
+            Button { selected = nil; model.refreshWorkspace() } label: { Glyph(systemName: "arrow.clockwise") }
                 .help("Refresh workspace").accessibilityLabel("Refresh workspace")
                 .disabled(model.workspace.pending != nil || !model.workspaceAvailable || model.workspace.tab == "home" || model.workspace.tab == "browser")
             }
-            Button { model.toggleWorkspace() } label: { Image(systemName: "xmark") }
+            Button { model.toggleWorkspace() } label: { Glyph(systemName: "xmark") }
                 .help("Close workspace").accessibilityLabel("Close workspace")
         }.buttonStyle(SnapshotBorderlessButtonStyle())
     }
@@ -103,7 +103,7 @@ struct ProjectWorkspaceView: View {
     private var surfaceSelector: some View {
         HStack(spacing: 2) {
             Button { model.selectWorkspace(nil) } label: {
-                Image(systemName: "square.grid.2x2").frame(width: 24, height: 28)
+                Glyph(systemName: "square.grid.2x2").frame(width: 24, height: 28)
             }.buttonStyle(.plain).help("Choose a surface").accessibilityLabel("Choose a workspace surface")
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 2) {
@@ -112,14 +112,14 @@ struct ProjectWorkspaceView: View {
                             Text(surface.title).fixedSize()
                                 .appFont(.system(size: 12, weight: model.workspace.tab == surface.rawValue ? .medium : .regular))
                                 .foregroundStyle(model.workspace.tab == surface.rawValue ? theme.text.color : theme.text3.color)
-                                .padding(.horizontal, 8).padding(.vertical, 7)
-                                .background(model.workspace.tab == surface.rawValue ? theme.fill2.color : .clear, in: RoundedRectangle(cornerRadius: 6))
+                                .padding(.horizontal, 8).padding(.vertical, 8)
+                                .background(model.workspace.tab == surface.rawValue ? theme.fill2.color : .clear, in: RoundedRectangle(cornerRadius: Radius.card))
                         }.buttonStyle(.plain).disabled(!model.workspaceSurfaceAvailable(surface)).accessibilityLabel("Workspace " + surface.rawValue)
                             .accessibilityAddTraits(model.workspace.tab == surface.rawValue ? .isSelected : [])
                     }
                 }.fixedSize(horizontal: true, vertical: false)
                 if snapshot {
-                    Text((WorkspaceSurface(rawValue: model.workspace.tab)?.title ?? "Surface") + " ▾").appFont(.system(size: 12)).padding(7)
+                    Text((WorkspaceSurface(rawValue: model.workspace.tab)?.title ?? "Surface") + " ▾").appFont(.system(size: 12)).padding(8)
                 } else {
                     Menu {
                         ForEach(WorkspaceSurface.allCases, id: \.self) { surface in
@@ -142,15 +142,15 @@ struct ProjectWorkspaceView: View {
             ForEach(WorkspaceSurface.allCases, id: \.self) { surface in
                 Button { model.selectWorkspace(surface) } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: surface.symbol).appFont(.system(size: 15)).frame(width: 22)
-                        VStack(alignment: .leading, spacing: 3) {
+                        Glyph(systemName: surface.symbol).appFont(.system(size: 15)).frame(width: 22)
+                        VStack(alignment: .leading, spacing: 4) {
                             Text(surface.title).appFont(.system(size: 13, weight: .medium))
                             Text(surface.detail).appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
                         }
                         Spacer(minLength: 0)
-                        Image(systemName: "chevron.right").appFont(.system(size: 10)).foregroundStyle(theme.text3.color)
-                    }.padding(10).contentShape(Rectangle())
-                        .background(theme.fill2.color.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+                        Glyph(systemName: "chevron.right").appFont(.system(size: 10)).foregroundStyle(theme.text3.color)
+                    }.padding(12).contentShape(Rectangle())
+                        .background(theme.fill2.color.opacity(0.5), in: RoundedRectangle(cornerRadius: Radius.card))
                 }.buttonStyle(.plain).disabled(!model.workspaceSurfaceAvailable(surface))
                     .accessibilityLabel("Open workspace " + surface.title)
             }
@@ -179,7 +179,7 @@ struct ProjectWorkspaceView: View {
             Text("Hidden, generated, linked and protected paths are excluded.")
                 .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
             Scrollable {
-                WorkspaceRows(spacing: 3) {
+                WorkspaceRows(spacing: 4) {
                     let entries = (result?.entries ?? []).filter { filter.isEmpty || $0.name.localizedStandardContains(filter) }
                     if entries.isEmpty {
                         Text(result == nil ? "Refresh to load this folder." : filter.isEmpty ? "No supported files in this folder." : "No matching files.")
@@ -192,11 +192,11 @@ struct ProjectWorkspaceView: View {
                             else { model.requestWorkspace(.read, path: entry.path) }
                         } label: {
                             HStack(spacing: 8) {
-                                Image(systemName: entry.directory ? "folder" : "doc.text").frame(width: 16)
+                                Glyph(systemName: entry.directory ? "folder" : "doc.text").frame(width: 16)
                                 Text(verbatim: entry.name).lineLimit(2).multilineTextAlignment(.leading)
                                 Spacer(minLength: 0)
-                                if entry.directory { Image(systemName: "chevron.right").appFont(.system(size: 9)) }
-                            }.appFont(.system(size: 12)).padding(.horizontal, 7).padding(.vertical, 7).contentShape(Rectangle())
+                                if entry.directory { Glyph(systemName: "chevron.right").appFont(.system(size: 9)) }
+                            }.appFont(.system(size: 12)).padding(.horizontal, 8).padding(.vertical, 8).contentShape(Rectangle())
                         }
                         .buttonStyle(.plain).accessibilityLabel("\(entry.directory ? "Open folder" : "Preview file") \(entry.name)")
                     }
@@ -232,8 +232,8 @@ struct ProjectWorkspaceView: View {
                                     .appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)
                                 if let reason = change.reason { Text(verbatim: reason).appFont(.system(size: 11)).foregroundStyle(theme.text2.color) }
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading).padding(9)
-                            .background(theme.fill2.color.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
+                            .frame(maxWidth: .infinity, alignment: .leading).padding(8)
+                            .background(theme.fill2.color.opacity(0.6), in: RoundedRectangle(cornerRadius: Radius.card))
                         }.buttonStyle(.plain).accessibilityLabel("Review \(change.path), task \(change.job), \(change.state)")
                     }
                 }
@@ -243,7 +243,7 @@ struct ProjectWorkspaceView: View {
     }
 
     private func filePane(_ text: String, path: String) -> some View {
-        VStack(alignment: .leading, spacing: 9) {
+        VStack(alignment: .leading, spacing: 8) {
             Button { model.requestWorkspace(.list, path: model.workspace.folder) } label: { Label("Back to files", systemImage: "chevron.left") }
                 .buttonStyle(SnapshotBorderlessButtonStyle())
             pathHeader(path)
@@ -255,7 +255,7 @@ struct ProjectWorkspaceView: View {
     }
 
     private func reviewPane(_ review: WorkspaceReview) -> some View {
-        VStack(alignment: .leading, spacing: 9) {
+        VStack(alignment: .leading, spacing: 8) {
             Button { selected = nil; model.requestWorkspace(.changes) } label: { Label("Back to changes", systemImage: "chevron.left") }
                 .buttonStyle(SnapshotBorderlessButtonStyle())
             pathHeader(review.path)
@@ -264,7 +264,7 @@ struct ProjectWorkspaceView: View {
             }
             Text(verbatim: review.note).appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
             if snapshot {
-                HStack { Text("Changes"); Text("Original"); Text("Current") }.appFont(.system(size: 11)).padding(6).background(theme.fill2.color)
+                HStack { Text("Changes"); Text("Original"); Text("Current") }.appFont(.system(size: 11)).padding(8).background(theme.fill2.color)
             } else { Picker("Change view", selection: Binding(get: { mode }, set: { mode = $0 })) {
                 Text("Changes").tag("changes"); Text("Original").tag("before"); Text("Current").tag("after")
             }.pickerStyle(.segmented) }
@@ -275,8 +275,8 @@ struct ProjectWorkspaceView: View {
                         if snapshot { InlineDiffText(pieces: InlineDiff.segments(old: review.before, new: review.after)) }
                         else if let pieces { InlineDiffText(pieces: pieces) }
                         else { ProgressView("Preparing changes…") }
-                    }.padding(10).frame(maxWidth: .infinity, alignment: .topLeading)
-                }.background(theme.fill2.color.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
+                    }.padding(12).frame(maxWidth: .infinity, alignment: .topLeading)
+                }.background(theme.fill2.color.opacity(0.6), in: RoundedRectangle(cornerRadius: Radius.card))
             } else { literalText(mode == "before" ? review.before : review.after) }
             fileActions(review.path)
             Button("Undo this file change…") { confirmingUndo = true }
@@ -291,7 +291,7 @@ struct ProjectWorkspaceView: View {
     }
 
     private func pathHeader(_ path: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(verbatim: path).appFont(.system(size: 12, weight: .medium, design: .monospaced)).textSelection(.enabled)
             if let root = result?.root { Text(verbatim: root).appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color).textSelection(.enabled) }
         }
@@ -301,9 +301,9 @@ struct ProjectWorkspaceView: View {
             Text(verbatim: text.isEmpty ? "(Empty file)" : text)
                 .appFont(.system(size: 11.5, design: .monospaced)).foregroundStyle(theme.text.color)
                 .textSelection(.enabled).fixedSize(horizontal: true, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .topLeading).padding(10)
+                .frame(maxWidth: .infinity, alignment: .topLeading).padding(12)
         }.frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(theme.fill2.color.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
+            .background(theme.fill2.color.opacity(0.6), in: RoundedRectangle(cornerRadius: Radius.card))
     }
     private func fileActions(_ path: String) -> some View {
         HStack(spacing: 12) {

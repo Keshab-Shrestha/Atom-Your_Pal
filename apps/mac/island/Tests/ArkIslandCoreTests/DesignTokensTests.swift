@@ -34,6 +34,11 @@ struct DesignTokensTests {
         return RGBA(hex: hex)
     }
 
+    /// Equal as far as #RRGGBB can say: within one step of 255 per channel (the palettes come from OKLCH, 2026-11-01).
+    static func close(_ a: RGBA, _ b: RGBA) -> Bool {
+        abs(a.r - b.r) <= 0.6 / 255 && abs(a.g - b.g) <= 0.6 / 255 && abs(a.b - b.b) <= 0.6 / 255
+    }
+
     static func pixels(_ value: String?) -> CGFloat? {
         guard let value, value.hasSuffix("px"), let n = Double(value.dropLast(2)) else { return nil }
         return CGFloat(n)
@@ -54,7 +59,7 @@ struct DesignTokensTests {
         ]
         for (name, want) in expected {
             let got = try #require(Self.color(tokens[name]), "\(selector) \(name) is a #RRGGBB colour")
-            #expect(got == want.over(p.surfaceSolid), "\(selector) \(name) equals the \(theme.title) palette")
+            #expect(Self.close(got, want.over(p.surfaceSolid)), "\(selector) \(name) equals the \(theme.title) palette")
         }
         #expect(Self.pixels(tokens["--radius-lg"]) == p.radiusSurface, "\(selector) --radius-lg")
         #expect(Self.pixels(tokens["--radius-md"]) == p.radiusCard, "\(selector) --radius-md")
@@ -69,7 +74,7 @@ struct DesignTokensTests {
         for selector in ["[data-theme=\"void\"]", "[data-theme=\"daylight\"]"] {
             let t = try #require(Self.blocks(css)[selector])
             let (lg, md, sm) = (try #require(Self.pixels(t["--radius-lg"])), try #require(Self.pixels(t["--radius-md"])), try #require(Self.pixels(t["--radius-sm"])))
-            #expect(lg > md && md > sm, "\(selector) radii step down so corners stay concentric")
+            #expect(lg > md && md == sm && md == 4, "\(selector) square cards and controls (4 px) in a softer window (2026-11-01)")
         }
     }
 

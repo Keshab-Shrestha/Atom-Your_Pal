@@ -187,19 +187,25 @@ enum ControlMetrics {
     static let buttonHeight: CGFloat = 26
 }
 
+/// 2026-11-01 redesign: every padding and stack spacing sits on a 4 pt grid (4, 8, 12, 16, 24, 32); these name the larger steps.
 enum Spacing {
     /// Between the panel's edge and its content: header, tabs, Settings wells, the composer.
     static let panel: CGFloat = 24
-    /// Inside a well (rounded group of rows): a row's side padding.
+    /// Inside a well (group of rows): a row's side padding.
     static let well: CGFloat = 16
     /// Between wells in Settings.
-    static let wells: CGFloat = 20
-    /// The conversation's side margin and the space between turns.
-    static let conversation: CGFloat = 20
-    static let turn: CGFloat = 12
-    // 2026-10-15: these sit on a 4 pt grid (they were 22, 14, 18 and 26), as in design/ark-design-system. `composer`
-    // below stays 10: it is tied to the corner radius (the composer's corners are concentric with the panel's).
-    /// The composer sits this close to the panel's sides and bottom, with corners concentric to the panel's
-    /// (panel radius = composer radius + this gap), so the bottom corners read as one shape.
-    static let composer: CGFloat = 10
+    static let wells: CGFloat = 24
+    /// The conversation's side margin.
+    static let conversation: CGFloat = 24
+    /// Between turns: room enough that each exchange reads as one moment of a conversation.
+    static let turn: CGFloat = 24
+    /// The composer's distance from the panel's sides and bottom.
+    static let composer: CGFloat = 12
+}
+
+/// Square cards, round pills (Keshab, 2026-11-01). Boxes, cards, fields and bubbles take `card`; buttons and chips that are pills use
+/// `Capsule()`. Nothing else: one medium radius on everything is a taste-skill tell.
+enum Radius {
+    static let card: CGFloat = 4
+    static let window: CGFloat = 8
 }

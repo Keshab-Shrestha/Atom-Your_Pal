@@ -11,10 +11,10 @@ struct OverviewPane: View {
         let list = model.helpers.list
         let overview = list.map { TeamOverview(list: $0) }
         Scrollable {
-            VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 24) {
                 Text("What the team is doing, how far it has got, and what came in.").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 if let overview {
-                    HStack(spacing: 10) {
+                    HStack(spacing: 12) {
                         StatTile(value: overview.running, label: "Running", dot: theme.live.color)
                         StatTile(value: overview.needsYou, label: "Needs you", dot: overview.needsYou > 0 ? theme.attention.color : nil)
                         StatTile(value: overview.toDo, label: "To do", dot: nil)
@@ -54,7 +54,7 @@ struct OverviewPane: View {
     }
 
     private func quiet(_ text: String) -> some View {
-        Text(text).appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 16).padding(.vertical, 14)
+        Text(text).appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 16).padding(.vertical, 16)
     }
 }
 
@@ -67,12 +67,12 @@ private struct StatTile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("\(value)").appFont(theme.appIdentifierFont(.system(size: 24, weight: .semibold), size: 22)).foregroundStyle(theme.text.color)
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 if let dot { StatusDot(color: dot, size: 6) }
                 Text(label).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(1).minimumScaleFactor(0.8)
             }
         }
-        .padding(.horizontal, 14).padding(.vertical, 12)
+        .padding(.horizontal, 16).padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
             .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
@@ -95,7 +95,7 @@ private struct AtWorkRow: View {
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.job.shortTitle).appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(1)
-                    HStack(spacing: 6) {
+                    HStack(spacing: 8) {
                         Text(item.helperName).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2))
                         if let step = item.job.step { Text(step).appFont(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(1) }
                     }
@@ -105,7 +105,7 @@ private struct AtWorkRow: View {
                     Text(started, style: .relative).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color)
                 }
             }
-            .padding(.horizontal, 14).padding(.vertical, 8)
+            .padding(.horizontal, 16).padding(.vertical, 8)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -117,7 +117,7 @@ private struct GoalRow: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(goal.text).appFont(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(1)
                 Spacer(minLength: 8)
@@ -131,7 +131,7 @@ private struct GoalRow: View {
             }
             .frame(height: 4)
         }
-        .padding(.horizontal, 14).padding(.vertical, 10)
+        .padding(.horizontal, 16).padding(.vertical, 12)
     }
 }
 
@@ -141,7 +141,7 @@ private struct TodayMeters: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             if let five = model.planUsage?.fiveHour {
                 meter("Claude plan, 5 hours", value: min(1, five), text: "\(Int((five * 100).rounded()))% used", warn: five >= NoticeWatcher.warnAt)
             }
@@ -149,11 +149,11 @@ private struct TodayMeters: View {
                 Text("No plan use reported yet.").appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color)
             }
         }
-        .padding(.horizontal, 14).padding(.vertical, 12)
+        .padding(.horizontal, 16).padding(.vertical, 12)
     }
 
     private func meter(_ title: String, value: Double?, text: String, warn: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(title).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color)
                 Spacer()
@@ -179,7 +179,7 @@ private struct RecentRow: View {
 
     var body: some View {
         Button { model.navigate { model.windowPage = .agents; model.sendHelpers(model.helpers.openThread(item.id)) } } label: {
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
                 JobDot(job: item.job)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.job.shortTitle).appFont(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(1)
@@ -188,7 +188,7 @@ private struct RecentRow: View {
                 Spacer(minLength: 8)
                 Text(item.helperName).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text3))
             }
-            .padding(.horizontal, 14).padding(.vertical, 9)
+            .padding(.horizontal, 16).padding(.vertical, 8)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

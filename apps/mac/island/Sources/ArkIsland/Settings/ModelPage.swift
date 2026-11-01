@@ -34,7 +34,7 @@ struct ModelSection: View {
                 }
                 RowDivider()
                 Row(title: "Model") {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 8) {
                         if model.pendingModel != nil { ProgressView().controlSize(.mini) }
                         Menu {
                             ForEach(current?.models ?? []) { option in
@@ -59,7 +59,7 @@ struct ModelSection: View {
                 }
                 RowDivider()
                 Row(title: "Model list", detail: "Asks your Claude plan for its models again") {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 8) {
                         if model.refreshingModels { ProgressView().controlSize(.mini) }
                         PillButton(title: "Refresh") { model.refreshModels() }
                             .disabled(model.refreshingModels)
@@ -117,7 +117,7 @@ struct ModelSection: View {
             customId = ""
         }
         return Row(title: "Custom model", detail: id.isEmpty || valid ? "The model id, as the provider names it" : "Use up to 100 letters, digits, \".\", \"_\", \":\" or \"-\"") {
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 TextField("model-id", text: $customId)
                     .textFieldStyle(.plain)
                     .appFont(theme.appIdentifierFont(.system(size: 12), size: 11.5))

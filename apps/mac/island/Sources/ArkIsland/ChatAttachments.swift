@@ -41,13 +41,13 @@ struct AttachedFilesRow: View {
     }
 
     private var chips: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             ForEach(files) { file in
                 HStack(spacing: 4) {
                     Button { show(file) } label: {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 8) {
                             if snapshot {
-                                Image(systemName: "doc").frame(width: 32, height: 32)
+                                Glyph(systemName: "doc").frame(width: 32, height: 32)
                             } else {
                                 AttachmentThumbnail(path: file.path)
                                     .frame(width: 32, height: 32)
@@ -70,7 +70,7 @@ struct AttachedFilesRow: View {
             // Notes are host-resolved ids, not local files; retain their existing remove-only chips.
             ForEach(notes) { note in
                 HStack(spacing: 4) {
-                    Image(systemName: "brain").appFont(.system(size: 10))
+                    Glyph(systemName: "brain").appFont(.system(size: 10))
                     Text(note.title).lineLimit(1).truncationMode(.middle).frame(maxWidth: 160)
                     removeButton(note.title) { removeNote(note.id) }
                 }
@@ -87,7 +87,7 @@ struct AttachedFilesRow: View {
 
     private func removeButton(_ name: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: "xmark").appFont(.system(size: 8, weight: .bold))
+            Glyph(systemName: "xmark").appFont(.system(size: 8, weight: .bold))
                 .frame(width: 18, height: 24).contentShape(Rectangle())
         }
         .buttonStyle(.plain)

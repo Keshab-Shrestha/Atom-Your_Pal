@@ -47,12 +47,12 @@ struct Composer: View {
     }
 
     private var composerShape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: 18, style: .continuous)
+        RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
     }
 
     var body: some View {
         let readOnly = model.chats?.currentReadOnlyNotice
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             // ADR-117: typing "/" lists ARK's commands, Keshab's skills and his Claude commands above the field.
             if !slashItems.isEmpty && readOnly == nil {
                 SlashPicker(items: slashItems, selected: min(pick.wrappedValue, slashItems.count - 1), choose: choose)
@@ -68,7 +68,7 @@ struct Composer: View {
                 HStack(alignment: .top, spacing: 8) {
                     Text(error).appFont(.system(size: 12)).foregroundStyle(theme.problem.color).fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
-                    Button { model.modelError = nil } label: { Image(systemName: "xmark") }
+                    Button { model.modelError = nil } label: { Glyph(systemName: "xmark") }
                         .buttonStyle(.plain).accessibilityLabel("Dismiss settings error")
                 }
             }
@@ -113,20 +113,20 @@ struct Composer: View {
                     // A hairline between what you type and the toolbar under it, edge to edge (the reference app).
                     Rectangle().fill(theme.separator.color).frame(height: 1).padding(.horizontal, -14).padding(.vertical, 2)
                     ViewThatFits(in: .horizontal) {
-                        HStack(spacing: 10) {
+                        HStack(spacing: 12) {
                             composerTools.toolbarPill()
                             composerSettings
                             Spacer(minLength: 4)
                             sendControls
                         }
                         // Very narrow panes and larger text keep every control reachable.
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack(spacing: 6) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 8) {
                                 ChatModelMenu(model: model).toolbarPill()
                                 ChatReasoningMenu(model: model).toolbarPill()
                                 Spacer(minLength: 0)
                             }
-                            HStack(spacing: 6) {
+                            HStack(spacing: 8) {
                                 composerTools.toolbarPill()
                                 ChatAccessMenu(model: model).toolbarPill()
                                 Spacer(minLength: 4)
@@ -165,8 +165,8 @@ struct Composer: View {
         .background {
             if !snapshot { WindowProbe { paste.wrappedValue.window = $0 } }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
         .background(composerShape.fill(theme.fill2.color))
         .composerFocus(focused, shape: composerShape)
         // Dropping files on the composer attaches them.
@@ -174,7 +174,7 @@ struct Composer: View {
     }
 
     private var composerSettings: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             ChatModelMenu(model: model).toolbarPill()
             ChatReasoningMenu(model: model).toolbarPill()
             ChatAccessMenu(model: model).toolbarPill()
@@ -453,7 +453,7 @@ private struct AttachButton: View {
 
     var body: some View {
         Button(action: choose) {
-            Image(systemName: "paperclip").appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+            Glyph(systemName: "paperclip").appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
                 .frame(width: 28, height: 28).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -513,7 +513,7 @@ private struct ComposerToolsMenu: View {
     }
 
     private var label: some View {
-        Image(systemName: "plus").appFont(.system(size: 13, weight: .medium))
+        Glyph(systemName: "plus").appFont(.system(size: 13, weight: .medium))
             .foregroundStyle(theme.text2.color)
             .frame(width: 28, height: 30).contentShape(Rectangle())
     }
@@ -545,7 +545,7 @@ private struct QueuedRow: View {
             }
         }
         .buttonStyle(.plain).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color)
-        .padding(.horizontal, 10).frame(height: 30)
+        .padding(.horizontal, 12).frame(height: 30)
         .background(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous).fill(theme.fill2.color))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(held ? "Unsent" : "Queued") message \(position): \(summary)")
@@ -605,7 +605,7 @@ private struct ComposerButton: View {
     private var ghost: some View {
         let tint: Color? = listening ? theme.live.color : nil
         return Button(action: action) {
-            Image(systemName: empty ? "mic" : queueing ? "arrow.turn.down.right" : "arrow.up")
+            Glyph(systemName: empty ? "mic" : queueing ? "arrow.turn.down.right" : "arrow.up")
                 .appFont(.system(size: empty ? 12.5 : 11.5, weight: empty ? .regular : .semibold))
                 .foregroundStyle(tint ?? (empty ? theme.text2.color : theme.text.color))
                 .frame(width: 30, height: 30)
@@ -624,7 +624,7 @@ private struct ComposerButton: View {
     private var filled: some View {
         let lit = !empty || listening
         return Button(action: action) {
-            Image(systemName: empty ? "mic.fill" : queueing ? "arrow.turn.down.right" : "arrow.up")
+            Glyph(systemName: empty ? "mic.fill" : queueing ? "arrow.turn.down.right" : "arrow.up")
                 .appFont(.system(size: empty ? 12 : 11.5, weight: .bold))
                 .foregroundStyle(lit ? theme.onAccent.color : theme.text3.color)
                 .frame(width: 30, height: 30)
@@ -650,12 +650,12 @@ struct ConversationTab: View {
         let results = model.chatFindShown ? ChatFind.search(model.conversation.turns, query: model.chatFindQuery) : ChatFind.Results()
         VStack(spacing: 0) {
             if model.chatControls.notice != nil {
-                ChatControlFeedback(model: model).padding(.horizontal, Spacing.conversation).padding(.vertical, 7)
+                ChatControlFeedback(model: model).padding(.horizontal, Spacing.conversation).padding(.vertical, 8)
             }
             if model.chatFindShown { ChatFindBar(model: model, results: results) }
             if SetupCards.isShown(model) {
                 VStack(spacing: 0) {
-                    Scrollable { SetupCards(model: model).padding(.bottom, 10) }
+                    Scrollable { SetupCards(model: model).padding(.bottom, 12) }
                         .frame(maxHeight: model.conversation.isEmpty ? .infinity : 210)
                     if model.conversation.isEmpty { composer } else { content(results: results) }
                 }
@@ -704,7 +704,7 @@ struct ConversationTab: View {
         .frame(maxWidth: 880)
         .frame(maxWidth: .infinity)
         .padding(.horizontal, Spacing.conversation)
-        .padding(.top, 6)
+        .padding(.top, 8)
         .padding(.bottom, 12)
     }
 
@@ -771,8 +771,8 @@ private struct EmptyConversation: View {
                 .foregroundStyle(theme.text.color)
             Text("Ask a question or start something new")
                 .appFont(.system(size: 14)).foregroundStyle(theme.text3.color)
-            BriefCard(model: model).padding(.top, 6).frame(maxWidth: 520) // upgrades.md C3: today's brief, when there is one
-            EmptyConversationExamples(model: model).padding(.top, 6)
+            BriefCard(model: model).padding(.top, 8).frame(maxWidth: 520) // upgrades.md C3: today's brief, when there is one
+            EmptyConversationExamples(model: model).padding(.top, 8)
         }
     }
 
@@ -808,7 +808,7 @@ struct TurnView: View {
                 // 2026-11-01 (T3 Code and the Claude app): your words are a soft bubble on the right, at their natural width up to 80%; ARK answers
                 // in plain text across the column, so the chat reads as a conversation, not a log of boxes.
                 ChatUserBubbleLayout {
-                    HStack(alignment: .top, spacing: 6) {
+                    HStack(alignment: .top, spacing: 8) {
                         ChatActionsMenu(title: "Message actions", revealed: hovering.wrappedValue) { userActions(collapsed: collapsed) }
                         Text(collapsed ? (preview ?? turn.transcript) : turn.transcript)
                             .lineLimit(collapsed ? UserMessagePreview.lineLimit : nil)
@@ -817,8 +817,8 @@ struct TurnView: View {
                             .appFont(.system(size: 14))
                             .foregroundStyle(theme.text.color)
                             .lineSpacing(3)
-                            .padding(.horizontal, 14).padding(.vertical, 9)
-                            .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(theme.text.color.opacity(theme.isDark ? 0.08 : 0.05)))
+                            .padding(.horizontal, 16).padding(.vertical, 8)
+                            .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(theme.text.color.opacity(theme.isDark ? 0.08 : 0.05)))
                             .textSelection(.enabled)
                             .contextMenu { userActions(collapsed: collapsed) }
                     }
@@ -833,7 +833,7 @@ struct TurnView: View {
                     }
                 }
             }
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 if let work = turn.work,
                    work.state != "completed" || !work.calls.isEmpty || work.omitted > 0 || !work.questions.isEmpty {
                     ChatWorkView(work: work, step: computerStep)

@@ -9,10 +9,10 @@ struct ToolTimelineSection: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             Button { withAnimation(Motion.snap(reduceMotion)) { isOpen.toggle() } } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: isOpen ? "chevron.down" : "chevron.right").appFont(.system(size: 9, weight: .semibold))
+                HStack(spacing: 8) {
+                    Glyph(systemName: isOpen ? "chevron.down" : "chevron.right").appFont(.system(size: 9, weight: .semibold))
                     Text("Tool calls (\(calls.count))").appFont(.system(size: 11.5, weight: .medium))
                 }
                 .foregroundStyle(theme.text3.color)
@@ -39,14 +39,14 @@ private struct ToolCallRow: View {
     private var hasResult: Bool { !(call.result ?? "").isEmpty }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 4) {
             Button { if hasResult { withAnimation(Motion.snap(reduceMotion)) { isOpen.toggle() } } } label: { line }
                 .buttonStyle(.plain)
                 .accessibilityLabel(label)
                 .accessibilityHint(hasResult ? (isOpen ? "Hides the result" : "Shows the result") : "")
             if isOpen, let result = call.result {
                 Text(result).appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
-                    .fixedSize(horizontal: false, vertical: true).padding(.leading, 15)
+                    .fixedSize(horizontal: false, vertical: true).padding(.leading, 16)
             }
         }
         .padding(.leading, call.agent == nil ? 0 : 15)

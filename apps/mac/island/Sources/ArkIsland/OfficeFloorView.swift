@@ -317,14 +317,14 @@ struct ViewChoice: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 5) {
-                if compact { Image(systemName: symbol) } else { Label(title, systemImage: symbol) }
+            HStack(spacing: 4) {
+                if compact { Glyph(systemName: symbol) } else { Label(title, systemImage: symbol) }
                 if badge > 0 { Text(compact ? "\(badge)" : "· \(badge)") }
             }
             .lineLimit(1).fixedSize()
             .appFont(.system(size: 12, weight: .medium))
                 .foregroundStyle(selected ? theme.text.color : theme.text3.color)
-                .padding(.horizontal, compact ? 9 : 12).padding(.vertical, 6)
+                .padding(.horizontal, compact ? 9 : 12).padding(.vertical, 8)
                 .background(RoundedRectangle(cornerRadius: theme.radiusControl + 2, style: .continuous)
                     .strokeBorder(selected ? (theme.isFlat ? theme.border.color : theme.separator.color) : .clear, lineWidth: 1))
                 .contentShape(Rectangle())

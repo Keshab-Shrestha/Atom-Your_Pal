@@ -26,8 +26,8 @@ struct ScheduledPane: View {
     var body: some View {
         let page = model.helpers.list.map(ScheduledPage.init(list:))
         Scrollable {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .center, spacing: 14) {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .center, spacing: 16) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Scheduled").appFont(.system(size: 20, weight: .medium)).foregroundStyle(theme.text.color)
                             .accessibilityAddTraits(.isHeader)
@@ -77,33 +77,33 @@ private struct ScheduledCard: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
-        HStack(alignment: .center, spacing: 14) {
+        let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+        HStack(alignment: .center, spacing: 16) {
             // What kind of entry it is: repeating or paused. The state's colour is in the badge only.
-            Image(systemName: entry.paused ? "pause" : "repeat").appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text2.color)
+            Glyph(systemName: entry.paused ? "pause" : "repeat").appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text2.color)
                 .frame(width: 36, height: 36)
-                .background(theme.fill3.color, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            VStack(alignment: .leading, spacing: 5) {
+                .background(theme.fill3.color, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            VStack(alignment: .leading, spacing: 4) {
                 Text(entry.title).appFont(.system(size: 13.5, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     Text(entry.helperName).appFont(theme.appIdentifierFont(.system(size: 11, weight: .medium), size: 10.5))
                         .foregroundStyle(theme.idColor(theme.text))
-                        .padding(.horizontal, 7).frame(height: 18)
+                        .padding(.horizontal, 8).frame(height: 18)
                         .background(Capsule().fill(theme.fill3.color))
                     Text(entry.schedule).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(1)
                 }
                 Text(ScheduledPage.lastText(entry)).appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
             }
             Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 10) {
-                HStack(spacing: 5) {
+            VStack(alignment: .trailing, spacing: 12) {
+                HStack(spacing: 4) {
                     StatusDot(color: entry.paused ? theme.attention.color : theme.success.color, size: 6)
                     Text(ScheduledPage.nextText(entry)).appFont(.system(size: 11, weight: .medium)).monospacedDigit()
                         .foregroundStyle(entry.paused ? theme.attention.color : theme.text2.color)
                 }
                 .padding(.horizontal, 8).frame(height: 22)
                 .background(Capsule().fill((entry.paused ? theme.attention.color : theme.success.color).opacity(0.1)))
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     if case .routine(let id) = entry.kind, let routine = model.helpers.list?.helpers.first(where: { $0.id == entry.helperId })?.routines.first(where: { $0.id == id }) {
                         IconButton(symbol: "pencil", label: "Edit \(entry.title)", diameter: ControlMetrics.buttonHeight) { edit(routine, entry.helperId) }
                     }
@@ -113,7 +113,7 @@ private struct ScheduledCard: View {
                 }
             }
         }
-        .padding(14)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(theme.fill1.a > 0 ? theme.fill1.color : theme.fill2.color.opacity(0.5), in: shape)
         .overlay(shape.strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
@@ -193,7 +193,7 @@ private struct ScheduleFormCard: View {
                 .menuStyle(.button).buttonStyle(.plain).fixedSize()
             }
             SoulField(label: "Task (what to do each time)", text: draft.task, lines: 5)
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
                 switch schedule.kind {
                 case .daily:
                     timePicker(draft)
@@ -230,11 +230,11 @@ private struct ScheduleFormCard: View {
                 ThemedSwitch(isOn: value.draft.webhook, set: { draft.wrappedValue.webhook = $0 }, label: "Can be started by webhook")
             }
         }
-        .padding(.horizontal, 16).padding(.vertical, 14)
+        .padding(.horizontal, 16).padding(.vertical, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         // The open form: the card fill with a calm accent hairline.
-        .background(theme.fill1.a > 0 ? theme.fill1.color : theme.fill2.color.opacity(0.5), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(theme.accent.color.opacity(0.35), lineWidth: 1))
+        .background(theme.fill1.a > 0 ? theme.fill1.color : theme.fill2.color.opacity(0.5), in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(theme.accent.color.opacity(0.35), lineWidth: 1))
         .tracksEdits(model, "schedule-form", value.edited && !value.sent)
         .onChange(of: model.helpers.isWaiting) { _, waiting in
             guard !waiting, form.wrappedValue?.sent == true else { return }

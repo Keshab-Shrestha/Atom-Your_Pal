@@ -18,8 +18,8 @@ struct PluginsPane: View {
     var body: some View {
         let list = model.helpers.list
         Scrollable {
-            VStack(alignment: .leading, spacing: 22) {
-                HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 24) {
+                HStack(spacing: 16) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Plugins").appFont(.system(size: 20, weight: .medium)).foregroundStyle(theme.text.color).accessibilityAddTraits(.isHeader)
                         Text("Skills and MCP servers your workers may use. Nothing is on until you turn it on.").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
@@ -82,7 +82,7 @@ struct PluginsPane: View {
 
     /// Add server: paste the same JSON as Claude Desktop (the default), or fill the form in by hand.
     private func addPanel(existing: Set<String>) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             Picker("", selection: byHand.projectedValue) {
                 Text("Paste config").tag(false)
                 Text("By hand").tag(true)
@@ -98,7 +98,7 @@ struct PluginsPane: View {
 
     private var form: some View {
         let d = draft.projectedValue
-        return VStack(alignment: .leading, spacing: 10) {
+        return VStack(alignment: .leading, spacing: 12) {
             Picker("", selection: d.kind) {
                 Text("Run a command").tag("command")
                 Text("Connect to a URL").tag("url")
@@ -147,14 +147,14 @@ private struct ServerCard: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
                 let state = server.enabled ? theme.success.color : server.problem != nil ? theme.problem.color : theme.text3.color
-                Image(systemName: server.kind == "command" ? "terminal" : "globe").appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text2.color)
+                Glyph(systemName: server.kind == "command" ? "terminal" : "globe").appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text2.color)
                     .frame(width: 36, height: 36)
-                    .background(theme.fill3.color, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .background(theme.fill3.color, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 8) {
                         Text(server.name).appFont(theme.appIdentifierFont(.system(size: 13, weight: .semibold), size: 12.5)).foregroundStyle(theme.text.color)
                         Text(server.enabled ? "On" : server.problem != nil ? "Problem" : "Off").appFont(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(state).padding(.horizontal, 6).frame(height: 16).background(Capsule().fill(state.opacity(0.12)))
+                            .foregroundStyle(state).padding(.horizontal, 8).frame(height: 16).background(Capsule().fill(state.opacity(0.12)))
                     }
                     Text(server.kind == "command" ? (server.command ?? "") : (server.url ?? "")).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5))
                         .foregroundStyle(theme.text3.color).lineLimit(1).truncationMode(.middle)
@@ -266,7 +266,7 @@ struct SkillCard<Content: View>: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) { content }
+        VStack(alignment: .leading, spacing: 8) { content }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
             .pluginCard()
@@ -280,11 +280,11 @@ private struct PluginsSectionLabel: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Text(title).appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             if let count, count > 0 {
                 Text("\(count)").appFont(.system(size: 10, weight: .semibold)).monospacedDigit().foregroundStyle(theme.text2.color)
-                    .padding(.horizontal, 5).frame(minWidth: 18, minHeight: 16).background(Capsule().fill(theme.fill3.color))
+                    .padding(.horizontal, 4).frame(minWidth: 18, minHeight: 16).background(Capsule().fill(theme.fill3.color))
             }
         }
         .accessibilityElement(children: .combine)
@@ -299,7 +299,7 @@ extension View {
 private struct PluginCardModifier: ViewModifier {
     @Environment(\.theme) private var theme
     func body(content: Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
         content
             .background(theme.fill1.a > 0 ? theme.fill1.color : theme.fill2.color.opacity(0.5), in: shape)
             .overlay(shape.strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))

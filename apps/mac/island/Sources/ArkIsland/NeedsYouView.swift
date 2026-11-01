@@ -21,14 +21,14 @@ struct NeedsYouPane: View {
         let nothingWaits = waiting.isEmpty && everyFailed.isEmpty && model.approval.pending == nil
         let counts = NeedsYouFilter.counts(items: waiting, failed: everyFailed.count, hasApproval: model.approval.pending != nil)
         Scrollable {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 2) {
                     if !embedded { Text("Needs you").appFont(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color) }
                     Text("What waits for your answer, and tasks that failed. Nothing here is done without you.").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
                 if !nothingWaits {
-                    FlowLayout(spacing: 6) {
+                    FlowLayout(spacing: 8) {
                         ForEach(NeedsYouFilter.allCases, id: \.self) { option in
                             NeedsYouChip(title: option.title, count: counts[option] ?? 0, selected: filter == option) { filter = option }
                         }
@@ -135,17 +135,17 @@ struct NeedsYouPane: View {
 
     private func card(kind: String, who: String, title: String, detail: String, tests: TestRunView? = nil, @ViewBuilder actions: () -> some View) -> some View {
         let look = NeedsYouLook(kind: kind, theme: theme)
-        return HStack(alignment: .top, spacing: 14) {
+        return HStack(alignment: .top, spacing: 16) {
             NeedsYouTile(symbol: look.symbol, tint: look.tint)
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
                     NeedsYouBadge(text: kind, tint: look.tint)
                     if !who.isEmpty { Text(who).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2)) }
                 }
                 Text(title).appFont(.system(size: 13.5, weight: .medium)).foregroundStyle(theme.text.color).fixedSize(horizontal: false, vertical: true).lineLimit(3)
                 Text(detail).appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true).lineLimit(8) // 8: an approval can carry a whole soul (create_agent)
                 if let tests { tests.padding(.top, 2) }
-                HStack(spacing: 8) { actions() }.padding(.top, 6)
+                HStack(spacing: 8) { actions() }.padding(.top, 8)
             }
         }
         .needsYouCard()
@@ -160,10 +160,10 @@ struct FailedTaskCard: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: 16) {
         NeedsYouTile(symbol: item.job.recoveryNeeded ? "exclamationmark.arrow.circlepath" : "exclamationmark.triangle", tint: theme.problem.color)
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
                 JobDot(job: item.job)
                 Text(item.helperName).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2))
                 Text("#\(item.id)").appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color)
@@ -179,7 +179,7 @@ struct FailedTaskCard: View {
                 if !item.job.recoveryNeeded { QuietButton(title: "Retry", symbol: "arrow.clockwise") { model.sendHelpers(model.helpers.retry(item.id)) } }
                 QuietButton(title: item.job.recoveryNeeded ? "Review attempt" : "Open") { model.navigate { model.windowPage = .agents; model.sendHelpers(model.helpers.openThread(item.id)) } }
             }
-            .padding(.top, 6)
+            .padding(.top, 8)
         }
         }
         .needsYouCard()
@@ -210,9 +210,9 @@ private struct NeedsYouTile: View {
     @Environment(\.theme) private var theme
     var body: some View {
         // The glyph in the text colour on a neutral step; the kind's colour lives only in its badge (unslop).
-        Image(systemName: symbol).appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text2.color)
+        Glyph(systemName: symbol).appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text2.color)
             .frame(width: 36, height: 36)
-            .background(theme.fill3.color, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .background(theme.fill3.color, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             .accessibilityHidden(true)
     }
 }
@@ -223,7 +223,7 @@ private struct NeedsYouBadge: View {
     let tint: Color
     var body: some View {
         Text(text).appFont(.system(size: 10.5, weight: .semibold)).foregroundStyle(tint)
-            .padding(.horizontal, 7).frame(height: 18)
+            .padding(.horizontal, 8).frame(height: 18)
             .background(Capsule().fill(tint.opacity(0.12)))
     }
 }
@@ -236,9 +236,9 @@ extension View {
 private struct NeedsYouCardModifier: ViewModifier {
     @Environment(\.theme) private var theme
     func body(content: Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
         content
-            .padding(14)
+            .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(theme.fill1.a > 0 ? theme.fill1.color : theme.fill2.color.opacity(0.5), in: shape)
             .overlay(shape.strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
@@ -256,15 +256,15 @@ private struct NeedsYouChip: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 Text(title).appFont(.system(size: 12, weight: selected ? .semibold : .medium))
                     .foregroundStyle(selected ? theme.text.color : theme.text2.color)
                 Text("\(count)").appFont(.system(size: 10, weight: .semibold)).monospacedDigit()
                     .foregroundStyle(count > 0 ? theme.text2.color : theme.text3.color)
-                    .padding(.horizontal, 5).frame(minWidth: 18, minHeight: 16)
+                    .padding(.horizontal, 4).frame(minWidth: 18, minHeight: 16)
                     .background(Capsule().fill(theme.fill3.color))
             }
-            .padding(.leading, 11).padding(.trailing, 5).frame(height: 28)
+            .padding(.leading, 12).padding(.trailing, 4).frame(height: 28)
             .background(Capsule().fill(selected ? theme.fill3.color : theme.fill1.a > 0 ? theme.fill1.color : theme.fill2.color.opacity(0.5)))
             .overlay(Capsule().strokeBorder(selected ? theme.hairline(true) : theme.separator.color, lineWidth: 0.6))
             .contentShape(Capsule())

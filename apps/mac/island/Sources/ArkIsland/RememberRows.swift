@@ -11,13 +11,13 @@ struct RememberRows: View {
 
     var body: some View {
         let state = model.suggestions
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
             ForEach(state.items) { item in
                 RememberRow(model: model, item: item, editing: state.editingId == item.id)
             }
             if let error = state.error, !state.items.isEmpty {
                 Text(error).appFont(.system(size: 11)).foregroundStyle(theme.problem.color)
-                    .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 14)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 16)
             }
         }
         .onAppear { if !snapshot { model.loadSuggestions() } }
@@ -34,7 +34,7 @@ private struct RememberRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "brain.head.profile").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+            Glyph(systemName: "brain.head.profile").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
             if editing {
                 TextField("Fact", text: Binding(get: { model.suggestions.draft }, set: { model.suggestions.draft = $0 }))
                     .textFieldStyle(.plain).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color)
@@ -55,7 +55,7 @@ private struct RememberRow: View {
                 QuietButton(title: "Remember", symbol: "checkmark") { model.acceptSuggestion(item.id) }
             }
         }
-        .padding(.horizontal, 12).padding(.vertical, 7)
+        .padding(.horizontal, 12).padding(.vertical, 8)
         .background(shape.fill(theme.fill1.color))
         .overlay(shape.strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.5))
         .accessibilityElement(children: .contain)

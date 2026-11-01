@@ -50,10 +50,10 @@ struct HelpersView: View {
             }
         }
         .animation(Motion.workspace(reduceMotion), value: model.activityShown)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
             .strokeBorder(contrast == .increased ? palette.text3.color : palette.separator.color, lineWidth: contrast == .increased ? 1.5 : 0.5))
-        .padding(.horizontal, 8).padding(.bottom, 8).padding(.top, 30)
+        .padding(.horizontal, 8).padding(.bottom, 8).padding(.top, 32)
         .background(WorkspaceColors.for(model.settings.theme).frame.color.ignoresSafeArea())
         .background { if !snapshot { WindowDragArea() } }
         .background(DesktopWindowAppearance(palette: palette))
@@ -105,7 +105,7 @@ struct HelpersView: View {
             back: model.windowPage == .dashboard ? nil : settingsBack ?? (model.history.canGoBack && !ownBack ? { model.goBack() } : nil)) {
                 if model.windowPage == .chat {
                     Button { model.toggleWorkspace() } label: {
-                        Image(systemName: "sidebar.right").frame(width: 30, height: 30)
+                        Glyph(systemName: "sidebar.right").frame(width: 30, height: 30)
                             .foregroundStyle(model.workspace.shown ? model.settings.theme.palette.accent.color : model.settings.theme.palette.text2.color)
                     }.buttonStyle(WorkspacePressStyle()).appFont(.system(size: 13))
                         .accessibilityLabel(model.workspace.shown ? "Close workspace" : "Open workspace")
@@ -193,7 +193,7 @@ private struct HelperSidebar: View {
                 SettingsSidebar(model: model)
             } else {
                 // ADR-098: one search over chats, tasks and reports; its results replace the pages while there are words.
-                SidebarSearchField(model: model).padding(.bottom, 6)
+                SidebarSearchField(model: model).padding(.bottom, 8)
                 HStack(spacing: 4) {
                     ProjectFilterButton(model: model, expanded: true)
                     NewProjectButton(model: model)
@@ -204,7 +204,7 @@ private struct HelperSidebar: View {
                             model.windowPage = .chat
                         }
                     } label: {
-                        Image(systemName: "square.and.pencil").appFont(.system(size: 13)).foregroundStyle(theme.text2.color)
+                        Glyph(systemName: "square.and.pencil").appFont(.system(size: 13)).foregroundStyle(theme.text2.color)
                             .frame(width: 28, height: 30).contentShape(Rectangle())
                     }.buttonStyle(.plain).help(model.sidebarProjectFilter == nil ? "Start a new chat" : "New chat in the selected project")
                         .accessibilityLabel("New chat")
@@ -225,7 +225,7 @@ private struct HelperSidebar: View {
         }
         .padding(.horizontal, 8)
         .padding(.top, desktopDesign ? 16 : HelpersView.titleBarRoom)
-        .padding(.bottom, 10)
+        .padding(.bottom, 12)
         .frame(maxHeight: .infinity, alignment: .top)
         // Darker than the window: the list sits back, the chosen helper comes forward. Void: one black, the hairline
         // between them is enough.
@@ -267,11 +267,11 @@ private struct WindowHeader: View {
     @Environment(\.desktopDesign) private var desktopDesign
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(model.windowPage == .settings ? "Settings" : "Chats")
                     .appFont(.system(size: 22, weight: .medium, design: .serif)).foregroundStyle(theme.text.color)
-                HStack(spacing: 5) {
+                HStack(spacing: 4) {
                     Circle().fill(statusColor).frame(width: 5, height: 5)
                     Text(model.status.title).appFont(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(1)
                 }
@@ -305,8 +305,8 @@ struct SidebarRow: View {
     @State private var hovering = false
 
     var body: some View {
-        HStack(spacing: 11) {
-            Image(systemName: symbol).appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+        HStack(spacing: 12) {
+            Glyph(systemName: symbol).appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
                 .frame(width: 26, height: 26)
                 .overlay { if theme.isFlat && !desktopDesign { Circle().strokeBorder(theme.border.color, lineWidth: 1) } }
             VStack(alignment: .leading, spacing: 1) {
@@ -315,15 +315,15 @@ struct SidebarRow: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 9)
+        .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background {
             if desktopDesign {
-                RoundedRectangle(cornerRadius: 8).fill(selected ? theme.fill2.color : hovering ? theme.fill1.color : .clear)
+                RoundedRectangle(cornerRadius: Radius.card).fill(selected ? theme.fill2.color : hovering ? theme.fill1.color : .clear)
             } else if theme.isFlat {
                 RoundedRectangle(cornerRadius: theme.radiusControl + 4, style: .continuous).strokeBorder(selected ? theme.border.color : .clear, lineWidth: 1)
             } else {
-                RoundedRectangle(cornerRadius: 12, style: .continuous).fill(selected ? (theme.isDark ? theme.fill2.color : Color.white.opacity(0.85)) : Color.clear)
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(selected ? (theme.isDark ? theme.fill2.color : Color.white.opacity(0.85)) : Color.clear)
             }
         }
         .contentShape(Rectangle())
@@ -411,11 +411,11 @@ private struct HelperPane: View {
 
     var body: some View {
         Scrollable {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 16) {
                 // The profile card: the agent, its role and counts, and what can be done to it.
-                HStack(alignment: .center, spacing: 14) {
+                HStack(alignment: .center, spacing: 16) {
                     HelperBadge(helper: helper, size: 52)
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: 4) {
                         NameTitle(model: model, helper: helper).id(helper.id) // a rename in progress belongs to one agent
                         Text(Self.subtitle(helper)).appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                             .lineLimit(1)
@@ -429,8 +429,8 @@ private struct HelperPane: View {
                     if helper.custom { RemoveAgentButton(model: model, helper: helper) }
                 }
                 .padding(16)
-                .background(theme.fill1.a > 0 ? theme.fill1.color : theme.fill2.color, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .background(theme.fill1.a > 0 ? theme.fill1.color : theme.fill2.color, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                     .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
                 if helper.proposals.contains(where: { $0.state == "pending" || $0.state == "accepted" }) {
                     ProposalsSection(model: model, proposals: helper.proposals, soul: helper.soul)
@@ -448,7 +448,7 @@ private struct HelperPane: View {
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 16).padding(.bottom, 14)
+                        .padding(.horizontal, 16).padding(.bottom, 16)
                         SettingsCardRow(title: "Plan first", detail: "New tasks start with a plan for your OK.") {
                             ThemedSwitch(isOn: helper.planFirst, set: { model.sendHelpers(model.helpers.setPlanFirst($0)) }, label: "Plan first")
                         }
@@ -521,12 +521,12 @@ struct PillMenuLabel: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Text(label).foregroundStyle(theme.text3.color)
             // The app or model is an identifier: SF Mono in Void (a sentence such as "Chosen by Laya" stays sans).
             Text(value).fontWeight(.medium).foregroundStyle(dimmed ? theme.text2.color : theme.text.color)
                 .appFont(identifier ? theme.appIdentifierFont(.system(size: 11.5), size: 11) : .system(size: 11.5))
-            Image(systemName: "chevron.up.chevron.down").appFont(.system(size: 8, weight: .bold)).foregroundStyle(theme.text3.color)
+            Glyph(systemName: "chevron.up.chevron.down").appFont(.system(size: 8, weight: .bold)).foregroundStyle(theme.text3.color)
         }
         .appFont(.system(size: 11.5))
         .lineLimit(1)
@@ -665,7 +665,7 @@ private struct TaskField: View {
                     .accessibilityLabel("Task for \(helper.name)")
             }
             Button(action: add) {
-                Image(systemName: "arrow.up")
+                Glyph(systemName: "arrow.up")
                     .appFont(.system(size: 11, weight: .bold))
                     .foregroundStyle(ready ? (theme.isGhost ? theme.text.color : theme.onAccent.color) : theme.text3.color)
                     .frame(width: 28, height: 28)
@@ -678,7 +678,7 @@ private struct TaskField: View {
             .accessibilityLabel("Add")
         }
         .padding(.leading, 16)
-        .padding(.trailing, 6)
+        .padding(.trailing, 8)
         .frame(height: 40)
         .background {
             if theme.isFlat {
@@ -710,7 +710,7 @@ private struct JobList: View {
         let shape = RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
         VStack(alignment: .leading, spacing: 0) {
             if helper.jobs.isEmpty {
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text("No jobs yet").appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color)
                     Text("Give \(helper.name) a task above.").appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
                 }
@@ -734,7 +734,7 @@ private struct JobRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            JobDot(job: job).padding(.top, 5)
+            JobDot(job: job).padding(.top, 4)
             VStack(alignment: .leading, spacing: 4) {
                 Button { model.navigate { model.sendHelpers(model.helpers.openThread(job.id)) } } label: {
                     Text(job.title ?? job.task)
@@ -762,7 +762,7 @@ private struct JobRow: View {
             }
             .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 8)
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 if job.hasReport {
                     ReadReportButton { model.navigate { model.sendHelpers(model.helpers.openThread(job.id)) } }
                 }
@@ -773,7 +773,7 @@ private struct JobRow: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 13)
+        .padding(.vertical, 12)
         .help(help)
     }
 
@@ -878,7 +878,7 @@ struct ReadReportButton: View {
             Text("Read report")
                 .appFont(.system(size: 11.5, weight: .semibold))
                 .foregroundStyle(theme.accent.color)
-                .padding(.horizontal, 13)
+                .padding(.horizontal, 12)
                 .frame(height: ControlMetrics.buttonHeight)
                 .background(Capsule().fill(theme.accent.color.opacity(hovering.wrappedValue ? 0.12 : 0)))
                 .overlay(Capsule().strokeBorder(theme.accent.color.opacity(0.45), lineWidth: 0.8))
@@ -901,8 +901,8 @@ struct QuietButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 5) {
-                if let symbol { Image(systemName: symbol).appFont(.system(size: 10, weight: .semibold)) }
+            HStack(spacing: 4) {
+                if let symbol { Glyph(systemName: symbol).appFont(.system(size: 10, weight: .semibold)) }
                 Text(title).appFont(.system(size: 11.5, weight: .medium))
             }
             .foregroundStyle(hovering.wrappedValue ? theme.text.color : theme.text2.color)
@@ -932,7 +932,7 @@ struct ProblemLine: View {
     var body: some View {
         if theme.statusDots {
             // Void (ADR-086): the colour is only the dot; the words stay quiet.
-            HStack(alignment: .firstTextBaseline, spacing: 7) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 if dot { StatusDot(color: theme.problem.color, size: 6) }
                 Text(text).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color)
             }
@@ -965,7 +965,7 @@ private struct NameTitle: View {
         let changed = editing.wrappedValue && draft.wrappedValue.trimmingCharacters(in: .whitespaces) != helper.name
         let pending = model.helpers.pendingRename?.helper == helper.id
         VStack(alignment: .leading, spacing: 4) {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             if editing.wrappedValue {
                 // One field with its actions inside it: no loose buttons beside the name.
                 InlineField(placeholder: "Name", text: draft.projectedValue, size: 16, weight: .semibold, submit: save, cancel: cancel) {
@@ -982,7 +982,7 @@ private struct NameTitle: View {
                         draft.wrappedValue = helper.name
                         editing.wrappedValue = true
                     } label: {
-                        Image(systemName: "pencil").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                        Glyph(systemName: "pencil").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
                     }
                     .buttonStyle(.plain)
                     .help("Rename \(helper.name)")
@@ -1044,12 +1044,12 @@ private struct ChatsList: View {
                 Button("Show all loaded chats") { showAll = true }.appFont(.system(size: 11)).buttonStyle(.borderless)
             }
         } else if list == nil {
-            LoadingStateView(text: "Loading chats…", retry: { model.send(.chatsList) }).padding(.horizontal, 10)
+            LoadingStateView(text: "Loading chats…", retry: { model.send(.chatsList) }).padding(.horizontal, 12)
         } else {
             Text("No active chats. Start one with New chat above.").appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
-                .padding(.horizontal, 10).padding(.vertical, 4)
+                .padding(.horizontal, 12).padding(.vertical, 4)
         }
-        ChatControlFeedback(model: model).padding(.horizontal, 10).padding(.vertical, 4)
+        ChatControlFeedback(model: model).padding(.horizontal, 12).padding(.vertical, 4)
         if let list {
             let archived = list.chats.filter { $0.archived && ProjectSidebarScope.includes($0, selected: model.sidebarProjectFilter) }.sorted { ($0.updatedAt ?? .distantPast) > ($1.updatedAt ?? .distantPast) }
             if !archived.isEmpty {
@@ -1057,7 +1057,7 @@ private struct ChatsList: View {
                     ForEach(archived) { chat in
                         SidebarChatRow(model: model, chat: chat, current: chat.id == list.current)
                     }
-                }.appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).padding(.horizontal, 10)
+                }.appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).padding(.horizontal, 12)
             }
         }
     }

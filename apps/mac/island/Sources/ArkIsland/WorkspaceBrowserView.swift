@@ -9,12 +9,12 @@ struct WorkspaceBrowserView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 4) {
-                Button(action: session.back) { Image(systemName: "chevron.left").frame(width: 26, height: 26) }
+                Button(action: session.back) { Glyph(systemName: "chevron.left").frame(width: 26, height: 26) }
                     .disabled(!session.canGoBack).accessibilityLabel("Browser back")
-                Button(action: session.forward) { Image(systemName: "chevron.right").frame(width: 26, height: 26) }
+                Button(action: session.forward) { Glyph(systemName: "chevron.right").frame(width: 26, height: 26) }
                     .disabled(!session.canGoForward).accessibilityLabel("Browser forward")
                 Button { session.loading ? session.stop() : session.reload() } label: {
-                    Image(systemName: session.loading ? "xmark" : "arrow.clockwise").frame(width: 26, height: 26)
+                    Glyph(systemName: session.loading ? "xmark" : "arrow.clockwise").frame(width: 26, height: 26)
                 }.disabled(!session.hasPage).accessibilityLabel(session.loading ? "Stop browser loading" : "Reload browser")
                 Spacer(minLength: 0)
                 Button("Reset", action: session.reset).appFont(.system(size: 11)).help("Clear this temporary browser session")
@@ -23,14 +23,14 @@ struct WorkspaceBrowserView: View {
             if snapshot {
                 Text(session.address.isEmpty ? "Enter a web address…" : session.address).appFont(.system(size: 12)).foregroundStyle(theme.text3.color).padding(8)
             } else {
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     TextField("https://example.com or localhost:3000", text: Binding(get: { session.address }, set: { session.address = $0 }))
                         .textFieldStyle(.plain).appFont(.system(size: 12)).accessibilityLabel("Browser address")
                         .onSubmit { session.navigate() }
-                    Button(action: session.navigate) { Image(systemName: "arrow.right").frame(width: 24, height: 24) }
+                    Button(action: session.navigate) { Glyph(systemName: "arrow.right").frame(width: 24, height: 24) }
                         .accessibilityLabel("Open browser address").disabled(session.address.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }.padding(.horizontal, 8).padding(.vertical, 4)
-                    .background(theme.fill2.color, in: RoundedRectangle(cornerRadius: 6))
+                    .background(theme.fill2.color, in: RoundedRectangle(cornerRadius: Radius.card))
             }
             if !session.title.isEmpty { Text(verbatim: session.title).appFont(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(1) }
             if session.loading { ProgressView().controlSize(.small).accessibilityLabel("Loading browser page") }
@@ -41,9 +41,9 @@ struct WorkspaceBrowserView: View {
             if session.hasPage, !snapshot {
                 WorkspaceWebContent(session: session).id(session.generation).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 12) {
                     Spacer()
-                    Image(systemName: "globe").appFont(.system(size: 24)).frame(height: 28).foregroundStyle(theme.text3.color)
+                    Glyph(systemName: "globe").appFont(.system(size: 24)).frame(height: 28).foregroundStyle(theme.text3.color)
                     Text("Browse beside your chat").appFont(.system(size: 14, weight: .medium))
                     Text("Open a web page or a local development server. Page content is not sent to the model automatically.")
                         .appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)

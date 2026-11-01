@@ -6,14 +6,37 @@ import ArkIslandCore
 /// This supports the app's macOS 14 minimum without relying on newer Font.scaled APIs.
 struct AppFont {
     private let resolve: (CGFloat, AppTypeface) -> Font
-    private init(_ resolve: @escaping (CGFloat, AppTypeface) -> Font) { self.resolve = resolve }
+    /// The size before the user's scale, after `TypeScale.snap`.
+    let points: CGFloat
+    private init(points: CGFloat, _ resolve: @escaping (CGFloat, AppTypeface) -> Font) {
+        self.points = points
+        self.resolve = resolve
+    }
+    /// Any size a view asks for lands on the type scale (2026-11-01 redesign: 38 sizes became five).
     static func system(size: CGFloat, weight: Font.Weight = .regular, design: Font.Design = .default) -> Self {
-        Self { scale, face in AppFonts.font(size: size * scale, weight: weight, design: design, face: face) }
+        let step = TypeScale.snap(size)
+        return Self(points: step) { scale, face in AppFonts.font(size: step * scale, weight: weight, design: design, face: face) }
     }
     static var headline: Self { .system(size: 13, weight: .semibold) }
-    static var caption2: Self { .system(size: 10) }
-    func monospacedDigit() -> Self { Self { resolve($0, $1).monospacedDigit() } }
+    static var caption2: Self { .system(size: 11) }
+    func monospacedDigit() -> Self { Self(points: points) { resolve($0, $1).monospacedDigit() } }
     func font(at size: AppTextSize, face: AppTypeface = .system) -> Font { resolve(size.scale, face) }
+}
+
+/// Five sizes, far apart (taste-skill: "nine nearly equal font sizes" is a tell). Sizes above the scale (big numerals) stay.
+enum TypeScale {
+    static let caption: CGFloat = 11, body: CGFloat = 13, reading: CGFloat = 15, title: CGFloat = 20, display: CGFloat = 28
+
+    static func snap(_ size: CGFloat) -> CGFloat {
+        switch size {
+        case ..<12: caption
+        case ..<14: body
+        case ..<17: reading
+        case ..<24: title
+        case ...30: display
+        default: size
+        }
+    }
 }
 
 /// The typefaces behind `AppFont` (Settings > Appearance > Typeface). Monospaced text stays SF Mono in every face.
@@ -38,10 +61,15 @@ enum AppFonts {
 
     /// Registers the bundled font files once. In ARK.app they are in Resources/fonts (build-app.sh copies them);
     /// in a development build (the gallery) in the repo's `assets/fonts`, found above the executable.
+    /// Whether a family was registered (the UIcons font is optional: each Mac downloads its own copy, see `Glyph`).
+    static func has(_ family: String) -> Bool { registered.contains(family) }
+
     static func register() {
-        guard registered.isEmpty, let folder = locate(),
-              let files = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil) else { return }
-        for file in files where ["ttf", "otf"].contains(file.pathExtension.lowercased()) {
+        guard registered.isEmpty, let folder = locate() else { return }
+        let vendor = folder.appendingPathComponent("vendor", isDirectory: true)
+        let files = ((try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? [])
+            + ((try? FileManager.default.contentsOfDirectory(at: vendor, includingPropertiesForKeys: nil)) ?? [])
+        for file in files where ["ttf", "otf", "woff"].contains(file.pathExtension.lowercased()) {
             var error: Unmanaged<CFError>?
             if !CTFontManagerRegisterFontsForURL(file as CFURL, .process, &error) {
                 FileHandle.standardError.write(Data("fonts: could not register \(file.lastPathComponent)\n".utf8))
@@ -82,7 +110,18 @@ private struct AppFontModifier: ViewModifier {
     let font: AppFont
     @Environment(\.appTextSize) private var size
     @Environment(\.appTypeface) private var face
-    func body(content: Content) -> some View { content.font(font.font(at: size, face: face)) }
+    func body(content: Content) -> some View {
+        content.font(font.font(at: size, face: face)).environment(\.glyphPointSize, font.points * size.scale)
+    }
+}
+
+private struct GlyphPointSizeKey: EnvironmentKey { static let defaultValue: CGFloat = 13 }
+extension EnvironmentValues {
+    /// The point size of the text around an icon, so a `Glyph` matches it.
+    var glyphPointSize: CGFloat {
+        get { self[GlyphPointSizeKey.self] }
+        set { self[GlyphPointSizeKey.self] = newValue }
+    }
 }
 
 extension View {

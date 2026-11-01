@@ -33,18 +33,18 @@ extension IslandGallery {
             return m
         }
         func sidebar(_ title: String, _ m: IslandModel, _ section: ProjectsSection) -> some View {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.75))
                 VStack(alignment: .leading, spacing: 4) {
                     section
                     ChatsPreview(list: m.chats)
                     Spacer(minLength: 0)
                 }
-                .padding(.horizontal, 14).padding(.vertical, 12)
+                .padding(.horizontal, 16).padding(.vertical, 12)
                 .frame(width: 224, height: 640, alignment: .top)
                 .background(Rectangle().fill(palette.surfaceFill(solid: true)))
                 .environment(\.islandSnapshot, true).themed(palette)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             }
         }
         let emptyModel = model("", plain)
@@ -60,17 +60,17 @@ extension IslandGallery {
                                       ChatLine(fromUser: false, text: "The tax is rounded per line, then summed. Rounding the sum once fixes it. The code is in src/cart/total.ts.")])
         let failing = model("\(haat),\(site)", plain + haatChats)
         failing.projectError = "A project with this name exists"
-        let sheet = VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top, spacing: 18) {
+        let sheet = VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 16) {
                 sidebar("Empty state", emptyModel, ProjectsSection(model: emptyModel))
                 sidebar("Haat open: 10 chats, Show more; a missing folder; archived hidden", open, ProjectsSection(model: open, expanded: ["p1"]))
                 sidebar("Inline rename of Haat", many, ProjectsSection(model: many, renaming: "p1"))
             }
-            HStack(alignment: .top, spacing: 18) {
+            HStack(alignment: .top, spacing: 16) {
                 sidebar("Archived shown, a refused name", failing, ProjectsSection(model: failing, expanded: ["p2"]))
                 sidebar("Archived shown", archived, ProjectsSection(model: archived, showArchived: true))
             }
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("A project chat: chip in the top bar, the long-chat note").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.75))
                 frozen(HelpersView(model: chatting).environment(\.islandSnapshot, true).frame(width: 720, height: 520))
                     .clipShape(RoundedRectangle(cornerRadius: palette.isFlat ? 24 : 16, style: .continuous))
@@ -100,10 +100,10 @@ private struct ChatsPreview: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        Text("Chats").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color).padding(.horizontal, 10).padding(.top, 8)
+        Text("Chats").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color).padding(.horizontal, 12).padding(.top, 8)
         ForEach(list?.plainChats.prefix(2).map { $0 } ?? []) { chat in
             Text(chat.title).font(.system(size: 12.5)).foregroundStyle(theme.text.color).lineLimit(1)
-                .padding(.horizontal, 10).padding(.vertical, 6)
+                .padding(.horizontal, 12).padding(.vertical, 8)
         }
     }
 }

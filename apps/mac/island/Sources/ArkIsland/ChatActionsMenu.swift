@@ -31,7 +31,7 @@ struct ChatActionsMenu<Actions: View>: View {
     }
 
     private var label: some View {
-        Image(systemName: "ellipsis")
+        Glyph(systemName: "ellipsis")
             .appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text3.color)
             .frame(width: 24, height: 24).contentShape(Rectangle())
             .overlay(alignment: .topTrailing) {

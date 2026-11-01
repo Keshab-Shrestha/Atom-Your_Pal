@@ -37,7 +37,7 @@ struct HubSkillsSection: View {
                 }
                 .appFont(.system(size: 12.5))
                 .padding(.horizontal, 12).frame(height: 34)
-                .background(theme.fill2.color, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .background(theme.fill2.color, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
                 QuietButton(title: "Search", symbol: "magnifyingglass", action: search)
                     .disabled(!canSearch).opacity(canSearch ? 1 : 0.5)
                     .accessibilityHint("Looks for skills shared by the community")

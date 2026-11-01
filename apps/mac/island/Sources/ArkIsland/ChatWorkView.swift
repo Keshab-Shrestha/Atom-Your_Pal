@@ -18,13 +18,13 @@ struct ChatWorkView: View {
     private static let liveRows = 6
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             if working, !snapshot {
                 TimelineView(.periodic(from: .now, by: 1)) { _ in toggle }
             } else { toggle }
             if expanded {
                 let calls = working ? Array(work.calls.suffix(Self.liveRows)) : work.calls
-                VStack(alignment: .leading, spacing: 5) {
+                VStack(alignment: .leading, spacing: 4) {
                     if working, work.calls.count > calls.count {
                         Text("\(work.calls.count - calls.count) earlier steps").foregroundStyle(theme.text3.color)
                     }
@@ -50,7 +50,7 @@ struct ChatWorkView: View {
         return HStack(spacing: 8) {
             Group {
                 if running { WorkingGlyph() }
-                else { Image(systemName: symbol(call.state)).appFont(.system(size: 10, weight: .semibold)) }
+                else { Glyph(systemName: symbol(call.state)).appFont(.system(size: 10, weight: .semibold)) }
             }
             .frame(width: 12).foregroundStyle(call.state == "error" ? theme.problem.color : theme.text3.color)
             Text(ChatWorkText.label(tool: call.tool, running: running))
@@ -66,8 +66,8 @@ struct ChatWorkView: View {
 
     private var toggle: some View {
         Button { opened = !expanded } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "chevron.right").rotationEffect(.degrees(expanded ? 90 : 0))
+            HStack(spacing: 8) {
+                Glyph(systemName: "chevron.right").rotationEffect(.degrees(expanded ? 90 : 0))
                 Text(label).monospacedDigit()
                 if working, let step { Text("· \(step)").lineLimit(1).truncationMode(.tail) }
                 else if !working, !work.calls.isEmpty { Text("· \(ChatWorkText.summary(work.calls))").lineLimit(1).truncationMode(.tail) }
@@ -127,7 +127,7 @@ struct ChatAccessContent: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
     var body: some View {
-        VStack(alignment: .leading, spacing: 9) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("Chat access").appFont(.headline)
             if let access = model.chatControls.snapshot?.info?.access {
                 Text("Mode: " + (model.chats?.access?.title ?? "Saved permissions"))

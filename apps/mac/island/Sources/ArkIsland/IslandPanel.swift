@@ -71,8 +71,8 @@ struct CompactView: View {
 
     var body: some View {
         StatusRow(model: model)
-        .padding(.leading, 11)
-        .padding(.trailing, 14)
+        .padding(.leading, 12)
+        .padding(.trailing, 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .background(theme.fill1.color.opacity(hovering.wrappedValue ? 1 : 0))
         .contentShape(Rectangle())
@@ -94,7 +94,7 @@ struct StatusRow: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        HStack(spacing: 11) {
+        HStack(spacing: 12) {
             StateGlyph(kind: model.status.kind)
                 .frame(width: theme.statusDots ? 8 : 30, height: 30)
 
@@ -129,7 +129,7 @@ struct StatusRow: View {
                     .transition(.opacity)
             } else if let busy = model.helpers.list?.helpers.filter({ $0.jobs.contains { $0.state == .running } }), !busy.isEmpty {
                 // Task 3.15: the workers at work, each with its working arc.
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     ForEach(busy.prefix(3)) { helper in HelperBadge(helper: helper, size: 20).help("\(helper.name): \(helper.activity)") }
                 }
                 .transition(.opacity)
@@ -158,7 +158,7 @@ struct StateGlyph: View {
     private func badge(_ tint: Color) -> some View {
         ZStack {
             Circle().fill(tint.opacity(theme.isDark ? 0.2 : 0.14))
-            Image(systemName: StateGlyph.symbol(kind))
+            Glyph(systemName: StateGlyph.symbol(kind))
                 .appFont(.system(size: 13, weight: .semibold))
                 .foregroundStyle(tint)
                 .contentTransition(.symbolEffect(.replace))

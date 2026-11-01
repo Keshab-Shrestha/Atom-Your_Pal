@@ -16,7 +16,7 @@ struct SetupCards: View {
         let failure = model.status.failure
         let firstLaunch = !model.permissions.essentialGranted
         if failure != nil || firstLaunch {
-            VStack(spacing: 10) {
+            VStack(spacing: 12) {
                 if let failure { FailureCard(model: model, failure: failure) }
                 if firstLaunch {
                     Card("Set up ARK", footer: "ARK needs these two to hear you. Everything else is asked the first time you use it.") {
@@ -28,7 +28,7 @@ struct SetupCards: View {
                 }
             }
             .padding(.horizontal, Spacing.panel)
-            .padding(.top, 14)
+            .padding(.top, 16)
         }
     }
 }
@@ -45,7 +45,7 @@ struct FailureCard: View {
         Card {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: failure.offersLog ? "stop.circle.fill" : "exclamationmark.triangle.fill")
+                    Glyph(systemName: failure.offersLog ? "stop.circle.fill" : "exclamationmark.triangle.fill")
                         .appFont(.system(size: 13, weight: .semibold))
                         .foregroundStyle(theme.problem.color)
                     Text(failure.sentence)
@@ -67,7 +67,7 @@ struct FailureCard: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(ControlFill(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous), fill: theme.fill2.color))
                 }
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     PillButton(title: failure.button, prominent: true) {
                         if case .showCommand = failure.action { showing.wrappedValue.toggle() } else { model.perform(failure.action) }
                     }
@@ -114,7 +114,7 @@ struct PermissionRowView: View {
 
     var body: some View {
         let state = model.permissions.states[row]
-        HStack(alignment: .center, spacing: 10) {
+        HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.title).appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
                 Text(row.usage).appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)

@@ -43,7 +43,7 @@ import Testing
         for theme in AppTheme.allCases {
             let p = theme.palette
             // The workspace themes (2026-10-25) give the window and its cards one radius.
-            #expect(p.radiusSurface >= p.radiusCard && p.radiusCard > p.radiusControl, "\(theme.title)")
+            #expect(p.radiusSurface >= p.radiusCard && p.radiusCard >= p.radiusControl, "\(theme.title)")
         }
     }
 
@@ -98,7 +98,7 @@ import Testing
     /// the secondary text is lighter than the main text (the playground's `#000000` was not).
     @MainActor @Test func daylightIsFlatLightAndStored() {
         let p = AppTheme.daylight.palette
-        #expect(p.surfaceStyle == .flat && !p.usesGlow && !p.usesShadows && p.accent == RGBA(hex: 0x5B50E6))
+        #expect(p.surfaceStyle == .flat && !p.usesGlow && !p.usesShadows && p.accent == AppTheme.daylight.tone.accent && !p.isDark)
         #expect(RGBA.contrast(p.text2, p.surfaceSolid) < RGBA.contrast(p.text, p.surfaceSolid), "secondary text is softer")
         #expect(AppTheme.allCases.contains(.daylight) && AppTheme(rawValue: 6) == .daylight)
         let suite = "ark.test.theme.daylight.\(UUID().uuidString)"
@@ -147,10 +147,13 @@ import Testing
         #expect(on(p.identifier!) >= 4.5, "violet identifiers")
         #expect(on(p.live) >= 4.5 && on(p.attention) >= 4.5 && on(p.accent) >= 7)
         #expect(on(p.borderHover) > on(p.border), "hover brightens the hairline")
-        #expect(!AppTheme.allCases.filter { $0 != .void && $0 != .daylight }.contains { t in
+        // The 2026-11-01 redesign: every theme is flat, with filled buttons, no glow, no shadows, no mono labels, no decorative
+        // dots, square cards (4) and controls (4) in an 8 pt window.
+        for t in AppTheme.allCases {
             let q = t.palette
-            // The workspace themes (2026-10-25): filled buttons and shadows, no glow, no mono identifiers.
-            return q.buttonStyle != .filled || q.usesGlow || !q.usesShadows || q.monoIdentifiers
-        }, "the other themes keep the workspace look")
+            #expect(q.surfaceStyle == .flat && q.buttonStyle == .filled && !q.usesGlow && !q.usesShadows, "\(t.title)")
+            #expect(!q.monoIdentifiers && !q.statusDots && q.surfaceTop == nil, "\(t.title)")
+            #expect((q.radiusSurface, q.radiusCard, q.radiusControl) == (8, 4, 4), "\(t.title)")
+        }
     }
 }

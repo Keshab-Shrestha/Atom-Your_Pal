@@ -20,7 +20,7 @@ struct ProjectGitView: View {
         }
     }
     private func statusPane(_ git: WorkspaceGitStatus) -> some View {
-        VStack(alignment: .leading, spacing: 9) {
+        VStack(alignment: .leading, spacing: 8) {
             Label(git.branch, systemImage: "arrow.triangle.branch").appFont(.system(size: 12, weight: .semibold)).textSelection(.enabled)
             if let upstream = git.upstream {
                 Text(verbatim: "\(upstream) · ahead \(git.ahead.map(String.init) ?? "?") · behind \(git.behind.map(String.init) ?? "?")")
@@ -38,18 +38,18 @@ struct ProjectGitView: View {
                     ForEach(["conflict", "staged", "unstaged", "untracked"], id: \.self) { section in
                         let files = git.files.filter { $0.section == section }
                         if !files.isEmpty {
-                            Text(section == "conflict" ? "Conflicts" : section.capitalized).appFont(.system(size: 11, weight: .semibold)).padding(.top, 5)
+                            Text(section == "conflict" ? "Conflicts" : section.capitalized).appFont(.system(size: 11, weight: .semibold)).padding(.top, 4)
                             ForEach(files) { file in
                                 Button {
                                     mode = "changes"; pieces = nil
                                     model.requestWorkspace(.gitReview, path: file.path, section: file.section)
                                 } label: {
-                                    VStack(alignment: .leading, spacing: 3) {
+                                    VStack(alignment: .leading, spacing: 4) {
                                         Text(verbatim: file.path).appFont(.system(size: 12)).lineLimit(2)
                                         if let original = file.original { Text(verbatim: "From \(original)").appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color) }
                                         Text(verbatim: file.status).appFont(.system(size: 10, design: .monospaced)).foregroundStyle(theme.text3.color)
-                                    }.frame(maxWidth: .infinity, alignment: .leading).padding(9)
-                                        .background(theme.fill2.color.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
+                                    }.frame(maxWidth: .infinity, alignment: .leading).padding(8)
+                                        .background(theme.fill2.color.opacity(0.6), in: RoundedRectangle(cornerRadius: Radius.card))
                                 }.buttonStyle(.plain).accessibilityLabel("Review \(file.section) \(file.path)")
                             }
                         }
@@ -61,7 +61,7 @@ struct ProjectGitView: View {
         }
     }
     private func reviewPane(_ review: WorkspaceGitReview) -> some View {
-        VStack(alignment: .leading, spacing: 9) {
+        VStack(alignment: .leading, spacing: 8) {
             Button { model.requestWorkspace(.git) } label: { Label("Back to Git", systemImage: "chevron.left") }
                 .buttonStyle(SnapshotBorderlessButtonStyle())
             Text(verbatim: review.path).appFont(.system(size: 12, weight: .medium, design: .monospaced)).textSelection(.enabled)
@@ -86,15 +86,15 @@ struct ProjectGitView: View {
                             if pieces.allSatisfy({ $0.kind == .same }) { Text(ignoreWhitespace ? "No differences after whitespace normalization." : "No text differences.").appFont(.system(size: 12)) }
                             else { InlineDiffText(pieces: pieces) }
                         } else { ProgressView("Comparing file…") }
-                    }.padding(10).frame(maxWidth: .infinity, alignment: .topLeading)
-                }.background(theme.fill2.color.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
+                    }.padding(12).frame(maxWidth: .infinity, alignment: .topLeading)
+                }.background(theme.fill2.color.opacity(0.6), in: RoundedRectangle(cornerRadius: Radius.card))
             } else {
                 let text = mode == "before" ? review.before : mode == "base" ? (review.base ?? "") : review.after
                 Text(mode == "before" ? review.beforeLabel : mode == "base" ? "Common base" : review.afterLabel).appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
                 WorkspaceTextScroll {
                     Text(verbatim: text.isEmpty ? "(Empty or absent file)" : text).appFont(.system(size: 11.5, design: .monospaced))
-                        .textSelection(.enabled).fixedSize(horizontal: true, vertical: true).padding(10)
-                }.background(theme.fill2.color.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
+                        .textSelection(.enabled).fixedSize(horizontal: true, vertical: true).padding(12)
+                }.background(theme.fill2.color.opacity(0.6), in: RoundedRectangle(cornerRadius: Radius.card))
             }
             HStack(spacing: 12) {
                 Button("Attach working file") { model.addWorkspaceFile(review.path) }

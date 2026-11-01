@@ -16,8 +16,8 @@ struct BoardRow: View {
     var body: some View {
         // The row speaks for the Board and for what waits for Keshab (ADR-116): one count, one short phrase, one badge.
         let attention = BoardAttention(list: model.helpers.list, approvalPending: model.approval.pending != nil)
-        HStack(spacing: 11) {
-            Image(systemName: "square.grid.2x2").appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+        HStack(spacing: 12) {
+            Glyph(systemName: "square.grid.2x2").appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
                 .frame(width: 26, height: 26)
                 .overlay { if theme.isFlat && !appDesign { Circle().strokeBorder(theme.border.color, lineWidth: 1) } }
             VStack(alignment: .leading, spacing: 1) {
@@ -30,21 +30,21 @@ struct BoardRow: View {
             if attention.needsYou {
                 // A number, not a dot: it cannot be missed. Yellow when something is for Keshab to answer, red when only failures wait.
                 Text("\(attention.total)").appFont(.system(size: 11, weight: .semibold, design: .rounded)).foregroundStyle(Color.black)
-                    .padding(.horizontal, 7).frame(minWidth: 20, minHeight: 18)
+                    .padding(.horizontal, 8).frame(minWidth: 20, minHeight: 18)
                     .background(Capsule().fill(attention.asks > 0 ? theme.attention.color : theme.problem.color))
             }
         }
         .help(attention.detail)
         .accessibilityLabel("Board, \(attention.detail)")
-        .padding(.horizontal, 9)
+        .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background {
             if appDesign {
-                RoundedRectangle(cornerRadius: 8).fill(selected ? theme.fill2.color : hovering ? theme.fill1.color : .clear)
+                RoundedRectangle(cornerRadius: Radius.card).fill(selected ? theme.fill2.color : hovering ? theme.fill1.color : .clear)
             } else if theme.isFlat {
                 RoundedRectangle(cornerRadius: theme.radiusControl + 4, style: .continuous).strokeBorder(selected ? theme.border.color : .clear, lineWidth: 1)
             } else {
-                RoundedRectangle(cornerRadius: 12, style: .continuous).fill(selected ? (theme.isDark ? theme.fill2.color : Color.white.opacity(0.85)) : Color.clear)
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(selected ? (theme.isDark ? theme.fill2.color : Color.white.opacity(0.85)) : Color.clear)
             }
         }
         .contentShape(Rectangle())
@@ -68,7 +68,7 @@ struct BoardPane: View {
         }
         VStack(alignment: .leading, spacing: 0) {
         // The Board's switch stays above the page: Overview, Floor, Columns (Overview moved here from the sidebar).
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(model.boardView == .floor ? "Your team" : model.boardView.title)
@@ -85,7 +85,7 @@ struct BoardPane: View {
             }
             if let problem = model.helpers.problem { ProblemLine(text: problem) }
             let waiting = BoardAttention(list: model.helpers.list, approvalPending: model.approval.pending != nil).total
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 // Five views: full names when the pane is wide enough, symbols and counts when it is not.
                 ViewThatFits(in: .horizontal) {
                     boardTabs(waiting: waiting, compact: false)
@@ -96,7 +96,7 @@ struct BoardPane: View {
             }
         }
         .padding(.horizontal, Spacing.panel)
-        .padding(.top, 18)
+        .padding(.top, 16)
         .padding(.bottom, 12)
         if model.boardView == .overview {
             OverviewPane(model: model)
@@ -105,7 +105,7 @@ struct BoardPane: View {
         } else {
         GeometryReader { viewport in
         Scrollable {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 16) {
                 // ADR-091: the team lives here now (the sidebar lists chats): each opens its page.
                 if model.boardView != .floor { TeamChips(model: model) }
                 // ADR-111: the work plans: a goal, its portions and how far each is.
@@ -145,7 +145,7 @@ struct BoardPane: View {
                 }
                 if let tasks = model.helpers.list?.paperclip { PaperclipSection(tasks: tasks) }
                 // Bento columns: status groups sit side by side when the Board is wide, stacked when it is narrow.
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 14, alignment: .top)], alignment: .leading, spacing: 18) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 16, alignment: .top)], alignment: .leading, spacing: 16) {
                     ForEach(model.boardView == .floor ? [] : board, id: \.column) { group in
                         VStack(alignment: .leading, spacing: 8) {
                             Text("\(group.column.title) · \(group.items.count)")
@@ -156,7 +156,7 @@ struct BoardPane: View {
                 }
             }
             .padding(.horizontal, Spacing.panel)
-            .padding(.top, 6)
+            .padding(.top, 8)
             .padding(.bottom, Spacing.panel)
         }
         }
@@ -204,11 +204,11 @@ private struct BoardCard: View {
     var body: some View {
         let job = item.job
         HStack(alignment: .top, spacing: 12) {
-            JobDot(job: job).padding(.top, 5)
-            VStack(alignment: .leading, spacing: 3) {
+            JobDot(job: job).padding(.top, 4)
+            VStack(alignment: .leading, spacing: 4) {
                 Text(job.title ?? job.task).appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
                     .multilineTextAlignment(.leading)
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     Text(item.helperName).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2))
                     Text("#\(job.id)").appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color)
                     if job.comments > 0 {
@@ -224,7 +224,7 @@ private struct BoardCard: View {
                 if job.state == .failed, let error = job.error { Text(error).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(2) }
             }
             Spacer(minLength: 8)
-            Image(systemName: "chevron.right").appFont(.system(size: 10, weight: .semibold)).foregroundStyle(theme.text3.color).padding(.top, 4)
+            Glyph(systemName: "chevron.right").appFont(.system(size: 10, weight: .semibold)).foregroundStyle(theme.text3.color).padding(.top, 4)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -314,7 +314,7 @@ struct ThreadPane: View {
             .frame(maxWidth: 560, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Spacing.panel + 4)
-            .padding(.top, 30)
+            .padding(.top, 32)
             .padding(.bottom, Spacing.panel)
         }
     }
@@ -331,7 +331,7 @@ struct ThreadPane: View {
 
     private func header(_ item: BoardItem) -> some View {
         let job = item.job
-        return VStack(alignment: .leading, spacing: 6) {
+        return VStack(alignment: .leading, spacing: 8) {
             Text(job.task).appFont(.system(size: 16, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 8) {
@@ -404,7 +404,7 @@ private struct SubTasksSection: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("Handed off").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             ForEach(ids, id: \.self) { id in
                 HStack(spacing: 8) {
@@ -430,7 +430,7 @@ private struct SubAgentsSection: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("Sub-agents").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             ForEach(Array(subAgents.enumerated()), id: \.offset) { _, agent in
                 VStack(alignment: .leading, spacing: 2) {
@@ -441,7 +441,7 @@ private struct SubAgentsSection: View {
                     }
                     .accessibilityElement(children: .combine)
                     if let detail = agent.detail {
-                        Text(detail).appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true).padding(.leading, 15)
+                        Text(detail).appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true).padding(.leading, 16)
                     }
                 }
             }
@@ -467,7 +467,7 @@ private struct WaitsForSection: View {
         let list = model.helpers.list
         let others = (list?.waitable ?? []).filter { $0.id != job.id }
         if !job.blockedBy.isEmpty || (job.state == .queued && !others.isEmpty) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("Waits for").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
                     Spacer()
@@ -512,11 +512,11 @@ struct TaskEvidenceSection: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(evidence.summary).appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
             DisclosureGroup("Execution details") {
                 Text(evidence.details).appFont(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(theme.text3.color).textSelection(.enabled).padding(.top, 5)
+                    .foregroundStyle(theme.text3.color).textSelection(.enabled).padding(.top, 4)
             }.appFont(.system(size: 11))
         }
     }
@@ -528,7 +528,7 @@ struct ReportSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 4) {
                 // Void: the report's title is the window's one display line, in New York.
                 Text(report.title).appFont(theme.isFlat ? .system(size: 24, weight: .regular, design: .serif) : .system(size: 19, weight: .semibold, design: .rounded))
                     .foregroundStyle(theme.text.color)
@@ -549,12 +549,12 @@ private struct GoalSection: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("The whole goal").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             Text(goal.progress(in: list)).appFont(.system(size: 12.5)).foregroundStyle(theme.text2.color)
             if let report = goal.report { ReportSection(report: report) }
         }
-        .padding(.top, 6)
+        .padding(.top, 8)
     }
 }
 
@@ -603,7 +603,7 @@ private struct NotesSection: View {
                 SaveButton(title: steers ? "Send" : "Add", enabled: typed, saved: model.savedField == "note" && model.helpers.problem == nil,
                            label: steers ? "Send message" : "Add note", action: add)
             }
-            .padding(.leading, 14).padding(.trailing, 6)
+            .padding(.leading, 16).padding(.trailing, 8)
             .frame(height: 38)
             .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
         }
@@ -623,10 +623,10 @@ private struct ActivitySection: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("Activity").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             ForEach(Array(activity.enumerated()), id: \.offset) { _, line in
-                HStack(spacing: 10) {
+                HStack(spacing: 12) {
                     Text(line.at.map { $0.formatted(date: .omitted, time: .shortened) } ?? "").appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5))
                         .foregroundStyle(theme.text3.color).frame(width: 64, alignment: .leading)
                     Text(line.title).appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
@@ -666,7 +666,7 @@ struct SourceRow: View {
             if let url = ReportSource.webURL(source.url.absoluteString) { NSWorkspace.shared.open(url) }
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: "link").appFont(.system(size: 11, weight: .semibold)).foregroundStyle(theme.statusDots ? theme.text2.color : theme.accent.color)
+                Glyph(systemName: "link").appFont(.system(size: 11, weight: .semibold)).foregroundStyle(theme.statusDots ? theme.text2.color : theme.accent.color)
                     .frame(width: 16)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(source.title).appFont(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color)
@@ -675,10 +675,10 @@ struct SourceRow: View {
                 }
                 .lineLimit(1)
                 Spacer(minLength: 6)
-                Image(systemName: "arrow.up.right").appFont(.system(size: 10, weight: .semibold)).foregroundStyle(theme.text3.color)
+                Glyph(systemName: "arrow.up.right").appFont(.system(size: 10, weight: .semibold)).foregroundStyle(theme.text3.color)
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            .padding(.vertical, 12)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -707,7 +707,7 @@ private struct TeamChips: View {
                         }
                         Spacer(minLength: 0)
                     }
-                    .padding(.horizontal, 8).padding(.vertical, 6)
+                    .padding(.horizontal, 8).padding(.vertical, 8)
                     .background(RoundedRectangle(cornerRadius: theme.radiusControl + 4, style: .continuous)
                         .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
                     .contentShape(Rectangle())
@@ -726,7 +726,7 @@ private struct TeamChips: View {
     private func quiet(_ title: String, symbol: String, help: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Label(title, systemImage: symbol).appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
-                .padding(.horizontal, 10).padding(.vertical, 12)
+                .padding(.horizontal, 12).padding(.vertical, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
         }
@@ -754,12 +754,12 @@ private struct AllAgentsList: View {
         let everyone = model.helpers.list?.helpers ?? []
         let found = TeamRoster.search(everyone, query.wrappedValue)
         let shape = RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("All agents · \(everyone.count)").appFont(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
                 Spacer(minLength: 0)
                 Button { model.navigate { model.showsAllAgents = false } } label: {
-                    Image(systemName: "xmark").appFont(.system(size: 10, weight: .bold)).foregroundStyle(theme.text3.color)
+                    Glyph(systemName: "xmark").appFont(.system(size: 10, weight: .bold)).foregroundStyle(theme.text3.color)
                         .frame(width: 22, height: 22).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -767,8 +767,8 @@ private struct AllAgentsList: View {
                 .help("Close")
                 .accessibilityLabel("Close")
             }
-            HStack(spacing: 7) {
-                Image(systemName: "magnifyingglass").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+            HStack(spacing: 8) {
+                Glyph(systemName: "magnifyingglass").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
                 if snapshot { // ImageRenderer cannot draw a text field
                     Text("Search by name or role").appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -781,13 +781,13 @@ private struct AllAgentsList: View {
                         .accessibilityLabel("Search agents by name or role")
                 }
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 12)
             .frame(height: 32)
             .background(RoundedRectangle(cornerRadius: theme.radiusControl + 4, style: .continuous)
                 .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
             if found.isEmpty {
                 Text("No agent's name or role has “\(query.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines))”.")
-                    .appFont(.system(size: 12)).foregroundStyle(theme.text3.color).padding(.vertical, 6)
+                    .appFont(.system(size: 12)).foregroundStyle(theme.text3.color).padding(.vertical, 8)
             } else {
                 // ADR-095: grouped by manager (one untitled group without Managers).
                 let groups = model.helpers.list.map { TeamRoster.grouped(found, in: $0) } ?? [("", found)]
@@ -805,7 +805,7 @@ private struct AllAgentsList: View {
                 .frame(height: min(330, CGFloat(found.count) * Self.rowHeight + CGFloat(groups.filter { !$0.title.isEmpty }.count) * Self.headerHeight))
             }
         }
-        .padding(14)
+        .padding(16)
         .frame(width: 440)
         .background(shape.fill(theme.surfaceSolid.color))
         .overlay(shape.strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
@@ -834,7 +834,7 @@ extension BoardPane {
 
     private var studioStatus: some View {
         let attention = BoardAttention(list: model.helpers.list, approvalPending: model.approval.pending != nil)
-        return HStack(spacing: 10) {
+        return HStack(spacing: 12) {
             Label("\(attention.running) working", systemImage: "circle.fill")
                 .foregroundStyle(theme.live.color)
             Text("·").foregroundStyle(theme.text3.color)
@@ -847,12 +847,12 @@ extension BoardPane {
                 .accessibilityLabel("Review items needing your attention, \(attention.total)")
         }
         .appFont(.system(size: 11.5, weight: .medium))
-        .padding(.horizontal, 3)
+        .padding(.horizontal, 4)
     }
     /// The Board's switch: what waits for Keshab first, with its count (Needs you and Issues moved here from the sidebar on
     /// 2026-10-15, and Issues became part of Needs you: ADR-116).
     fileprivate func boardTabs(waiting: Int, compact: Bool) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             ViewChoice(title: "Studio", symbol: "building.2", selected: model.boardView == .floor, compact: compact) { model.boardView = .floor }
             ViewChoice(title: "Needs you", symbol: "tray", selected: model.boardView == .needsYou, badge: waiting, compact: compact) { model.boardView = .needsYou }
             ViewChoice(title: "Tasks", symbol: "checklist", selected: model.boardView == .columns, compact: compact) { model.boardView = .columns }

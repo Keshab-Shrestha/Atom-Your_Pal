@@ -15,10 +15,10 @@ struct CheckpointSection: View {
     private var readyCount: Int { checkpoints.filter { $0.state == .ready }.count }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             Button { withAnimation(Motion.snap(reduceMotion)) { isOpen.toggle() } } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: isOpen ? "chevron.down" : "chevron.right").appFont(.system(size: 9, weight: .semibold))
+                HStack(spacing: 8) {
+                    Glyph(systemName: isOpen ? "chevron.down" : "chevron.right").appFont(.system(size: 9, weight: .semibold))
                     Text("File changes (\(checkpoints.count))").appFont(.system(size: 11.5, weight: .medium))
                 }
                 .foregroundStyle(theme.text3.color)

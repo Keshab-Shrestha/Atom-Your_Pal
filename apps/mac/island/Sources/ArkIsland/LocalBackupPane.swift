@@ -85,14 +85,14 @@ struct LocalBackupPane: View {
                 Button("Done") { dismiss() }.keyboardShortcut(.cancelAction)
             }
             Scrollable {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 16) {
                     Text("Cloud models stay primary. This temporary text conversation is discarded when you close it; copy anything you need.")
                         .foregroundStyle(theme.text2.color)
                     DisclosureGroup("Server configuration", isExpanded: $configurationOpen) {
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 12) {
                     SoulField(label: "Local API address (for example, http://127.0.0.1:1234/v1)", text: $endpoint, lines: 1)
                     SoulField(label: "Exact local model ID", text: $modelID, lines: 1)
-                    HStack(spacing: 10) {
+                    HStack(spacing: 12) {
                         Button("Save configuration") { perform("save", config: LocalBackupConfig(endpoint: endpoint, model: modelID)) }
                             .disabled(unavailable || client.response == nil || endpoint.isEmpty || modelID.isEmpty || !changed)
                         Button("Check server") { perform("probe") }
@@ -104,14 +104,14 @@ struct LocalBackupPane: View {
                         .appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
                     readiness
                     Button("Forget backup configuration…") { confirmForget = true }.disabled(unavailable || client.response == nil)
-                    }.padding(.top, 6)
+                    }.padding(.top, 8)
                     }
                     Divider()
                     Text("Temporary backup conversation").appFont(.system(size: 14, weight: .semibold))
                     Text("Only this panel's messages are included. Your server may retain or forward them. Cloud chats, notes, files and permissions stay separate.")
                         .appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
                     ForEach(Array((client.response?.turns ?? []).enumerated()), id: \.offset) { _, turn in
-                        VStack(alignment: .leading, spacing: 6) {
+                        VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Text(turn.role == "user" ? "You" : "Local backup · \(client.response?.config?.model ?? "")")
                                     .appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
@@ -121,7 +121,7 @@ struct LocalBackupPane: View {
                             }
                             Text(turn.content).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .padding(12).background(theme.fill1.color, in: RoundedRectangle(cornerRadius: 10))
+                        .padding(12).background(theme.fill1.color, in: RoundedRectangle(cornerRadius: Radius.card))
                     }
                     if let usage = client.response?.usage {
                         Text("Last answer: \(String(format: "%.2f", Double(usage.durationMs) / 1000)) s total · server-reported tokens: \(usage.input.map(String.init) ?? "unknown") input / \(usage.output.map(String.init) ?? "unknown") output. Non-streaming; this is completion time, not first-token latency.")

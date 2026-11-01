@@ -12,7 +12,7 @@ struct BrainSourcesPane: View {
 
     var body: some View {
         Scrollable {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 16) {
                 Text("Notes folder").appFont(.system(size: 17, weight: .semibold)).foregroundStyle(theme.text.color)
                 Text("Connect one folder of Markdown, text, PDF and Word (.docx) documents. Copies join your existing Second brain, search and links. Source files stay untouched. Imported text is reference material; it cannot grant permissions.")
                     .appFont(.system(size: 12.5)).foregroundStyle(theme.text2.color)

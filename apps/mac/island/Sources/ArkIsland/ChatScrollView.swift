@@ -31,7 +31,7 @@ struct ChatScrollView<Content: View>: View {
                 }
                 .buttonStyle(.borderless)
                 .appFont(.system(size: 12))
-                .padding(.vertical, 6)
+                .padding(.vertical, 8)
                 .accessibilityHint("Show the latest messages and follow new replies")
             }
         }

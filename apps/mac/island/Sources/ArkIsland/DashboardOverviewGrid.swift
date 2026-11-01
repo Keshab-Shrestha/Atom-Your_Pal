@@ -85,7 +85,7 @@ struct DashboardPanel<Content: View>: View {
         self.title = title; self.detail = detail; self.fillsHeight = fillsHeight; self.accessory = accessory; self.content = content()
     }
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             if let accessory {
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .top, spacing: 12) { labels; accessory }
@@ -96,11 +96,11 @@ struct DashboardPanel<Content: View>: View {
             content
         }.padding(.horizontal, 16).padding(.vertical, 12)
             .frame(maxWidth: .infinity, maxHeight: fillsHeight ? .infinity : nil, alignment: .topLeading)
-            .background(theme.isDark ? theme.fill2.color : Color.white, in: RoundedRectangle(cornerRadius: 12))
+            .background(theme.isDark ? theme.fill2.color : Color.white, in: RoundedRectangle(cornerRadius: Radius.card))
             .hoverLift(radius: 12)
     }
     private var labels: some View {
-        HStack(alignment: .center, spacing: 10) {
+        HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color)
                 if let detail { Text(detail).appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color) }
@@ -182,7 +182,7 @@ private struct DashboardTrendsPanel: View {
     var body: some View {
         DashboardPanel("Trends", detail: kind.detail, accessory: AnyView(
             DashboardTabStrip(titles: DashboardTrendKind.allCases.map(\.title), selected: kind.rawValue) { kind = DashboardTrendKind(rawValue: $0) ?? .tokens })) {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 12) {
                 DashboardTrend(days: usage.days, metric: metric, color: kind == .cacheReuse ? theme.success.color : theme.live.color)
             }
         }
@@ -208,11 +208,11 @@ struct DashboardTabStrip: View {
                 Button { withAnimation(Motion.settle(reduceMotion)) { select(index) } } label: {
                     Text(title).appFont(.system(size: 11.5, weight: selected == index ? .medium : .regular))
                         .foregroundStyle(selected == index ? theme.text.color : theme.text2.color)
-                        .padding(.horizontal, 10).padding(.vertical, 4)
+                        .padding(.horizontal, 12).padding(.vertical, 4)
                         .background {
                             // The selected pill slides to the new tab (Kobra's stretching focus ring), not a jump.
                             if selected == index {
-                                RoundedRectangle(cornerRadius: 6).fill(theme.isDark ? theme.fill1.color : Color.white)
+                                RoundedRectangle(cornerRadius: Radius.card).fill(theme.isDark ? theme.fill1.color : Color.white)
                                     .shadow(color: .black.opacity(theme.isFlat ? 0 : 0.12), radius: 2, y: 1)
                                     .matchedGeometryEffect(id: "pill", in: pill)
                             }
@@ -224,7 +224,7 @@ struct DashboardTabStrip: View {
                 .accessibilityAddTraits(selected == index ? .isSelected : [])
             }
         }
-        .padding(2).background(theme.fill3.color, in: RoundedRectangle(cornerRadius: 8))
+        .padding(2).background(theme.fill3.color, in: RoundedRectangle(cornerRadius: Radius.card))
     }
 }
 
@@ -251,7 +251,7 @@ struct DashboardRecentTurns: View {
         DashboardPanel(mode == .turns ? "Recent turns" : "Usage details",
                        detail: mode == .turns ? "Last \(bars.count) · input and output tokens" : "Last 7 days · accounting", fillsHeight: fitted,
                        accessory: AnyView(DashboardTabStrip(titles: Mode.allCases.map(\.title), selected: mode.rawValue) { mode = Mode(rawValue: $0) ?? .turns })) {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 12) {
                 if fitted {
                     Scrollable { selectedBody(bars) }.frame(maxHeight: .infinity)
                 } else { selectedBody(bars) }
@@ -270,10 +270,10 @@ struct DashboardRecentTurns: View {
         if bars.isEmpty {
             PanelNote(text: "No recent turns recorded yet.")
         } else {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 12) {
                 ForEach(Array(bars.enumerated()), id: \.offset) { _, bar in
                     VStack(alignment: .leading, spacing: 4) {
-                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Text(bar.model).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2)).lineLimit(1)
                             Spacer(minLength: 4)
                             Text(bar.tokensText).appFont(.system(size: 12, weight: .semibold)).monospacedDigit().foregroundStyle(theme.text.color)
@@ -345,7 +345,7 @@ struct DashboardRecentTurns: View {
         }
         ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
             VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(row.name).appFont(identifier ? theme.appIdentifierFont(.system(size: 11), size: 10.5) : .system(size: 11.5))
                         .foregroundStyle(identifier ? theme.idColor(theme.text2) : theme.text.color).lineLimit(1)
                     Spacer(minLength: 4)
@@ -361,7 +361,7 @@ struct DashboardRecentTurns: View {
     }
 
     private func legend(_ title: String, _ color: Color) -> some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 4) {
             Circle().fill(color).frame(width: 6, height: 6)
             Text(title).appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)
         }.accessibilityHidden(true)
@@ -375,12 +375,12 @@ struct PanelNote: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "circle.dashed").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color).accessibilityHidden(true)
+            Glyph(systemName: "circle.dashed").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color).accessibilityHidden(true)
             Text(text).appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.horizontal, 12).padding(.vertical, 10)
+        .padding(.horizontal, 12).padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(theme.fill3.color.opacity(0.5), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(theme.fill3.color.opacity(0.5), in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 }
 

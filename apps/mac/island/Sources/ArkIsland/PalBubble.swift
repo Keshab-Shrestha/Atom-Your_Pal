@@ -102,7 +102,7 @@ struct BubbleView: View {
         let tone = BubbleTone(model.status.kind)
         let tailAnchor = UnitPoint(x: state.tailX / size.width, y: state.tailOnTop ? 0 : 1)
         BubbleContent(model: model)
-            .padding(.horizontal, 18)
+            .padding(.horizontal, 16)
             .padding(.top, state.tailOnTop ? tail : 0)
             .padding(.bottom, state.tailOnTop ? 0 : tail)
             .frame(width: size.width, height: size.height)
@@ -184,7 +184,7 @@ private struct BubbleContent: View {
 
     var body: some View {
         let status = model.status
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             mark(status.kind)
             VStack(alignment: .leading, spacing: 2) {
                 if let target = model.pointing.target {
@@ -236,7 +236,7 @@ private struct BubbleContent: View {
         case .notice, .asking: GlowDot(color: theme.attention.color)
         case .problem: GlowDot(color: theme.problem.color)
         case .ready:
-            Image(systemName: "checkmark").appFont(.system(size: 11, weight: .bold)).foregroundStyle(theme.accent.color)
+            Glyph(systemName: "checkmark").appFont(.system(size: 11, weight: .bold)).foregroundStyle(theme.accent.color)
         default: EmptyView()
         }
     }

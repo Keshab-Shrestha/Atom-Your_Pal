@@ -37,7 +37,7 @@ struct SettingsTab: View {
                 }
             }
             .padding(.horizontal, Spacing.panel)
-            .padding(.top, 10)
+            .padding(.top, 12)
             .padding(.bottom, Spacing.panel)
         }
         .onAppear { model.settingsCascaded = true }
@@ -64,7 +64,7 @@ struct SettingsTab: View {
 
     /// The page's glyph in a tinted tile, its name and what it is for.
     private func pageHeader(_ page: IslandModel.SettingsPage) -> some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(page.rawValue).appFont(.system(size: 20, weight: .medium)).foregroundStyle(theme.text.color)
                     .accessibilityAddTraits(.isHeader)
@@ -140,7 +140,7 @@ private struct PageRow: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: Self.spacing) {
-                Image(systemName: page.symbol)
+                Glyph(systemName: page.symbol)
                     .appFont(.system(size: 13))
                     .foregroundStyle(hovering.wrappedValue ? theme.text.color : theme.text2.color)
                     .frame(width: Self.glyphWidth)
@@ -154,7 +154,7 @@ private struct PageRow: View {
                     .foregroundStyle(theme.text2.color)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                Image(systemName: "chevron.right")
+                Glyph(systemName: "chevron.right")
                     .appFont(.system(size: 9.5, weight: .bold))
                     .foregroundStyle(theme.text3.color)
             }

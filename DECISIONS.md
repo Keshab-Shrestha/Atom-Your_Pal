@@ -3846,3 +3846,29 @@ Accepted. Keshab chose a full rename: code names, the bundle id and the history 
 - A key saved in the Keychain for the optional Jev decision engine is under the old service name. Enter it again in Settings.
 - Tools that call ARK's MCP server or Local API by the old `atom_*` tool names must use the `ark_*` names.
 - The repository folder and the GitHub repository keep their names.
+
+## ADR-214 — Redesign: tone steps, one type scale, square cards and round pills (2026-11-01)
+
+### Status
+
+Accepted. Keshab: "it still looks like a slop … the color, the spacing, the padding, margin all are way off … there are way many round figures also improve the icon". References: Arc Library (kuratlielia/arc-library, MIT) for its neutral tone scale and 4 px spacing, and taste-skill (Leonxlnx/taste-skill, MIT) for its list of generated-UI tells. No code is copied from either.
+
+### Context
+
+A count before the change: 12 corner radii, 58 circles, 72 capsules, 85 outlined borders, 29 shadows, 38 font sizes and 25 padding values.
+
+### Decision
+
+1. Colour: every theme comes from one builder (`ThemeTones.swift`). A theme is a hue, a small surface chroma and one accent. Lanes, fills and text sit at fixed OKLCH lightness, so all seven themes have the same tone steps. All seven themes stay (Keshab's choice).
+2. Edges are tone, not lines: cards are one tone step above the page, with no outline. Separators are faint. There are no shadows, glows, glass, mono labels or decorative status dots.
+3. Corners: square cards and round pills (Keshab's choice). Cards, fields, bubbles and boxes have a 4 pt corner (`Radius.card`); the window has 8 pt; pills stay `Capsule()`.
+4. Type: five sizes (11, 13, 15, 20, 28). `AppFont.system(size:)` snaps every requested size to this scale.
+5. Spacing: every padding and stack spacing is on a 4 pt grid. Turns in a chat are 24 pt apart.
+6. Icons: `Glyph(systemName:)` replaces `Image(systemName:)` in the app. It draws Flaticon's UIcons (Regular Rounded) when that font is on the Mac, else the SF Symbol.
+7. The UIcons font is not in git. The Flaticon License is free with credit and non-transferable, so each Mac downloads its own copy (`scripts/setup.sh`, into the git-ignored `assets/fonts/vendor/`). Settings → Appearance shows the credit. The visual check sets `ARK_UICONS=0`, so its golden shots match on every Mac.
+8. App icon: an arch on one warm bar, on a flat graphite tile, with no gradient, glow, ring or shadow.
+
+### Consequences
+
+- The look changes everywhere. The golden UI shots are made again from the committed code.
+- A Mac that did not run `scripts/setup.sh` shows SF Symbols.
