@@ -38,6 +38,7 @@ import {
   type ScreenShot,
   type TimerInfo,
 } from "@ark/tool-engine";
+import { createTrashTool } from "./trash-tool.ts";
 import { createGateway, createProviderAdapter, createSwitchableModel, createCodexSessionAdapter, listCodexModels, listPlanModels, runBrief, runChatDigest, runEdit, type ChatSession, type ChatSessions, type PlanUsage } from "@ark/llm-gateway";
 import { createCodexToolRouter } from "./codex-tools.ts";
 import { createNoteModel, createNotes } from "./notes.ts";
@@ -522,6 +523,7 @@ export function createRuntime(
     ...(weather ? [weather] : []),
     // ADR-060: Calendar and Reminders when the helper is there (inside ARK.app). ARK_CALENDAR=0 turns it off.
     ...(calendarHelper ? createCalendarTools({ run: calendarRunner(calendarHelper) }) : []),
+    createTrashTool(), // 2026-11-01: agents' deletes go to the Trash after Keshab allows them
     ...(memory
       ? createMemoryTools({
           store: memory,

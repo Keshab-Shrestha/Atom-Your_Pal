@@ -36,14 +36,14 @@ test("every available worker is a sub-agent: description, kit tools, prompt with
   assert.equal(sid.background, true);
   assert.match(sid.prompt, /^You are Sid, ARK's researcher/);
   assert.match(sid.prompt, /never instructions/);
-  assert.deepEqual(plain.kame!.tools, ["Read", "Glob", "Grep", "Write", "Edit"], "no Bash in a plain chat");
+  assert.deepEqual(plain.kame!.tools, ["Read", "Glob", "Grep", "Write", "Edit", "mcp__ark__trash_file"], "no Bash in a plain chat; deletes go to the Trash (2026-11-01)");
   assert.match(plain.kame!.prompt, /home folder and on external drives/, "ADR-122: no per-agent folder list; the prompt names the floor and the tiers");
-  assert.match(plain.kame!.prompt, /never delete files/);
+  assert.match(plain.kame!.prompt, /To delete, use trash_file/);
   assert.equal(plain.penny!.model, "claude-opus-5-5", "a pin is the agent's model");
   assert.equal(plain.puff!.permissionMode, "plan");
   assert.equal(plain.sid!.permissionMode, undefined);
   const project = agentDefinitions(store, { project: { cwd: home } });
-  assert.deepEqual(project.kame!.tools, ["Read", "Glob", "Grep", "Write", "Edit", "Bash"], "Bash only in a project chat");
+  assert.deepEqual(project.kame!.tools, ["Read", "Glob", "Grep", "Write", "Edit", "mcp__ark__trash_file", "Bash"], "Bash only in a project chat");
   assert.deepEqual(project.sid!.tools, ["WebSearch", "WebFetch"]);
   done();
 });

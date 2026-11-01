@@ -30,7 +30,7 @@ test("explicit chat approval survives a new task; other files, other chats, revo
     assert.equal(asks, 4, "revocation affects the next edit");
     const secret = join(home, ".ssh", "id_test");
     permissions.grant(secret);
-    assert.ok(await check()("Read", { file_path: secret }), "an explicit grant cannot bypass the floor");
+    assert.equal(await check()("Read", { file_path: secret }), undefined, "since 2026-11-01 a chat grant covers a protected file too");
   } finally { memory.close(); rmSync(home, { recursive: true, force: true }); }
 });
 
@@ -50,7 +50,7 @@ test("allowing one edit does not grant a later task access", async () => {
 
 // Task 3.11: every tool call of a run in folders, checked in code; risky commands ask on Pal's card.
 
-test("paths outside are refused, risky commands ask, refused ones never ask; the log keeps verdicts only", async () => {
+test("protected paths ask, risky commands ask, refused ones never ask; the log keeps verdicts only", async () => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "ark-run-")));
   try {
     const asked: string[] = [];
@@ -64,14 +64,16 @@ test("paths outside are refused, risky commands ask, refused ones never ask; the
       onCheck: (e) => logged.push(e),
     });
     assert.equal(await check("Edit", { file_path: join(root, "a.ts") }), undefined);
-    assert.match((await check("Read", { file_path: "/etc/passwd" }))!, /outside your home folder/);
-    assert.match((await check("Write", { file_path: join(root, ".git") }))!, /commit explicitly in Terminal/);
-    assert.match((await check("Bash", { command: "git push" }))!, /never done/);
-    assert.match((await check("Bash", { command: "rm -rf build" }))!, /Deleting is never done/);
     answer = false;
+    assert.match((await check("Read", { file_path: "/etc/passwd" }))!, /did not allow this file/);
+    assert.match((await check("Write", { file_path: join(root, ".git") }))!, /did not allow this file/);
+    assert.match((await check("Bash", { command: "git push" }))!, /never done/);
+    assert.match((await check("Bash", { command: "rm -rf build" }))!, /trash_file/);
     assert.match((await check("Bash", { command: "npm install x" }))!, /did not allow/);
-    assert.deepEqual(asked, ["Kame wants to run: npm install x"]);
-    assert.deepEqual(logged.map((e) => (e as { verdict: string }).verdict), ["allowed", "refused", "refused", "refused", "refused", "asked", "declined"]);
+    assert.equal(asked.length, 3);
+    assert.match(asked[0]!, /^Kame wants to read a protected file: (?:\/private)?\/etc\/passwd$/);
+    assert.equal(asked[2], "Kame wants to run: npm install x");
+    assert.deepEqual(logged.map((e) => (e as { verdict: string }).verdict), ["allowed", "asked", "declined", "asked", "declined", "refused", "refused", "asked", "declined"]);
     assert.ok(!JSON.stringify(logged).includes("passwd") && !JSON.stringify(logged).includes("npm"), "no paths or commands in the log");
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -122,7 +124,7 @@ test("before runs only for file-changing tools whose paths passed; a throw does 
       roots: [root],
       cwd: root,
       name: "Kame",
-      approve: async () => true,
+      approve: async () => false,
       before: (tool, paths) => {
         seen.push([tool, paths]);
         if (boom) throw new Error("disk full");
@@ -136,8 +138,8 @@ test("before runs only for file-changing tools whose paths passed; a throw does 
     assert.equal(await check("Read", { file_path: join(root, "a.ts") }), undefined);
     assert.equal(await check("Grep", { pattern: "x", path: root }), undefined);
     assert.equal(await check("Bash", { command: "ls" }), undefined);
-    assert.match((await check("Write", { file_path: "/etc/passwd" }))!, /outside your home folder/);
-    assert.match((await check("Write", { file_path: join(root, ".git", "x") }))!, /commit explicitly in Terminal/);
+    assert.match((await check("Write", { file_path: "/etc/passwd" }))!, /did not allow this file/);
+    assert.match((await check("Write", { file_path: join(root, ".git", "x") }))!, /did not allow this file/);
     assert.deepEqual(seen, [
       ["Write", [join(root, "a.ts")]],
       ["Edit", [join(root, "rel.ts")]],
@@ -336,16 +338,16 @@ test("a folder question answered late (inside 10 minutes) is allowed; stopping t
 
 // 2026-10-15 (security review): a folders agent had no secret-file check (only the project chat had), so a granted folder that held
 // ARK's own data or a .env let it read the API token and the databases, or write over the token.
-test("a folders agent never opens .env files, keys, the API token or ARK's databases, even inside its granted folder", async () => {
+test("a folders agent asks before .env files, keys, the API token or ARK's databases, even inside its granted folder", async () => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "ark-secret-")));
   try {
     mkdirSync(join(root, "data"));
-    const check = folderCheck({ roots: [root], cwd: root, name: "Kame", home: "/Users/nobody", approve: async () => true });
+    const check = folderCheck({ roots: [root], cwd: root, name: "Kame", home: "/Users/nobody", approve: async () => false });
     for (const [tool, file] of [
       ["Read", ".env"], ["Read", ".env.local"], ["Read", "data/api-token"], ["Read", "data/helpers.db"], ["Grep", "data/memory.db-wal"],
       ["Write", "data/api-token"], ["Edit", "keys/server.pem"], ["Read", "id_rsa"],
     ] as const) {
-      assert.match((await check(tool, { file_path: join(root, file), path: join(root, file) }))!, /Secret files and key folders/, `${tool} ${file}`);
+      assert.match((await check(tool, { file_path: join(root, file), path: join(root, file) }))!, /did not allow this file/, `${tool} ${file}`);
     }
     assert.equal(await check("Read", { file_path: join(root, "src", "a.ts") }), undefined, "an ordinary file is fine");
     assert.equal(await check("Write", { file_path: join(root, "data", "notes.md") }), undefined, "other files in data/ are fine");
@@ -406,12 +408,12 @@ test("tiers: more than 200 files outside the task's folder asks once more", asyn
 });
 
 // ADR-123: a file that holds a secret is not read; an edit card says what will change.
-test("a file that holds a secret shape is not read; an ordinary file is", async () => {
+test("a file that holds a secret shape asks before it is read; an ordinary file does not", async () => {
   const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-sec-")));
   try {
     mkdirSync(join(home, "Documents"), { recursive: true });
     const write = (name: string, text: string) => (writeFileSync(join(home, "Documents", name), text), join(home, "Documents", name));
-    const check = folderCheck({ roots: [], home, cwd: join(home, "Documents"), name: "Sid", approve: async () => true });
+    const check = folderCheck({ roots: [], home, cwd: join(home, "Documents"), name: "Sid", approve: async () => false });
     const secrets = {
       "key.txt": "-----BEGIN OPENSSH PRIVATE KEY-----\nabc",
       "a.md": "my key is sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789",
@@ -421,7 +423,7 @@ test("a file that holds a secret shape is not read; an ordinary file is", async 
     };
     for (const [name, text] of Object.entries(secrets)) {
       assert.ok(holdsSecret(write(name, text)), name);
-      assert.match((await check("Read", { file_path: join(home, "Documents", name) })) ?? "", /holds a secret/, name);
+      assert.match((await check("Read", { file_path: join(home, "Documents", name) })) ?? "", /did not allow this file/, name);
     }
     for (const [name, text] of [["ok.md", "# Notes\nsk-short and ghp_ nothing here"], ["hash.txt", "a".repeat(64)]] as const) {
       assert.equal(holdsSecret(write(name, text)), false, name);
@@ -457,7 +459,7 @@ test("~ paths, climbing patterns and Grep content outside the task's folder are 
     const proj = join(home, "Developer", "app");
     mkdirSync(proj, { recursive: true });
     mkdirSync(join(home, "Documents"), { recursive: true });
-    const inProject = folderCheck({ roots: [proj], home, cwd: proj, name: "Kame", approve: async () => true });
+    const inProject = folderCheck({ roots: [proj], home, cwd: proj, name: "Kame", approve: async () => false });
     for (const bad of ["~/.zshrc", "~/.ssh/authorized_keys", "$HOME/.ssh/x"]) {
       assert.ok(await inProject("Write", { file_path: bad }), `Write ${bad}`);
       assert.ok(await inProject("Read", { file_path: bad }), `Read ${bad}`);
@@ -471,14 +473,14 @@ test("~ paths, climbing patterns and Grep content outside the task's folder are 
     // The strings are built at run time: a key-shaped literal in the source is refused by GitHub push protection.
     for (const [name, text] of [["s1", ["sk_", "live_", "abcdefghijklmnopqrstuvwx"].join("")], ["s2", ["npm_", "abcdefghijklmnopqrstuvwxyz0123456789"].join("")], ["s3", ["glpat", "-abcdefghijklmnopqrstu"].join("")], ["s4", ["eyJhbGciOiJIUzI1NiJ9", "eyJzdWIiOiIxMjM0NTY3ODkwIn0", "abcdefghijklmnop"].join(".")]] as const) {
       writeFileSync(join(proj, name), text);
-      assert.match((await inProject("Read", { file_path: join(proj, name) })) ?? "", /holds a secret/, name);
+      assert.match((await inProject("Read", { file_path: join(proj, name) })) ?? "", /did not allow this file/, name);
     }
   } finally {
     rmSync(home, { recursive: true, force: true });
   }
 });
 
-test("Full access skips overwrite/install cards without creating grants or bypassing floors, resource caps and cancellation", async () => {
+test("Full access skips overwrite, install and protected-place cards without creating grants or bypassing resource caps and cancellation", async () => {
   const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-full-files-")));
   const memory = openMemoryStore({ path: ":memory:" });
   const path = join(home, "page.txt"); writeFileSync(path, "old");
@@ -490,7 +492,8 @@ test("Full access skips overwrite/install cards without creating grants or bypas
     assert.equal(await check("Write", { file_path: path, content: "new" }), undefined);
     assert.equal(await check("Bash", { command: "pnpm install" }), undefined);
     assert.equal(asks, 0); assert.equal(checkpoints, 1); assert.deepEqual(memory.filePermissions.forChat("chat").list(), []);
-    assert.ok(await check("Write", { file_path: join(home, ".ssh", "id_test"), content: "no" }));
+    assert.equal(await check("Write", { file_path: join(home, ".ssh", "id_test"), content: "yes" }), undefined, "Keshab, 2026-11-01: Full access skips protected places too");
+    assert.equal(checkpoints, 2);
     assert.ok(await check("Bash", { command: "sudo true" })); assert.ok(await check("Bash", { command: "git push origin main" }));
     assert.ok(await check("Bash", { command: "rm page.txt" })); assert.equal(asks, 0);
     state.written = new Set(Array.from({ length: MAX_OUTSIDE_WRITES }, (_, i) => join(home, `other-${i}`)));
@@ -498,6 +501,6 @@ test("Full access skips overwrite/install cards without creating grants or bypas
     state.written.clear(); full = false;
     assert.ok(await check("Write", { file_path: path, content: "new" })); assert.equal(asks, 2, "switching back restores existing-file consent");
     full = true; stopped = true;
-    assert.ok(await check("Write", { file_path: path, content: "new" })); assert.equal(checkpoints, 1);
+    assert.ok(await check("Write", { file_path: path, content: "new" })); assert.equal(checkpoints, 2);
   } finally { memory.close(); rmSync(home, { recursive: true, force: true }); }
 });

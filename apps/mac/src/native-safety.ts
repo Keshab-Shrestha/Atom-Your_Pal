@@ -8,7 +8,8 @@ import type { FilePermissionScope } from "@ark/memory";
 import type { FileApproval } from "./computer-bridge.ts";
 import { TOOL_SERVER, MAX_PROJECT_FILE_CALLS, redact } from "@ark/llm-gateway";
 import { BROWSER_SERVER, browserCheck } from "./browser.ts";
-import { checkpointBefore, folderCheck, newFolderMemory, type FolderMemory } from "./folder-run.ts";
+import { TRASH_CALL, checkpointBefore, folderCheck, newFolderMemory, type FolderMemory } from "./folder-run.ts";
+import { TRASH_TOOL } from "./trash-tool.ts";
 import { mcpCheck } from "./mcp-servers.ts";
 import { webFetchProblem } from "./web-guard.ts";
 import { grantedServers, kitTools, nativeMembers } from "./native-agents.ts";
@@ -286,6 +287,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
     if (name === "AskUserQuestion") return deny("Use ARK's ask_user tool for a clarification card in the foreground window, or ask in your reply. This does not grant file/system access.");
     if (name.startsWith(`mcp__${TOOL_SERVER}__`)) {
       const bare = name.slice(`mcp__${TOOL_SERVER}__`.length);
+      if (bare === TRASH_TOOL) return deny("Hand deletes to an agent with the folders kit: it asks Keshab and moves the file to the Trash.");
       if (tainted.has("main") && TAINT_REFUSED_TOOLS.has(bare)) return log("taint.refused", { tool: bare }), deny(taintNote("main"));
       return { allow: true, input };
     }
@@ -338,7 +340,8 @@ export function nativeGate(scope: NativeScope): NativeGate {
       if (team.hostBrowser && member.planFirst && !planApproved.has(agentId)) return say("refused"), deny("Approve this worker's plan with ExitPlanMode before using its browser.");
       return browserCall(member, job, name, input, agentId);
     }
-    if (name.startsWith("mcp__")) {
+    const trash = name === `mcp__${TOOL_SERVER}__${TRASH_TOOL}`;
+    if (name.startsWith("mcp__") && !trash) {
       if (team.hostMcp && member.planFirst && !planApproved.has(agentId)) return say("refused"), deny("Approve this worker's plan with ExitPlanMode before calling an external MCP tool.");
       const servers = member.kit === "think" ? [] : grantedServers(team.helpers.mcpServers(), member.id);
       const preview = team.hostMcp ? redact(JSON.stringify(input)) : "";
@@ -381,7 +384,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
       const problem = webFetchProblem(input.url, { tainted: isTainted(agentId) });
       if (problem) return say("refused"), deny(problem);
     }
-    if (!FILE_TOOLS.includes(name)) return { allow: true, input }; // WebSearch, WebFetch, ToolSearch
+    if (!FILE_TOOLS.includes(name) && !trash) return { allow: true, input }; // WebSearch, WebFetch, ToolSearch
     if (name === "Bash" && input.dangerouslyDisableSandbox) return say("refused"), deny("Commands always run in the sandbox.");
     const tree = job !== undefined ? work.get(job) : undefined;
     // ADR-122: no per-agent folders. The task's own folder (a project, a worktree) is free to write; everywhere else follows the floor and the tiers.
@@ -407,7 +410,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
           }
         : {}),
     });
-    const problem = await check(name, input);
+    const problem = await check(trash ? TRASH_CALL : name, input);
     return problem ? deny(problem) : { allow: true, input };
   };
 

@@ -102,6 +102,9 @@ function preview(name: string, input: Record<string, unknown>): string {
 const shortPath = (real: string, home: string) => (isInside(realish(home), real) ? `~${real.slice(realish(home).length)}` : real);
 const oneLine = (s: string, max: number) => (s.replace(/\s+/g, " ").trim().length > max ? `${s.replace(/\s+/g, " ").trim().slice(0, max - 1)}…` : s.replace(/\s+/g, " ").trim());
 
+/** The name `folderCheck` gets for the trash_file tool (2026-11-01). */
+export const TRASH_CALL = "Trash";
+
 /** The `check` a file run's tool calls go through: why a call is refused, or undefined to allow it. */
 export function folderCheck(options: FolderCheckOptions) {
   const roots = options.roots.map((r) => realish(r));
@@ -122,9 +125,12 @@ export function folderCheck(options: FolderCheckOptions) {
       }
       return say(name, "allowed"), undefined;
     }
-    const writing = WRITE_TOOLS.includes(name);
+    // 2026-11-01 (Keshab: "ask and give any permission, like Claude Code"): `Trash` is the trash_file tool, a write that removes a file.
+    const trashing = name === TRASH_CALL;
+    const writing = WRITE_TOOLS.includes(name) || trashing;
     // "~/x" is the home folder's x, as a shell reads it: expanded here, before every check, so it cannot pass as a path inside the task's folder.
-    const paths = toolPaths(name, input).map((p) => expandHome(p, home));
+    const paths = (trashing ? (typeof input.path === "string" && input.path ? [input.path] : []) : toolPaths(name, input)).map((p) => expandHome(p, home));
+    if (trashing && !paths.length) return say(name, "refused"), "Name the file or folder to move to the Trash.";
     // A pattern may climb out of the folder or name a variable: never checked, so never used.
     for (const key of ["pattern", "glob"]) {
       const value = input[key];
@@ -140,14 +146,33 @@ export function folderCheck(options: FolderCheckOptions) {
     // A search with no path searches the working folder: never the whole home folder (it holds ~/Library and every hidden folder).
     if ((name === "Glob" || name === "Grep") && !paths.length && realish(options.cwd) === realish(home)) return say(name, "refused"), "Search inside a folder, not the whole home folder.";
     for (const p of paths) {
-      // ADR-122: the same floor for every agent; no per-agent folders.
-      const problem = floorProblem(home, roots, options.cwd, p, writing);
-      if (problem) return say(name, "refused"), problem;
+      if (/[$`]/.test(p)) return say(name, "refused"), "A path with $ or a backtick in it cannot be checked, so it is not used. Write the whole path.";
       const target = realish(isAbsolute(p) ? p : resolve(options.cwd, p));
       if ((name === "Glob" || name === "Grep") && target === realish(home)) return say(name, "refused"), "Search inside a folder, not the whole home folder.";
-      // 2026-10-15 (security review): a folder that holds ARK's own data (or any .env or key) let a folders agent read the API token and the databases.
-      if (isSecretLike(target, home) || isSecretLike(resolve(options.cwd, p), home)) return say(name, "refused"), "Secret files and key folders are never opened by an agent.";
-      if (name === "Read" && holdsSecret(target)) return say(name, "refused"), "This file holds a secret (an API key, a token or a private key), so an agent does not read it. Say in the report that you skipped it.";
+      // ADR-122's floor and the secret checks (2026-10-15) used to refuse. Since 2026-11-01 they ask, with the exact path: Allow can cover the
+      // rest of the chat, and Full access skips the question.
+      const problem = floorProblem(home, roots, options.cwd, p, writing)
+        ?? (isSecretLike(target, home) || isSecretLike(resolve(options.cwd, p), home) ? "It is a secret file or a key folder." : undefined)
+        ?? (name === "Read" && holdsSecret(target) ? "It holds a secret (an API key, a token or a private key)." : undefined);
+      if (!problem || options.fullAccess?.() || options.permissions?.has(target) || options.memory?.approved.has(target)) continue;
+      say(name, "asked");
+      const request = { summary: `${options.name} wants to ${writing ? "change" : "read"} a protected file: ${shortPath(target, home)}`, reason: `${problem} ${name} ${shortPath(target, home)}.` };
+      const ok = options.approveFile ? await options.approveFile(request) : await options.approve(request);
+      if (options.cancelled?.()) return stopped;
+      if (!ok) return say(name, "declined"), "Keshab did not allow this file. Do the job without it, or say in the report what is needed.";
+      if (ok === "chat" && options.permissions) options.permissions.grant(target);
+      else options.memory?.approved.add(target);
+    }
+    if (trashing) {
+      // Every delete asks (once per call), unless the chat is in Full access. The tool moves the item to the macOS Trash.
+      const target = realish(isAbsolute(paths[0]!) ? paths[0]! : resolve(options.cwd, paths[0]!));
+      if (!options.fullAccess?.()) {
+        say(name, "asked");
+        const ok = await options.approve({ summary: `${options.name} wants to move ${shortPath(target, home)} to the Trash`, reason: "You can put it back from the Trash in Finder." });
+        if (options.cancelled?.()) return stopped;
+        if (!ok) return say(name, "declined"), "Keshab did not allow this delete. Leave the file, or say in the report what should go.";
+      }
+      return say(name, "allowed"), undefined;
     }
     if (writing) {
       // ADR-123: a new file is free; an edit or overwrite of a file that exists asks Keshab once per file. Inside the task's own folders it is free

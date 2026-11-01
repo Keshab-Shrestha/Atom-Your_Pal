@@ -196,12 +196,12 @@ const DELETE_AND_HARM: [RegExp, string][] = [
   // 2026-10-16 (security review): a regex list cannot be complete, so the common ways round it are closed too: the command anywhere as a word (not only
   // after a separator), a backslash or full path before it, inline code in a shell or an interpreter, and the delete calls of the usual languages.
   // The real limits are the sandbox (writes only in the project folder, no network) and the copies kept for undo.
-  [/(?<![\w.\-])\\?(?:\/(?:usr\/)?(?:local\/)?bin\/)?(?:rm|rmdir|unlink|trash|shred|srm)(?=\s|$|;|&|\|)/, "Deleting is never done by an agent: Keshab deletes in Finder."],
+  [/(?<![\w.\-])\\?(?:\/(?:usr\/)?(?:local\/)?bin\/)?(?:rm|rmdir|unlink|trash|shred|srm)(?=\s|$|;|&|\|)/, "Commands do not delete files. Use the trash_file tool: it asks Keshab and moves the file to the Trash."],
   [/(?<![\w.\-])(?:sh|bash|zsh|dash|ksh|fish)\s+(?:-[a-zA-Z]*c\b|--command)|(?<![\w.\-])eval\s|(?<![\w.\-])(?:node|nodejs|deno|bun)\s+(?:-e\b|--eval\b|-p\b|--print\b)|(?<![\w.\-])python[0-9.]*\s+-[a-zA-Z]*c\b|(?<![\w.\-])(?:perl|ruby|php)\s+-[a-zA-Z]*[er]\b/, "Run a script file, not inline code: inline code cannot be checked."],
-  [/\b(?:rmSync|unlinkSync|rmdirSync|fs\.rm|fs\.unlink|fs\.rmdir|rmtree|os\.remove|os\.unlink|os\.rmdir|shutil\.rmtree|FileUtils\.rm|File\.delete|Files\.delete|unlink\s*\()/, "Deleting is never done by an agent: Keshab deletes in Finder."],
+  [/\b(?:rmSync|unlinkSync|rmdirSync|fs\.rm|fs\.unlink|fs\.rmdir|rmtree|os\.remove|os\.unlink|os\.rmdir|shutil\.rmtree|FileUtils\.rm|File\.delete|Files\.delete|unlink\s*\()/, "Commands do not delete files. Use the trash_file tool: it asks Keshab and moves the file to the Trash."],
   [/\bmv\b[^\n;|&]*\/dev\/null|(?<![\w.\-])truncate\s/, "Emptying files is never done by an agent."],
   [new RegExp(`${GIT}(?:stash\\s+(?:clear|drop)|worktree\\s+(?:remove|prune)|gc\\s+--prune|reflog\\s+expire|prune\\b|replace\\b)`), "That git command throws work away and is never run by an agent."],
-  [/(?:^|[;&|(\n]\s*|\b(?:env|xargs|command|exec|nohup|time|sudo)\s+)(?:rm|rmdir|unlink|trash|shred|srm)\b|\bfind\b[^\n;|&]*(?:-delete\b|-exec\s+(?:rm|rmdir|unlink)\b)/, "Deleting is never done by an agent: Keshab deletes in Finder."],
+  [/(?:^|[;&|(\n]\s*|\b(?:env|xargs|command|exec|nohup|time|sudo)\s+)(?:rm|rmdir|unlink|trash|shred|srm)\b|\bfind\b[^\n;|&]*(?:-delete\b|-exec\s+(?:rm|rmdir|unlink)\b)/, "Commands do not delete files. Use the trash_file tool: it asks Keshab and moves the file to the Trash."],
   [new RegExp(`${GIT}(?:clean|rm)\\b|${GIT}branch\\s+(?:-[dD]|--delete)\\b`), "Deleting files or branches is never done by an agent."],
   [/(?:^|[;&|(\n]\s*|\b(?:env|xargs|command|exec|nohup|time)\s+)(?:dd|mkfs\S*|diskutil|hdiutil|fdisk|newfs\S*|chown|chgrp|kill|killall|pkill|shutdown|reboot|halt|pmset|networksetup|scutil|csrutil|spctl|tccutil|nvram|systemsetup|dscl|fdesetup)\b/, "That command changes the system and is never run by an agent."],
   [/\bchmod\s+(?:-[a-zA-Z]*R[a-zA-Z]*|--recursive)\b/, "Changing permissions of whole folders is never done by an agent."],

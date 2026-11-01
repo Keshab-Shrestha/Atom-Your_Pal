@@ -124,7 +124,7 @@ test("Full access performs an actual worker overwrite without creating a continu
   const path = join(home, "page.txt"); writeFileSync(path, "old");
   let mode: import("@ark/contracts").ChatAccessMode = "full", cards = 0;
   const fake = fakeCodex(async ({ call }) => {
-    assert.equal((await call("ark_Write", { file_path: join(home, ".ssh", "id_test"), content: "refused" })).success, false);
+    assert.equal((await call("ark_Write", { file_path: join(home, ".ssh", "id_test"), content: "protected" })).success, mode === "full", "a protected place asks; Full access skips it (2026-11-01)");
     const out = await call("ark_Write", { file_path: path, content: "full draft" });
     assert.equal(out.success, mode === "full"); return out.success ? "saved" : "declined";
   });
@@ -141,6 +141,6 @@ test("Full access performs an actual worker overwrite without creating a continu
     assert.ok(helpers.list().flatMap((h) => h.jobs).every((j) => j.state === "done"));
     mode = "checked";
     await router.forRequest({ ...request(), access: mode }).run(call);
-    assert.equal(cards, 1); assert.equal(readFileSync(path, "utf8"), "full draft");
+    assert.equal(cards, 2, "the protected file and the overwrite each ask"); assert.equal(readFileSync(path, "utf8"), "full draft");
   } finally { router.close(); helpers.close(); memory.close(); rmSync(home, { recursive: true, force: true }); }
 });
