@@ -4,7 +4,7 @@ import type { Message, ProjectFiles, ToolRunner } from "@ark/contracts";
 import { answerTail, MAX_PROJECT_FILE_CALLS, type ChatSession, type SessionSdk } from "@ark/llm-gateway";
 import { openHelperStore } from "@ark/helpers";
 import { openMemoryStore } from "@ark/memory";
-import { CODEX_SYSTEM_PROMPT, CONTEXT_LABEL, createNativeCore, NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT, TYPED_NOTE, type NativeCoreDeps } from "./native-core.ts";
+import { CODEX_SYSTEM_PROMPT, CONTEXT_LABEL, PLAIN_SYSTEM_PROMPT, createNativeCore, NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT, TYPED_NOTE, type NativeCoreDeps } from "./native-core.ts";
 import { nativeGate } from "./native-safety.ts";
 import { createComputerBridge } from "./computer-bridge.ts";
 
@@ -652,6 +652,14 @@ test("a large shared-chat catch-up is bounded without deleting saved messages or
 test("the prompts with tools tell ARK to state facts plainly and name the source when sources disagree", () => {
   for (const prompt of [NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT, CODEX_SYSTEM_PROMPT]) {
     assert.match(prompt, /State facts plainly\. When sources disagree, give the newest confirmed answer and name its source/);
+  }
+});
+
+// 2026-11-02: a chart came back as a Markdown table; the window now draws a chart block and shows image lines.
+test("every chat prompt describes the chart block and the image line", () => {
+  for (const prompt of [NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT, CODEX_SYSTEM_PROMPT, PLAIN_SYSTEM_PROMPT]) {
+    assert.match(prompt, /write a ```chart block of JSON instead of a table: \{"type":"bar"\|"line"\|"pie"/);
+    assert.match(prompt, /put a Markdown image on its own line/);
   }
 });
 

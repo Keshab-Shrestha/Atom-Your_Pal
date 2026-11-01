@@ -31,7 +31,19 @@ private struct MarkdownBlockView: View {
     @ViewBuilder var body: some View {
         switch block {
         case .paragraph(let s):
-            inline(s).lineSpacing(5).fixedSize(horizontal: false, vertical: true)
+            if let pieces = ReplyImage.pieces(s) {
+                // 2026-11-02: an image line inside the paragraph.
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(Array(pieces.enumerated()), id: \.offset) { _, piece in
+                        switch piece {
+                        case .text(let t): inline(t).lineSpacing(5).fixedSize(horizontal: false, vertical: true)
+                        case .image(let image): ReplyImageView(image: image)
+                        }
+                    }
+                }
+            } else {
+                inline(s).lineSpacing(5).fixedSize(horizontal: false, vertical: true)
+            }
         case .heading(let level, let s):
             inline(s).appFont(.system(size: level <= 1 ? 16 : level == 2 ? 15 : 14, weight: .semibold))
         case .list(let items, let number):
@@ -68,26 +80,17 @@ private struct MarkdownBlockView: View {
         case .rule:
             Rectangle().fill(theme.separator.color).frame(height: 1).padding(.vertical, 4)
                 .accessibilityLabel("Section separator")
+        case .code(let s, let language) where language?.lowercased() == "chart":
+            // 2026-11-02: a chart. While the reply streams, its JSON is unfinished: a quiet line until it parses.
+            if let chart = ReplyChart.parse(s) {
+                ReplyChartView(chart: chart, copyEnabled: copyEnabled)
+            } else if !copyEnabled {
+                Label("Drawing a chart…", systemImage: "chart.bar").appFont(.system(size: 12)).foregroundStyle(theme.text3.color)
+            } else {
+                code(s, language: language)
+            }
         case .code(let s, let language):
-            VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Text(language ?? "Code").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
-                    Spacer()
-                    ChatCopyControl(title: "Copy code") { MarkdownCopy.code(s) }
-                        .disabled(!copyEnabled)
-                        .help(copyEnabled ? "Copy only this code block, without its fences" : "Copy is available when this reply finishes")
-                }
-                .padding(.horizontal, 12).padding(.top, 4)
-                SideScroll {
-                    Text(s).appFont(.system(size: 12, design: .monospaced)).padding(12)
-                }
-            }
-            .background(RoundedRectangle(cornerRadius: Radius.card).fill(theme.text.color.opacity(0.06)))
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel(language.map { "\($0) code block" } ?? "Code block")
-            .accessibilityActions {
-                if copyEnabled { Button("Copy code") { _ = ChatClipboard.write(MarkdownCopy.code(s)) } }
-            }
+            code(s, language: language)
         case .table(let header, let rows, let alignment):
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
@@ -114,6 +117,28 @@ private struct MarkdownBlockView: View {
                     }
                 }
             }
+        }
+    }
+
+    private func code(_ s: String, language: String?) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text(language ?? "Code").appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                Spacer()
+                ChatCopyControl(title: "Copy code") { MarkdownCopy.code(s) }
+                    .disabled(!copyEnabled)
+                    .help(copyEnabled ? "Copy only this code block, without its fences" : "Copy is available when this reply finishes")
+            }
+            .padding(.horizontal, 12).padding(.top, 4)
+            SideScroll {
+                Text(s).appFont(.system(size: 12, design: .monospaced)).padding(12)
+            }
+        }
+        .background(RoundedRectangle(cornerRadius: Radius.card).fill(theme.text.color.opacity(0.06)))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(language.map { "\($0) code block" } ?? "Code block")
+        .accessibilityActions {
+            if copyEnabled { Button("Copy code") { _ = ChatClipboard.write(MarkdownCopy.code(s)) } }
         }
     }
 

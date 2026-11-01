@@ -32,7 +32,8 @@ public enum MarkdownBlocks {
     public static let maxNesting = 16
 
     public static func isRich(_ text: String) -> Bool {
-        parse(text).contains { if case .paragraph = $0 { false } else { true } }
+        // A paragraph with an image line (2026-11-02) needs the block renderer too.
+        parse(text).contains { if case .paragraph(let s) = $0 { ReplyImage.pieces(s) != nil } else { true } }
     }
 
     public static func parse(_ text: String) -> [MarkdownBlock] {

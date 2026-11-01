@@ -38,10 +38,19 @@ import { CHAT_REPLAY_BYTES, HISTORY_GUIDANCE, chatContext, chatHistoryTools, wit
  * user message. A chat whose prefix changed (project note, web switch, folder) gets a new process that resumes.
  */
 
+/**
+ * 2026-11-02 (Keshab: a chart came back as a Markdown table; "ialso need images"): the window draws a ```chart block with
+ * Swift Charts and shows an image line. Speech skips both (toSpeakable).
+ */
+const MEDIA_RULE =
+  'When the user asks for a chart or graph, write a ```chart block of JSON instead of a table: {"type":"bar"|"line"|"pie","title":"…",' +
+  '"labels":["…"],"series":[{"name":"…","values":[1,2]}]}, one value per label, at most 6 series and 50 labels; a pie has one series. ' +
+  "To show a picture, put a Markdown image on its own line: ![what it shows](an https address, or the absolute path of an image file on this Mac).";
+
 /** The screen shows Markdown; the speaker skips tables and code (toSpeakable), so the spoken part stays one short sentence. */
 const MARKDOWN_RULE =
   "When the user asks for a table, a list, steps or code, or the answer is data, write it in Markdown (a table, a list or a code block) " +
-  "after one short spoken sentence that says what it is. Otherwise write no Markdown.";
+  "after one short spoken sentence that says what it is. Otherwise write no Markdown. " + MEDIA_RULE;
 
 /**
  * 2026-11-02 (Keshab asked why ARK says "most likely"): when web sources disagreed, the model hedged. It now gives the
@@ -88,7 +97,7 @@ export const CHAT_ONLY_SYSTEM_PROMPT = PLAIN_SYSTEM_PROMPT.replace(
 
 export const CODEX_SYSTEM_PROMPT =
   "You are ARK, the user's continuing assistant on their Mac. Earlier replies in this conversation are yours, even if another model wrote them. " +
-  "Keep track of the user's decisions and corrections. Answer typed requests clearly with Markdown when helpful; keep spoken replies short. " +
+  "Keep track of the user's decisions and corrections. Answer typed requests clearly with Markdown when helpful; keep spoken replies short. " + MEDIA_RULE + " " +
   "Use the provided ark_ tools to perform actions. " +
   // 2026-11-02 (Keshab): the same team guidance as Claude's. Codex had ark_create_agent and ark_plan_work but was never told when to use them.
   "Answer yourself, in a few sentences, any question or request to research or explain a topic you know well, and offer to have an agent look deeper with sources. " +

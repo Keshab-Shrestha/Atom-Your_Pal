@@ -3999,3 +3999,27 @@ Keshab asked why the team flow differs between Claude and Codex. Codex already r
 - On Codex, agents still run in the turn: the chat waits until the report comes back. Background agents on Codex are a separate change.
 - A new agent still needs the user's approval on the card.
 - The Codex prompt text changes once, so each Codex chat starts a new prompt prefix.
+
+## ADR-221 — Charts and images in replies (2026-11-02)
+
+### Context
+
+Keshab asked for a chart and got a Markdown table. He chose native charts and also asked for images.
+
+### Decision
+
+- A reply can hold a ```chart block of JSON: `{"type":"bar"|"line"|"pie","title":…,"labels":[…],"series":[{"name":…,"values":[…]}]}`.
+  - `ReplyChart.parse` accepts 1–50 unique labels, 1–6 series, one finite value per label and text up to 120 characters. A pie has one series of values that are not negative.
+  - The window draws the block with Swift Charts: grouped bars, lines with points, or a ring. A legend shows when there is more than one series. "Copy table" copies the numbers.
+  - While the reply streams, the window shows "Drawing a chart…". A block that does not parse shows as code.
+- A line that is only `![what it shows](source)` is an image (`ReplyImage`).
+  - An absolute path, `~/` or a file URL to an image file (png, jpg, gif, heic, webp, tiff, bmp, svg) shows at once, up to 20 MB. A click opens the file.
+  - An https address shows a card with the site name. The image loads only when the user clicks "Show image". http, `data:` and relative addresses stay text.
+- Every chat prompt (Claude, team, Codex and the plain prompt) describes the chart block and the image line.
+- Speech skips both, as it already did for code blocks and images.
+
+### Consequences
+
+- Charts need no files, no tools and no extra model call. They follow the theme.
+- ARK cannot yet make a new picture. An image is a file that already exists (for example one an agent wrote) or a web address.
+- Telegram and the API receive the chart block as text.
