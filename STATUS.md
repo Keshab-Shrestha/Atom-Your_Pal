@@ -1,5 +1,19 @@
 # ARK Project Status
 
+## ARK rename, redesign and new views — 1 and 2 November 2026
+
+- Tests: four TypeScript and six Swift checks were out of date and now match the code. `pnpm check` runs typecheck, the TypeScript tests and the Swift tests. CI runs on every branch push. The smoke test waits 120 s for the runtime.
+- Fixes: quit no longer hangs when the runtime stops reading its input. The shared-chat race was already fixed (`chat-turns.ts`).
+- R4 (`docs/release-r4.md`): Keshab chose build from source. `sh scripts/setup.sh` checks the tools, installs, signs locally and builds.
+- Rename (ADR-213): ATOM and the last ZENO names are ARK. The app is `ARK.app` with bundle id `dev.ark.island`. Old env names, settings, folders, branches and logs still work. ARK keeps its files in `~/Library/Application Support/dev.ark.island`.
+- Redesign (ADR-214): one theme builder for all seven themes, tone steps instead of outlines, five type sizes, a 4 pt grid, square cards and round pills, Flaticon UIcons (downloaded per Mac), and a new app icon.
+- Chat: a 736 pt reading column, a live work log in plain words, agent rows as a tree, a project-aware new chat with real suggestions, and a "This chat" block in Details.
+- Voice: a pill under the menu bar shows the live meter and words during Talk and dictation. Pal's bubble no longer draws a meter.
+- Board: a Team view (you, ARK, the agents), a flat office floor in dark themes, task cards with "Agent is done" and branch changes, and a Tasks list with an inspector on wide windows.
+- Dashboard: suggestions from plain checks, agent stats, and a commit streak.
+- Permissions (ADR-215): protected places ask instead of refusing, and agents delete to the Trash with `trash_file` after Keshab allows it.
+- Not done: the usage range picker (needs more than 7 days from the runtime), drawn dependency lines between task cards, and Keshab's hand check of the voice pill, the Allow cards and the new views.
+
 ## Standalone current UI preview and Git checkpoint — 28 October 2026
 
 Created self-contained `design/current-ui.html` for Dashboard, Board, chat and ARK skills, with embedded native office/icon artwork, 151 packaged skill descriptions, local preview interactions, light/dark and text scaling. All data is fictional; no runtime/Git/model access. Manual browser wide/compact/theme/catalog inspection and TypeScript/whitespace checks passed; automated suites remain skipped. [Preview scope](docs/current-ui-preview.md). User authorized pushing the accumulated checkpoint and merging to main; unrelated graphify-out remains excluded.

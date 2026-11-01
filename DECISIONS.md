@@ -3872,3 +3872,25 @@ A count before the change: 12 corner radii, 58 circles, 72 capsules, 85 outlined
 
 - The look changes everywhere. The golden UI shots are made again from the committed code.
 - A Mac that did not run `scripts/setup.sh` shows SF Symbols.
+
+## ADR-215 — Protected places and deletes ask instead of refusing (2026-11-01)
+
+### Status
+
+Accepted. Keshab: "lets make it ask and give any permission .. like claude code does". It replaces the refusals in ADR-122 and ADR-123 for file paths and deletes. The rest of ADR-122 and ADR-123 stays.
+
+### Decision
+
+1. A protected place asks instead of refusing. Protected places are: outside the home folder, `~/Library`, hidden files and folders, secret-like files, files that hold a secret, names of important personal documents, and git's own files. The card shows the exact path. Allow can cover the rest of the chat (Keshab's choice).
+2. An agent deletes with the new `trash_file` tool. Every call asks. On Allow the item moves to `~/.Trash`, so Keshab can put it back from Finder. The tool refuses the home folder, a whole disk and system folders.
+3. Only agents with the folders kit have `trash_file`. The main chat refuses it and hands deletes to an agent.
+4. "Full access" skips every question, including protected places and deletes (Keshab's choice).
+5. After an agent reads web text, the same rules apply: ARK asks, and Keshab decides (Keshab's choice).
+6. The shell still refuses `rm`, `trash`, `git rm`, `git clean` and `find -delete`. The message names `trash_file`.
+7. A path with `$` or a backtick, a search of the whole home folder and Grep lines outside the task's folder stay refused, because ARK cannot check them.
+
+### Consequences
+
+- In Full access, an agent can read keys and move files to the Trash with no question. Keshab accepts this risk for Full access only.
+- A web page can now ask an agent to touch a protected file; the card still names the exact path.
+- The other refused commands (git push, network commands, sudo, system settings) do not change. That is a separate decision.
