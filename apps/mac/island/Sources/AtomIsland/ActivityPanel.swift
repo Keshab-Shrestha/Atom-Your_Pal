@@ -164,7 +164,7 @@ private struct ActivityRowView: View {
 }
 
 /// A small grid of dots that brightens in turn while an agent works. Still with Reduce Motion and in snapshots.
-private struct WorkingGlyph: View {
+struct WorkingGlyph: View {
     @Environment(\.theme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.islandSnapshot) private var snapshot

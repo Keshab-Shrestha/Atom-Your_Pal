@@ -731,6 +731,7 @@ struct ConversationTab: View {
                                          computerStep: model.conversation.isLatest(turn) ? model.status.currentStep : nil).id(turn.id)
                                     .transition(Motion.arrival(reduceMotion))
                             }
+                            ChatAgentWorkView(model: model) // the agents this chat started, under its latest turn
                         }
                         .animation(Motion.arrive(reduceMotion), value: model.conversation.turns.count)
                         .frame(maxWidth: 880)
