@@ -224,6 +224,11 @@ private struct BoardCard: View {
                 if job.isWaiting, let list = model.helpers.list { WaitingLine(job: job, list: list) }
                 if let held = job.held { HeldLine(reason: held) }
                 if job.state == .failed, let error = job.error { Text(error).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(2) }
+                // 2026-11-02 (the Kimchi reference): what a finished card did, and how much its branch changed.
+                if job.state == .done { Text("Agent is done\(job.summary.map { ": \($0)" } ?? "")").appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(2) }
+                if let change = model.helpers.git?.first(where: { $0.task == job.id })?.changeLine {
+                    Text(change).appFont(.system(size: 11)).monospacedDigit().foregroundStyle(theme.text3.color)
+                }
             }
             Spacer(minLength: 8)
             Glyph(systemName: "chevron.right").appFont(.system(size: 10, weight: .semibold)).foregroundStyle(theme.text3.color).padding(.top, 4)

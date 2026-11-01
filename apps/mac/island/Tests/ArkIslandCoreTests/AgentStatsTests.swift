@@ -16,4 +16,10 @@ struct AgentStatsTests {
         #expect(AgentStats(jobs: [job(1, .done, seconds: 125)]).line == "1 run · 100% done · 2m 5s typical")
         #expect(AgentStats(jobs: []).line == nil)
     }
+
+    @Test func aBranchSaysHowMuchItChanged() throws {
+        let event = try decodeEvent(#"{"type":"git","branches":[{"repo":"/r","branch":"ark/task-7","task":7,"base":"main","files":[{"path":"a.md","added":10,"removed":2},{"path":"b.md","added":2,"removed":1},{"path":"c.png","added":null,"removed":null}]}]}"#)
+        guard case .git(let branches) = event else { Issue.record("not a git event"); return }
+        #expect(branches.first?.changeLine == "+12 \u{2212}3 · 3 files")
+    }
 }

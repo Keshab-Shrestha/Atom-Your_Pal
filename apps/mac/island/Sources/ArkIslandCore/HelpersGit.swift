@@ -91,3 +91,12 @@ public struct GitDiff: Sendable, Equatable {
         self.truncated = truncated
     }
 }
+
+public extension GitBranch {
+    /// "+12 −3 · 2 files" for a task card (2026-11-02); nil before the branch changes anything. Binary files count as files, not lines.
+    var changeLine: String? {
+        guard !files.isEmpty else { return nil }
+        let added = files.compactMap(\.added).reduce(0, +), removed = files.compactMap(\.removed).reduce(0, +)
+        return "+\(added) \u{2212}\(removed) · \(files.count) \(files.count == 1 ? "file" : "files")"
+    }
+}
