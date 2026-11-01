@@ -733,7 +733,7 @@ final class IslandModel {
         if action != "connect" { brainSourcePreview = nil }
         send(.brainSource(request: request, action: action, path: path, token: token, id: id, documents: action == "preview" ? true : nil))
         Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(30))
+            try? await Task.sleep(for: .seconds(120)) // a 5,000-note folder: scan (up to 45 s) twice on connect, then import
             guard let self, self.brainSourcePending == request else { return }
             self.brainSourcePending = nil; self.brainSourcePreview = nil
             self.brainSourceError = "The source operation has not answered. Its local import outcome may be unknown. Reload Sources before trying again."

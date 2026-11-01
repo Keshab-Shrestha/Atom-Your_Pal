@@ -54,7 +54,7 @@ struct BrainSourcesPane: View {
                     PillButton(title: "Choose notes folder…", symbol: "folder.badge.plus", prominent: true, action: choose)
                         .disabled(waiting)
                 }
-                Text("Reads Markdown, text, PDF text layers and Word (.docx); no OCR or legacy .doc. Skips protected, linked, hidden, invalid or likely credential-bearing files. Text/extracted copies: 256 KiB each, 8 MiB total. Documents: 8 MiB each; PDFs: 100 pages. Local extraction is bounded; images, encrypted PDFs and unreadable files are skipped. Source files stay untouched. Import makes no model call.")
+                Text("Reads Markdown, text, PDF text layers and Word (.docx); no OCR or legacy .doc. Skips protected, linked, hidden, invalid or likely credential-bearing files. Up to 5,000 notes. Text/extracted copies: 256 KiB each, 64 MiB total. Documents: 8 MiB each; PDFs: 100 pages. Local extraction is bounded; images, encrypted PDFs and unreadable files are skipped. Source files stay untouched. Import makes no model call.")
                     .appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
             }
             .frame(maxWidth: .infinity, alignment: .leading)

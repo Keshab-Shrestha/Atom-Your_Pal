@@ -55,6 +55,21 @@ test("notes scanner previews without writes, refuses stale/cancelled tokens and 
   } finally { m.close(); rmSync(dir, { recursive: true, force: true }); }
 });
 
+test("a notes folder over the old 500-note budget imports and links in full", async () => {
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), "atom-source-big-"))), home = join(dir, "home"), notes = join(home, "Notes");
+  for (let folder = 0; folder < 6; folder++) mkdirSync(join(notes, `part ${folder}`), { recursive: true });
+  for (let i = 0; i < 600; i++) writeFileSync(join(notes, `part ${i % 6}`, `note ${i}.md`), `# Fixture ${i}\nSee [[Fixture ${(i + 1) % 600}]].\n`);
+  const m = openMemoryStore({ path: ":memory:" });
+  try {
+    const handle = createBrainSourceFolder({ store: m.brainSources!, home, changed: () => m.brain.autolink() });
+    const preview = await handle({ type: "brain.source", request: randomUUID(), action: "preview", path: notes });
+    assert.equal(preview.error, undefined); assert.equal(preview.preview!.count, 600);
+    assert.equal((await handle({ type: "brain.source", request: randomUUID(), action: "connect", token: preview.preview!.token })).error, undefined);
+    assert.equal(m.brainSources!.summary().notes, 600);
+    assert.ok(m.brain.links(m.brain.byTitle("Fixture 599")!.id).some((l) => l.title === "Fixture 0"), "the last note's wikilink reaches the first");
+  } finally { m.close(); rmSync(dir, { recursive: true, force: true }); }
+});
+
 test("source replacement cannot convert all existing notes to missing copies", async () => {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), "atom-source-swap-"))), home = join(dir, "home"), notes = join(home, "Notes"); mkdirSync(notes, { recursive: true });
   const m = openMemoryStore({ path: ":memory:" });

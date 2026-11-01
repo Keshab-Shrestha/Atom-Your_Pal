@@ -20,6 +20,14 @@ const hash = (text: string | Buffer) => createHash("sha256").update(text).digest
 const fingerprint = (scan: Scan) => hash(JSON.stringify([scan.path, scan.identity, scan.documents, scan.files.map((file) => [file.path, file.hash]), scan.skipped]));
 const identity = (stat: { dev: number; ino: number }) => `${stat.dev}:${stat.ino}`;
 
+// Scan budgets (raised 2026-11-01 from 500 notes, 8 MiB, 64 MiB, 5,000 entries, 10 s, once linking became linear).
+// Measured with fictional notes: 5,000 notes import in about 2.5 s and link in about 1.2 s. The window waits 120 s.
+const MAX_SOURCE_NOTES = 5000;
+const MAX_SOURCE_TEXT = 64 * 1024 * 1024;
+const MAX_SOURCE_READ = 256 * 1024 * 1024;
+const MAX_SOURCE_ENTRIES = 20_000;
+const SCAN_BUDGET_MS = 45_000;
+
 /** Explicit local read only. Bounds are scan budgets, not text-editor input limits. */
 async function scanFolder(raw: string, home: string, extract: typeof extractDocumentText, documents = false): Promise<Scan> {
   if (!isAbsolute(raw) || raw !== resolve(raw) || /[\x00-\x1f\x7f]/.test(raw)) throw new Error("Choose an ordinary notes folder using its absolute path.");
@@ -29,7 +37,7 @@ async function scanFolder(raw: string, home: string, extract: typeof extractDocu
   const root = await lstat(path);
   const result: Scan = { path, identity: identity(root), documents, files: [], skipped: 0 };
   let entries = 0, bytes = 0, rawBytes = 0;
-  const deadline = Date.now() + 10_000;
+  const deadline = Date.now() + SCAN_BUDGET_MS;
   const guard = () => { if (Date.now() > deadline) throw new Error("Folder scan exceeded its time budget. Choose a smaller notes folder."); };
   const walk = async (directory: string, prefix: string, depth: number): Promise<void> => {
     guard();
@@ -38,7 +46,7 @@ async function scanFolder(raw: string, home: string, extract: typeof extractDocu
     const children: Dirent[] = [];
     for await (const child of await opendir(directory)) {
       guard();
-      if (++entries > 5000) throw new Error("Folder exceeds the 5,000-entry scan budget. Choose a smaller notes folder.");
+      if (++entries > MAX_SOURCE_ENTRIES) throw new Error("Folder exceeds the 20,000-entry scan budget. Choose a smaller notes folder.");
       children.push(child);
     }
     children.sort((a, b) => a.name.localeCompare(b.name));
@@ -57,7 +65,7 @@ async function scanFolder(raw: string, home: string, extract: typeof extractDocu
       if (!stat.isFile() || stat.nlink !== 1 || (rich && !documents) || ![".md", ".markdown", ".txt", ".pdf", ".docx"].includes(extension)) { result.skipped++; continue; }
       const limit = rich ? MAX_DOCUMENT_BYTES : MAX_DOCUMENT_TEXT;
       if (stat.size > limit) { result.skipped++; continue; }
-      if (result.files.length >= 500 || rawBytes + stat.size > 64 * 1024 * 1024) throw new Error("Folder exceeds the 500-note / 64 MiB source-read budget. Choose a smaller notes folder.");
+      if (result.files.length >= MAX_SOURCE_NOTES || rawBytes + stat.size > MAX_SOURCE_READ) throw new Error("Folder exceeds the 5,000-note / 256 MiB source-read budget. Choose a smaller notes folder.");
       const handle = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
       try {
         const before = await handle.stat();
@@ -72,7 +80,7 @@ async function scanFolder(raw: string, home: string, extract: typeof extractDocu
         const after = await handle.stat();
         if (before.mtimeMs !== after.mtimeMs || before.ctimeMs !== after.ctimeMs || before.size !== after.size || await realpath(file) !== file) throw new Error("A note changed during the scan. Refresh again; existing notes were kept.");
         rawBytes += size;
-        if (rawBytes > 64 * 1024 * 1024) throw new Error("Folder exceeded its source-read budget. Existing notes were kept.");
+        if (rawBytes > MAX_SOURCE_READ) throw new Error("Folder exceeded its source-read budget. Existing notes were kept.");
         if (size > limit) { result.skipped++; continue; }
         const content = buffer.subarray(0, size);
         let body: string;
@@ -86,7 +94,7 @@ async function scanFolder(raw: string, home: string, extract: typeof extractDocu
         if (before.mtimeMs !== extracted.mtimeMs || before.ctimeMs !== extracted.ctimeMs || before.size !== extracted.size || await realpath(file) !== file) throw new Error("A document changed during extraction. Existing notes were kept.");
         if (body.includes("\0") || looksSecret(body) || Buffer.byteLength(body) > MAX_DOCUMENT_TEXT) { result.skipped++; continue; }
         bytes += Buffer.byteLength(body);
-        if (bytes > 8 * 1024 * 1024) throw new Error("Folder exceeds the 8 MiB extracted-text budget. Choose a smaller notes folder.");
+        if (bytes > MAX_SOURCE_TEXT) throw new Error("Folder exceeds the 64 MiB extracted-text budget. Choose a smaller notes folder.");
         const title = (!rich && body.match(/^#\s+(.+)$/m)?.[1]?.trim()) || basename(file, extname(file)).trim() || "Untitled note";
         result.files.push({ path: relative, title, body, hash: rich ? hash(JSON.stringify(["documents-v1", hash(content), body])) : hash(content) });
       } finally { await handle.close(); }
