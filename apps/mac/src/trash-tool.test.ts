@@ -33,7 +33,7 @@ test("every delete asks; Deny keeps the file; Full access skips the question; a 
     const asked: string[] = [];
     let answer = false, full = false;
     const check = folderCheck({ roots: [], home, cwd: home, name: "Kame", fullAccess: () => full,
-      approve: async (r) => (asked.push(r.summary), answer), approveFile: async (r) => (asked.push(r.summary), answer) });
+      approve: async (r) => (asked.push(r.summary), answer), approveFile: async (r) => (asked.push(r.summary), answer ? "once" as const : false) });
     assert.match((await check(TRASH_CALL, { path: join(home, "Documents", "old.txt") }))!, /did not allow this delete/);
     assert.deepEqual(asked, ["Kame wants to move ~/Documents/old.txt to the Trash"]);
     answer = true;
