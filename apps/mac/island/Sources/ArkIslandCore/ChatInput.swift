@@ -79,8 +79,7 @@ public struct ChatInputStore: Sendable {
     public init(url: URL) { self.url = url }
 
     public static var defaultURL: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/ARK/ChatInput/input.json")
+        ArkFolders.support().appendingPathComponent("ChatInput/input.json")
     }
 
     public func load() throws -> ChatInput {

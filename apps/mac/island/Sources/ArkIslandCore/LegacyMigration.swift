@@ -56,18 +56,28 @@ public enum LegacyMigration {
         }
     }
 
-    /// The launch step: settings from the old bundle ids, and the Application Support and Logs folders.
+    /// The launch step: settings from the old bundle ids, and the Application Support and Logs folders. Application Support goes to
+    /// `ArkFolders.support` (named by the bundle id: "ARK" is another app's folder on this Mac); Logs goes to `Logs/ARK`.
     public static func run(defaults: UserDefaults = .standard, home: URL = FileManager.default.homeDirectoryForCurrentUser) {
         var legacy: [String: Any] = [:]
         for old in oldNames {
             legacy.merge(defaults.persistentDomain(forName: old.domain) ?? [:]) { kept, _ in kept }
         }
         migrateDefaults(into: defaults, legacy: legacy)
-        for folder in ["Library/Application Support", "Library/Logs"] {
-            let base = home.appendingPathComponent(folder, isDirectory: true)
-            for old in oldNames {
-                moveFolder(from: base.appendingPathComponent(old.folder, isDirectory: true), to: base.appendingPathComponent("ARK", isDirectory: true))
-            }
+        let support = home.appendingPathComponent("Library/Application Support", isDirectory: true)
+        let logs = home.appendingPathComponent("Library/Logs", isDirectory: true)
+        for old in oldNames {
+            moveFolder(from: support.appendingPathComponent(old.folder, isDirectory: true), to: ArkFolders.support(home: home))
+            moveFolder(from: logs.appendingPathComponent(old.folder, isDirectory: true), to: logs.appendingPathComponent("ARK", isDirectory: true))
+        }
+    }
+
+    /// The project's log under the old names, `logs/atom.log` or `logs/zeno.log`, becomes `logs/ark.log` when that is not there yet.
+    /// Runs before the app opens its own log: the app starts before the runtime, so the runtime's own rename came too late.
+    public static func moveLog(inProject directory: URL) {
+        let logs = directory.appendingPathComponent("logs", isDirectory: true)
+        for name in ["atom.log", "zeno.log"] {
+            moveFolder(from: logs.appendingPathComponent(name), to: logs.appendingPathComponent("ark.log"))
         }
     }
 }

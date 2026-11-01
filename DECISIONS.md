@@ -3843,9 +3843,9 @@ Accepted. Keshab chose a full rename: code names, the bundle id and the history 
 1. The product, the app, the top-level agent and the code are called ARK. The app is `ARK.app`. The bundle id is `dev.ark.island`.
 2. Swift modules are `ArkIsland`, `ArkIslandCore`, `ArkPTY`, `ArkCalendar` and `ArkDocuments`. The npm scope is `@ark/*`.
 3. Environment variables are `ARK_*`. Code reads `ATOM_*`, then `ZENO_*`, when an `ARK_*` name is not set (`readEnv`, `ArkEnv`).
-4. Settings keys are `ark.*`. On first launch, `LegacyMigration` copies `atom.*` from `dev.atom.island` and `zeno.*` from `dev.zeno.island`. The newer name wins. It moves `~/Library/Application Support/ATOM` (or `ZENO`) and `~/Library/Logs/ATOM` (or `ZENO`) to `ARK`.
+4. Settings keys are `ark.*`. On first launch, `LegacyMigration` copies `atom.*` from `dev.atom.island` and `zeno.*` from `dev.zeno.island`. The newer name wins. It moves `~/Library/Application Support/ATOM` (or `ZENO`) to `~/Library/Application Support/dev.ark.island`, and `~/Library/Logs/ATOM` (or `ZENO`) to `~/Library/Logs/ARK`. The support folder is named by the bundle id: another app already keeps a Chromium profile in `Application Support/Ark`, and the disk ignores letter case.
 5. New task branches are `ark/task-<id>`. Branches named `atom/task-<id>` and `zeno/task-<id>` are still read and kept.
-6. The runtime log is `logs/ark.log`. On start, `logs/atom.log` or `logs/zeno.log` is renamed to it when it does not exist yet.
+6. The runtime log is `logs/ark.log`. On start, the app renames `logs/atom.log` or `logs/zeno.log` to it, before it opens the log, when `logs/ark.log` does not exist yet.
 7. Saved data format ids such as `atom.task-verification/v1` do not change. They are inside saved records, and a change would make old records unreadable.
 8. Tool names change from `atom_*` to `ark_*`, and the MCP server from `atom` to `ark`.
 9. History text in this file, TASK.md, STATUS.md and the docs now says ARK. ADR-105 keeps its own text, because it describes the earlier rename.

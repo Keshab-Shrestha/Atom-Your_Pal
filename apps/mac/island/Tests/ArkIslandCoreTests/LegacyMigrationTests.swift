@@ -64,6 +64,34 @@ struct LegacyMigrationTests {
         #expect(fm.fileExists(atPath: old.path))
     }
 
+    /// 2026-11-01: "ARK" under Application Support is another app's Chromium profile on Keshab's Mac; ARK's files go to its bundle id.
+    @Test func theOldSupportFolderMovesToTheBundleIdFolderAndAnotherAppsArkFolderStays() throws {
+        let fm = FileManager.default
+        let home = fm.temporaryDirectory.appendingPathComponent("ark-home-\(UUID().uuidString)", isDirectory: true)
+        defer { try? fm.removeItem(at: home) }
+        let support = home.appendingPathComponent("Library/Application Support", isDirectory: true)
+        try fm.createDirectory(at: support.appendingPathComponent("ATOM/ChatInput"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: support.appendingPathComponent("Ark/Cache"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: home.appendingPathComponent("Library/Logs/ATOM"), withIntermediateDirectories: true)
+        LegacyMigration.run(defaults: suite(), home: home)
+        #expect(fm.fileExists(atPath: ArkFolders.support(home: home).appendingPathComponent("ChatInput").path))
+        #expect(!fm.fileExists(atPath: support.appendingPathComponent("ATOM").path))
+        #expect(fm.fileExists(atPath: support.appendingPathComponent("Ark/Cache").path), "the other app's folder is left alone")
+        #expect(!fm.fileExists(atPath: support.appendingPathComponent("Ark/ChatInput").path))
+        #expect(fm.fileExists(atPath: home.appendingPathComponent("Library/Logs/ARK").path))
+    }
+
+    @Test func theProjectLogUnderAnOldNameBecomesArkLog() throws {
+        let fm = FileManager.default
+        let project = fm.temporaryDirectory.appendingPathComponent("ark-project-\(UUID().uuidString)", isDirectory: true)
+        defer { try? fm.removeItem(at: project) }
+        try fm.createDirectory(at: project.appendingPathComponent("logs"), withIntermediateDirectories: true)
+        try Data("old\n".utf8).write(to: project.appendingPathComponent("logs/atom.log"))
+        LegacyMigration.moveLog(inProject: project)
+        #expect(try String(contentsOf: project.appendingPathComponent("logs/ark.log"), encoding: .utf8) == "old\n")
+        #expect(!fm.fileExists(atPath: project.appendingPathComponent("logs/atom.log").path))
+    }
+
     @MainActor @Test func everySettingKeyInTheCodeUsesTheNewPrefix() {
         let keys = [IslandSettings.petKey, IslandSettings.soundsKey, IslandSettings.themeKey, IslandSettings.tourDoneKey,
                     IslandSettings.dictationModeKey, IslandSettings.shortcutKey(.talk)]

@@ -517,7 +517,7 @@ final class IslandModel {
         if let inputURL {
             let store = ChatInputStore(url: inputURL)
             do { input = try store.load(); inputStore = store }
-            catch { inputNotice = "Saved input could not be opened. The file is unchanged; new drafts will not be saved this launch. See Library/Application Support/ARK/ChatInput/input.json." }
+            catch { inputNotice = "Saved input could not be opened. The file is unchanged; new drafts will not be saved this launch. See Library/Application Support/dev.ark.island/ChatInput/input.json." }
         }
     }
 

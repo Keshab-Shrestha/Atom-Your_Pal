@@ -112,9 +112,9 @@ extension IslandController {
         statusChanged()
     }
 
-    /// Where the user's spelling fixes live: `vocabulary.txt` in ARK's folder under Application Support.
+    /// Where the user's spelling fixes live: `vocabulary.txt` in ARK's folder under Application Support (`ArkFolders`).
     static var vocabularyURL: URL {
-        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/ARK/vocabulary.txt")
+        ArkFolders.support().appendingPathComponent("vocabulary.txt")
     }
 
     func playTone(_ sound: DictationController.Sound) {

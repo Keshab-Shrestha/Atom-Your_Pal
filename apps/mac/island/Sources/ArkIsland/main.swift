@@ -55,6 +55,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             launch.environment["ARK_COMPUTER"] = choice ? "1" : "0"
         }
 
+        LegacyMigration.moveLog(inProject: launch.directory) // ADR-213: before the log below creates logs/ark.log
         log = IslandLog(url: launch.directory.appendingPathComponent("logs/ark.log"))
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
         log.info("island.start", ["version": version, "pid": Int(ProcessInfo.processInfo.processIdentifier)])

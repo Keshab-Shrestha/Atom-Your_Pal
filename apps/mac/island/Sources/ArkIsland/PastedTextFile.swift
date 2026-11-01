@@ -9,8 +9,7 @@ enum PastedTextFile {
     static func save(_ text: String) throws -> String {
         let data = Data(text.utf8)
         guard !data.isEmpty, data.count <= PastedImage.maxBytes else { throw Failure.tooLarge }
-        let directory = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/ARK/PastedText", isDirectory: true)
+        let directory = ArkFolders.support().appendingPathComponent("PastedText", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
                                                 attributes: [.posixPermissions: 0o700])
         let dir = Darwin.open(directory.path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW)
