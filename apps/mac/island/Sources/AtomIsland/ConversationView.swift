@@ -805,24 +805,25 @@ struct TurnView: View {
         let copyTitle = preview == nil ? "Copy message" : "Copy full message"
         VStack(alignment: .leading, spacing: 8) {
             if !turn.transcript.isEmpty { // an answer ATOM posted by itself has no question (ADR-109)
-                // 2026-10-31 (the reference app): your message is a full-width box at the head of its turn, not a bubble.
-                Text(collapsed ? (preview ?? turn.transcript) : turn.transcript)
-                    .lineLimit(collapsed ? UserMessagePreview.lineLimit : nil)
-                    .truncationMode(.tail)
-                    .accessibilityHint(collapsed ? "Message preview. Open Message actions and choose Show full message to read the rest." : "")
-                    .appFont(.system(size: 14))
-                    .foregroundStyle(theme.text.color)
-                    .lineSpacing(3)
-                    .padding(.horizontal, 14).padding(.vertical, 10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(theme.text.color.opacity(theme.isDark ? 0.06 : 0.04)))
-                    .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(theme.separator.color, lineWidth: 1))
-                    .textSelection(.enabled)
-                    .contextMenu { userActions(collapsed: collapsed) }
-                    .padding(.trailing, 28)
-                    .overlay(alignment: .topTrailing) {
+                // 2026-11-01 (T3 Code and the Claude app): your words are a soft bubble on the right, at their natural width up to 80%; ATOM answers
+                // in plain text across the column, so the chat reads as a conversation, not a log of boxes.
+                ChatUserBubbleLayout {
+                    HStack(alignment: .top, spacing: 6) {
                         ChatActionsMenu(title: "Message actions", revealed: hovering.wrappedValue) { userActions(collapsed: collapsed) }
+                        Text(collapsed ? (preview ?? turn.transcript) : turn.transcript)
+                            .lineLimit(collapsed ? UserMessagePreview.lineLimit : nil)
+                            .truncationMode(.tail)
+                            .accessibilityHint(collapsed ? "Message preview. Open Message actions and choose Show full message to read the rest." : "")
+                            .appFont(.system(size: 14))
+                            .foregroundStyle(theme.text.color)
+                            .lineSpacing(3)
+                            .padding(.horizontal, 14).padding(.vertical, 9)
+                            .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(theme.text.color.opacity(theme.isDark ? 0.08 : 0.05)))
+                            .textSelection(.enabled)
+                            .contextMenu { userActions(collapsed: collapsed) }
                     }
+                }
+                .padding(.top, 4)
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel("You said")
                 .accessibilityActions {
@@ -839,7 +840,11 @@ struct TurnView: View {
                 }
                 switch turn.outcome {
                 case .inProgress where turn.reply == nil:
-                    ThinkingDots().padding(.vertical, 4)
+                    HStack(spacing: 8) {
+                        ThinkingDots()
+                        Text("Thinking").appFont(.system(size: 12)).foregroundStyle(theme.text3.color)
+                    }
+                    .padding(.vertical, 4)
                 case .notice(let message):
                     outcomeLine(message, symbol: "hand.raised.fill", color: theme.attention.color)
                 case .failed(let message):

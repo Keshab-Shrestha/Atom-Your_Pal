@@ -1,53 +1,80 @@
 import SwiftUI
 import AtomIslandCore
 
+/// What ATOM does in a turn, live (2026-11-01, after T3 Code's work rows and the Claude app, MIT): open while it works, one row per tool call in plain
+/// words ("Reading a file", a glyph while it runs); once the turn ends it folds into one line, "Worked for 22s · Read 3 files, ran 2 commands".
 struct ChatWorkView: View {
     let work: ChatWorkSnapshot
     /// The computer step in progress, shown while the work runs (the island's detail line, which the window did not show).
     var step: String? = nil
-    @State private var expanded = false
+    /// Nil follows the work: open while it runs, folded once it ends. A click keeps the reader's choice.
+    @State private var opened: Bool?
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
 
+    private var working: Bool { work.state == "working" }
+    private var expanded: Bool { opened ?? working }
+    /// While it runs, only the latest rows, so a long turn does not push the reply away.
+    private static let liveRows = 6
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            if work.state == "working", !snapshot {
+        VStack(alignment: .leading, spacing: 6) {
+            if working, !snapshot {
                 TimelineView(.periodic(from: .now, by: 1)) { _ in toggle }
             } else { toggle }
             if expanded {
-                Text("Observed foreground tools only. Background agents have their own Board history. Missing results mean an unknown outcome; they do not prove nothing happened.")
-                    .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
-                ForEach(work.calls) { call in
-                    HStack(spacing: 7) {
-                        Image(systemName: symbol(call.state)).accessibilityHidden(true)
-                        Text(call.tool).textSelection(.enabled)
-                        Spacer()
-                        Text(call.state == "started" ? "Running" : call.state == "ok" ? "Finished" : call.state == "error" ? "Reported error" : "Outcome unknown")
-                        if let ms = call.ms { Text(duration(ms)).monospacedDigit() }
-                    }.appFont(.system(size: 11)).foregroundStyle(theme.text2.color)
+                let calls = working ? Array(work.calls.suffix(Self.liveRows)) : work.calls
+                VStack(alignment: .leading, spacing: 5) {
+                    if working, work.calls.count > calls.count {
+                        Text("\(work.calls.count - calls.count) earlier steps").foregroundStyle(theme.text3.color)
+                    }
+                    ForEach(calls) { call in callRow(call) }
+                    if work.calls.isEmpty { Text(working ? "Thinking" : "No tools used").foregroundStyle(theme.text3.color) }
+                    if work.omitted > 0 { Text("\(work.omitted) more steps not shown").foregroundStyle(theme.text3.color) }
+                    ForEach(work.questions.filter { $0.state != "pending" }) { question in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(question.prompt).fontWeight(.medium)
+                            Text(question.answer ?? (question.state == "expired" ? "No answer before the card expired." : "Question skipped or interrupted."))
+                        }.foregroundStyle(theme.text2.color).textSelection(.enabled)
+                    }
                 }
-                if work.calls.isEmpty { Text("No tool calls observed.").appFont(.system(size: 11)).foregroundStyle(theme.text3.color) }
-                if work.omitted > 0 { Text("\(work.omitted) additional call observations omitted.").appFont(.system(size: 11)).foregroundStyle(theme.text3.color) }
-                ForEach(work.questions.filter { $0.state != "pending" }) { question in
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(question.prompt).fontWeight(.medium)
-                        Text(question.answer ?? (question.state == "expired" ? "No answer before the card expired." : "Question skipped or interrupted."))
-                    }.appFont(.system(size: 11)).foregroundStyle(theme.text2.color).textSelection(.enabled)
-                }
-                Text("This work log is temporary and is not restored from saved history.").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                .appFont(.system(size: 12))
+                .padding(.leading, 12)
+                .overlay(alignment: .leading) { Rectangle().fill(theme.separator.color).frame(width: 1).padding(.leading, 4) }
             }
         }
     }
+
+    private func callRow(_ call: ChatWorkSnapshot.Call) -> some View {
+        let running = call.state == "started"
+        return HStack(spacing: 8) {
+            Group {
+                if running { WorkingGlyph() }
+                else { Image(systemName: symbol(call.state)).appFont(.system(size: 10, weight: .semibold)) }
+            }
+            .frame(width: 12).foregroundStyle(call.state == "error" ? theme.problem.color : theme.text3.color)
+            Text(ChatWorkText.label(tool: call.tool, running: running))
+                .foregroundStyle(running ? theme.text.color : theme.text2.color)
+                .help(call.tool)
+            if call.state == "error" { Text("reported an error").foregroundStyle(theme.problem.color) }
+            if call.state == "unknown" { Text("outcome unknown").foregroundStyle(theme.text3.color) }
+            Spacer(minLength: 8)
+            if let ms = call.ms { Text(duration(ms)).monospacedDigit().foregroundStyle(theme.text3.color) }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
     private var toggle: some View {
-        Button { expanded.toggle() } label: {
+        Button { opened = !expanded } label: {
             HStack(spacing: 6) {
-                Image(systemName: expanded ? "chevron.down" : "chevron.right")
+                Image(systemName: "chevron.right").rotationEffect(.degrees(expanded ? 90 : 0))
                 Text(label).monospacedDigit()
-                Text("· \(work.calls.count) observed calls")
-                if work.state == "working", let step { Text("· \(step)").lineLimit(1).truncationMode(.tail) }
-            }.appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color)
-        }.buttonStyle(.borderless).accessibilityValue(expanded ? "Expanded" : "Collapsed")
-            .help("Elapsed foreground work time includes model setup, tool calls and waiting for answers; speech playback is separate")
+                if working, let step { Text("· \(step)").lineLimit(1).truncationMode(.tail) }
+                else if !working, !work.calls.isEmpty { Text("· \(ChatWorkText.summary(work.calls))").lineLimit(1).truncationMode(.tail) }
+            }.appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
+            .contentShape(Rectangle())
+        }.buttonStyle(.plain).accessibilityValue(expanded ? "Expanded" : "Collapsed")
+            .help("What ATOM did in this turn. The time includes thinking, tools and waiting for your answers. A missing result means the outcome is unknown, not that nothing happened. This log is not kept in saved history.")
     }
     private var label: String {
         let prefix = work.state == "working" ? "Working for" : work.state == "completed" ? "Worked for" : work.state == "failed" ? "Failed after" : work.state == "interrupted" ? "Interrupted after" : "Stopped after"
@@ -57,7 +84,7 @@ struct ChatWorkView: View {
         let seconds = Int(ms / 1000)
         return seconds >= 60 ? "\(seconds / 60)m \(seconds % 60)s" : "\(seconds)s"
     }
-    private func symbol(_ state: String) -> String { state == "ok" ? "checkmark.circle" : state == "error" ? "exclamationmark.circle" : state == "started" ? "clock" : "questionmark.circle" }
+    private func symbol(_ state: String) -> String { state == "ok" ? "checkmark" : state == "error" ? "exclamationmark" : "questionmark" }
 }
 
 struct ChatQuestionCard: View {

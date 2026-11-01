@@ -3,8 +3,49 @@ import SwiftUI
 import AtomIslandCore
 
 extension IslandGallery {
+    /// The chat while ATOM works (2026-11-01): a finished turn folded into one line, the latest turn's live steps, and the agents it started.
+    /// Fictional data only.
+    static func writeChatLiveWork(to directory: URL) {
+        let suite = "atom.gallery.live-work.\(ProcessInfo.processInfo.processIdentifier)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let model = IslandModel(settings: IslandSettings(defaults: defaults))
+        let iso = ISO8601DateFormatter(); iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let ago = { (seconds: Double) in iso.string(from: Date().addingTimeInterval(-seconds)) }
+        let events = [
+            #"{"type":"chats","current":"cedar","chats":[{"id":"cedar","title":"Mesh Wi-Fi for the flat","messages":4}]}"#,
+            #"{"type":"helpers","apps":[],"helpers":[{"id":"sid","name":"Sid","role":"researcher","available":true,"jobs":[{"id":7,"task":"Compare three mesh kits","state":"running","step":"Searching the web","chatId":"cedar","createdAt":"\#(ago(42))"}]},{"id":"penny","name":"Penny","role":"finance","available":true,"jobs":[{"id":8,"task":"Price each kit","state":"queued","chatId":"cedar","createdAt":"\#(ago(5))"}]}]}"#,
+        ]
+        for line in events {
+            do { model.apply(try decodeEvent(line)) }
+            catch { FileHandle.standardError.write(Data("gallery: live work fixture: \(error)\n".utf8)) }
+        }
+        func work(_ state: String, _ calls: [(String, String)]) -> ChatWorkSnapshot? {
+            let items = calls.map { #"{"id":"\#(UUID().uuidString)","tool":"\#($0.0)","state":"\#($0.1)"\#($0.1 == "started" ? "" : #","ms":1800"#)}"# }
+            let json = #"{"chat":"cedar","turn":"\#(UUID().uuidString)","startedAt":"\#(ago(60))","elapsedMs":22000,"state":"\#(state)","calls":[\#(items.joined(separator: ","))],"omitted":0,"questions":[]}"#
+            return try? JSONDecoder().decode(ChatWorkSnapshot.self, from: Data(json.utf8))
+        }
+        var done = Conversation.Turn(id: 1, transcript: "Which notes mention the router?", reply: "Two notes do: **Flat setup** and **Wi-Fi ideas**. Both say the router sits in the hall.", outcome: .answered)
+        done.work = work("completed", [("Grep", "ok"), ("Read", "ok"), ("Read", "ok"), ("Read", "ok")])
+        var live = Conversation.Turn(id: 2, transcript: "Compare three mesh kits for a 70 m² flat and price them.")
+        live.work = work("working", [("mcp__atom__plan_work", "ok"), ("Agent", "ok"), ("Agent", "started")])
+        for theme in [AppTheme.ember, .daylight] {
+            model.settings.theme = theme
+            let page = VStack(alignment: .leading, spacing: Spacing.turn) {
+                TurnView(turn: done)
+                TurnView(turn: live, computerStep: "Waiting for Sid and Penny")
+                ChatAgentWorkView(model: model)
+            }
+            .padding(24).frame(width: 760, height: 560, alignment: .top)
+            .background(theme.palette.surfaceSolid.color)
+            .environment(\.theme, theme.palette).environment(\.islandSnapshot, true)
+            save(page, name: "44-chat-live-work-\(theme.rawValue)", to: directory)
+        }
+    }
+
     /// Visual acceptance scenes use fictional data and isolated preferences. They make no runtime/model calls.
     static func writeWorkspaceDesign(to directory: URL) {
+        writeChatLiveWork(to: directory)
         let suite = "atom.gallery.workspace-design.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
