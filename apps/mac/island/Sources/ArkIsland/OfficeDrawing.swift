@@ -5,8 +5,34 @@ import ArkIslandCore
 /// Furniture anchors match OfficeMap so tasks, walking and click targets retain their meaning.
 enum OfficeDrawing {
     private static let width = CGFloat(OfficeMap.width), height = CGFloat(OfficeMap.height)
+    /// Set by the floor before it draws (2026-11-01): in a dark theme the studio is drawn in dark tones, so it sits in the app
+    /// instead of a light mint panel. ponytail: one global flag; the floor is the only caller and draws on the main thread.
+    nonisolated(unsafe) static var dark = false
+
     private static func c(_ value: UInt32, _ opacity: Double = 1) -> Color {
-        Color(red: Double((value >> 16) & 255) / 255, green: Double((value >> 8) & 255) / 255, blue: Double(value & 255) / 255).opacity(opacity)
+        let rgb = (Double((value >> 16) & 255) / 255, Double((value >> 8) & 255) / 255, Double(value & 255) / 255)
+        guard dark else { return Color(red: rgb.0, green: rgb.1, blue: rgb.2).opacity(opacity) }
+        let (l, chroma, hue) = oklch(rgb)
+        // Light surfaces become the dark tone steps; dark objects (screens, the header) sink a little below them.
+        let lightness = l >= 0.6 ? 0.2 + (l - 0.6) * 0.3 : l * 0.72
+        return RGBA.oklch(lightness, chroma * 0.55, hue).color.opacity(opacity)
+    }
+    /// Label text stays light in a dark theme so it reads on the dark tones.
+    private static func ink(_ value: UInt32) -> Color {
+        guard dark else { return c(value) }
+        let (_, chroma, hue) = oklch((Double((value >> 16) & 255) / 255, Double((value >> 8) & 255) / 255, Double(value & 255) / 255))
+        return RGBA.oklch(0.78, min(chroma, 0.03), hue).color
+    }
+    private static func oklch(_ rgb: (Double, Double, Double)) -> (Double, Double, Double) {
+        func linear(_ v: Double) -> Double { v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
+        let (r, g, b) = (linear(rgb.0), linear(rgb.1), linear(rgb.2))
+        let l = cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+        let m = cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+        let s = cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+        let L = 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s
+        let A = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s
+        let B = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s
+        return (L, (A * A + B * B).squareRoot(), atan2(B, A) * 180 / .pi)
     }
     private static func box(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat, _ r: CGFloat = 3) -> Path {
         Path(roundedRect: CGRect(x: x, y: y, width: w, height: h), cornerRadius: r, style: .continuous)
@@ -18,7 +44,7 @@ enum OfficeDrawing {
         g.stroke(shape, with: .color(c(edge)), lineWidth: 0.6)
     }
     private static func label(_ g: GraphicsContext, _ text: String, _ x: CGFloat, _ y: CGFloat, color: UInt32 = 0x667D80) {
-        g.draw(Text(text).font(.system(size: 3.8, weight: .semibold, design: .rounded)).foregroundColor(c(color)), at: CGPoint(x: x, y: y), anchor: .topLeading)
+        g.draw(Text(text).font(.system(size: 3.8, weight: .medium)).foregroundColor(ink(color)), at: CGPoint(x: x, y: y), anchor: .topLeading)
     }
 
     static func background(_ g: GraphicsContext) {
@@ -29,18 +55,18 @@ enum OfficeDrawing {
         for y in stride(from: CGFloat(32), through: height, by: 16) { grid.move(to: CGPoint(x: 0, y: y)); grid.addLine(to: CGPoint(x: width, y: y)) }
         g.stroke(grid, with: .color(c(0xC9D8D2, 0.4)), lineWidth: 0.4)
         g.fill(box(0, 0, width, 29, 0), with: .color(c(0x183B3D)))
-        label(g, "ARK / STUDIO", 9, 10, color: 0xCDECE1)
+        label(g, "Studio", 9, 10, color: 0xCDECE1)
         // The attention display retains the original notes' coordinates and live count.
         panel(g, CGRect(x: 159, y: 4, width: 43, height: 22), fill: 0x0F292F, edge: 0x4B7271, radius: 4)
-        label(g, "NEEDS YOU", 210, 11, color: 0xA8D7CD)
+        label(g, "Needs you", 210, 11, color: 0xA8D7CD)
         for x in [CGFloat(282), 289, 296] { g.fill(box(x, 11, 4, 4, 2), with: .color(c(0x76B8AA, x == 282 ? 1 : 0.3))) }
         panel(g, CGRect(x: 5, y: 34, width: 88, height: 69), fill: 0xD8E8E2, edge: 0xB2CDC2, radius: 10)
         label(g, "ARK", 12, 39, color: 0x3C6F64)
         // Small collaboration zone and a warm, separate place for idle agents.
         panel(g, CGRect(x: 23, y: 157, width: 96, height: 46), fill: 0xDDE7E9, edge: 0xC5D4D7, radius: 10)
-        label(g, "COLLABORATE", 28, 193)
+        label(g, "Collaborate", 28, 193)
         panel(g, CGRect(x: 211, y: 113, width: 104, height: 90), fill: 0xEEE4D6, edge: 0xD7C9B5, radius: 10)
-        label(g, "RECHARGE", 217, 117, color: 0x927E66)
+        label(g, "Recharge", 217, 117, color: 0x927E66)
         // Low partitions leave the existing doors and walk routes visible.
         g.fill(box(94, 33, 2, 46, 1), with: .color(c(0xB2C7BF)))
         g.fill(box(94, 96, 2, 12, 1), with: .color(c(0xB2C7BF)))

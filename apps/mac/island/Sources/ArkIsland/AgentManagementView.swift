@@ -97,7 +97,7 @@ struct AgentManagementPanel: View {
                 AgentManagementRow(model: model, helper: helper)
             }
             if !everyone.isEmpty {
-                Button("View all \(everyone.count) agents") { model.showsAllAgents = true }
+                Button(everyone.count == 1 ? "View the agent" : "View all \(everyone.count) agents") { model.showsAllAgents = true }
                     .buttonStyle(SnapshotBorderlessButtonStyle()).appFont(.system(size: 12)).padding(.top, 12)
             }
             Text("Ready agents can receive work. Pause keeps current tasks running.")

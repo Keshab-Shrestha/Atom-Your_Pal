@@ -62,7 +62,6 @@ struct PluginsPane: View {
                 HubSkillsSection(model: model, hub: list?.skillHub ?? .empty) // B3.5
             }
             // A readable measure, as on the Settings pages.
-            .frame(maxWidth: 760, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Spacing.panel)
             .padding(.top, 28)

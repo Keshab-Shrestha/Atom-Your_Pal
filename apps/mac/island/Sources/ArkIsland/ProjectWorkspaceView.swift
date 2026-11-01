@@ -85,7 +85,7 @@ struct ProjectWorkspaceView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Workspace").appFont(.system(size: 18, weight: .medium, design: .serif))
+                Text("Workspace").appFont(.system(size: 18, weight: .medium, ))
                 Text(verbatim: model.chats?.currentProject?.name ?? "This chat")
                     .appFont(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(1)
             }

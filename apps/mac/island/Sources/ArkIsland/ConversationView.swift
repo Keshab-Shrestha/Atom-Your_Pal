@@ -110,8 +110,6 @@ struct Composer: View {
                 }
                 .frame(minHeight: 22, alignment: .topLeading)
                 if readOnly == nil {
-                    // A hairline between what you type and the toolbar under it, edge to edge (the reference app).
-                    Rectangle().fill(theme.separator.color).frame(height: 1).padding(.horizontal, -14).padding(.vertical, 2)
                     ViewThatFits(in: .horizontal) {
                         HStack(spacing: 12) {
                             composerTools.toolbarPill()

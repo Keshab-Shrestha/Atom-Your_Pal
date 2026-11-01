@@ -59,7 +59,6 @@ struct ScheduledPane: View {
                 }
             }
             // A readable measure, as on the Settings pages.
-            .frame(maxWidth: 760, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Spacing.panel)
             .padding(.top, 28)

@@ -72,7 +72,7 @@ struct BoardPane: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(model.boardView == .floor ? "Your team" : model.boardView.title)
-                        .appFont(.system(size: 26, weight: .semibold)).foregroundStyle(theme.text.color)
+                        .appFont(.system(size: 20, weight: .semibold)).foregroundStyle(theme.text.color)
                     Text(model.boardView == .floor ? "Manage your agents and keep work moving." : "Tasks, decisions and results from your team.")
                         .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }
@@ -824,6 +824,8 @@ private struct AllAgentsList: View {
 }
 
 extension BoardPane {
+    static func agents(_ n: Int) -> String { n == 1 ? "1 agent" : "\(n) agents" }
+
     private func studioFloor(height: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             OfficeFloor(model: model).frame(height: height).frame(maxWidth: .infinity)
@@ -838,7 +840,7 @@ extension BoardPane {
             Label("\(attention.running) working", systemImage: "circle.fill")
                 .foregroundStyle(theme.live.color)
             Text("·").foregroundStyle(theme.text3.color)
-            Text("\(model.helpers.list?.helpers.count ?? 0) agents").foregroundStyle(theme.text2.color)
+            Text(Self.agents(model.helpers.list?.helpers.count ?? 0)).foregroundStyle(theme.text2.color)
             Spacer(minLength: 0)
             Button { model.boardView = .needsYou } label: {
                 Label(attention.needsYou ? "\(attention.total) need you" : "Nothing needs you", systemImage: attention.needsYou ? "exclamationmark.circle.fill" : "checkmark.circle")

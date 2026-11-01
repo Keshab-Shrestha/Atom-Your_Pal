@@ -27,7 +27,10 @@ struct OfficeFloor: View {
             let scale = max(0.5, proxy.size.width / CGFloat(OfficeMap.width))
             let size = CGSize(width: CGFloat(OfficeMap.width) * scale, height: CGFloat(OfficeMap.height) * scale)
             ticking { date in
-                Canvas { context, _ in scene.draw(in: &context, scale: scale, date: date) }
+                Canvas { context, _ in
+                    OfficeDrawing.dark = theme.isDark
+                    scene.draw(in: &context, scale: scale, date: date)
+                }
                     .frame(width: size.width, height: size.height)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
@@ -325,8 +328,7 @@ struct ViewChoice: View {
             .appFont(.system(size: 12, weight: .medium))
                 .foregroundStyle(selected ? theme.text.color : theme.text3.color)
                 .padding(.horizontal, compact ? 9 : 12).padding(.vertical, 8)
-                .background(RoundedRectangle(cornerRadius: theme.radiusControl + 2, style: .continuous)
-                    .strokeBorder(selected ? (theme.isFlat ? theme.border.color : theme.separator.color) : .clear, lineWidth: 1))
+                .background(Capsule().fill(selected ? theme.fill2.color : .clear))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

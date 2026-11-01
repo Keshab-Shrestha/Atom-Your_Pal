@@ -270,7 +270,7 @@ private struct WindowHeader: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(model.windowPage == .settings ? "Settings" : "Chats")
-                    .appFont(.system(size: 22, weight: .medium, design: .serif)).foregroundStyle(theme.text.color)
+                    .appFont(.system(size: 22, weight: .semibold)).foregroundStyle(theme.text.color)
                 HStack(spacing: 4) {
                     Circle().fill(statusColor).frame(width: 5, height: 5)
                     Text(model.status.title).appFont(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(1)
@@ -308,7 +308,6 @@ struct SidebarRow: View {
         HStack(spacing: 12) {
             Glyph(systemName: symbol).appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
                 .frame(width: 26, height: 26)
-                .overlay { if theme.isFlat && !desktopDesign { Circle().strokeBorder(theme.border.color, lineWidth: 1) } }
             VStack(alignment: .leading, spacing: 1) {
                 Text(title).appFont(.system(size: 13, weight: selected ? .medium : .regular)).foregroundStyle(theme.text.color)
                 if let detail, !desktopDesign { Text(detail).appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1) }
@@ -320,8 +319,6 @@ struct SidebarRow: View {
         .background {
             if desktopDesign {
                 RoundedRectangle(cornerRadius: Radius.card).fill(selected ? theme.fill2.color : hovering ? theme.fill1.color : .clear)
-            } else if theme.isFlat {
-                RoundedRectangle(cornerRadius: theme.radiusControl + 4, style: .continuous).strokeBorder(selected ? theme.border.color : .clear, lineWidth: 1)
             } else {
                 RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(selected ? (theme.isDark ? theme.fill2.color : Color.white.opacity(0.85)) : Color.clear)
             }
@@ -361,9 +358,8 @@ struct HelperBadge: View {
             }
         }
         .frame(width: size, height: size)
-        .background(Circle().fill(theme.isFlat ? Color.clear : theme.fill2.color))
+        .background(Circle().fill(theme.fill2.color))
         .clipShape(Circle())
-        .overlay { if theme.isFlat { Circle().strokeBorder(theme.border.color, lineWidth: 1) } } // Void: a hairline disc
         .overlay { if working { WorkingArc(lineWidth: size >= 36 ? 2.2 : 1.8).padding(-3.5) } }
         .accessibilityHidden(true)
     }

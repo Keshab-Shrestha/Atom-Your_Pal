@@ -416,7 +416,6 @@ struct SidebarChatRow: View {
             // The open chat: a surface step with a hairline (unslop), not an accent tint and a bar.
             .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .fill(selected ? theme.fill3.color : hovering ? theme.fill2.color : .clear))
-            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(selected ? theme.separator.color : .clear, lineWidth: 1))
             .contentShape(Rectangle())
             .animation(Motion.hover(false, ghost: theme.isGhost), value: hovering)
         }
@@ -469,7 +468,6 @@ struct ProjectChip: View {
         }
         .padding(.leading, 12).padding(.trailing, 4).frame(height: 24)
         .background(Capsule().fill(theme.fill1.color))
-        .overlay(Capsule().strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.5))
         .accessibilityElement(children: .contain)
     }
 }

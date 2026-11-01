@@ -12,7 +12,7 @@ struct EmptyStateView: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        // A dashed card that says what is missing, why it is useful, and the one way to start (2026-10-31). No icon.
+        // A tone-step card (2026-11-01: no dashed box) that says what is missing, why it is useful, and the one way to start (2026-10-31). No icon.
         let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
         HStack(alignment: .top, spacing: 0) {
             VStack(alignment: .leading, spacing: 4) {
@@ -25,7 +25,7 @@ struct EmptyStateView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .overlay(shape.strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, style: StrokeStyle(lineWidth: 1, dash: [5, 4])))
+        .background(shape.fill(theme.fill1.color))
         .accessibilityElement(children: .combine)
     }
 }

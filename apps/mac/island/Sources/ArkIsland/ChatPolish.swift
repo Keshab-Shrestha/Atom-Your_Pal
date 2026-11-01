@@ -14,7 +14,7 @@ private struct ComposerFocusModifier<S: InsettableShape>: ViewModifier {
         content
             // At rest the theme's border; focused, a calm accent hairline with a soft halo outside it. Void keeps
             // the hairline only (no glow, ADR-086).
-            .overlay(shape.strokeBorder(focused ? theme.accent.color.opacity(0.32) : theme.border.color, lineWidth: 1))
+            .overlay(shape.strokeBorder(focused ? theme.accent.color.opacity(0.32) : .clear, lineWidth: 1)) // at rest the fill is the edge (2026-11-01)
             .background(
                 shape.stroke(theme.accent.color.opacity(focused && !theme.isFlat ? 0.16 : 0), lineWidth: 6)
                     .blur(radius: 4)
@@ -28,12 +28,12 @@ private struct ToolbarPillModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding(.horizontal, 8).frame(height: 26)
-            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(theme.border.color, lineWidth: 1))
+            .background(Capsule().fill(theme.fill1.color))
     }
 }
 
 extension View {
-    /// A composer toolbar control as a small outlined button (model, reasoning, access), as in the reference app.
+    /// A composer toolbar control as a small filled pill (model, reasoning, access). No outline (2026-11-01).
     func toolbarPill() -> some View { modifier(ToolbarPillModifier()) }
 
     /// The message box's focus state: a softer ring than a hard accent outline, settling in on `Motion.settle`.
