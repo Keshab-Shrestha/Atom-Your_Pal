@@ -196,3 +196,16 @@ struct DictationStatusTests {
         #expect(s.kind == .starting && s.title == "Loading speech" && s.detail == "First use, about 20 seconds")
     }
 }
+
+/// The voice pill's dot-matrix meter (2026-11-02): silence lights nothing, any sound lights a dot, full scale lights the whole column.
+@Suite("Voice pill dots")
+struct VoicePillDotsTests {
+    @Test func levelsLightDotsFromTheBottom() {
+        #expect(LevelMeter.litDots(0, rows: 4) == 0)
+        #expect(LevelMeter.litDots(0.01, rows: 4) == 0, "room noise stays dark")
+        #expect(LevelMeter.litDots(0.05, rows: 4) == 1, "any sound lights one dot")
+        #expect(LevelMeter.litDots(0.5, rows: 4) == 2)
+        #expect(LevelMeter.litDots(1, rows: 4) == 4)
+        #expect(LevelMeter.litDots(3, rows: 4) == 4, "never more than the column")
+    }
+}

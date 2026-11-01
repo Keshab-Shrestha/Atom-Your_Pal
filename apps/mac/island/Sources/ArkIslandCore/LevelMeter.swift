@@ -33,6 +33,12 @@ public struct LevelMeter: Sendable, Equatable {
         history.append(value)
     }
 
+    /// How many of `rows` dots light for `level` (0–1), for the voice pill's dot-matrix meter (2026-11-02). Any sound lights one.
+    public static func litDots(_ level: Double, rows: Int) -> Int {
+        guard level > 0.02, rows > 0 else { return 0 }
+        return min(rows, max(1, Int((level * Double(rows)).rounded(.up))))
+    }
+
     public mutating func reset() {
         value = 0
         history = Array(repeating: 0, count: history.count)

@@ -29,6 +29,15 @@ extension IslandGallery {
         done.work = work("completed", [("Grep", "ok"), ("Read", "ok"), ("Read", "ok"), ("Read", "ok")])
         var live = Conversation.Turn(id: 2, transcript: "Compare three mesh kits for a 70 m² flat and price them.")
         live.work = work("working", [("mcp__ark__plan_work", "ok"), ("Agent", "ok"), ("Agent", "started")])
+        // The voice pill while ARK listens, with words heard so far and a moving meter.
+        if let event = try? decodeEvent(#"{"type":"state","state":"listening"}"#) { model.status.apply(event) }
+        model.status.setPreview("Draft a short note to Mira about the Cedar launch on Thursday")
+        for peak in [0.002, 0.006, 0.03, 0.12, 0.4, 0.15, 0.03, 0.2, 0.6, 0.08, 0.01, 0.1, 0.3, 0.05, 0.004, 0.02] { model.meter.add(peak) }
+        for theme in [AppTheme.ember, .daylight] {
+            model.settings.theme = theme
+            save(VoicePill(model: model).padding(24).background(Color(white: theme.palette.isDark ? 0.35 : 0.8))
+                .environment(\.theme, theme.palette).environment(\.islandSnapshot, true), name: "44-voice-pill-\(theme.rawValue)", to: directory)
+        }
         for theme in [AppTheme.ember, .daylight] {
             model.settings.theme = theme
             let page = VStack(alignment: .leading, spacing: Spacing.turn) {

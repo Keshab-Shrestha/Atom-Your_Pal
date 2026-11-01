@@ -20,6 +20,7 @@ final class IslandController {
     let bubble: BubbleController
     /// What ARK is doing on the Mac, Stop, and approval requests (ADR-054, ADR-056).
     let strip: WorkStripController
+    let voicePill: VoicePillController
     /// The short label beside Pal while it points.
     let pointLabel = PointLabelController()
     let agentCursor = AgentCursorController()
@@ -88,6 +89,7 @@ final class IslandController {
         model = IslandModel(settings: settings, inputURL: ChatInputStore.defaultURL)
         bubble = BubbleController(model: model)
         strip = WorkStripController(model: model)
+        voicePill = VoicePillController(model: model)
         helpersWindow = MainWindowController(model: model)
         notifier = Notifier(settings: settings)
         quickActions = QuickActionController(model: model)
@@ -359,6 +361,7 @@ final class IslandController {
         menuIcon.update(model.status.kind, title: model.status.title, flat: !model.settings.theme.palette.usesGlow)
         shortcuts.setBusy(model.status.isBusy || talking || dictating)
         updateStrip()
+        voicePill.update(listening: [.listening, .transcribing].contains(model.status.kind)) // 2026-11-02: the voice pill
         updatePointing()
         updateBubble()
         updatePanel()
