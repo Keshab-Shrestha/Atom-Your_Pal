@@ -29,7 +29,8 @@ struct ChatWorkView: View {
                         Text("\(work.calls.count - calls.count) earlier steps").foregroundStyle(theme.text3.color)
                     }
                     ForEach(calls) { call in callRow(call) }
-                    if work.calls.isEmpty { Text(working ? "Thinking" : "No tools used").foregroundStyle(theme.text3.color) }
+                    // While it works with no tool yet, the turn's own "Thinking" line below says so (2026-11-02: it showed twice).
+                    if work.calls.isEmpty, !working { Text("No tools used").foregroundStyle(theme.text3.color) }
                     if work.omitted > 0 { Text("\(work.omitted) more steps not shown").foregroundStyle(theme.text3.color) }
                     ForEach(work.questions.filter { $0.state != "pending" }) { question in
                         VStack(alignment: .leading, spacing: 2) {
