@@ -3,8 +3,8 @@ import Testing
 
 struct BoardViewTests {
     @Test func overviewComesBeforeFloor() {
-        #expect(BoardView.allCases == [.needsYou, .overview, .floor, .columns], "what waits for Keshab comes first")
-        #expect(BoardView.allCases.map(\.title) == ["Needs you", "Activity", "Studio", "Tasks"])
+        #expect(BoardView.allCases == [.needsYou, .overview, .floor, .columns, .team], "what waits for Keshab comes first")
+        #expect(BoardView.allCases.map(\.title) == ["Needs you", "Activity", "Studio", "Tasks", "Team"])
     }
 
     @Test func aStoredOverviewPageIsTheBoardsOverview() {

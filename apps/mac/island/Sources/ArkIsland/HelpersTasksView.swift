@@ -73,7 +73,7 @@ struct BoardPane: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(model.boardView == .floor ? "Your team" : model.boardView.title)
                         .appFont(.system(size: 20, weight: .semibold)).foregroundStyle(theme.text.color)
-                    Text(model.boardView == .floor ? "Manage your agents and keep work moving." : "Tasks, decisions and results from your team.")
+                    Text(model.boardView == .floor ? "Manage your agents and keep work moving." : model.boardView == .team ? "Who works for whom, live." : "Tasks, decisions and results from your team.")
                         .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }
                 Spacer(minLength: 10)
@@ -100,6 +100,8 @@ struct BoardPane: View {
         .padding(.bottom, 12)
         if model.boardView == .overview {
             OverviewPane(model: model)
+        } else if model.boardView == .team {
+            BoardTeamView(model: model)
         } else if model.boardView == .needsYou {
             NeedsYouPane(model: model, embedded: true)
         } else {
@@ -858,6 +860,7 @@ extension BoardPane {
             ViewChoice(title: "Studio", symbol: "building.2", selected: model.boardView == .floor, compact: compact) { model.boardView = .floor }
             ViewChoice(title: "Needs you", symbol: "tray", selected: model.boardView == .needsYou, badge: waiting, compact: compact) { model.boardView = .needsYou }
             ViewChoice(title: "Tasks", symbol: "checklist", selected: model.boardView == .columns, compact: compact) { model.boardView = .columns }
+            ViewChoice(title: "Team", symbol: "person.2", selected: model.boardView == .team, compact: compact) { model.boardView = .team }
             ViewChoice(title: "Activity", symbol: "chart.bar", selected: model.boardView == .overview, compact: compact) { model.boardView = .overview }
         }
     }

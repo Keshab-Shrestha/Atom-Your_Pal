@@ -9,7 +9,7 @@ public enum WindowPage: Equatable, Sendable {
 /// pages; they live here now (2026-10-15 for the last two, which freed room in the sidebar for Projects and Chats). Failed
 /// tasks are part of Needs you: they wait for him (ADR-116).
 public enum BoardView: String, CaseIterable, Sendable {
-    case needsYou, overview, floor, columns
+    case needsYou, overview, floor, columns, team
 
     /// The name the switch shows.
     public var title: String {
@@ -18,6 +18,7 @@ public enum BoardView: String, CaseIterable, Sendable {
         case .floor: "Studio"
         case .columns: "Tasks"
         case .overview: "Activity"
+        case .team: "Team"
         }
     }
 
