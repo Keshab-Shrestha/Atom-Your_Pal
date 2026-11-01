@@ -6,7 +6,7 @@ import { enableApi, startRuntime } from "./smoke-harness.ts";
 // headers, and refuses what it must. It catches what mocks hide: wiring, startup, the HTTP layer. It runs with `pnpm test` (a few seconds).
 // The model-using flows are in smoke.live.test.ts.
 
-test("a real runtime starts, serves the Local API and the phone page, and refuses a bad token and a foreign host", { timeout: 120_000 }, async () => {
+test("a real runtime starts, serves the Local API and the phone page, and refuses a bad token and a foreign host", { timeout: 240_000 }, async () => {
   const runtime = await startRuntime();
   try {
     const ready = runtime.events.find((e) => e.type === "ready")!;

@@ -165,7 +165,9 @@ export async function startRuntime(options: { model?: string; readyMs?: number; 
   };
 
   try {
-    await runtime.waitFor((e) => e.type === "ready", options.readyMs ?? 60_000, "the runtime's ready event");
+    // 2026-11-01: 120 s. In this clean environment the start waits on the signed-in `claude` program, which took 45 to 60 s on
+    // Keshab's Mac (the app itself is ready in about 7 s), so 60 s failed about half the runs.
+    await runtime.waitFor((e) => e.type === "ready", options.readyMs ?? 120_000, "the runtime's ready event");
   } catch (error) {
     await runtime.stop();
     throw error;
