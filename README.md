@@ -131,6 +131,15 @@ curl -fsSL https://raw.githubusercontent.com/Keshab-Shrestha/Atom-Your_Pal/main/
 
 ARK goes to `~/ARK`. To use another folder, put `ARK_DIR=/path/to/folder` before `bash`.
 
+### Option 3: Homebrew
+
+```sh
+brew install keshab-shrestha/ark/ark
+ark-install
+```
+
+Homebrew installs Node.js and pnpm and the `ark-install` command. `ark-install` is the same installer as Option 1. Run it again to update ARK. The tap is [Keshab-Shrestha/homebrew-ark](https://github.com/Keshab-Shrestha/homebrew-ark).
+
 ### What ARK needs
 
 The installer checks each item and installs the missing ones with Homebrew. It asks before each install.
@@ -150,7 +159,7 @@ The installer checks each item and installs the missing ones with Homebrew. It a
 
 The voice (Kokoro) and dictation (Parakeet) models download themselves the first time you use them.
 
-### Option 3: build by hand
+### Option 4: build by hand
 
 ```sh
 git clone https://github.com/Keshab-Shrestha/Atom-Your_Pal.git ARK
