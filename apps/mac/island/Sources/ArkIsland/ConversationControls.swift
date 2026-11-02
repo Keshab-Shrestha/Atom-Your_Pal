@@ -43,6 +43,8 @@ struct ConversationControls: View {
         let recoveryCount = model.recovery.attempts.count + model.unconfirmedAnswers.count
         ChatActionsMenu(title: "Chat options", attention: recoveryCount > 0) {
             Button("Find in chat", action: model.openChatFind)
+            Button("Copy whole chat") { _ = ChatClipboard.write(MarkdownCopy.Content(text: model.conversation.markdown)) }
+                .disabled(model.conversation.turns.isEmpty)
             Divider()
             Button("Task results (\(taskCount))") { taskResults = true }.disabled(taskCount == 0)
             Button("Saved history", action: model.openSavedHistory).disabled(model.savedChat == nil)

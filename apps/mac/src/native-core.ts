@@ -46,7 +46,9 @@ const MEDIA_RULE =
   'When the user asks for a chart or graph, write a ```chart block of JSON instead of a table: {"type":"bar"|"line"|"pie","title":"…",' +
   '"labels":["…"],"series":[{"name":"…","values":[1,2]}]}, one value per label, at most 6 series and 50 labels; a pie has one series. ' +
   "To show a picture, put a Markdown image on its own line: ![what it shows](an https address, or the absolute path of an image file on this Mac). " +
-  "For a logo, icon or simple drawing, write a ```svg block: one <svg> with a viewBox, using shapes, paths, gradients and text only, with no scripts, links or images.";
+  "For a logo, icon or simple drawing, write a ```svg block: one <svg> with a viewBox, using shapes, paths, gradients and text only, with no scripts, links or images. " +
+  // 2026-11-02: a drawing went to an agent, which asked to write a file and stopped when the card expired.
+  "Write charts and drawings yourself, in your reply: do not hand them to an agent or save them to a file unless the user asks for a file.";
 
 /** The screen shows Markdown; the speaker skips tables and code (toSpeakable), so the spoken part stays one short sentence. */
 const MARKDOWN_RULE =

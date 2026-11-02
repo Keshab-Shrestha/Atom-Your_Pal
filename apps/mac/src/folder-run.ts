@@ -132,7 +132,7 @@ export function folderCheck(options: FolderCheckOptions) {
           say(name, "asked");
           const ok = await options.approve({ summary: `${options.name} wants to push its task branch to origin`, reason: `Command: ${oneLine(command, 120)}. ARK pushes only the task's own branch, to origin, never forced.` });
           if (options.cancelled?.()) return stopped;
-          if (!ok) return say(name, "declined"), "Keshab did not allow the push. Leave the work on its branch and say in the report that it is ready to push.";
+          if (!ok) return say(name, "declined"), "Keshab did not allow the push (he said no, or the card expired with no answer). Leave the work on its branch and say in the report that it is ready to push.";
         }
         try {
           return say(name, "refused"), `${await options.push(options.cwd)} Do not run git push yourself.`;
@@ -149,7 +149,7 @@ export function folderCheck(options: FolderCheckOptions) {
         const why = verdict.verdict === "ask" ? `This command ${verdict.reason}.` : "The agent asked to run it outside the sandbox.";
         const ok = await options.approve({ summary: `${options.name} wants to run: ${oneLine(command, 120)}`, reason: outside ? `${why} It runs outside the sandbox: it can use the network and change files anywhere you can.` : why });
         if (options.cancelled?.()) return stopped;
-        if (!ok) return say(name, "declined"), "Keshab did not allow this command. Do the job without it, or say in the report what is needed.";
+        if (!ok) return say(name, "declined"), "Keshab did not allow this command (he said no, or the card expired with no answer). Do the job without it, or say in the report what is needed.";
       }
       return say(name, "allowed"), undefined;
     }
@@ -187,7 +187,7 @@ export function folderCheck(options: FolderCheckOptions) {
       const request = { summary: `${options.name} wants to ${writing ? "change" : "read"} a protected file: ${shortPath(target, home)}`, reason: `${problem} ${name} ${shortPath(target, home)}.` };
       const ok = options.approveFile ? await options.approveFile(request) : await options.approve(request);
       if (options.cancelled?.()) return stopped;
-      if (!ok) return say(name, "declined"), "Keshab did not allow this file. Do the job without it, or say in the report what is needed.";
+      if (!ok) return say(name, "declined"), "Keshab did not allow this file (he said no, or the card expired with no answer). Do the job without it, or say in the report what is needed.";
       if (ok === "chat" && options.permissions) options.permissions.grant(target);
       else options.memory?.approved.add(target);
     }
@@ -198,7 +198,7 @@ export function folderCheck(options: FolderCheckOptions) {
         say(name, "asked");
         const ok = await options.approve({ summary: `${options.name} wants to move ${shortPath(target, home)} to the Trash`, reason: "You can put it back from the Trash in Finder." });
         if (options.cancelled?.()) return stopped;
-        if (!ok) return say(name, "declined"), "Keshab did not allow this delete. Leave the file, or say in the report what should go.";
+        if (!ok) return say(name, "declined"), "Keshab did not allow this delete (he said no, or the card expired with no answer). Leave the file, or say in the report what should go.";
       }
       return say(name, "allowed"), undefined;
     }
@@ -219,7 +219,7 @@ export function folderCheck(options: FolderCheckOptions) {
           const canRemember = asks.length === 1 && memory.written.size < MAX_OUTSIDE_WRITES && options.permissions && options.approveFile;
           const ok = canRemember ? await options.approveFile!(request) : await options.approve(request);
           if (options.cancelled?.()) return stopped;
-          if (!ok) return say(name, "declined"), "Keshab did not allow this change. Do the job without it, or say in the report what is needed.";
+          if (!ok) return say(name, "declined"), "Keshab did not allow this change (he said no, or the card expired with no answer). Do the job without it, or say in the report what is needed.";
           if (ok === "chat") options.permissions!.grant(real);
           if (ok !== "chat") memory.approved.add(real);
         }

@@ -4047,3 +4047,21 @@ Keshab asked ARK to make a logo and to think about image creation in Codex. Clau
 - Generated images stay in `data/images` when their chat is deleted. Cleanup is a later change.
 - The live check is not done: the plan reached its Codex usage limit on 2026-11-02. A fake Codex test covers the protocol.
 - AppKit's SVG renderer draws text in its own way, so fonts in a drawing can look different from the app.
+
+## ADR-223 — Drawings stay in the reply; honest refusals; Copy whole chat (2026-11-02)
+
+### Context
+
+Keshab asked for a visual. ARK gave it to the agent Puff, which asked to write an SVG file. The card got no answer in 60 seconds, so it expired. Puff was told "Keshab did not allow this file" and reported that Keshab declined. In the task thread, the Notes field overlapped the heading. Keshab also could not select all the text in a chat.
+
+### Decision
+
+- Every chat prompt says: write charts and drawings yourself in the reply. Do not hand them to an agent or save them to a file unless the user asks for a file.
+- The five refusals an agent gets in `folder-run.ts` (push, command, file, delete, change) now say "(he said no, or the card expired with no answer)". An agent can no longer report an expired card as a refusal.
+- The task thread's Notes field is a plain field, like "Add label", that grows to six lines. Before, a boxed field with its own title was 90 points tall inside a 38-point row.
+- "Copy whole chat" in the chat's options menu copies every message as Markdown (**You:** / **ARK:**). SwiftUI selects text within one block only, so a drag cannot select a whole chat.
+
+### Consequences
+
+- The approval card still expires after 60 seconds.
+- Drag selection across paragraphs and messages still stops at each block. A selectable transcript needs a text-view rewrite, which is a separate change.

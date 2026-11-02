@@ -632,14 +632,18 @@ private struct NotesSection: View {
                 if snapshot {
                     Text(prompt).appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color).frame(maxWidth: .infinity, alignment: .leading)
                 } else {
-                    SoulField(label: steers ? "Message" : "Note", text: draft.projectedValue, lines: 2)
+                    // 2026-11-02: a plain field like "Add label" above. A boxed SoulField with its own title overflowed this
+                    // 38-point row and covered the "Notes" heading. It grows to six lines; Return sends.
+                    TextField(prompt, text: draft.projectedValue, axis: .vertical)
+                        .textFieldStyle(.plain).lineLimit(1...6).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color)
+                        .onSubmit { if typed { add() } }
                         .accessibilityLabel(steers ? "Message" : "Note")
                 }
                 SaveButton(title: steers ? "Send" : "Add", enabled: typed, saved: model.savedField == "note" && model.helpers.problem == nil,
                            label: steers ? "Send message" : "Add note", action: add)
             }
-            .padding(.leading, 16).padding(.trailing, 8)
-            .frame(height: 38)
+            .padding(.leading, 16).padding(.trailing, 8).padding(.vertical, 8)
+            .frame(minHeight: 38)
             .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
         }
         .tracksEdits(model, "note", typed)

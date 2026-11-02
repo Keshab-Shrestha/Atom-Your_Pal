@@ -37,6 +37,15 @@ public struct Conversation: Sendable, Equatable {
 
     /// Oldest first, at most `limit`; the oldest are dropped.
     public private(set) var turns: [Turn] = []
+
+    /// The whole chat as Markdown, for "Copy whole chat" (2026-11-02: a drag selects within one block of text only).
+    public var markdown: String {
+        turns.flatMap { turn -> [String] in
+            let said = turn.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+            let reply = turn.reply?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return (said.isEmpty ? [] : ["**You:** " + said]) + (reply.isEmpty ? [] : ["**ARK:** " + reply])
+        }.joined(separator: "\n\n")
+    }
     public let limit: Int
     /// Never reused, even after a reset, so views never confuse an old turn with a new one.
     private var nextId = 1

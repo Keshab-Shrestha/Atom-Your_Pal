@@ -76,6 +76,12 @@ struct ReplyMediaTests {
         #expect(ReplySVG.check(svg) == nil)
     }
 
+    @Test func theWholeChatCopiesAsMarkdown() {
+        var chat = Conversation()
+        chat.replay([ChatLine(fromUser: true, text: "Hi"), ChatLine(fromUser: false, text: "Hello.\n\n- one"), ChatLine(fromUser: true, text: "Thanks")])
+        #expect(chat.markdown == "**You:** Hi\n\n**ARK:** Hello.\n\n- one\n\n**You:** Thanks")
+    }
+
     @Test func imagesAndChartsUseTheBlockRenderer() {
         #expect(MarkdownBlocks.isRich("Look:\n![c](/tmp/c.png)"))
         #expect(MarkdownBlocks.isRich("```chart\n{}\n```"))
