@@ -4100,3 +4100,21 @@ Keshab asked for a more stylish pointer than a mouse arrow, "like fingertips". A
 ### Consequences
 
 - Reference image `49-agent-cursor.png` shows the pointer idle and active on dark and light, with the click point marked.
+
+## ADR-226 — One agent pointer: the Cua driver's own cursor is off for ARK (2026-11-02)
+
+### Context
+
+With two displays, Keshab saw ARK's fingertip pointer on the main display and a second, different pointer that swung on the other display. The second pointer is the Cua driver's own agent cursor. `cua-driver` 0.28.2 shows it by default (`agent_cursor.enabled: true`) and moves it with a spring and an arc. ARK sent no session label, so the driver used its implicit session and showed its cursor for every click. `createAgentCursor` (2026-10-23), which once controlled that cursor, was no longer used, and its call no longer matched the driver (`set_agent_cursor_enabled` now needs a `session`).
+
+### Decision
+
+- On connect, the Cua transport reads which tools take a `session`. It switches the driver's cursor off for ARK's session (`CUA_SESSION_LABEL`, "ark") and adds that label to every call to such a tool. A call that already names a session keeps it.
+- An older driver without sessions still works. Its cursor can still show.
+- The unused `createAgentCursor` is deleted.
+- The driver's global setting does not change, so other Cua clients on the Mac keep their cursor.
+
+### Consequences
+
+- During computer work only ARK's fingertip pointer shows.
+- A live click with the new session label is not yet checked on Keshab's apps. A harmless check confirmed that the driver accepts the session and switches its cursor off.
