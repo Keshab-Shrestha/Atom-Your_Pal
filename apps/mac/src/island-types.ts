@@ -30,8 +30,17 @@ export interface IslandWorkflows {
   onChange(listener: () => void): () => void;
 }
 
+/** 2026-11-02: panels (panels.ts). `save` and `remove` return the new list or throw a reason. */
+export interface IslandPanels {
+  list(): import("./panels.ts").Panel[];
+  save(panel: unknown): import("./panels.ts").Panel[];
+  remove(id: string): import("./panels.ts").Panel[];
+  onChange(listener: () => void): () => void;
+}
+
 export interface IslandOptions {
   workflows?: IslandWorkflows;
+  panels?: IslandPanels;
   localBackup?: ReturnType<typeof import("./local-backup.ts").createLocalBackup>;
   sourceAnalysis?: Pick<ReturnType<typeof import("./source-analysis.ts").createSourceAnalysis>, "handle" | "interrupt">;
   /** Commands from the island, one JSON object per line. */

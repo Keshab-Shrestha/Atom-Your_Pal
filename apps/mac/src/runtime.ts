@@ -97,6 +97,7 @@ import { SCHEDULER_TICK_MS, scheduleTick } from "./scheduler.ts";
 import { createBrainWiring, type BrainWiring } from "./brain-wiring.ts";
 import { createImproveSkillTool, createProposeSkillTool, createSearchChatsTool } from "./reach-tools.ts";
 import { nativeSteering, nativeRetryStarter, retrySourceChat, routeWake, routineStarter, taskStarter } from "./native-entry.ts";
+import { createPanelStore, createPanelTool } from "./panels.ts";
 import { createWorkflowStore, dueWorkflows, eventWorkflows, workflowPrompt, type Workflow, type WorkflowEvent } from "./workflows.ts";
 import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
 import { testMcpServer } from "./mcp-servers.ts";
@@ -122,6 +123,8 @@ const WEB_SEARCH: Capability = { title: "Search the web", examples: ["What's in 
 export interface Runtime {
   /** 2026-11-02: workflows (workflows.ts), when the helpers file is open. */
   workflows?: import("./island-types.ts").IslandWorkflows;
+  /** 2026-11-02: panels (panels.ts). */
+  panels?: import("./island-types.ts").IslandPanels;
   islandLocalBackup?: IslandOptions["localBackup"];
   islandSourceAnalysis?: IslandOptions["sourceAnalysis"];
   config: Config;
@@ -224,6 +227,9 @@ export function createRuntime(
   // 2026-11-02: images Codex makes in a chat are kept next to the memory file (data/images), owner-only. None for an in-memory test run.
   const memoryFile = options.memoryPath ?? readEnv(process.env, "ARK_MEMORY_FILE") ?? "data/memory.db";
   const generatedImages = memoryFile === ":memory:" ? undefined : join(dirname(resolve(memoryFile)), "images");
+  // 2026-11-02: panels (panels.ts), kept next to the memory file; the window and the create_panel tool share this store.
+  const panelStore = generatedImages ? createPanelStore(join(dirname(generatedImages), "panels.json")) : undefined;
+  const panelListeners = new Set<() => void>();
   let foregroundReady = Boolean(memory);
   try { memory?.foreground.recover(); }
   catch { foregroundReady = false; log.error("foreground.unavailable", {}); }
@@ -642,6 +648,15 @@ export function createRuntime(
               approve: (request, signal) => computer.approve(request, signal),
               restartWhenIdle: () => nativeCores.forEach((c) => c.restartWhenIdle()),
               onCreated: (e) => log.info("agent.created", e),
+            }),
+          ]
+        : []),
+      ...(panelStore
+        ? [
+            createPanelTool({
+              store: { save: (panel) => { const list = panelStore.save(panel); panelListeners.forEach((listener) => listener()); return list; } },
+              approve: (request, signal) => computer.approve(request, signal),
+              onCreated: (e) => log.info("panel.created", e),
             }),
           ]
         : []),
@@ -1078,6 +1093,7 @@ export function createRuntime(
           host: readEnv(process.env, "ARK_API_HOST"),
           ask: apiAsk,
           ...(helpers ? { helpers } : {}),
+          ...(memory ? { memories: memory, brain: memory.brain, ...(memory.brainSources ? { brainSources: memory.brainSources } : {}) } : {}),
           approvals: computer,
           describe,
           // ADR-110 (N3): a goal is a turn in its own chat "api-goal-<id>"; its status reads that chat's Board rows.
@@ -1248,7 +1264,14 @@ export function createRuntime(
   briefNow = dailyBrief ? runBriefNow : undefined;
   // The helpers as the window lists them, for the search (agents, routines, skills).
   const searchHelpers = helpers ? islandHelpers(helpers, installedApps, planModels, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name))), undefined, codexWorkerModels) : undefined;
+  const panels: import("./island-types.ts").IslandPanels | undefined = panelStore && {
+    list: () => panelStore.list(),
+    save: (panel) => { const list = panelStore.save(panel); panelListeners.forEach((listener) => listener()); return list; },
+    remove: (id) => { const list = panelStore.remove(id); panelListeners.forEach((listener) => listener()); return list; },
+    onChange: (listener) => { panelListeners.add(listener); return () => panelListeners.delete(listener); },
+  };
   return {
+    ...(panels ? { panels } : {}),
     ...(workflows ? { workflows } : {}),
     config,
     log,

@@ -79,6 +79,8 @@ export type IslandEvent =
   | { type: "suggestions"; enabled: boolean; items: SuggestionItem[] }
   /** 2026-11-02: the workflows, after `workflows.list` and each change; `problem` is the reason a save, delete or run was refused. */
   | { type: "workflows"; workflows: import("./workflows.ts").Workflow[]; problem?: string }
+  /** 2026-11-02: the panels, after `panels.list` and each change; `problem` is why a save or delete was refused. */
+  | { type: "panels"; panels: import("./panels.ts").Panel[]; problem?: string }
   /** Daily brief: the settings, the newest briefs (newest first, at most 14) and whether one is being made. Sent after `brief.get` and after each change. */
   /** Ask ARK: the answer to `text.edit`. `answer` replaces the selection (or the whole text); `changed` is false when it is the same. Or `error`, in words for the user. Never logged. */
   | { type: "text.edit.result"; id: string; answer?: string; changed?: boolean; error?: string }

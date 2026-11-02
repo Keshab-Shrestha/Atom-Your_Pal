@@ -651,3 +651,39 @@ test("a busy chat is a 409 with the line from the guard", async () => {
     api.stop();
   }
 });
+
+test("shared memory endpoint requires authorization and returns only live memory projection", async () => {
+  const fake = { recent: (limit?: number) => {
+    assert.equal(limit, 500);
+    return [{ id: 1, text: "Prefers tea", owner: "local", scope: "personal" as const, source: "text" as const, createdAt: new Date("2026-01-01T00:00:00Z") }];
+  } };
+  const { api, port, token } = await boot({ memories: fake });
+  try {
+    assert.equal((await call(port, "GET", "/v1/memories")).status, 401);
+    const response = await call(port, "GET", "/v1/memories", { token });
+    assert.equal(response.status, 200);
+    assert.deepEqual(response.json.data.memories, [{ id: 1, text: "Prefers tea", createdAt: "2026-01-01T00:00:00.000Z" }]);
+    assert.equal((await call(port, "POST", "/v1/memories", { token, body: '{}' })).status, 404);
+  } finally { api.stop(); }
+});
+
+test("Second Brain previews need authentication and omit mirrored facts and ghost notes", async () => {
+  const now = new Date("2026-01-01T00:00:00Z");
+  const brain = {
+    graph: () => ({ nodes: [1, 2, 3].map(id => ({ id, title: `Note ${id}`, kind: "note" as const, ghost: id === 3, tags: [], degree: 0, updatedAt: now })), edges: [], omitted: 4 }),
+    get: (id: number) => ({ id, title: `Note ${id}`, body: "a".repeat(1600), kind: "note" as const, ref: id === 2 ? "memory:4" : undefined, ghost: false, tags: [], createdAt: now, updatedAt: now }),
+  };
+  const brainSources = { note: () => ({ path: "/notes", relativePath: "memory-123.md", checkedAt: now.toISOString(), state: "current" as const }) };
+  const { api, port, token } = await boot({ brain, brainSources });
+  try {
+    assert.equal((await call(port, "GET", "/v1/brain/notes")).status, 401);
+    const result = await call(port, "GET", "/v1/brain/notes", { token });
+    assert.equal(result.status, 200);
+    assert.equal(result.json.data.omitted, 4);
+    assert.equal(result.json.data.notes.length, 1);
+    assert.equal(result.json.data.notes[0].text.length, 1500);
+    assert.equal(result.json.data.notes[0].truncated, true);
+    assert.equal(result.json.data.notes[0].sourceMemoryId, "memory-123");
+    assert.equal(result.json.data.notes[0].path, undefined);
+  } finally { api.stop(); }
+});

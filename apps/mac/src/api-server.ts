@@ -1,3 +1,4 @@
+import type { MemoryStore } from "@ark/memory";
 // ADR-098 item 5: ARK as a server. A local HTTP API (Node's http, no framework) that other tools (Hermes, Claude Code,
 // the MCP entry in mcp-serve.ts) use to give ARK goals, talk to ARK, read tasks and reports, answer Needs you and
 // start webhook routines. It listens on 127.0.0.1 only, and every request needs the token in data/api-token.
@@ -69,6 +70,9 @@ export interface ApiServerOptions {
   /** One ARK chat turn (the same Core setup as the window's) in an API chat; resolves to ARK's answer. */
   ask(text: string, chatId?: string, signal?: AbortSignal): Promise<string>;
   helpers?: HelperStore;
+  memories?: Pick<MemoryStore, "recent">;
+  brain?: Pick<MemoryStore["brain"], "graph" | "get">;
+  brainSources?: Pick<NonNullable<MemoryStore["brainSources"]>, "note">;
   approvals: Pick<TelegramBotOptions["approvals"], "pending" | "answer">;
   describe(error: unknown): string;
   /**
@@ -295,6 +299,33 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
         // "api-goal-<id>" is a native goal's chat: a /v1/chat chatId never reaches it.
         if (typeof chatId === "string" && GOAL_CHAT_ID.test(chatId)) throw new ApiError(400, '"chatId" must not start with "goal-": goals have those chats.');
         return turn(async (signal) => ({ answer: await ark(said, chatId as string | undefined, signal) }));
+      },
+    },
+    {
+      method: "GET",
+      pattern: "/v1/memories",
+      match: /^\/v1\/memories$/,
+      run: () => {
+        if (!options.memories) throw new ApiError(503, "ARK memory is unavailable.");
+        return { memories: options.memories.recent(500).map((m) => ({ id: m.id, text: m.text, createdAt: m.createdAt.toISOString() })) };
+      },
+    },
+    {
+      method: "GET",
+      pattern: "/v1/brain/notes",
+      match: /^\/v1\/brain\/notes$/,
+      run: () => {
+        if (!options.brain) throw new ApiError(503, "ARK Second Brain is unavailable.");
+        const graph = options.brain.graph();
+        const notes = graph.nodes.filter((node) => !node.ghost).flatMap((node) => {
+          const note = options.brain!.get(node.id);
+          if (!note || note.ghost || note.ref?.startsWith("memory:")) return [];
+          const relative = options.brainSources?.note(note.id)?.relativePath;
+          const sourceMemoryId = typeof relative === "string" && /^(memory-[a-zA-Z0-9_-]+)\.md$/.test(relative)
+            ? relative.slice(0, -3) : undefined;
+          return [{ id: note.id, title: note.title, text: note.body.slice(0, 1500), truncated: note.body.length > 1500, updatedAt: note.updatedAt.toISOString(), ...(sourceMemoryId ? { sourceMemoryId } : {}) }];
+        });
+        return { notes, omitted: graph.omitted };
       },
     },
     {

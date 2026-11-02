@@ -391,6 +391,21 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "chat.defaults":
         newChatDefaults = { access: command.access, effort: command.effort };
         return;
+      case "panels.list":
+        sendPanels();
+        return;
+      case "panel.save":
+      case "panel.delete": {
+        const panels = options.panels;
+        if (!panels) { send({ type: "panels", panels: [], problem: "Panels need ARK's data folder." }); return; }
+        try {
+          if (command.type === "panel.save") panels.save(command.panel); else panels.remove(command.id);
+          sendPanels();
+        } catch (error) {
+          sendPanels(error instanceof Error ? error.message.slice(0, 200) : "The panel could not be saved.");
+        }
+        return;
+      }
       case "workflows.list":
         sendWorkflows();
         return;
@@ -1184,6 +1199,10 @@ export function runIsland(options: IslandOptions): IslandSession {
     send({ type: "brief", settings: state?.settings ?? DEFAULT_BRIEF, history: state?.history ?? [], running: state?.running ?? false,
       ...(state?.preparationBudget ? { preparationBudget: state.preparationBudget } : {}), ...(state?.preparationModel ? { preparationModel: state.preparationModel } : {}), ...(state?.notice ? { notice: state.notice } : {}) });
   }
+  function sendPanels(problem?: string) {
+    send({ type: "panels", panels: options.panels?.list() ?? [], ...(problem ? { problem } : {}) });
+  }
+  const stopPanelUpdates = options.panels?.onChange(() => sendPanels());
   function sendWorkflows(problem?: string) {
     send({ type: "workflows", workflows: options.workflows?.list() ?? [], ...(problem ? { problem } : {}) });
   }
@@ -1364,6 +1383,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     for (const controller of replyRuns.values()) controller.abort();
     stopBriefUpdates?.();
     stopWorkflowUpdates?.();
+    stopPanelUpdates?.();
     stopBrainUpdates?.();
     stopChatUpdates?.();
     stopChatWork?.();
