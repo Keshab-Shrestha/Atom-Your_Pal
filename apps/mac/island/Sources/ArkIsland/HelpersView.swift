@@ -124,6 +124,7 @@ struct HelpersView: View {
         switch model.windowPage {
         case .dashboard: DashboardPane(model: model)
         case .scheduled: ScheduledPane(model: model)
+        case .workflows: WorkflowsPane(model: model)
         case .plugins: PluginsPane(model: model)
         case .brain: BrainPane(model: model)
         case .chat: EmptyView() // ChatWorkspaceLayout keeps the composer mounted through pane resizing.
@@ -152,6 +153,7 @@ extension HelpersView {
             let chats = model.chats
             return (chats?.chats.first { $0.id == chats?.current }?.title ?? "New chat", "bubble.left.and.text.bubble.right")
         case .scheduled: return ("Scheduled", "clock")
+        case .workflows: return ("Workflows", "point.3.connected.trianglepath.dotted")
         case .plugins: return ("Plugins", "puzzlepiece.extension")
         case .brain: return ("Second brain", "brain.head.profile")
         case .settings: return (model.settingsPage?.rawValue ?? "Settings", "gearshape")

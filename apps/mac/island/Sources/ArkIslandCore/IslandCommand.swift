@@ -14,6 +14,10 @@ public enum IslandCommand: Sendable, Equatable {
     case chatAccess(id: String, mode: ChatAccessMode, expected: ChatAccessMode)
     /// Settings → Defaults (2026-11-02): a new chat's access and thinking level (empty: the model's default).
     case chatDefaults(access: ChatAccessMode, effort: String)
+    case workflowsList
+    case workflowSave(Workflow)
+    case workflowDelete(id: String)
+    case workflowRun(id: String)
     case chatReasoning(id: String, provider: String, model: String, effort: String)
     /// The user's answer to an `approval.request` (ADR-054).
     case approvalAnswer(id: String, approved: Bool, rememberFile: Bool = false, reviewToken: String? = nil)
@@ -210,6 +214,10 @@ public enum IslandCommand: Sendable, Equatable {
         case .chatModel: "chat.model"
         case .chatAccess: "chat.access"
         case .chatDefaults: "chat.defaults"
+        case .workflowsList: "workflows.list"
+        case .workflowSave: "workflow.save"
+        case .workflowDelete: "workflow.delete"
+        case .workflowRun: "workflow.run"
         case .chatReasoning: "chat.reasoning"
         case .approvalAnswer: "approval.answer"
         case .memoryList: "memory.list"
@@ -495,6 +503,10 @@ public enum IslandCommand: Sendable, Equatable {
         case .chatDefaults(let access, let effort):
             fields["access"] = access.rawValue
             fields["effort"] = effort
+        case .workflowSave(let workflow):
+            fields["workflow"] = workflow.jsonObject
+        case .workflowDelete(let id), .workflowRun(let id):
+            fields["id"] = id
         case .chatReasoning(let id, let provider, let model, let effort):
             fields["id"] = id
             fields["provider"] = provider

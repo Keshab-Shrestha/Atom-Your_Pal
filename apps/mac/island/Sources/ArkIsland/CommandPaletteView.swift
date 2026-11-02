@@ -143,6 +143,7 @@ extension CommandPaletteView {
                 model.navigate { model.windowPage = .agents; model.helpers.selectBoard(); model.boardView = view }
             })
         }
+        add(.init(id: "go:workflows", title: "Workflows", symbol: "point.3.connected.trianglepath.dotted", group: "Go to", keywords: "automation trigger steps"), go(.workflows))
         add(.init(id: "go:scheduled", title: "Scheduled", symbol: "calendar", group: "Go to", keywords: "routines"), go(.scheduled))
         add(.init(id: "go:brain", title: "Brain", symbol: "brain.head.profile", group: "Go to", keywords: "notes memory"), go(.brain))
         add(.init(id: "go:plugins", title: "Plugins", symbol: "puzzlepiece.extension", group: "Go to", keywords: "skills mcp"), go(.plugins))

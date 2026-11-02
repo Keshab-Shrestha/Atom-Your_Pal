@@ -199,6 +199,8 @@ final class IslandModel {
     var chatFindShown = false
     /// 2026-11-02: "Select text": the chat shown as one selectable text view (ChatSelectView).
     var chatSelecting = false
+    /// 2026-11-02: the workflows the runtime keeps (workflows.ts), once asked for.
+    var workflows: WorkflowList?
     /// 2026-11-02: the ⌘K command palette is open.
     var paletteShown = false
     /// 2026-11-02: the ⌘J agent panel shows this agent ("" for the first available); nil when closed.
@@ -1052,6 +1054,8 @@ final class IslandModel {
         case .brief(let list):
             briefPending = false
             dailyBrief.apply(list)
+        case .workflows(let list):
+            workflows = list
         case .suggestions(let list):
             suggestionPending = false
             suggestions.apply(list)

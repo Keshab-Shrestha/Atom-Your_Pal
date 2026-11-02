@@ -322,6 +322,13 @@ enum IslandGallery {
         tabled.agentPanel = "sid"
         save(window("⌘J: ask an agent", tabled), name: name + "-agent-panel", to: directory)
         tabled.agentPanel = nil
+        // 2026-11-02: the Workflows page with a live schedule workflow and an event draft.
+        if let event = try? decodeEvent(#"{"type":"workflows","workflows":[{"id":"w1","name":"Morning digest","enabled":true,"trigger":{"kind":"schedule","schedule":{"kind":"daily","minute":480}},"steps":[{"helper":"sid","task":"Collect today's networking news"},{"helper":"quill","task":"Write a five-line summary"}],"createdAt":"2026-11-01T00:00:00.000Z"},{"id":"w2","name":"Look into failures","enabled":false,"trigger":{"kind":"event","event":"task.failed"},"steps":[{"helper":"kame","task":"Read the failed task's log and say why it failed"}],"createdAt":"2026-11-01T00:00:00.000Z"}]}"#) {
+            tabled.apply(event)
+        }
+        tabled.windowPage = .workflows
+        save(window("Workflows", tabled), name: name + "-workflows", to: directory)
+        tabled.windowPage = .chat
         let paged = model(theme)
         paged.windowPage = .settings
         paged.settingsPage = .model

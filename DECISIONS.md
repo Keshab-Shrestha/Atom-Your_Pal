@@ -4176,3 +4176,26 @@ Phase 2 of ADR-228. The reference's Home opens with an "Editorial greeting": a g
 ### Consequences
 
 - A task from the panel starts with the Board's task access, not a chat's access.
+
+## ADR-230 — Phase 3 of the reference: Workflows (2026-11-02)
+
+### Context
+
+The reference's Workflows page draws a trigger, then steps, with Draft, Test run and Publish. Keshab chose schedule and Board-event triggers.
+
+### Decision
+
+- A workflow (`apps/mac/src/workflows.ts`) has a name, a trigger and 1–8 steps. Each step is an agent and a task. Off is a draft; Publish turns it on. Workflows are kept in `data/workflows.json` (owner-only, written whole), at most 20.
+- Triggers:
+  - By hand: Test run on the card, for drafts too.
+  - A schedule: the routines' daily, weekly or every-N-hours shape, on the routines' clock. A time missed while ARK was closed runs once.
+  - A Board task that fails or finishes. A task from a workflow's own run does not count, and each workflow waits 5 minutes between event starts, so runs cannot start each other in a loop.
+- A run is one hidden ARK turn in a `workflow-<id>-<time>` chat, one run at a time. Its prompt asks for one `plan_work` with the steps in order. ARK's plan system starts each step when the one before ends and gives it that step's report. The steps show on the Board as plan portions.
+- The window: a Workflows page (rail and ⌘K). Each workflow is a card with its flow as nodes (the trigger, then the numbered steps), Live or Draft, the last run, and Test run, Publish or Unpublish, Edit and Delete. An editor sets the name, the trigger and the steps.
+- Protocol: `workflows.list`, `workflow.save`, `workflow.delete` and `workflow.run` (an id matches `^[a-z0-9-]{1,40}$`, a workflow is at most 32,000 bytes); the `workflows` event carries the list and the reason for a refusal.
+
+### Consequences
+
+- A run uses the model to follow the plan. The plan system checks the order and the hand-off of reports in code.
+- Workflow steps run with the access of a hidden task turn (Saved permissions), not a chat's Full access.
+- The editor is a form, not a free canvas.
