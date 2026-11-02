@@ -4199,3 +4199,25 @@ The reference's Workflows page draws a trigger, then steps, with Draft, Test run
 - A run uses the model to follow the plan. The plan system checks the order and the hand-off of reports in code.
 - Workflow steps run with the access of a hidden task turn (Saved permissions), not a chat's Full access.
 - The editor is a form, not a free canvas.
+
+## ADR-231 — Phase 4 of the reference: the You page (2026-11-02)
+
+### Context
+
+The last phase of ADR-228. The reference has a Company page and an account footer. ARK has no company, so its page is about the owner.
+
+### Decision
+
+- `WindowPage.you` (`YouPane`) shows:
+  - A header: the initials avatar, the Mac user's full name, "Owner", the Mac's name and the time zone.
+  - What ARK remembers: the number of facts and the five newest. Manage opens the Second brain page, where memory is changed.
+  - Your setup: the theme, the typeface, the new-chat access and thinking, and the start page. Change opens Settings → Defaults.
+  - Activity: chats, agents, workflows, this week's input and output tokens, and active days in a row (from the chats' last update). Dashboard opens the Dashboard.
+  - Connections: Telegram, Local API and computer control. Settings opens Settings → Connections.
+- The page only reads. Each card links to the page that changes it.
+- The rail ends with the owner's initials (`YouAvatar`), as the reference's account footer does. ⌘K lists "You".
+- Snapshots use a fixed name, Mac and time zone, so reference images do not change with the machine.
+
+### Consequences
+
+- All four phases of the reference are in ARK: Paper & Teal and Ink & Sage, sidebar agents, ⌘K, Home, ⌘J, Workflows and You.

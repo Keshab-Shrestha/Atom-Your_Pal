@@ -328,6 +328,9 @@ enum IslandGallery {
         }
         tabled.windowPage = .workflows
         save(window("Workflows", tabled), name: name + "-workflows", to: directory)
+        // 2026-11-02: the You page.
+        tabled.windowPage = .you
+        save(window("You", tabled), name: name + "-you", to: directory)
         tabled.windowPage = .chat
         let paged = model(theme)
         paged.windowPage = .settings
