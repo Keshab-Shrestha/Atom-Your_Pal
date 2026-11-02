@@ -150,7 +150,7 @@ The installer checks each item and installs the missing ones with Homebrew. It a
 
 The voice (Kokoro) and dictation (Parakeet) models download themselves the first time you use them.
 
-### Option 3: build by hand
+### Option 4: build by hand
 
 ```sh
 git clone https://github.com/Keshab-Shrestha/Atom-Your_Pal.git ARK
