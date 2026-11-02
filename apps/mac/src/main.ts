@@ -130,6 +130,7 @@ function start(config: Config) {
     ...(runtime.telegram ? { telegram: runtime.telegram } : {}),
     ...(runtime.api ? { api: runtime.api } : {}),
     settings: runtime.settings,
+    ...(runtime.workflows ? { workflows: runtime.workflows } : {}),
     computer: runtime.computer,
     taskActivity: runtime.taskActivity,
     chatWork: runtime.chatWork,

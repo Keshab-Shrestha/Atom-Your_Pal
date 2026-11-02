@@ -2,7 +2,7 @@
 
 /// ADR-089: the ARK window's pages: the conversation, the board and the team, and Settings.
 public enum WindowPage: Equatable, Sendable {
-    case dashboard, chat, scheduled, agents, plugins, brain, settings
+    case dashboard, chat, scheduled, workflows, agents, plugins, brain, settings, you
 }
 
 /// The Board's views, in the order of its switch: what waits for Keshab first. Overview, Needs you and Issues were sidebar

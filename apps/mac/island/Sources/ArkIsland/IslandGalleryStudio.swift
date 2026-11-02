@@ -20,7 +20,7 @@ extension IslandGallery {
         model.chats = ChatList(chats: [], current: "gallery")
         model.windowPage = .agents; model.helpers.selectBoard(); model.boardView = .floor
         // The dark and compact shots show the navy print, the light shot the pale one (the bulb on).
-        for (theme, lights, name, size): (AppTheme, Bool, String, CGSize) in [(.void, false, "42-studio-dark", CGSize(width: 1080, height: 760)), (.daylight, true, "42-studio-light", CGSize(width: 1080, height: 760)), (.daylight, false, "42-studio-compact", CGSize(width: 760, height: 560))] {
+        for (theme, lights, name, size): (AppTheme, Bool, String, CGSize) in [(.void, false, "42-studio-dark", CGSize(width: 1080, height: 760)), (.daylight, true, "42-studio-light", CGSize(width: 1080, height: 760)), (.daylight, false, "42-studio-compact", CGSize(width: 760, height: 560)), (.paper, true, "42-studio-paper", CGSize(width: 1080, height: 760))] {
             model.settings.theme = theme; model.settings.studioLightsOn = lights
             save(HelpersView(model: model).frame(width: size.width, height: size.height).environment(\.islandSnapshot, true), name: name, to: directory)
         }

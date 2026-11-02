@@ -7,14 +7,14 @@ import Testing
 struct SidebarLayoutTests {
     @Test func startsInTheStandardOrder() {
         let layout = SidebarLayout.standard
-        #expect(layout.top == [.dashboard, .board, .scheduled, .brain])
+        #expect(layout.top == [.dashboard, .board, .scheduled, .brain, .workflows])
         #expect(layout.bottom == [.plugins, .settings])
     }
 
     @Test func aPageMovesBeforeAnotherInTheSameGroup() {
         var layout = SidebarLayout.standard
         layout.move(.scheduled, onto: .board)
-        #expect(layout.top == [.dashboard, .scheduled, .board, .brain])
+        #expect(layout.top == [.dashboard, .scheduled, .board, .brain, .workflows])
         layout.move(.settings, onto: .plugins)
         #expect(layout.bottom == [.settings, .plugins])
     }
@@ -22,8 +22,8 @@ struct SidebarLayoutTests {
     @Test func aPageDraggedDownPassesTheOneBelowIt() {
         var layout = SidebarLayout.standard
         layout.move(.dashboard, onto: .board)
-        #expect(layout.top == [.board, .dashboard, .scheduled, .brain])
-        layout.move(.dashboard, onto: .brain) // down to the last place of the group
+        #expect(layout.top == [.board, .dashboard, .scheduled, .brain, .workflows])
+        layout.move(.dashboard, onto: .workflows) // down to the last place of the group
         #expect(layout.top.last == .dashboard)
     }
 

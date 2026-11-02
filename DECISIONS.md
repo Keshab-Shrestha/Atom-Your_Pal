@@ -4140,3 +4140,84 @@ Keshab: "Allow full permission to the agents as well. Do not meet the agents wit
 - Without Full access the kit still decides, as before.
 - Full access still refuses deletes outside the Trash, remote changes and keychain reads. A tainted session (web text read) still asks for outside-sandbox commands, MCP calls and lasting changes. Plan-first agents still need their plan approved.
 - MCP servers and the browser stay per-agent grants. Full access does not add a server that an agent was not given.
+
+## ADR-228 — Phase 1 of the "Agent CRM workspace" reference: Paper & Teal, sidebar agents, ⌘K (2026-11-02)
+
+### Context
+
+Keshab gave a design reference (an "Agent CRM workspace" with the taste-skill "Editorial greeting" style) and asked to bring its pages and features into ARK. The work runs in phases: (1) look, sidebar agents and ⌘K; (2) Home and the ⌘J agent panel; (3) Workflows; (4) a You page. The CRM-only pages (Customers, Contracts, Balances, Transactions) are not taken.
+
+### Decision
+
+- Two themes from the reference's colours: Paper & Teal (light, paper `#f4f2ee`, teal `#2f5d50`) and Ink & Sage (dark, graphite `#121311`, sage `#7fb8a4`). They use 18 / 12 / 8 corners and serif page titles (`ThemePalette.serifTitles`).
+- Instrument Serif (SIL OFL, from github.com/google/fonts) is bundled. Serif text uses it when it is registered, else New York.
+- The chat sidebar lists the agents (`SidebarAgents`) with a live dot from `AgentPresence`: waiting (amber), working (green, pulsing), idle (grey), paused (ring), in that order. It shows six, then "All agents". + makes a new agent.
+- ⌘K (Edit → Command Palette) opens a palette over the window: actions, pages and Board views, the 30 newest chats, agents, projects, Settings pages and themes. `PaletteSearch` keeps entries that hold every typed word and puts title starts first. ↑ ↓ choose, Return runs, Esc closes.
+
+### Consequences
+
+- Snapshots draw the palette's placeholder and first rows, because ImageRenderer draws neither text fields nor scroll views.
+
+## ADR-229 — Phase 2 of the reference: Home and the ⌘J agent panel (2026-11-02)
+
+### Context
+
+Phase 2 of ADR-228. The reference's Home opens with an "Editorial greeting": a greeting, today's one fact and an Ask box. Its ⌘J "Ask an agent" panel works from any page.
+
+### Decision
+
+- Home (the rail's Home, the Dashboard page) opens with `HomeHeader` and `HomeAskBox`, above the existing tiles, team and trends.
+  - `HomeBrief.greeting` says good morning, afternoon or evening, with the Mac user's first name. `HomeBrief.fact` names one fact, in this order: what needs Keshab, the agents at work, then the day's input and output tokens (the "Tokens today" tile's measure).
+  - In Paper & Teal and Ink & Sage the greeting is in Instrument Serif and the fact in italics, as in the reference.
+  - The Ask box starts a new chat (Settings → Defaults decides where) and sends the text there once that chat is current (`IslandModel.askFromHome`). Try chips fill the box.
+  - Snapshots use a fixed evening and the name "Keshab", so reference images do not change with the clock or the Mac.
+- ⌘J (Edit → Ask an Agent, or the palette) opens `AgentPanelView` at the window's right edge on any page. It shows an agent picker with the agent's state, its six latest tasks (a click opens the thread) and "Give <name> a task…", which sends the existing `jobAdd`. The task joins the Board as any task does.
+
+### Consequences
+
+- A task from the panel starts with the Board's task access, not a chat's access.
+
+## ADR-230 — Phase 3 of the reference: Workflows (2026-11-02)
+
+### Context
+
+The reference's Workflows page draws a trigger, then steps, with Draft, Test run and Publish. Keshab chose schedule and Board-event triggers.
+
+### Decision
+
+- A workflow (`apps/mac/src/workflows.ts`) has a name, a trigger and 1–8 steps. Each step is an agent and a task. Off is a draft; Publish turns it on. Workflows are kept in `data/workflows.json` (owner-only, written whole), at most 20.
+- Triggers:
+  - By hand: Test run on the card, for drafts too.
+  - A schedule: the routines' daily, weekly or every-N-hours shape, on the routines' clock. A time missed while ARK was closed runs once.
+  - A Board task that fails or finishes. A task from a workflow's own run does not count, and each workflow waits 5 minutes between event starts, so runs cannot start each other in a loop.
+- A run is one hidden ARK turn in a `workflow-<id>-<time>` chat, one run at a time. Its prompt asks for one `plan_work` with the steps in order. ARK's plan system starts each step when the one before ends and gives it that step's report. The steps show on the Board as plan portions.
+- The window: a Workflows page (rail and ⌘K). Each workflow is a card with its flow as nodes (the trigger, then the numbered steps), Live or Draft, the last run, and Test run, Publish or Unpublish, Edit and Delete. An editor sets the name, the trigger and the steps.
+- Protocol: `workflows.list`, `workflow.save`, `workflow.delete` and `workflow.run` (an id matches `^[a-z0-9-]{1,40}$`, a workflow is at most 32,000 bytes); the `workflows` event carries the list and the reason for a refusal.
+
+### Consequences
+
+- A run uses the model to follow the plan. The plan system checks the order and the hand-off of reports in code.
+- Workflow steps run with the access of a hidden task turn (Saved permissions), not a chat's Full access.
+- The editor is a form, not a free canvas.
+
+## ADR-231 — Phase 4 of the reference: the You page (2026-11-02)
+
+### Context
+
+The last phase of ADR-228. The reference has a Company page and an account footer. ARK has no company, so its page is about the owner.
+
+### Decision
+
+- `WindowPage.you` (`YouPane`) shows:
+  - A header: the initials avatar, the Mac user's full name, "Owner", the Mac's name and the time zone.
+  - What ARK remembers: the number of facts and the five newest. Manage opens the Second brain page, where memory is changed.
+  - Your setup: the theme, the typeface, the new-chat access and thinking, and the start page. Change opens Settings → Defaults.
+  - Activity: chats, agents, workflows, this week's input and output tokens, and active days in a row (from the chats' last update). Dashboard opens the Dashboard.
+  - Connections: Telegram, Local API and computer control. Settings opens Settings → Connections.
+- The page only reads. Each card links to the page that changes it.
+- The rail ends with the owner's initials (`YouAvatar`), as the reference's account footer does. ⌘K lists "You".
+- Snapshots use a fixed name, Mac and time zone, so reference images do not change with the machine.
+
+### Consequences
+
+- All four phases of the reference are in ARK: Paper & Teal and Ink & Sage, sidebar agents, ⌘K, Home, ⌘J, Workflows and You.

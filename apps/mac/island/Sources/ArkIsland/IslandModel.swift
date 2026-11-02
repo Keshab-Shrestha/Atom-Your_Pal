@@ -199,6 +199,20 @@ final class IslandModel {
     var chatFindShown = false
     /// 2026-11-02: "Select text": the chat shown as one selectable text view (ChatSelectView).
     var chatSelecting = false
+    /// 2026-11-02: the workflows the runtime keeps (workflows.ts), once asked for.
+    var workflows: WorkflowList?
+    /// 2026-11-02: the ⌘K command palette is open.
+    var paletteShown = false
+    /// 2026-11-02: the ⌘J agent panel shows this agent ("" for the first available); nil when closed.
+    var agentPanel: String?
+    /// 2026-11-02: Home's Ask box: the text waits until the new chat it started is the current one, then is sent there.
+    @ObservationIgnored private var pendingHomeAsk: (text: String, from: String?)?
+
+    func askFromHome(_ text: String) {
+        pendingHomeAsk = (text, chats?.current)
+        startNewChat()
+        windowPage = .chat
+    }
     var chatFindQuery = ""
     var chatFindSelection = 0
     var chatFindFocusTick = 0
@@ -992,6 +1006,11 @@ final class IslandModel {
             settings.projectFilter = ProjectSidebarScope.resolved(settings.projectFilter, projects: list.projects)
             inputRuntimeReady = true
             saveInput()
+            if let ask = pendingHomeAsk, !list.current.isEmpty, list.current != ask.from {
+                pendingHomeAsk = nil
+                composerText = ask.text
+                submitComposer(now: false)
+            }
             projectCommandPending = false
             projectError = nil
             syncChatModelName()
@@ -1035,6 +1054,8 @@ final class IslandModel {
         case .brief(let list):
             briefPending = false
             dailyBrief.apply(list)
+        case .workflows(let list):
+            workflows = list
         case .suggestions(let list):
             suggestionPending = false
             suggestions.apply(list)

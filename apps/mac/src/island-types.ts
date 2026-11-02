@@ -21,7 +21,17 @@ import { type Capability } from "@ark/tool-engine";
 import type { ApiServer } from "./api-server.ts";
 import { type CoreLike, type VoiceLoopEvents, type VoiceLoopOptions } from "./voice-loop.ts";
 
+/** 2026-11-02: workflows (workflows.ts). `save` and `remove` return the new list or throw a reason; `run` returns a reason or undefined. */
+export interface IslandWorkflows {
+  list(): import("./workflows.ts").Workflow[];
+  save(workflow: unknown): import("./workflows.ts").Workflow[];
+  remove(id: string): import("./workflows.ts").Workflow[];
+  run(id: string): string | undefined;
+  onChange(listener: () => void): () => void;
+}
+
 export interface IslandOptions {
+  workflows?: IslandWorkflows;
   localBackup?: ReturnType<typeof import("./local-backup.ts").createLocalBackup>;
   sourceAnalysis?: Pick<ReturnType<typeof import("./source-analysis.ts").createSourceAnalysis>, "handle" | "interrupt">;
   /** Commands from the island, one JSON object per line. */

@@ -7,7 +7,9 @@ extension IslandGallery {
         for (name, theme, width, empty) in [
             ("31-chat-t3-dark", AppTheme.void, 1080.0, false),
             ("31-chat-t3-light", AppTheme.daylight, 1080.0, false),
-            ("31-chat-t3-empty", AppTheme.daylight, 760.0, true)
+            ("31-chat-t3-empty", AppTheme.daylight, 760.0, true),
+            ("31-chat-paper", AppTheme.paper, 1080.0, false),
+            ("31-chat-ink", AppTheme.ink, 1080.0, false)
         ] {
             let suite = "ark.gallery.chat-design.\(name).\(ProcessInfo.processInfo.processIdentifier)"
             let defaults = UserDefaults(suiteName: suite)!
@@ -39,7 +41,8 @@ extension IslandGallery {
                     .padding(20).frame(width: 620).environment(\.islandSnapshot, true).themed(ChatAppearance.palette(theme: theme)),
                      name: name + "-draft", to: directory)
             }
-            if !empty {
+            // The Settings shots are Void (dark) and Daylight (light) only; the paper and ink rows would overwrite them.
+            if !empty, theme == .void || theme == .daylight {
                 model.windowPage = .settings
                 model.settingsPage = .appearance
                 save(HelpersView(model: model).frame(width: 1080, height: 820).environment(\.islandSnapshot, true),

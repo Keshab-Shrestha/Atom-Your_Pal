@@ -73,6 +73,10 @@ struct HelpersView: View {
         .sheet(isPresented: Binding(get: { model.showsProjectSources }, set: { model.showsProjectSources = $0 })) {
             ProjectSourceSheet(model: model).themed(palette)
         }
+        .overlay(alignment: .trailing) {
+            if model.agentPanel != nil { AgentPanelView(model: model).themed(palette).padding(.vertical, 8).transition(.move(edge: .trailing)) }
+        }
+        .overlay { if model.paletteShown { CommandPaletteView(model: model).themed(palette) } }
         .themed(palette)
         .environment(\.desktopDesign, true)
         .appFont(.system(size: 13))
@@ -120,6 +124,8 @@ struct HelpersView: View {
         switch model.windowPage {
         case .dashboard: DashboardPane(model: model)
         case .scheduled: ScheduledPane(model: model)
+        case .workflows: WorkflowsPane(model: model)
+        case .you: YouPane(model: model)
         case .plugins: PluginsPane(model: model)
         case .brain: BrainPane(model: model)
         case .chat: EmptyView() // ChatWorkspaceLayout keeps the composer mounted through pane resizing.
@@ -148,6 +154,8 @@ extension HelpersView {
             let chats = model.chats
             return (chats?.chats.first { $0.id == chats?.current }?.title ?? "New chat", "bubble.left.and.text.bubble.right")
         case .scheduled: return ("Scheduled", "clock")
+        case .workflows: return ("Workflows", "point.3.connected.trianglepath.dotted")
+        case .you: return ("You", "person.crop.circle")
         case .plugins: return ("Plugins", "puzzlepiece.extension")
         case .brain: return ("Second brain", "brain.head.profile")
         case .settings: return (model.settingsPage?.rawValue ?? "Settings", "gearshape")
@@ -213,6 +221,7 @@ private struct HelperSidebar: View {
                         ChatsList(model: model)
                     }
                         .frame(maxHeight: .infinity)
+                    SidebarAgents(model: model)
                 }
                 if !model.searchQuery.isEmpty { Spacer(minLength: 0) }
             }
@@ -264,7 +273,7 @@ private struct WindowHeader: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(model.windowPage == .settings ? "Settings" : "Chats")
-                    .appFont(.system(size: 22, weight: .semibold)).foregroundStyle(theme.text.color)
+                    .appFont(theme.pageTitleFont(22)).foregroundStyle(theme.text.color)
                 HStack(spacing: 4) {
                     Circle().fill(statusColor).frame(width: 5, height: 5)
                     Text(model.status.title).appFont(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(1)

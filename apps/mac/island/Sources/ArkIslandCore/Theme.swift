@@ -19,6 +19,9 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
     case teal = 12
     /// Neutral graphite with one ember-orange accent, after the agent app Keshab chose as the reference (2026-10-31).
     case ember = 13
+    /// 2026-11-02 (Keshab's "Agent CRM workspace" reference, the taste-skill "Editorial greeting" style): warm paper with a deep
+    /// teal accent, softer corners and serif page titles; `ink` is its dark side, warm graphite with a sage-teal accent.
+    case paper = 14, ink
 
     public var id: Int { rawValue }
     public var title: String {
@@ -30,6 +33,8 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
         case .champagne: "Graphite & Champagne Gold"
         case .sapphire: "Midnight Sapphire"
         case .ember: "Graphite & Ember"
+        case .paper: "Paper & Teal"
+        case .ink: "Ink & Sage"
         }
     }
     public var detail: String {
@@ -41,6 +46,8 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
         case .champagne: "Graphite surfaces with a muted gold accent."
         case .sapphire: "Deep blue surfaces with a periwinkle accent."
         case .ember: "Neutral graphite, quiet hairlines and one ember-orange accent."
+        case .paper: "Warm paper, tonal panels, a deep teal accent and serif titles."
+        case .ink: "Warm graphite, tonal panels, a sage-teal accent and serif titles."
         }
     }
     public var palette: ThemePalette { ThemePalette.for(self) }
@@ -138,6 +145,8 @@ public struct ThemePalette: Sendable, Equatable {
     public var usesShadows = true
     /// Identifiers (model and app names, timings, shortcuts, job details) in SF Mono.
     public var monoIdentifiers = false
+    /// Page titles and the Home greeting in a serif (Instrument Serif when bundled), as in Paper & Teal and Ink & Sage.
+    public var serifTitles = false
     /// ARK's state as small coloured dots rather than tinted icons and light.
     public var statusDots = false
     /// The hairline once the pointer is over a ghost control.
