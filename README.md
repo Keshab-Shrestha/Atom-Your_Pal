@@ -4,95 +4,107 @@
 
 <h1 align="center">ARK</h1>
 
-<p align="center"><b>Autonomous Task Oriented Machine</b><br>
-Also: Autonomous Thinking and Optimization Mechanism, Adaptive Task Oriented Machine.</p>
+<p align="center"><b>A voice and desktop assistant for your Mac, with a team of agents.</b></p>
 
 ---
 
-## What ARK is
-
-ARK is a voice and desktop assistant that lives on your Mac. A smooth 2D mascot, Pal, shows what ARK does. An office floor shows a team of agents at work. ARK has memory, tools, a Telegram bot, a local API and an MCP server, a skills hub, and timelines and undo for every run. You talk to ARK. ARK does small things itself and hands bigger ones to the team. You approve what matters. Your data stays on your Mac.
-
-ARK is not a chatbot. The language model is one part of it. Permissions, memory, approvals and safety checks are ordinary code. A model cannot talk its way around them.
-
-## Screenshots
-
-<p align="center">
-  <img src="docs/images/office-floor.png" width="820" alt="The office floor with smooth 2D pals at desks and on a sofa">
-  <br><sub>The office floor: ARK runs the floor, working agents sit at a desk, the rest wait in the lounge.</sub>
-</p>
+ARK runs on your Mac. You talk or type. ARK answers, uses tools, and hands bigger work to its agents. Permissions, memory and approvals are ordinary code, not model decisions. Your data stays on your Mac.
 
 <p align="center">
   <img src="docs/images/window.png" width="820" alt="The ARK window with the chat list and the Board">
-  <br><sub>The ARK window: your chats in the sidebar and the team on the Board.</sub>
 </p>
-
 <p align="center">
-  <img src="docs/images/dashboard.png" width="410" alt="Dashboard with tokens by day">
-  <img src="docs/images/dashboard-team-git.png" width="410" alt="Dashboard with plan use, tokens by agent and git branches">
-  <br><sub>The Dashboard: tokens by day, agent and model (left); plan use and the git branches of the team (right). Sample data.</sub>
+  <img src="docs/images/studio.png" width="410" alt="The Board's Studio as a navy blueprint with agents at desks">
+  <img src="docs/images/chat-chart.png" width="410" alt="A chat reply with a bar chart, a ring chart and an image">
+  <br><sub>The Studio (sample data) and a reply with charts and an image.</sub>
 </p>
 
 ## Features
 
-**Talk and dictate**
+### Chat
+- Chats are saved. Continue any chat by voice or text.
+- Models: Claude (your signed-in plan), Codex (your ChatGPT sign-in) and Gemini CLI. The model picker shows provider logos and favourites.
+- Thinking level per chat: Low, Medium, High, Extra high or Max, when the model has it.
+- Access per chat: Saved permissions, Ask before changes, Chat only or Full access.
+- Replies use Markdown: tables, lists, code. Copy a reply as Markdown, plain text or rich text. Copy a table as Markdown, HTML, TSV or CSV.
+- Charts: ask for a chart and ARK draws bars, lines or a ring. "Copy table" copies the numbers.
+- Drawings: ask for a logo or icon and ARK draws it as SVG. Save SVG, Save PNG (1024 px) or Copy SVG.
+- Images: an image file on your Mac shows in the reply. A web image loads only when you click "Show image".
+- Image generation: Codex chats make photos and illustrations. ARK keeps each one in `data/images`.
+- Select text (⇧⌘A): the whole chat as one text. Drag or ⌘A selects across messages. ⌘C keeps bold, italic, underline and tables.
+- Copy whole chat, Find in chat (⌘F), Search all (⇧⌘F), Copy last reply (⇧⌘C).
+- New chat (⌘N), new project (⇧⌘N).
+- Type "/" for commands: ARK's own, your skills, and your Claude commands from `~/.claude/commands`.
+- Attach files and paste images. Quote a reply. Edit or retry a message in a new chat. Fork a chat.
+- Pin and archive chats. Each chat has a brief, its task results and its saved history.
+- ARK states facts plainly and names the source when sources disagree.
+
+### Projects
+- A project is a folder or a git repository (local, Git URL or GitHub).
+- Project chats get file tools, commands and an isolated git worktree for each agent task.
+- Workspace pane (⌥⌘R): Files, Changes (with Undo), Git, Browser, Terminal, Run and Details.
+
+### Voice
 - Push-to-talk from any app (Control + Option). ARK answers out loud.
-- Dictation into any text field (Right ⌘ + Right ⌥). The Mac transcribes your speech.
-- Chats: ARK saves each conversation. You continue it by voice or text.
-- Type "/" in the chat to open a list of commands. It shows ARK's own commands (`/new`, `/model`, `/skills`, `/memory`, `/help`), your skills, and your Claude commands from `~/.claude/commands`. ARK reads those files and never changes them.
-- The window has a Daylight theme and a dark theme. You can drag the sidebar rows into your own order.
+- Dictation into any text field (Right ⌘ + Right ⌥), on Parakeet.
+- ARK can read agent reports and updates aloud, with a chime.
 
-**Pal and the office floor**
-- Pal is a smooth 2D mascot. It shows what ARK does: listening, thinking, speaking, asking.
-- The office floor shows each agent at a desk with its current step, or in the lounge when it waits.
+### Agents and the Board
+- Each agent has a role, a kit and a `soul.md` (personality, how it works, rules, lessons). Edits are versioned.
+- Kits: research (the web), folders (files), think (no tools). In a Full access chat every agent has every kit's tools.
+- ARK answers known topics itself. It hands work to an agent only when you name one, ask for sources, change files, or need many lookups.
+- ARK makes a new agent when none fits. You approve it on a card.
+- Plans: ARK splits a big job into portions, one agent each.
+- The same team rules on Claude and Codex.
+- The Board has five views:
+  - Studio: the agents at their desks, drawn as a blueprint. The light bulb switches between a navy and a pale print.
+  - Needs you: questions, approvals and failed tasks.
+  - Tasks: tasks by status, with labels, notes and an inspector.
+  - Team: an org chart that shows who works now.
+  - Activity: what the team did.
+- Routines run on a schedule. Wake-ups run an agent every set time.
+- Skills: ARK offers to save a good task as a skill and improves a skill when you complain. A skills hub installs skills from pinned public repositories.
+- MCP servers: paste a server's JSON config. Give each server to the agents you choose.
+- Each agent can have its own browser profile.
+- Paperclip: hand tasks to your own Paperclip (`ARK_PAPERCLIP_URL`).
 
-**Agents, ARK and sub-agents**
-- Each agent has a role and a `soul.md` file. You can edit, rename and version it.
-- A kit decides the tools of an agent in code: research (the web), folders (files anywhere in your home folder, under the rules below), or think (no tools).
-- ARK splits a goal, hands the parts to the right agents, and reports in one line.
-- Each agent runs as a sub-agent inside the chat that handed it the task.
-- Tasks wait for each other. Plans wait for your OK. Routines run on a schedule.
-- Each run has an activity timeline.
-- The Board has four views: Needs you, Overview, Floor and Columns. Needs you holds what waits for your answer and what failed. A badge on the Board row shows the count.
-- Skills: you can open a skill's `SKILL.md` in a built-in editor. ARK writes the file only when you click Save, and it keeps a `.bak` copy.
-- MCP servers: paste a server's JSON config and ARK fills in the form. You give each server to the agents you choose.
+### Computer control
+- ARK looks at app windows and clicks, types and scrolls through the Cua driver. Your real pointer does not move.
+- A teal fingertip pointer shows where ARK acts, with a ring when it arrives.
+- Off until you turn it on in Settings → Computer.
 
-**Tokens and cost**
-- The Dashboard shows tokens and dollars by day, agent and model. Dollars are list prices, worked out from the tokens of each call.
-- ARK answers a topic you ask about itself, in a few sentences. It hands work to an agent only when you name one, ask for sources, change files, or need many separate lookups.
-- A research agent searches at most 3 times and reads at most 2 pages.
-- Claude Code's own calls (a small model that reads web pages) show as "Other" rows. A web search costs $0.01 and is priced in the rows.
-- Measured on 2026-10-15, with Haiku 5.5 on both sides and a fresh chat for each prompt. Costs are list prices, and Claude Code ran with a full personal setup (rules, hooks, plugins). ARK cost $0.030 in total and Claude Code $0.098. By prompt, ARK cost $0.0005 against $0.0097 (a simple question), $0.0015 against $0.0175 (a design question with code), $0.026 against $0.060 (a sourced web summary), and $0.0019 against $0.011 (typing text into TextEdit). Both sides gave correct answers. These are single runs on cold sessions, so treat them as rough. Details are in [DECISIONS.md](DECISIONS.md) (ADR-118).
+### Memory and everyday tools
+- ARK remembers facts you ask it to keep and recovers earlier parts of a chat.
+- Brain: notes, links and source folders that ARK can read.
+- Calendar, reminders, timers, weather, notes, music, opening apps, and "what is this page?" for the browser in front.
 
-**Memory, calendar, reminders, timers, weather**
-- ARK keeps facts you ask it to remember and picks up earlier conversations.
-- ARK reads your calendar and reminders, adds reminders, sets timers, and gives the weather.
+### Dashboard
+- Tokens and list-price dollars by day, agent and model. Trends for 7, 30 or 90 days.
+- Plan use, cache hits, an activity heatmap and the team's git branches.
 
-**Tools and computer control**
-- Music, notes, opening apps, and "what is this page?" for the browser in front.
-- Computer control is off until you turn it on in Settings → General (or set `ARK_COMPUTER=1`). ARK restarts to apply the switch. Risky steps wait for your approval.
-- With computer control off, ARK says it cannot type into other apps. It does not guess.
-- A browser tool for agents. A password field always asks.
+### Phone and other tools
+- Telegram: talk to ARK, answer Needs you, steer tasks and read reports ([docs/telegram.md](docs/telegram.md)).
+- Local API on `127.0.0.1` (off by default) and an MCP server for Claude Code and Hermes ([details](#use-ark-from-other-tools)).
 
-**Phone: Telegram**
-- Talk to ARK, answer the Needs you list, steer tasks and read reports from your phone.
-- Add `ARK_TELEGRAM_BOT_TOKEN` and `ARK_TELEGRAM_CHAT_ID` to `.env`. ARK serves only that chat. Step by step: [docs/telegram.md](docs/telegram.md).
+### Look and settings
+- 7 themes: Void, Daylight, Midnight Sapphire, Graphite & Champagne Gold, Royal Plum & Lavender, Obsidian & Electric Teal, Graphite & Ember.
+- 8 typefaces: System, Helvetica Neue, Source Sans, Work Sans, Lato, Poppins, Nunito, Mulish. Four text sizes.
+- Settings → Defaults: model, thinking and access for new chats, where ⌘N opens, the start page and the Dashboard range.
+- Pal: a 2D mascot that shows when ARK listens, thinks, speaks or asks, and flies to point at things.
+- Drag sidebar rows into your own order.
 
-**Integrations: local API, MCP server, skills hub, Paperclip**
-- Local API on `127.0.0.1` (off by default). Other tools give goals to ARK and read results.
-- An MCP server for Claude Code and Hermes. See [Use ARK from other tools](#use-ark-from-other-tools).
-- Skills hub: search and install skills from a pinned list of public repositories. You approve each install.
-- Paperclip: ARK can hand tasks to your own Paperclip. It is off until you set `ARK_PAPERCLIP_URL`.
+### Safety
+- Files: agents work in your home folder and on external drives. `~/Library`, hidden folders, secrets, ARK's data, git's own files and identity, bank, tax and medical documents are protected.
+- Changing an existing file asks once per file, except in Full access. A copy of each changed file is kept for Undo.
+- Network commands, sudo, system settings and git history rewrites ask, then run outside the sandbox.
+- A git push asks, then ARK pushes the task's own branch to origin, never forced.
+- Always refused: permanent deletes (files go to the Trash), remote changes and keychain reads.
+- After web text is read, lasting changes, MCP calls and outside-sandbox commands ask again, also in Full access.
+- An approval card that gets no answer expires. The agent is told so; it is not counted as a refusal.
+- Secrets in the activity timeline show as `[hidden]`. Logs hold ids, states and timings, never your words.
+- ARK uses your signed-in Claude Code and Codex. It never reads their logins.
 
-**Safety**
-- Files (ADR-122, ADR-123): every agent works in your home folder and on external drives, with one fixed floor. It never opens `~/Library`, hidden folders, secrets, ARK's own data, git's own files, or identity, bank, tax and medical documents. A new file is saved at once. Changing a file that exists asks you once per file. Deleting and commands that harm the system are refused. A copy of each changed file is kept for undo.
-- Approvals: deleting, installing, untrusted MCP tools and computer control wait for your OK.
-- Masking: secrets in the activity timeline show as `[hidden]`.
-- Undo: ARK keeps the files a run changes. You can undo them.
-- No secrets: ARK uses your signed-in Claude Code and never reads its login. Logs hold ids, states and timings, never your words.
-- Agents never push code. Only you push, from the Dashboard.
-
-Details: [SECURITY.md](SECURITY.md).
+Details: [SECURITY.md](SECURITY.md). Every decision: [DECISIONS.md](DECISIONS.md).
 
 ## Quick start
 
@@ -240,4 +252,4 @@ ARK is a personal prototype. It is built and used on one Mac. The app is not pac
 
 ## Name and history
 
-ARK was called ARK until 2026-10-13. Old entries in DECISIONS.md, TASK.md and STATUS.md keep the old name.
+ARK was called ZENO until 2026-10-13 and ATOM until 2026-11-01. Old entries in DECISIONS.md, TASK.md and STATUS.md keep the old names.
