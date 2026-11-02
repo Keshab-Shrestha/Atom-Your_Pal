@@ -4083,3 +4083,20 @@ Keshab wants to select any amount of a chat's text and keep its formatting: bold
 
 - The normal chat keeps charts, images, drawings, copy buttons and menus. Selecting across messages needs the Select text view.
 - The chat's own view does not draw `<u>` as underline. Only Select text and copies do.
+
+## ADR-225 — A fingertip agent pointer (2026-11-02)
+
+### Context
+
+Keshab asked for a more stylish pointer than a mouse arrow, "like fingertips". ARK shows its own pointer during computer work. The real pointer does not change.
+
+### Decision
+
+- `CursorArt` draws a pointing hand in ARK's teal, with a white outline and a gradient. It is one layer, so the parts do not show through each other at the idle opacity (55%).
+- `CursorArt.tip` is the fingertip and the point ARK acts on. Placement, gliding and the arrival checks use it, where before there were four copies of the arrow's offset.
+- When the pointer arrives, a ring goes out from the fingertip over 0.45 seconds. There is no ring with Reduce Motion.
+- The panel is 44 × 48 points, so the ring has room around the fingertip.
+
+### Consequences
+
+- Reference image `49-agent-cursor.png` shows the pointer idle and active on dark and light, with the click point marked.

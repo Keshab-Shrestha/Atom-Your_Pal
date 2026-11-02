@@ -61,6 +61,7 @@ extension IslandGallery {
             save(HelpersView(model: model).frame(width: 1080, height: 820).environment(\.islandSnapshot, true), name: name, to: directory)
         }
         writeSelectText(to: directory)
+        writeAgentCursor(to: directory)
     }
 
     /// 2026-11-02: Select text's page drawn by an offscreen text view (ImageRenderer cannot draw an NSTextView), and what a copy
