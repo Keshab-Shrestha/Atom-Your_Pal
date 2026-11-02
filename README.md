@@ -46,6 +46,13 @@ ARK runs on your Mac. You talk or type. ARK answers, uses tools, and hands bigge
 - Pin and archive chats. Each chat has a brief, its task results and its saved history.
 - ARK states facts plainly and names the source when sources disagree.
 
+### Home, ⌘K and ⌘J
+- Home opens with a greeting and today's one fact (what needs you, who is working, or the day's tokens), an Ask box that starts a chat, and your pinned panels.
+- ⌘K command palette: one search box for actions, pages, Board views, your newest chats, agents, projects, Settings pages and themes.
+- ⌘J "Ask an agent": a panel on any page. Pick an agent, see its latest tasks and give it a new one.
+- The sidebar lists your agents with a live dot: working, waiting for you, idle or paused.
+- You page: your name, what ARK remembers, your setup, your activity and your connections.
+
 ### Projects
 - A project is a folder or a git repository (local, Git URL or GitHub).
 - Project chats get file tools, commands and an isolated git worktree for each agent task.
@@ -70,6 +77,7 @@ ARK runs on your Mac. You talk or type. ARK answers, uses tools, and hands bigge
   - Team: an org chart that shows who works now.
   - Activity: what the team did.
 - Routines run on a schedule. Wake-ups run an agent every set time.
+- Workflows: a trigger (by hand, a schedule, or a Board task that fails or finishes), then up to 8 steps. Each step is an agent's task, and each gets the report of the one before. Draft, Test run, Publish.
 - Skills: ARK offers to save a good task as a skill and improves a skill when you complain. A skills hub installs skills from pinned public repositories.
 - MCP servers: paste a server's JSON config. Give each server to the agents you choose.
 - Each agent can have its own browser profile.
@@ -89,12 +97,17 @@ ARK runs on your Mac. You talk or type. ARK answers, uses tools, and hands bigge
 - Tokens and list-price dollars by day, agent and model. Trends for 7, 30 or 90 days.
 - Plan use, cache hits, an activity heatmap and the team's git branches.
 
+### Panels
+- Ask ARK for a panel ("a reading list and a counter for glasses of water") and approve it on a card. It appears on the Panels page, and on Home when pinned.
+- Blocks: text, stat, progress, checklist, notes, counter, chart and button. Stats and progress can show live numbers such as what needs you or today's tokens.
+- You tick, add, count and click. A button only acts when you click it: it puts a prompt in a new chat for you to send, opens a page, or runs a workflow.
+
 ### Phone and other tools
 - Telegram: talk to ARK, answer Needs you, steer tasks and read reports ([docs/telegram.md](docs/telegram.md)).
 - Local API on `127.0.0.1` (off by default) and an MCP server for Claude Code and Hermes ([details](#use-ark-from-other-tools)).
 
 ### Look and settings
-- 7 themes: Void, Daylight, Midnight Sapphire, Graphite & Champagne Gold, Royal Plum & Lavender, Obsidian & Electric Teal, Graphite & Ember.
+- 9 themes: Void, Daylight, Paper & Teal, Ink & Sage, Midnight Sapphire, Graphite & Champagne Gold, Royal Plum & Lavender, Obsidian & Electric Teal, Graphite & Ember. Paper & Teal and Ink & Sage use serif page titles.
 - 8 typefaces: System, Helvetica Neue, Source Sans, Work Sans, Lato, Poppins, Nunito, Mulish. Four text sizes.
 - Settings → Defaults: model, thinking and access for new chats, where ⌘N opens, the start page and the Dashboard range.
 - Pal: a 2D mascot that shows when ARK listens, thinks, speaks or asks, and flies to point at things.
@@ -217,7 +230,7 @@ Turn on Settings → General → Local API. Then add the MCP server to Claude Co
 claude mcp add ark -- node /path/to/ark/apps/mac/src/mcp-serve.ts
 ```
 
-The tools are `ark_give_goal`, `ark_goal_status`, `ark_chat`, `ark_list_tasks`, `ark_task_report`, `ark_needs_you` and `ark_answer_need`. The local API listens on `http://127.0.0.1:4790`. Change the port with `ARK_API_PORT`. Each request needs the bearer token from `data/api-token`. The token can approve or reject plans and retry tasks; it cannot answer risky-action cards, skill installs or soul changes (those are answered in the ARK window or on Telegram). Turn the API off when you do not use it. Settings → General has "Regenerate" to replace the token.
+The tools are `ark_give_goal`, `ark_goal_status`, `ark_chat`, `ark_list_tasks`, `ark_task_report`, `ark_needs_you` and `ark_answer_need`. The local API listens on `http://127.0.0.1:4790`. Change the port with `ARK_API_PORT`. Each request needs the bearer token from `data/api-token`. The token can read your live saved memory facts and Second Brain note previews, approve or reject plans, and retry tasks; it cannot answer risky-action cards, skill installs or soul changes (those are answered in the ARK window or on Telegram). Turn the API off when you do not use it. Settings → General has "Regenerate" to replace the token.
 
 ## Architecture
 

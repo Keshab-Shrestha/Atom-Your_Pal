@@ -191,7 +191,7 @@ export function createPanelTool(options: {
         "text {text}; stat {label, value, detail?}; progress {label, value, max}; checklist {label?, items:[{text,done}]}; notes {label?, items:[text]}; " +
         "counter {label, count, step?}; chart {chart:{type bar|line|pie, title?, labels, series:[{name, values}]}}; " +
         "button {label, action: {kind:'ask', prompt} | {kind:'open', page} | {kind:'workflow', id}}. " +
-        "In a stat or progress value write {{live.needsYou}}, {{live.working}}, {{live.agents}}, {{live.chats}}, {{live.workflows}}, {{live.tokensToday}} or {{live.tokensWeek}} for ARK's live numbers. " +
+        "In a stat or progress value write {{live.needsYou}} (add |short for 12K: {{live.tokensToday|short}}), {{live.working}}, {{live.agents}}, {{live.chats}}, {{live.workflows}}, {{live.tokensToday}} or {{live.tokensWeek}} for ARK's live numbers. " +
         "The user ticks, adds and counts in it; a button only acts when clicked, and an ask button puts the prompt in a new chat for the user to send.",
       inputSchema: {
         type: "object" as const,

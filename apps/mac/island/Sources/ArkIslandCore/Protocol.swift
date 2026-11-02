@@ -43,6 +43,8 @@ public enum IslandEvent: Sendable, Equatable {
     case suggestions(SuggestionsList)
     /// 2026-11-02: the workflows, and why a save, delete or run was refused.
     case workflows(WorkflowList)
+    /// 2026-11-02: the panels, and why a save or delete was refused.
+    case panels(PanelList)
     /// Daily brief: the settings, the newest briefs and whether one is being made (after `brief.get`, and after each change).
     case brief(BriefList)
     /// Ask ARK: the answer to a `text.edit`, by its id.
@@ -123,6 +125,7 @@ public enum IslandEvent: Sendable, Equatable {
         case .memory: "memory"
         case .suggestions: "suggestions"
         case .workflows: "workflows"
+        case .panels: "panels"
         case .brief: "brief"
         case .textEditResult: "text.edit.result"
         case .replyContext: "reply.context"
@@ -264,6 +267,8 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .contextReady(app: try f.string("app"), ok: try f.bool("ok"), message: f.optionalString("message"))
     case "memory":
         return .memory(MemoryList(enabled: try f.bool("enabled"), count: try f.int("count"), memories: try f.memories(), episodes: try f.episodes(), chats: try f.memoryChats()))
+    case "panels":
+        return .panels(PanelList(panels: Panel.list(from: f.values["panels"]), problem: f.values["problem"] as? String))
     case "workflows":
         return .workflows(WorkflowList(workflows: Workflow.list(from: f.values["workflows"]), problem: f.values["problem"] as? String))
     case "suggestions":

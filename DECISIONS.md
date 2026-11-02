@@ -4221,3 +4221,27 @@ The last phase of ADR-228. The reference has a Company page and an account foote
 ### Consequences
 
 - All four phases of the reference are in ARK: Paper & Teal and Ink & Sage, sidebar agents, ⌘K, Home, ⌘J, Workflows and You.
+
+## ADR-232 — Custom panels (2026-11-02)
+
+### Context
+
+Keshab sent an X post about Empryo's "Morphs": add-ons that are one JSON file, written by the agent, with the parts that change how the agent works kept behind an approval. He chose custom panels. Empryo's file format, schema and branding are not copied.
+
+### Decision
+
+- A panel (`apps/mac/src/panels.ts`) has a name, `enabled`, `home` (also on Home) and 1–30 blocks. Kinds: text, stat, progress, checklist, notes, counter, chart (bar, line or ring) and button. A block holds its own state (a tick, a note, a count); the window saves the whole panel after each change. Limits: 20 panels, 50 items per list, text 2,000 characters, items 300.
+- Panels are inert data. ARK draws them. They run no code, fetch nothing and call no agent. A button acts only when clicked:
+  - `ask` opens a new chat with the prompt in the box. It is never sent by itself. The button's tooltip shows the prompt.
+  - `open` goes to a named page.
+  - `workflow` runs a workflow by its id.
+- `{{live.name}}` in a stat or progress value shows ARK's numbers: needsYou, working, agents, chats, workflows, tokensToday and tokensWeek (`|short` writes 12K). Another name shows a dash.
+- The agent adds one with the `create_panel` tool. An approval card lists the blocks and what each button does, and an invalid panel never reaches the card. `create_panel` is refused after web text is read, like `create_agent`. The window pins, turns off, deletes and edits the blocks; "New panel" opens a chat that begins the request.
+- Stored in `data/panels.json`, owner-only, written whole. Protocol: `panels.list`, `panel.save`, `panel.delete` and the `panels` event.
+- The window: the Panels page (rail and ⌘K), cards in a grid, and the pinned panels under Home's tiles.
+
+### Consequences
+
+- There is no agent layer (rules, lookups, guards) in this first version. That part of Empryo's idea, behind an approval, is the next step.
+- An agent that is tricked could add a panel whose button asks for something harmful. The card shows each button, the button only prefills a chat, and the user reads it before sending.
+- Not tried with a live model: `create_panel` is tested with a stand-in approval.
