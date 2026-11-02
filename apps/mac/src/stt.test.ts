@@ -29,7 +29,7 @@ test("toWav writes a valid 16-bit mono header", () => {
 });
 
 test("cleanTranscript strips non-speech markers and whitespace", () => {
-  assert.equal(cleanTranscript("\n Hello Zeno,\n what time is it? \n"), "Hello Zeno, what time is it?");
+  assert.equal(cleanTranscript("\n Hello Ark,\n what time is it? \n"), "Hello Ark, what time is it?");
   assert.equal(cleanTranscript(" [BLANK_AUDIO]\n"), "");
   assert.equal(cleanTranscript("(music) hi [Laughter]"), "hi");
 });
@@ -88,7 +88,7 @@ const MODEL = "models/ggml-base.en.bin";
 const canRunReal = existsSync(MODEL) && process.platform === "darwin";
 
 test("real whisper.cpp transcribes synthesized speech", { skip: !canRunReal && "whisper model not downloaded" }, async () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-stt-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "ark-stt-test-"));
   const wav = join(dir, "speech.wav");
   execFileSync("say", ["-o", wav, "--data-format=LEI16@16000", "What is the weather like today?"]);
   // Decode to raw PCM (say's WAV has extra chunks, so the header is not a fixed size).
@@ -101,7 +101,7 @@ test("real whisper.cpp transcribes synthesized speech", { skip: !canRunReal && "
 test("a model path that is not a standard whisper.cpp file name gets a setting hint, not a broken link", async () => {
   const stt = createWhisperStt({ modelPath: "models/nope.bin", language: "en", fileExists: () => false });
   await assert.rejects(stt.transcribe({ pcm: Buffer.alloc(3200), sampleRate: 16_000, durationMs: 100 }), (error: Error) => {
-    assert.match(error.message, /Set ATOM_STT_MODEL in \.env to a whisper\.cpp model file such as models\/ggml-base\.en\.bin/);
+    assert.match(error.message, /Set ARK_STT_MODEL in \.env to a whisper\.cpp model file such as models\/ggml-base\.en\.bin/);
     assert.doesNotMatch(error.message, /resolve\/main\/nope\.bin/);
     return true;
   });
@@ -110,16 +110,16 @@ test("a model path that is not a standard whisper.cpp file name gets a setting h
 test("vocabulary becomes Whisper's initial prompt; none means no prompt", async () => {
   assert.deepEqual(promptArgs(""), []);
   assert.deepEqual(promptArgs(" , "), []);
-  assert.deepEqual(promptArgs("ATOM, Keshab ,Kathmandu"), ["--prompt", "ATOM, Keshab, Kathmandu."]);
+  assert.deepEqual(promptArgs("ARK, Keshab ,Kathmandu"), ["--prompt", "ARK, Keshab, Kathmandu."]);
 
   const calls: string[][] = [];
   const stt = createWhisperStt({
     modelPath: "model.bin",
-    vocabulary: "ATOM, Keshab",
+    vocabulary: "ARK, Keshab",
     fileExists: () => true,
-    execFile: fakeExec({ stdout: "Hi ATOM" }, calls),
+    execFile: fakeExec({ stdout: "Hi ARK" }, calls),
   });
   await stt.transcribe(clip);
   const args = calls[0];
-  assert.equal(args[args.indexOf("--prompt") + 1], "ATOM, Keshab.");
+  assert.equal(args[args.indexOf("--prompt") + 1], "ARK, Keshab.");
 });

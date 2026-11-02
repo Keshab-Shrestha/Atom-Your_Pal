@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { ChatAccessMode } from "@atom/contracts";
+import type { ChatAccessMode } from "@ark/contracts";
 import { chatAccessPolicy, FULL_ACCESS_CONFIRMATION } from "./chat-access.ts";
 import { nativeGate } from "./native-safety.ts";
 import { parseCommand } from "./island-protocol.ts";
@@ -9,7 +9,7 @@ test("chat only refuses every tool, including read-only tools and unknown calls;
   let asked = 0;
   for (const mode of ["checked", "chat-only"] as const) {
     const policy = chatAccessPolicy(mode, () => mode, async () => { asked++; return true; });
-    for (const name of ["Read", "ToolSearch", "mcp__atom__open_app", "Agent", "unknown"]) {
+    for (const name of ["Read", "ToolSearch", "mcp__ark__open_app", "Agent", "unknown"]) {
       assert.equal(Boolean(await policy.check(name, {}, name)), mode === "chat-only");
     }
   }
@@ -20,7 +20,7 @@ test("strict mode asks once per captured call across hook/canUseTool, never trus
   let asked = 0;
   const policy = chatAccessPolicy("ask-changes", () => "ask-changes", async () => { asked++; return true; });
   const gate = nativeGate({ tools: [], access: policy });
-  const name = "mcp__atom__open_app", input = { app: "TextEdit" };
+  const name = "mcp__ark__open_app", input = { app: "TextEdit" };
   const hook = (gate.hooks.PreToolUse as any)[0].hooks[0];
   assert.equal((await hook({ tool_name: name, tool_input: input }, "same")).hookSpecificOutput.permissionDecision, "allow");
   assert.equal((await gate.canUseTool(name, input, { toolUseID: "same" })).behavior, "allow");
@@ -36,7 +36,7 @@ test("read-only is a closed list; unknown MCP/browser calls require fresh approv
   const asked: string[] = [];
   const policy = chatAccessPolicy("ask-changes", () => "ask-changes", async (r) => { asked.push(r.summary); return false; });
   assert.equal(await policy.check("Read", { file_path: "/tmp/cedar" }, "read"), undefined);
-  assert.equal(await policy.check("mcp__atom__current_time", {}, "time"), undefined);
+  assert.equal(await policy.check("mcp__ark__current_time", {}, "time"), undefined);
   assert.ok(await policy.check("mcp__external__readAndChange", {}, "external"));
   assert.ok(await policy.check("mcp__browser__click", {}, "browser"));
   assert.ok(await policy.check("Bash", { command: "x".repeat(600) }, "large"));
@@ -48,7 +48,7 @@ test("late Allow cannot survive cancellation or a changed access mode", async ()
     let mode: ChatAccessMode = "ask-changes", allow!: (v: boolean) => void;
     const controller = new AbortController();
     const policy = chatAccessPolicy(mode, () => mode, () => new Promise((resolve) => { allow = resolve; }));
-    const pending = policy.check("mcp__atom__open_app", {}, "late", undefined, controller.signal);
+    const pending = policy.check("mcp__ark__open_app", {}, "late", undefined, controller.signal);
     if (change === "cancel") controller.abort(); else mode = "checked";
     allow(true); assert.ok(await pending);
   }

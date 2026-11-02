@@ -16,7 +16,7 @@ The progress log is at the end of this file.
 ## What no cloud session can check
 
 1. The Swift code. Nothing written since ADR-110 N5 was compiled: work plans (`WorkPlans.swift`, `PlanViews.swift`), the second brain (`Brain.swift`, `BrainView.swift`), and the UI fixes (Stop, Copy, Try again, New chat, Delete chat, the plus on the project row).
-2. The Swift tests that were added (`Tests/AtomIslandCoreTests`).
+2. The Swift tests that were added (`Tests/ArkIslandCoreTests`).
 3. The real behaviour of Claude Code: does the safety gate's rewrite of an Agent call's prompt reach the sub-agent?
 4. How the app looks and feels.
 
@@ -26,7 +26,7 @@ The progress log is at the end of this file.
 2. `pnpm install`, `pnpm typecheck`, `pnpm test`. One test (`grants.test`) is macOS only and must pass there.
 3. `pnpm island:build` and fix every compiler error. Most will be small.
 4. `pnpm island:test`. Fix failures. Do not delete a failing test before you know why it fails.
-5. `ATOM_LIVE_TESTS=1 pnpm test:live`. The new `native-plan.live.test.ts` checks the one thing the cloud could not: that a planned portion's prompt is the one the sub-agent receives.
+5. `ARK_LIVE_TESTS=1 pnpm test:live`. The new `native-plan.live.test.ts` checks the one thing the cloud could not: that a planned portion's prompt is the one the sub-agent receives.
 6. Try by hand: plain chat, project chat, voice, Telegram, a three-portion plan ("compare three mesh Wi-Fi kits and give advice"), a routine, the second brain (write a note with `[[a link]]`, open the graph), delete a chat, New chat in a project.
 7. Write what you found at the end of this file, then give it back to Claude.
 

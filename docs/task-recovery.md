@@ -4,7 +4,7 @@ Implemented 2026-10-18, ADR-139. This delivers task-attempt recovery, the first 
 
 ## Behavior
 
-If ATOM reopens with a running task, it marks the attempt **Interrupted · outcome unconfirmed**, preserves the last recorded step, tool history, checkpoints and existing reports, and explains that files may already have changed. A queued explicit retry left by the previous process also waits for review. Neither is replayed automatically. Identifiable older generic “ATOM was closed” failures receive the recovery marker; previously discarded steps cannot be reconstructed.
+If ARK reopens with a running task, it marks the attempt **Interrupted · outcome unconfirmed**, preserves the last recorded step, tool history, checkpoints and existing reports, and explains that files may already have changed. A queued explicit retry left by the previous process also waits for review. Neither is replayed automatically. Identifiable older generic “ARK was closed” failures receive the recovery marker; previously discarded steps cannot be reconstructed.
 
 A lost Claude SDK session with host-dispatched work marks those attempts for review immediately. It blocks automatic fresh-session fallback, including the interval after the host accepted an Agent call but before its tool-use event arrived. Late reports cannot overwrite an interrupted attempt. This records an unknown outcome; it does not prove that a remote worker or file operation stopped at a particular instant.
 
@@ -42,7 +42,7 @@ The gallery has an existing overlapping sidebar sample-data artifact; this pass 
 
 The first real attempt exposed a provider persistence defect: task #24 ran on Codex, but after an abrupt backend stop its first-turn chat had no saved transcript or durable model choice, so retry #25 used the global Claude default. That retry was stopped, its outstanding file request declined, and the second fictional file remained unchanged. The defect was fixed by persisting pending chat choices in the memory store; the old lost choice is not guessed or backfilled.
 
-A fresh retest used `~/Documents/ATOM-Recovery-Retest-cyq1t0qf/cedar.txt` and `review.txt`. Kame task #26 ran on signed-in Codex (`gpt-6-astra` reported), read/wrote the first file after **Allow for task**, then waited for separate approval to change the second. Fault injection verified the runtime PID, checkout, sole running task and actual file contents before stopping only ATOM's backend. No task state was seeded or altered by test SQL.
+A fresh retest used `~/Documents/ARK-Recovery-Retest-cyq1t0qf/cedar.txt` and `review.txt`. Kame task #26 ran on signed-in Codex (`gpt-6-astra` reported), read/wrote the first file after **Allow for task**, then waited for separate approval to change the second. Fault injection verified the runtime PID, checkout, sole running task and actual file contents before stopping only ARK's backend. No task state was seeded or altered by test SQL.
 
 The app supervisor restarted the backend. Board showed **Interrupted · outcome unconfirmed**, last step **Using Write**, and **Review attempt**. The task thread showed its original brief, interruption activity and first-file checkpoint. The actual first file retained its saved content, and the second retained its original content; no automatic replay occurred.
 
@@ -52,7 +52,7 @@ This proves this two-file fixture and the real review/retry/approval/report path
 
 A further UI limitation observed after the successful retry: the header stayed “Thinking” even though the retry transcript/report and `task.turn` success were saved and no tasks were running. Work-status and stopped-approval cleanup should be checked before starting durable input upgrades.
 
-After a further normal app quit/relaunch, ATOM opened Ready with no pending/failed-attention/running tasks. The original #26 → completed #27 link and single-child count persisted, both files were unchanged and the first file retained its modification time. Restarting cleared the stale header; it does not count as a fix for that UI status defect.
+After a further normal app quit/relaunch, ARK opened Ready with no pending/failed-attention/running tasks. The original #26 → completed #27 link and single-child count persisted, both files were unchanged and the first file retained its modification time. Restarting cleared the stale header; it does not count as a fix for that UI status defect.
 
 ## Task-state follow-up (ADR-140)
 

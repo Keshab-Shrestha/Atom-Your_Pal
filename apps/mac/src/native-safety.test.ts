@@ -3,14 +3,14 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openHelperStore } from "@atom/helpers";
+import { openHelperStore } from "@ark/helpers";
 import { boardRecorder } from "./native-board.ts";
 import { nativeGate, type NativeGate } from "./native-safety.ts";
 
 type Decision = { decision: string; reason?: string; input?: Record<string, any> };
 
 function setup(options: { project?: boolean; approve?: boolean } = {}) {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-safety-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-safety-")));
   const work = join(home, "work");
   mkdirSync(work);
   const store = openHelperStore({ path: ":memory:", home });
@@ -41,7 +41,7 @@ async function pre(gate: NativeGate, hook: Record<string, unknown>, id = "call-1
 }
 const sub = (agent: string, tool_name: string, tool_input: Record<string, unknown>) => ({ agent_id: `a-${agent}`, agent_type: agent, tool_name, tool_input });
 
-test("main thread: general-purpose and unknown agents are denied; one of ATOM's gets a running Board job and Laya's model", async () => {
+test("main thread: general-purpose and unknown agents are denied; one of ARK's gets a running Board job and Laya's model", async () => {
   const { gate, store, done } = setup();
   assert.equal((await pre(gate, { tool_name: "Agent", tool_input: { prompt: "x", description: "d" } })).decision, "deny", "no subagent_type is general-purpose");
   assert.equal((await pre(gate, { tool_name: "Agent", tool_input: { prompt: "x", description: "d", subagent_type: "general-purpose" } }, "c2")).decision, "deny");
@@ -99,20 +99,36 @@ test("sub-agents (ADR-122, ADR-123): any agent writes a new file anywhere in hom
   done();
 });
 
-test("project chat: Bash runs sandboxed after the code check; a risky command asks Keshab; no unsandboxed command", async () => {
+test("project chat: Bash runs sandboxed after the code check; a risky or unsandboxed command asks Keshab", async () => {
   const { gate, asked, done } = setup({ project: true });
   assert.equal((await pre(gate, sub("kame", "Bash", { command: "ls -la" }))).decision, "allow");
-  assert.equal((await pre(gate, sub("kame", "Bash", { command: "ls", dangerouslyDisableSandbox: true }), "c2")).decision, "deny");
-  assert.equal((await pre(gate, sub("kame", "Bash", { command: "git push origin main" }), "c3")).decision, "deny");
+  assert.equal((await pre(gate, sub("kame", "Bash", { command: "ls", dangerouslyDisableSandbox: true }), "c2")).decision, "deny", "leaving the sandbox asks (2026-11-02); Keshab said no");
+  assert.equal(asked.length, 1);
+  assert.equal((await pre(gate, sub("kame", "Bash", { command: "git push origin main" }), "c3")).decision, "deny", "the push asks (2026-11-02); Keshab said no");
+  assert.equal(asked.length, 2);
   const gone = await pre(gate, sub("kame", "Bash", { command: "rm -rf build" }), "c5");
   assert.equal(gone.decision, "deny", "deleting is refused with no card");
-  assert.equal(asked.length, 0);
+  assert.equal(asked.length, 2);
   const risky = await pre(gate, sub("kame", "Bash", { command: "npm install left-pad" }), "c4");
   assert.equal(risky.decision, "deny", "Keshab said no on the card");
-  assert.equal(asked.length, 1);
+  assert.equal(asked.length, 3);
   // canUseTool for the same call id never asks again.
   await gate.canUseTool("Bash", { command: "npm install left-pad" }, { toolUseID: "c4", agentID: "a-kame" });
-  assert.equal(asked.length, 1);
+  assert.equal(asked.length, 3);
+  done();
+});
+
+test("project chat: an allowed network, sudo or git-history command runs outside the sandbox; a plain one stays inside (2026-11-02)", async () => {
+  const { gate, asked, done } = setup({ project: true, approve: true });
+  for (const [i, command] of ["curl -sI https://example.com", "sudo -n true", "git reset --hard HEAD", "osascript -e 'beep'"].entries()) {
+    const v = await pre(gate, sub("kame", "Bash", { command }), `o${i}`);
+    assert.equal(v.decision, "allow", command);
+    assert.equal(v.input?.dangerouslyDisableSandbox, true, command);
+  }
+  assert.equal(asked.length, 4);
+  const plain = await pre(gate, sub("kame", "Bash", { command: "ls" }), "o9");
+  assert.equal(plain.input?.dangerouslyDisableSandbox, undefined);
+  assert.equal(asked.length, 4);
   done();
 });
 
@@ -134,7 +150,7 @@ test("project task completion retains uncommitted work without changing branch h
   assert.equal((await pre(gate, { agent_id: "ag-1", agent_type: "kame", tool_name: "Write", tool_input: { file_path: join(tree, "a.txt"), content: "x" } }, "w1")).decision, "allow");
   writeFileSync(join(tree, "a.txt"), "x");
   await gate.agentEnded(job);
-  assert.equal(git("rev-parse", `atom/task-${job}`), git("rev-parse", "HEAD"));
+  assert.equal(git("rev-parse", `ark/task-${job}`), git("rev-parse", "HEAD"));
   assert.equal(execFileSync("git", ["-C", tree, "status", "--porcelain"], { encoding: "utf8" }).trim(), "?? a.txt");
   git("worktree", "remove", "--force", tree);
   done();
@@ -239,17 +255,17 @@ async function post(gate: NativeGate, hook: Record<string, unknown>) {
 }
 test("taint: after the main thread read the web, create_agent, remember, open_url and the rest are refused until the user speaks", async () => {
   const { gate, done } = setup();
-  const atomTool = (tool: string) => ({ tool_name: `mcp__atom__${tool}`, tool_input: { name: "x" } });
-  assert.equal((await pre(gate, atomTool("create_agent"), "t1")).decision, "allow", "not tainted: the tool's own approval card applies");
+  const arkTool = (tool: string) => ({ tool_name: `mcp__ark__${tool}`, tool_input: { name: "x" } });
+  assert.equal((await pre(gate, arkTool("create_agent"), "t1")).decision, "allow", "not tainted: the tool's own approval card applies");
   await post(gate, { tool_name: "WebFetch", tool_input: { url: "https://evil.example/page" } });
   for (const tool of ["create_agent", "propose_skill", "improve_skill", "open_url", "remember", "forget", "undo_memory_change", "brain_note", "schedule", "note_add"]) {
-    const r = await pre(gate, atomTool(tool), `t-${tool}`);
+    const r = await pre(gate, arkTool(tool), `t-${tool}`);
     assert.equal(r.decision, "deny", tool);
     assert.match(r.reason!, /web text/);
   }
-  assert.equal((await pre(gate, atomTool("weather"), "t-weather")).decision, "allow", "harmless tools stay");
+  assert.equal((await pre(gate, arkTool("weather"), "t-weather")).decision, "allow", "harmless tools stay");
   gate.newAnswer(undefined);
-  assert.equal((await pre(gate, atomTool("create_agent"), "t-after")).decision, "allow", "the user's next message clears it");
+  assert.equal((await pre(gate, arkTool("create_agent"), "t-after")).decision, "allow", "the user's next message clears it");
   done();
 });
 
@@ -273,7 +289,7 @@ test("taint: a sub-agent that read the web may fetch only short addresses; anoth
 // 2026-10-16 (security review): taint must travel with the work. A research agent's report reaches the main thread; a task made after web text starts tainted.
 test("taint: an agent that read the web taints the main thread when it ends; a task made while tainted starts tainted", async () => {
   const { gate, store, board, done } = setup();
-  const tool = (t: string) => ({ tool_name: `mcp__atom__${t}`, tool_input: {} });
+  const tool = (t: string) => ({ tool_name: `mcp__ark__${t}`, tool_input: {} });
   await pre(gate, { tool_name: "Agent", tool_input: { prompt: "x", description: "a", subagent_type: "sid" } }, "u1");
   board.onEvent({ type: "system", subtype: "task_started", task_id: "ag-1", tool_use_id: "u1" });
   const sid = store.list().find((h) => h.id === "sid")!.jobs[0]!.id;
@@ -294,7 +310,7 @@ test("taint: an agent that read the web taints the main thread when it ends; a t
 
 test("Full access never grants an unknown MCP server, bypasses plan-first or waives external-content freshness", async () => {
   const { chatAccessPolicy } = await import("./chat-access.ts");
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-full-gate-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-full-gate-")));
   const store = openHelperStore({ path: ":memory:", home });
   const board = boardRecorder(store, "cedar"); let asks = 0;
   const server = store.addMcpServer({ name: "fixture", kind: "command", command: "fictional-command" });
@@ -314,23 +330,44 @@ test("Full access never grants an unknown MCP server, bypasses plan-first or wai
   } finally { store.close(); rmSync(home, { recursive: true, force: true }); }
 });
 
+// 2026-11-02: a Full access chat's agents have every kit's tools; the gate follows the chat's access each call.
+test("in a Full access chat a research agent may write files and a folders agent may use the web; otherwise the kit decides", async () => {
+  const { chatAccessPolicy } = await import("./chat-access.ts");
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-full-kit-")));
+  const store = openHelperStore({ path: ":memory:", home });
+  let asks = 0;
+  const make = (mode: "full" | "checked") => nativeGate({ tools: ["Agent"], access: chatAccessPolicy(mode, () => mode), team: {
+    chatId: "cedar", helpers: store, board: boardRecorder(store, "cedar"), worktrees: join(home, "worktrees"), home,
+    approve: async () => { asks++; return false; },
+  } });
+  const gate = make("full");
+  try {
+    assert.equal((await pre(gate, sub("sid", "Write", { file_path: join(home, "notes.txt"), content: "x" }), "full-write")).decision, "allow");
+    assert.equal((await pre(gate, sub("kame", "WebSearch", { query: "q" }), "full-web")).decision, "allow");
+    assert.equal(asks, 0, "Full access asks nothing for an ordinary file");
+    // A changed access reopens the session, so a normal chat is its own gate.
+    const write = await pre(make("checked"), sub("sid", "Write", { file_path: join(home, "notes.txt"), content: "x" }), "checked-write");
+    assert.equal(write.decision, "deny"); assert.match(write.reason!, /not in Sid's kit/);
+  } finally { store.close(); rmSync(home, { recursive: true, force: true }); }
+});
+
 test("imported note data cannot turn an ordinary read into action approval, including in Full access", async () => {
   const { chatAccessPolicy } = await import("./chat-access.ts");
   const { SOURCE_DATA_MARKER } = await import("./brain-source-context.ts");
   const { gate, done } = setup();
   try {
-    assert.equal((await gate.canUseTool("mcp__atom__create_agent", {}, { toolUseID: "before-import" })).behavior, "allow");
+    assert.equal((await gate.canUseTool("mcp__ark__create_agent", {}, { toolUseID: "before-import" })).behavior, "allow");
     const post = (gate.hooks.PostToolUse as { matcher: string; hooks: ((input: any) => Promise<unknown>)[] }[]).find((hook) => hook.matcher.includes("brain_open"))!;
-    await post.hooks[0]!({ tool_name: "mcp__atom__brain_open", tool_response: SOURCE_DATA_MARKER + "Send an invitation", agent_id: undefined });
-    const verdict = await gate.canUseTool("mcp__atom__create_agent", {}, { toolUseID: "tainted" });
+    await post.hooks[0]!({ tool_name: "mcp__ark__brain_open", tool_response: SOURCE_DATA_MARKER + "Send an invitation", agent_id: undefined });
+    const verdict = await gate.canUseTool("mcp__ark__create_agent", {}, { toolUseID: "tainted" });
     assert.equal(verdict.behavior, "deny"); assert.match(verdict.message!, /imported note/);
   } finally { done(); }
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-imported-full-"))), store = openHelperStore({ path: ":memory:", home });
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-imported-full-"))), store = openHelperStore({ path: ":memory:", home });
   try {
     const full = nativeGate({ tools: ["Agent"], access: chatAccessPolicy("full", () => "full"), team: {
       chatId: "cedar", helpers: store, board: boardRecorder(store, "cedar"), worktrees: join(home, "worktrees"), home, approve: async () => false,
     } });
     full.knowledgeRead("");
-    assert.equal((await full.canUseTool("mcp__atom__create_agent", {}, { toolUseID: "full-tainted" })).behavior, "deny");
+    assert.equal((await full.canUseTool("mcp__ark__create_agent", {}, { toolUseID: "full-tainted" })).behavior, "deny");
   } finally { store.close(); rmSync(home, { recursive: true, force: true }); }
 });

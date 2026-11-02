@@ -63,8 +63,8 @@ export interface StoreContext {
   checkpoints: ReturnType<typeof checkpointTable>;
   /** The folders granted to a worker (rows with `path`). */
   grantsOf: StatementSync;
-  /** Writes a new version of a worker's soul. */
-  newSoulVersion: (helper: HelperId, soul: Soul) => void;
+  /** Writes a new version of a worker's soul, and its soul.md first for a custom agent. */
+  newSoulVersion: (member: Member, soul: Soul) => void;
   /** Keeps an agent's soul.md in step after a change to its soul. */
   writeBack: (member: Member) => void;
   /** (helper, version) -> a soul row. */

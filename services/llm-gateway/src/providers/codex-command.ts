@@ -18,7 +18,7 @@ export function runCodexProjectInspection(options: CommandOptions) {
 /** Only a disposable checked copy is writable. Never pass the real task folder as cwd/baseline. */
 export function runCodexShellPreview(options: Omit<CommandOptions, "argv" | "cwd"> & { work: string; before: string; sourceRoot: string; command: string; checkScratch(path: string): Promise<boolean> }) {
   const script = 'ulimit -f 16384 || exit 125; /bin/bash --noprofile --norc -c "$1"; status=$?; printf "\\n[Preview command exit: %s]\\n" "$status"; /usr/bin/diff -ruN -- "$2" "$PWD"; delta=$?; if [ "$delta" -gt 1 ]; then exit 125; fi; exit "$status"';
-  return runCodexCommand({ ...options, cwd: options.work, argv: ["/bin/bash", "--noprofile", "--norc", "-c", script, "atom-shell-preview", options.command, options.before] }, { before: options.before, sourceRoot: options.sourceRoot, checkScratch: options.checkScratch });
+  return runCodexCommand({ ...options, cwd: options.work, argv: ["/bin/bash", "--noprofile", "--norc", "-c", script, "ark-shell-preview", options.command, options.before] }, { before: options.before, sourceRoot: options.sourceRoot, checkScratch: options.checkScratch });
 }
 
 async function runCodexCommand(options: CommandOptions, preview?: { before: string; sourceRoot: string; checkScratch(path: string): Promise<boolean> }): Promise<{ text: string; isError: boolean; exitCode?: number | null }> {
@@ -30,7 +30,7 @@ async function runCodexCommand(options: CommandOptions, preview?: { before: stri
   if (root === "/" || /[*?\[\]{}]/.test(root)) return { text: "This project path cannot be represented by the inspection sandbox's exact-root policy.", isError: true };
   if (base === root || base.startsWith(root + sep)) return { text: "The command scratch folder must be outside the project.", isError: true };
   if (preview && (!before || !source || [before, source].some((p) => p === "/" || /[*?\[\]{}]/.test(p)) || before === root || source === root || source === before || root.startsWith(before + sep) || before.startsWith(root + sep) || base === source || base.startsWith(source + sep) || root.startsWith(source + sep) || before.startsWith(source + sep) || source.startsWith(root + sep) || source.startsWith(before + sep))) return { text: "Preview inputs must be separate from the real project and working copy.", isError: true };
-  const scratch = await mkdtemp(join(base, "atom-command-"));
+  const scratch = await mkdtemp(join(base, "ark-command-"));
   let active: ReturnType<typeof spawn> | undefined;
   try {
     const home = join(scratch, "home"), cache = join(scratch, "codex"), temp = join(scratch, "tmp");
@@ -46,7 +46,7 @@ async function runCodexCommand(options: CommandOptions, preview?: { before: stri
     }
     options.signal.throwIfAborted();
     if (!allowed()) return { text: "Project command inspection is no longer allowed for this task.", isError: true };
-    const profile = preview ? "atom_project_preview" : "atom_project_inspection";
+    const profile = preview ? "ark_project_preview" : "ark_project_inspection";
     const rules: Record<string, string> = { "/": "deny", ":minimal": "read", [root]: preview ? "write" : "read", [scratch]: "write", [join(root, "**", ".*")]: "deny" };
     if (before && source) { rules[before] = "read"; rules[source] = "deny"; }
     const filesystem = Object.entries(rules)
@@ -57,7 +57,7 @@ async function runCodexCommand(options: CommandOptions, preview?: { before: stri
       "-c", `permissions.${profile}.network.dangerously_allow_all_unix_sockets=false`,
       "-c", `permissions.${profile}.network.unix_sockets={}`,
       "-c", `projects.${JSON.stringify(scratch)}.trust_level="untrusted"`,
-      "--", "/bin/bash", "--noprofile", "--norc", "-c", 'ulimit -t 20 || exit 125; cd -- "$1" || exit 125; shift; exec "$@"', "atom-project-inspection", root, ...options.argv];
+      "--", "/bin/bash", "--noprofile", "--norc", "-c", 'ulimit -t 20 || exit 125; cd -- "$1" || exit 125; shift; exec "$@"', "ark-project-inspection", root, ...options.argv];
     return await new Promise((resolve) => {
       let bytes = 0, stopped = false, timedOut = false, truncated = false, spawnFailed = false, revoked = false, settled = false, resourceExceeded = false, scanning = false;
       let drain: ReturnType<typeof setTimeout> | undefined;

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
-import type { Message } from "@atom/contracts";
+import type { Message } from "@ark/contracts";
 import { validChatBrief } from "./chats.ts";
 
 export interface ContinuityItem { text: string; refs: number[] }

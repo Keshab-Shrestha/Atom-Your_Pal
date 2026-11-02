@@ -1,10 +1,10 @@
-// Shared types between ATOM modules. Types only: no behaviour lives here.
+// Shared types between ARK modules. Types only: no behaviour lives here.
 
 /** Where a request came from. More sources arrive in later phases (UI, API, events). */
 export type InputSource = "voice" | "text";
 
 /** Normalized input: every input source becomes one of these before reaching the Core. */
-export interface ZenoInput {
+export interface ArkInput {
   text: string;
   source: InputSource;
   /** Host delivery identity, never a permission or a provider-side exactly-once guarantee. */
@@ -12,7 +12,7 @@ export interface ZenoInput {
   deliveryChat?: string;
 }
 
-/** A tool the model may ask ATOM to run. `inputSchema` is JSON Schema for an object. */
+/** A tool the model may ask ARK to run. `inputSchema` is JSON Schema for an object. */
 export interface ToolSpec {
   name: string;
   description: string;
@@ -67,11 +67,11 @@ export interface RequestContext {
   sessionId: string;
   source: InputSource;
   receivedAt: Date;
-  /** A request ATOM makes by itself about a conversation (e.g. its summary): it never joins the chat's own session. */
+  /** A request ARK makes by itself about a conversation (e.g. its summary): it never joins the chat's own session. */
   background?: boolean;
 }
 
-export interface ZenoResponse {
+export interface ArkResponse {
   requestId: string;
   text: string;
 }

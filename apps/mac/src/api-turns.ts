@@ -1,4 +1,4 @@
-import type { Message } from "@atom/contracts";
+import type { Message } from "@ark/contracts";
 import { ChatBusyError, type ChatTurns } from "./chat-turns.ts";
 
 interface ApiTurnCore {

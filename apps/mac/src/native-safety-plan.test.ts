@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openHelperStore } from "@atom/helpers";
+import { openHelperStore } from "@ark/helpers";
 import { boardRecorder } from "./native-board.ts";
 import { planBook } from "./native-plan.ts";
 import { nativeGate, type NativeGate } from "./native-safety.ts";
@@ -14,7 +14,7 @@ import { nativeGate, type NativeGate } from "./native-safety.ts";
 type Out = { decision: string; reason?: string; input?: Record<string, any> };
 
 function setup() {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-gate-plan-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-gate-plan-")));
   const store = openHelperStore({ path: ":memory:", home });
   const plans = planBook(store, "chat-1");
   const gate = nativeGate({

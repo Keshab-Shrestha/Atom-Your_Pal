@@ -18,7 +18,7 @@ After Stop, a relevant error, leaving the chat, or an app/runtime restart, **all
 
 ## Local storage
 
-`~/Library/Application Support/ATOM/ChatInput/input.json` is a version-2 plaintext JSON snapshot, separate from transcript/memory/task stores. The application owns its directory (0700). Temporary files are created 0600 with exclusive/no-follow opens, synchronized and atomically renamed over the snapshot. Loading refuses symlink/non-regular/non-owner files, tightens file permissions to 0600 and validates the schema/references. Gallery models receive no store and do not read/write user input.
+`~/Library/Application Support/ARK/ChatInput/input.json` is a version-2 plaintext JSON snapshot, separate from transcript/memory/task stores. The application owns its directory (0700). Temporary files are created 0600 with exclusive/no-follow opens, synchronized and atomically renamed over the snapshot. Loading refuses symlink/non-regular/non-owner files, tightens file permissions to 0600 and validates the schema/references. Gallery models receive no store and do not read/write user input.
 
 Version 1 single-message snapshots remain readable: the old waiting message is wrapped as one held entry with a fresh UUID. The next save writes version 2. Version 2 rejects duplicate/malformed message ids and wrong-chat entries. Unsupported versions/corrupt content preserve the original file and disable persistence for that launch; older version-1 code refuses version-2 snapshots instead of overwriting them. No existing user snapshot was opened or modified during development.
 

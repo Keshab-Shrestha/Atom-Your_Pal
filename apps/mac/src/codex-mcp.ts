@@ -4,9 +4,9 @@ import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
-import type { McpServer } from "@atom/helpers";
-import { redact } from "@atom/llm-gateway";
-import type { ToolCall, ToolResult, ToolSpec } from "@atom/contracts";
+import type { McpServer } from "@ark/helpers";
+import { redact } from "@ark/llm-gateway";
+import type { ToolCall, ToolResult, ToolSpec } from "@ark/contracts";
 import { SECRET_SHAPES } from "./folder-run.ts";
 
 const NAME = /^[A-Za-z0-9_.-]{1,128}$/;
@@ -20,7 +20,7 @@ const prop = (description: string) => ({ type: "string", description });
 export function codexMcpServers(servers: McpServer[], worker: string): McpServer[] {
   return servers.filter((s) => s.enabled && s.testedAt && !s.problem && s.workers.includes(worker)
     && /^[a-z0-9][a-z0-9_-]{0,31}$/.test(s.name) && !s.name.includes("__")
-    && !["atom", "atom-browser", "zeno", "zeno-browser"].includes(s.name));
+    && !["ark", "ark-browser", "atom", "atom-browser", "zeno", "zeno-browser"].includes(s.name));
 }
 
 interface Session {
@@ -100,7 +100,7 @@ export function codexWorkerMcp(options: {
   async function connect(server: McpServer, signal: AbortSignal): Promise<Session> {
     const prior = sessions.get(server.id);
     if (prior) return prior;
-    const client = new Client({ name: "atom-codex-worker", version: "1.0.0" });
+    const client = new Client({ name: "ark-codex-worker", version: "1.0.0" });
     const transport = server.kind === "command"
       ? new StdioClientTransport({ command: server.command!, args: server.args, env: { ...getDefaultEnvironment(), ...server.env }, stderr: "ignore" })
       : server.transport === "sse"

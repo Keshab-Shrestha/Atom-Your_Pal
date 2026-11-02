@@ -1,12 +1,12 @@
-// ATOM Island's runtime settings: which Claude model to use on the plan (ADR-038, ADR-040, ADR-092).
+// ARK Island's runtime settings: which Claude model to use on the plan (ADR-038, ADR-040, ADR-092).
 // The choice is switched live by the `model.set` command and saved in config/island.json, which
-// overrides ATOM_LLM_PROVIDER / ATOM_LLM_MODEL at the next start. API keys stay in .env: they are
+// overrides ARK_LLM_PROVIDER / ARK_LLM_MODEL at the next start. API keys stay in .env: they are
 // never written to the settings file, sent to the island, logged or put in a message.
 
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import type { SwitchableModel } from "@atom/llm-gateway";
-import { readEnv, LLM_PROVIDER_IDS, PROVIDERS, RETIRED_PROVIDERS, isLlmProvider, type LlmChoice, type Logger, type ProviderKeys } from "@atom/shared";
+import type { SwitchableModel } from "@ark/llm-gateway";
+import { readEnv, LLM_PROVIDER_IDS, PROVIDERS, RETIRED_PROVIDERS, isLlmProvider, type LlmChoice, type Logger, type ProviderKeys } from "@ark/shared";
 import type { InfoEvent } from "./island-protocol.ts";
 import type { AiToolItem } from "./ai-tools.ts";
 
@@ -14,7 +14,7 @@ import type { AiToolItem } from "./ai-tools.ts";
 export const DEFAULT_SETTINGS_PATH = "config/island.json";
 
 export function settingsPath(env: Record<string, string | undefined> = process.env): string {
-  return readEnv(env, "ATOM_ISLAND_SETTINGS")?.trim() || DEFAULT_SETTINGS_PATH;
+  return readEnv(env, "ARK_ISLAND_SETTINGS")?.trim() || DEFAULT_SETTINGS_PATH;
 }
 
 /** ADR-093: for each provider's program, what is missing (a clause) and how to get it (an instruction). */
@@ -58,7 +58,7 @@ export function readSavedChoice(path: string, keys: ProviderKeys): { choice?: Ll
     return { warning: `Ignoring ${path}: expected {"llm":{"provider":"…","model":"…"}}. Using the model from .env.` };
   }
   if ((RETIRED_PROVIDERS as readonly string[]).includes(llm.provider)) {
-    return { warning: `Ignoring ${path}: it chooses ${llm.provider}, which ATOM no longer uses (it runs on your Claude plan).` };
+    return { warning: `Ignoring ${path}: it chooses ${llm.provider}, which ARK no longer uses (it runs on your Claude plan).` };
   }
   if (!isLlmProvider(llm.provider)) {
     return { warning: `Ignoring ${path}: unknown provider "${shorten(llm.provider)}". Using the model from .env.` };
@@ -139,8 +139,8 @@ export interface ModelSettingsOptions {
   /** ADR-093: finds the AI tools on this Mac (found, signed in). */
   scan?(): Promise<AiToolItem[]>;
   /** ADR-097: the Claude plan's models, live (Agent SDK `supportedModels()`), given the `claude` program's path. */
-  listPlanModels?(claudePath: string): Promise<import("@atom/contracts").ReasoningModel[]>;
-  listCodexModels?(program: string): Promise<import("@atom/contracts").ReasoningModel[]>;
+  listPlanModels?(claudePath: string): Promise<import("@ark/contracts").ReasoningModel[]>;
+  listCodexModels?(program: string): Promise<import("@ark/contracts").ReasoningModel[]>;
 }
 
 export function createModelSettings(options: ModelSettingsOptions): ModelSettings {
@@ -148,7 +148,7 @@ export function createModelSettings(options: ModelSettingsOptions): ModelSetting
   let current: LlmChoice = { ...initial };
   let tools: AiToolItem[] = [];
   /** ADR-097: the last live model list per provider; absent means the table in PROVIDERS. */
-  const live: Partial<Record<keyof typeof PROVIDERS, import("@atom/contracts").ReasoningModel[]>> = {};
+  const live: Partial<Record<keyof typeof PROVIDERS, import("@ark/contracts").ReasoningModel[]>> = {};
   const offered = (id: string) => offeredModels(id, initial, isLlmProvider(id) ? live[id] : undefined, [current]);
 
   function check(provider: string, modelId: string): { choice: LlmChoice } | { error: string } {
@@ -157,7 +157,7 @@ export function createModelSettings(options: ModelSettingsOptions): ModelSetting
       return { error: `Unknown AI provider "${shorten(provider)}". Choose ${names}.` };
     }
     const { name } = PROVIDERS[provider];
-    if (!keys[provider]) return { error: `${SIGN_IN[provider].todo} to use ${name}, then restart ATOM.` };
+    if (!keys[provider]) return { error: `${SIGN_IN[provider].todo} to use ${name}, then restart ARK.` };
     if (!offered(provider).some((m) => m.id === modelId) && !isValidModelId(modelId)) {
       return { error: `"${shorten(modelId)}" is not a model id: use 1 to 100 letters, digits, ".", "_", ":" or "-".` };
     }
@@ -173,8 +173,8 @@ export function createModelSettings(options: ModelSettingsOptions): ModelSetting
       const levels = found?.reasoningLevels ?? [];
       const fallback = provider === "codex" ? "low" : "off";
       return { provider, model, levels: [...levels], default: found?.defaultReasoning ?? fallback,
-        ...(!levels.length ? { note: provider === "gemini-cli" ? "This provider does not expose thinking controls in ATOM." : "Thinking levels are unavailable for this model. Refresh the model catalog in Settings." }
-          : levels.length === 1 && levels[0] === "off" ? { note: "This model does not expose adjustable thinking in ATOM." } : {}) };
+        ...(!levels.length ? { note: provider === "gemini-cli" ? "This provider does not expose thinking controls in ARK." : "Thinking levels are unavailable for this model. Refresh the model catalog in Settings." }
+          : levels.length === 1 && levels[0] === "off" ? { note: "This model does not expose adjustable thinking in ARK." } : {}) };
     },
 
     info() {

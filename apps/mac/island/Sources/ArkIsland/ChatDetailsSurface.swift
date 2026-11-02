@@ -1,0 +1,109 @@
+import SwiftUI
+import ArkIslandCore
+
+/// The Details surface of the workspace pane (from the HTML preview's Details pane): what the open chat remembers and may
+/// use, beside the conversation. It reads the runtime's own inspection of the saved chat and changes nothing, except that
+/// "Edit brief" opens the existing brief editor. The chat menu's "What this chat remembers" shows the same facts in a popover.
+struct ChatDetailsSurface: View {
+    let model: IslandModel
+    @Environment(\.theme) private var theme
+    @Environment(\.islandSnapshot) private var snapshot
+    @State private var editing: BriefSheet?
+
+    private struct BriefSheet: Identifiable {
+        let id: String
+        let brief: ChatBrief
+    }
+
+    var body: some View {
+        let saved = model.chatControls.snapshot.flatMap { $0.id == model.savedChat?.id ? $0 : nil }
+        Scrollable {
+            VStack(alignment: .leading, spacing: 16) {
+                // 2026-11-02 (Keshab's own ATOM mock): what this chat works with, at a glance, before the details below.
+                section("This chat") {
+                    fact("Project", model.chats?.currentProject?.name ?? "None")
+                    fact("Model", model.status.shownModel)
+                    if let access = model.chats?.access { fact("Access", access.title) }
+                    fact("Memory", saved?.recall?.summary ?? "Not used yet")
+                    if let grants = saved?.info?.access?.fileGrants { fact("Files", grants == 0 ? "No saved file permissions" : "\(grants) \(grants == 1 ? "file" : "files") allowed for this chat") }
+                }
+                if let info = saved?.info {
+                    let facts = ChatDetailsFacts(info: info)
+                    section("Context") {
+                        Text(facts.messagesText)
+                        contextBar(facts.contextFraction)
+                        Text("Replay estimate \(facts.contextText) · \(facts.percentText)").monospacedDigit()
+                        if let omitted = facts.omittedText { quiet(omitted) }
+                        quiet("ARK's own estimate of what it sends again to continue this chat. It is not a provider token meter.")
+                    }
+                } else {
+                    Text("Send a message to save this chat, or refresh its details.").foregroundStyle(theme.text3.color)
+                }
+                if let brief = saved?.brief {
+                    section("Brief") {
+                        if brief.text.isEmpty { quiet("No brief yet. A brief is background you keep for this chat.") }
+                        else { Text(verbatim: brief.text).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) }
+                        if !snapshot {
+                            Button("Edit brief") { editing = BriefSheet(id: model.savedChat?.id ?? "", brief: brief) }
+                                .disabled(!model.chatBranchAvailable || model.chats?.currentReadOnlyNotice != nil)
+                        }
+                    }
+                }
+                section("Memory used") {
+                    if let recall = saved?.recall {
+                        Text(recall.summary).fixedSize(horizontal: false, vertical: true)
+                        quiet("Prepared " + recall.at)
+                        DisclosureGroup("Details") { Text(verbatim: recall.details).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) }
+                    } else {
+                        quiet("No memory record for this chat yet. Records start with requests made by the updated runtime.")
+                    }
+                }
+                if let continuity = saved?.continuity {
+                    section("Older-message summaries") { Text(continuity.status) }
+                }
+                if let facts = saved?.info.map(ChatDetailsFacts.init(info:)), !facts.accessRows.isEmpty {
+                    section("This chat may use") {
+                        ForEach(facts.accessRows, id: \.title) { row in
+                            HStack { Text(row.title); Spacer(minLength: 8); Text(row.value).foregroundStyle(theme.text2.color) }
+                        }
+                        quiet("Memory never grants file or tool access.")
+                    }
+                }
+                if !snapshot { Button("Refresh details", action: model.inspectSavedChat) }
+            }
+            .appFont(.system(size: 12)).foregroundStyle(theme.text.color)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 4)
+        }
+        .sheet(item: $editing) { sheet in ChatBriefEditor(model: model, chat: sheet.id, initial: sheet.brief) }
+    }
+
+    private func fact(_ label: String, _ value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(label).foregroundStyle(theme.text3.color).frame(width: 64, alignment: .leading)
+            Text(value).foregroundStyle(theme.text.color).lineLimit(3).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func section(_ title: String, @ViewBuilder _ content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                .accessibilityAddTraits(.isHeader)
+            content()
+        }
+    }
+
+    /// A thin bar for the replay share. Drawn here because snapshots cannot draw AppKit's progress view.
+    private func contextBar(_ fraction: Double) -> some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                Capsule().fill(theme.fill3.color)
+                if fraction > 0 { Capsule().fill(theme.accent.color).frame(width: max(3, geometry.size.width * fraction)) }
+            }
+        }.frame(height: 5).accessibilityHidden(true)
+    }
+
+    private func quiet(_ text: String) -> some View {
+        Text(text).appFont(.system(size: 11)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
+    }
+}

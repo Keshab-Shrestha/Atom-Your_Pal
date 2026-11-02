@@ -1,9 +1,9 @@
-// 2026-10-16 (security review): a rule for the web fetches Claude Code makes for ATOM (WebFetch), on the main thread and in
+// 2026-10-16 (security review): a rule for the web fetches Claude Code makes for ARK (WebFetch), on the main thread and in
 // research agents. A page, a file or an agent report can name an address. Two ways that goes wrong, both closed here:
 //  - SSRF: a fetch of a service on this Mac or on the home network (a router's admin page, a cloud metadata address, a local server).
 //  - Data out: an address like https://evil.test/?d=<secret> sends what it carries to whoever runs that site.
 // The check is on the address as written. A public name that resolves to a private address (DNS rebinding) is not caught: WebFetch
-// is Claude Code's own tool, and ATOM sees only the address.
+// is Claude Code's own tool, and ARK sees only the address.
 
 /** The most characters of query and fragment a fetched address may carry. Longer than open_url's 300: a fetch of an article may keep tracking parameters. */
 export const MAX_FETCH_URL_DATA = 500;

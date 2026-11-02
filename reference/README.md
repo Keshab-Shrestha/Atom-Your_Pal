@@ -1,9 +1,9 @@
 # Reference
 
-This folder holds research on other projects. The goal is ideas and improvements for ATOM.
-Nothing here is code that ATOM runs. Do not copy source from these projects without checking the licence.
+This folder holds research on other projects. The goal is ideas and improvements for ARK.
+Nothing here is code that ARK runs. Do not copy source from these projects without checking the licence.
 
-Current combined plan: [ATOM upgrade roadmap](../docs/upgrade-roadmap.md). It includes built work, remaining verification and deferred proposals.
+Current combined plan: [ARK upgrade roadmap](../docs/upgrade-roadmap.md). It includes built work, remaining verification and deferred proposals.
 
 Write the files here in ASD-STE100 English, as the rest of the repository does.
 
@@ -21,18 +21,18 @@ and the right panel (files, open in, changes, devices) to be studied.
 | File | Topic |
 | --- | --- |
 | `t3code-second-review-2026-10-17.md` | Fresh source audit: confirmed features, corrections, gaps and revised priorities |
-| `t3code-overview.md` | What T3 Code is, its parts, and a table that compares it with ATOM |
+| `t3code-overview.md` | What T3 Code is, its parts, and a table that compares it with ARK |
 | `t3code-sessions-and-providers.md` | Sessions (threads), the provider layer, model choice, handoffs between providers |
 | `t3code-settings-and-keybindings.md` | Every settings section, the Providers section, key bindings, how settings are stored |
 | `t3code-git-and-source-control.md` | Git, worktrees, checkpoints, pull requests, source control hosts |
 | `t3code-right-panel-devices-and-shell.md` | Right panel (Files, Changes, Devices, Open in), connections, desktop and mobile shell |
 | `t3code-chat-timeline-and-messages.md` | How the chat thread is drawn: Markdown, code, tables, copy, work log, scroll |
 | `t3code-composer-and-controls.md` | The chat box: editor, mentions, controls, queue, attachments, keys |
-| `t3code-chat-plan.md` | A phased plan for ATOM's chat, made from the two chat files. Status: deferred |
-| `t3code-ideas-for-atom.md` | One ranked list of ideas for ATOM, made from the first four topic files |
+| `t3code-chat-plan.md` | A phased plan for ARK's chat, made from the two chat files. Status: deferred |
+| `t3code-ideas-for-ark.md` | One ranked list of ideas for ARK, made from the first four topic files |
 
 ## How to use these files
 
-1. Read the combined roadmap and second review first for current status. Use `t3code-ideas-for-atom.md` and `t3code-chat-plan.md` for the original proposals and detail.
+1. Read the combined roadmap and second review first for current status. Use `t3code-ideas-for-ark.md` and `t3code-chat-plan.md` for the original proposals and detail.
 2. Each idea points to the topic file and the T3 Code path that shows how T3 Code does it.
 3. To build an idea: follow CLAUDE.md (one capability at a time, an ADR, a TASK entry).

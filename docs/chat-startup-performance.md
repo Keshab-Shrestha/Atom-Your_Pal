@@ -1,6 +1,6 @@
-# ATOM chat startup measurement and optimization
+# ARK chat startup measurement and optimization
 
-Measured on 19 October 2026 with the signed ATOM desktop, GPT-6 Luna (`gpt-6-luna`), Low effort and the existing default service tier. Two variants and twelve successful model responses were the maximum scope. Raw counts, prompts, replies, request ids, per-stage times and failures are retained in [the measurement ledger](../.ecc/benchmarks/atom-startup-2026-10-19.json).
+Measured on 19 October 2026 with the signed ARK desktop, GPT-6 Luna (`gpt-6-luna`), Low effort and the existing default service tier. Two variants and twelve successful model responses were the maximum scope. Raw counts, prompts, replies, request ids, per-stage times and failures are retained in [the measurement ledger](../.ecc/benchmarks/ark-startup-2026-10-19.json).
 
 ## Result
 
@@ -11,7 +11,7 @@ Measured on 19 October 2026 with the signed ATOM desktop, GPT-6 Luna (`gpt-6-lun
 | Core completion | 8.39 s | 5.48 s median |
 | First-turn input tokens | 16,737 | 11,594 median |
 
-The baseline is one instrumented fresh chat after restarting ATOM. The final implementation has three fresh chats: one after restart and two while the app was running. Final setup ranged from 0.23 to 1.94 seconds and first text from 4.43 to 6.73 seconds. These are small, descriptive samples, not p95 measurements or guarantees. Process warming and provider/network time vary. First text is the first nonempty model chunk at Core, not independently measured native window paint time.
+The baseline is one instrumented fresh chat after restarting ARK. The final implementation has three fresh chats: one after restart and two while the app was running. Final setup ranged from 0.23 to 1.94 seconds and first text from 4.43 to 6.73 seconds. These are small, descriptive samples, not p95 measurements or guarantees. Process warming and provider/network time vary. First text is the first nonempty model chunk at Core, not independently measured native window paint time.
 
 ## Stage evidence and variants
 
@@ -25,9 +25,9 @@ The baseline is one instrumented fresh chat after restarting ATOM. The final imp
 | Active-thread policy verification | 6 ms | 11 ms | 16 ms |
 | Total readiness, including local work | 4,182 ms | 1,813 ms | 1,944 ms |
 
-The baseline called `mcpServerStatus/list` without a thread to discover inherited server names. That discovers connections and tools before ATOM can disable them. The first variant uses `config/read` for the same working directory, disables configured MCP and plugin entries before `thread/start`, then retains the mandatory active-thread inventory check. Malformed or unverifiable configuration refuses before a model turn. The measured slow inventory operation is eliminated; external tool access is not enabled to obtain the speedup.
+The baseline called `mcpServerStatus/list` without a thread to discover inherited server names. That discovers connections and tools before ARK can disable them. The first variant uses `config/read` for the same working directory, disables configured MCP and plugin entries before `thread/start`, then retains the mandatory active-thread inventory check. Malformed or unverifiable configuration refuses before a model turn. The measured slow inventory operation is eliminated; external tool access is not enabled to obtain the speedup.
 
-The second variant discovers Codex's standalone skills and disables those paths through thread-only configuration. The discovery observed 64 enabled user/system skills, outside ATOM's isolated native filesystem. They are distinct from ATOM's checked `atom_use_skill` and worker skill tools. No global Codex setting or skill file is written. Existing ATOM tools, assigned skills and instructions are preserved.
+The second variant discovers Codex's standalone skills and disables those paths through thread-only configuration. The discovery observed 64 enabled user/system skills, outside ARK's isolated native filesystem. They are distinct from ARK's checked `ark_use_skill` and worker skill tools. No global Codex setting or skill file is written. Existing ARK tools, assigned skills and instructions are preserved.
 
 The final three samples still spent 3.37–5.41 seconds between session readiness and first model text. This measurement does not separate provider computation, transport, routing or queue time within that interval.
 
@@ -35,21 +35,21 @@ The final three samples still spent 3.37–5.41 seconds between session readines
 
 | Local component | Observed size |
 |---|---:|
-| Standing ATOM instructions | 1,678 bytes |
+| Standing ARK instructions | 1,678 bytes |
 | First-turn extra context | 2,139 bytes |
 | First user message, as history JSON | 127 bytes |
 | Serialized turn text, including context and labels | 2,344 bytes |
-| ATOM tool specifications, before provider framing | 22,101 bytes / 37 tools |
-| Largest specification, `atom_delegate` | 4,408 bytes |
+| ARK tool specifications, before provider framing | 22,101 bytes / 37 tools |
+| Largest specification, `ark_delegate` | 4,408 bytes |
 | Discovered standalone Codex skill metadata JSON | 41,448 bytes / 64 skills |
 
 These rows overlap: serialized turn text already includes the first message and extra context; the largest tool is included in the tool total. Skill discovery metadata is not the exact text rendered to the model. Byte counts must not be interpreted as token counts.
 
-Removing only the inherited skill catalog after the startup variant reduced provider-reported input from 16,738 to 11,594 tokens for the same first prompt, about 5.1K tokens or 31%. The time line changes between requests and may account for a few tokens. The remaining roughly 11.6K tokens include provider framing/context and cannot be assigned exactly to local components with the available counters. ATOM's 37 tool definitions, standing instructions and first-turn context sizes remained identical across the measurement. No description or policy instruction was shortened.
+Removing only the inherited skill catalog after the startup variant reduced provider-reported input from 16,738 to 11,594 tokens for the same first prompt, about 5.1K tokens or 31%. The time line changes between requests and may account for a few tokens. The remaining roughly 11.6K tokens include provider framing/context and cannot be assigned exactly to local components with the available counters. ARK's 37 tool definitions, standing instructions and first-turn context sizes remained identical across the measurement. No description or policy instruction was shortened.
 
 ## Cache investigation
 
-New `codex.turn` diagnostics retain both raw cumulative `total` and per-request `last` token counters, alongside the session reuse/restart reason. All twelve records reconciled against ATOM's usage database. A protocol check also exercises a genuine zero-cache second turn on a reused thread, including duplicate usage notifications, without mistaking it for a restart or dropping its uncached input.
+New `codex.turn` diagnostics retain both raw cumulative `total` and per-request `last` token counters, alongside the session reuse/restart reason. All twelve records reconciled against ARK's usage database. A protocol check also exercises a genuine zero-cache second turn on a reused thread, including duplicate usage notifications, without mistaking it for a restart or dropping its uncached input.
 
 All four final follow-ups reused their live session without a prefix restart. They reported 11,392, 11,520, 11,392 and 11,392 cached input tokens. First text arrived in 1.04–2.13 seconds. The saved pre-upgrade chat opened separately and recalled its old facts correctly.
 
@@ -72,6 +72,6 @@ Twelve live responses completed. Ten matched their expected exact text; two word
 
 Logs contain counts, durations, tool names and request ids, without prompt text, arguments, configuration, skill paths or credential values. The baseline evidence deliberately includes only fictional prompts/replies. No production source file or permission-store schema was changed outside the chat provider/timing path. The existing signed app loads its runtime from this checkout; it was restarted to activate the changes. Its original chat, Haiku selection and empty composer were restored.
 
-To repeat the measurement, restart ATOM, open a new projectless GPT-6 Luna chat, send the first prompt from the ledger, then quote the first reply on a follow-up. Correlate `codex.turn` and `turn.complete` by `requestId`, and compare usage against the matching chat in the local stores. Repeat while ATOM is running to distinguish startup warming from provider variation. Never copy private chat or configuration text into shared evidence.
+To repeat the measurement, restart ARK, open a new projectless GPT-6 Luna chat, send the first prompt from the ledger, then quote the first reply on a follow-up. Correlate `codex.turn` and `turn.complete` by `requestId`, and compare usage against the matching chat in the local stores. Repeat while ARK is running to distinguish startup warming from provider variation. Never copy private chat or configuration text into shared evidence.
 
 Rollback is limited to the provider bootstrap changes; instrumentation can remain. Do not remove the final policy check or disable file-grant gates as a performance shortcut.

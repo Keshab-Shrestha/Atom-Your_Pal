@@ -1,15 +1,15 @@
-// ADR-098 items 1 and 2: ATOM on Telegram. Keshab talks to ATOM, reads and answers Needs you, lists tasks and reads
-// reports. ATOM sends what needs him and the results of schedules marked "Send result to Telegram".
-// Every button maps to a command the ATOM window already has. Logs command names, button kinds and counts only.
+// ADR-098 items 1 and 2: ARK on Telegram. Keshab talks to ARK, reads and answers Needs you, lists tasks and reads
+// reports. ARK sends what needs him and the results of schedules marked "Send result to Telegram".
+// Every button maps to a command the ARK window already has. Logs command names, button kinds and counts only.
 
-import type { HelperStore, Job } from "@atom/helpers";
-import type { Logger } from "@atom/shared";
+import type { HelperStore, Job } from "@ark/helpers";
+import type { Logger } from "@ark/shared";
 import type { ApprovalAsk } from "./computer-bridge.ts";
 import { testsOf } from "./island-helpers.ts";
 import type { TaskSteering } from "./native-entry.ts";
 import { startTelegram, type Button, type TelegramClient, type TelegramInput } from "./telegram.ts";
 
-/** The chat in the chats store that holds the Telegram conversation (the ATOM window lists it as "Telegram"). */
+/** The chat in the chats store that holds the Telegram conversation (the ARK window lists it as "Telegram"). */
 export const TELEGRAM_CHAT = "telegram";
 /** How much of a report one message shows. */
 const REPORT_CHARS = 3500;
@@ -18,14 +18,14 @@ const TASKS_SHOWN = 20;
 /** Store changes come in bursts: Needs you is looked at once they settle. */
 const SETTLE_MS = 1_000;
 const COMMAND = /^\/[A-Za-z_]+(?:@\w+)?(?=$|[\s.!?,:;])/;
-/** One ATOM turn that has not answered after this long is given up on, so the next message is not stuck behind it (2026-10-16). */
+/** One ARK turn that has not answered after this long is given up on, so the next message is not stuck behind it (2026-10-16). */
 export const TURN_TIMEOUT_MS = 10 * 60_000;
 /** A Needs you push that failed (the network was down) is tried again after this long, up to PUSH_TRIES times. */
 export const PUSH_RETRY_MS = 30_000;
 const PUSH_TRIES = 6;
 
 const HELP = [
-  "I am ATOM, your assistant. Send a message to talk to me.",
+  "I am ARK, your assistant. Send a message to talk to me.",
   "/needs: what waits for your answer",
   "/tasks: tasks that run or wait to run",
   "/report <number>: a task's report",
@@ -36,20 +36,20 @@ const HELP = [
 export interface TelegramBotOptions {
   token: string;
   chatId: string;
-  /** ATOM_TELEGRAM_USER_ID: the one person obeyed in the chat. Default: the chat id (a private chat). */
+  /** ARK_TELEGRAM_USER_ID: the one person obeyed in the chat. Default: the chat id (a private chat). */
   userId?: string;
   log: Logger;
-  /** One ATOM chat turn in the Telegram chat; resolves to ATOM's answer. */
+  /** One ARK chat turn in the Telegram chat; resolves to ARK's answer. */
   ask(text: string): Promise<string>;
   helpers?: HelperStore;
-  /** ATOM's questions (Pal's approval card). */
+  /** ARK's questions (Pal's approval card). */
   approvals: { pending(): ApprovalAsk[]; answer(id: string, approved: boolean): void; onAsk(listener: (ask: ApprovalAsk) => void): () => void };
   describe(error: unknown): string;
   /** ADR-098 item 3: the window's steer and interrupt. Absent: the commands answer "Steering is off." */
   steering?: Pick<TaskSteering, "steer" | "interrupt">;
-  /** Skip what was sent while ATOM was closed and tell the user once (default true). Tests that replay updates as live turn it off. */
+  /** Skip what was sent while ARK was closed and tell the user once (default true). Tests that replay updates as live turn it off. */
   skipBacklog?: boolean;
-  /** How long one ATOM turn may take before the next message is served (ms). Default TURN_TIMEOUT_MS. */
+  /** How long one ARK turn may take before the next message is served (ms). Default TURN_TIMEOUT_MS. */
   turnTimeoutMs?: number;
   /** How long to wait before a Needs you push that failed is tried again (ms). Default PUSH_RETRY_MS. */
   pushRetryMs?: number;
@@ -58,10 +58,10 @@ export interface TelegramBotOptions {
 }
 
 export interface TelegramBot {
-  /** Settings' "Send to Telegram": what ATOM sends by itself. Replies to Keshab always go. */
+  /** Settings' "Send to Telegram": what ARK sends by itself. Replies to Keshab always go. */
   setPush(on: boolean): void;
   /**
-   * ADR-110 (N3): a message ATOM writes by itself. `pushed` false: a later reply in the Telegram chat (an agent
+   * ADR-110 (N3): a message ARK writes by itself. `pushed` false: a later reply in the Telegram chat (an agent
    * reported), which always goes. `pushed` true: a routine's result, which follows "Send to Telegram".
    */
   send(text: string, pushed: boolean): void;
@@ -92,7 +92,7 @@ const yesNo = (yes: string, no: string, data: string): Button[][] => [[{ text: y
 
 /** Everything waiting, in the window's order: questions, plans, proposals, skill drafts and edits, held tasks, failures. */
 export function needsYou(store: HelperStore | undefined, asks: readonly ApprovalAsk[]): Need[] {
-  const questions: Need[] = asks.map((a) => ({ key: `ask-${a.id}`, push: true, text: `ATOM asks: ${a.summary}\n${a.reason}`, buttons: a.fileReview ? [[{ text: "Decline", data: `a:${a.id}:0` }]] : yesNo("Allow", "Decline", `a:${a.id}`) }));
+  const questions: Need[] = asks.map((a) => ({ key: `ask-${a.id}`, push: true, text: `ARK asks: ${a.summary}\n${a.reason}`, buttons: a.fileReview ? [[{ text: "Decline", data: `a:${a.id}:0` }]] : yesNo("Allow", "Decline", `a:${a.id}`) }));
   if (!store) return questions;
   const team = store.list();
   const owners = team.map((h) => ({ name: h.name, jobs: h.jobs }));
@@ -106,7 +106,7 @@ export function needsYou(store: HelperStore | undefined, asks: readonly Approval
       }
       if (job.state === "failed" && job.retriedAs === undefined) {
         failures.push({ key: `failed-${job.id}`, push: false,
-          text: `${owner.name}'s task #${job.id} ${titleOf(job)} ${job.recoveryNeeded ? "was interrupted; its outcome is unconfirmed" : "failed"}: ${job.error ?? "It ended with a problem."}${job.recoveryNeeded ? " Review this attempt in ATOM on your Mac before retrying." : ""}`,
+          text: `${owner.name}'s task #${job.id} ${titleOf(job)} ${job.recoveryNeeded ? "was interrupted; its outcome is unconfirmed" : "failed"}: ${job.error ?? "It ended with a problem."}${job.recoveryNeeded ? " Review this attempt in ARK on your Mac before retrying." : ""}`,
           buttons: job.recoveryNeeded ? [] : [[{ text: "Retry", data: `r:${job.id}` }]] });
       }
     }
@@ -128,7 +128,7 @@ export function needsYou(store: HelperStore | undefined, asks: readonly Approval
   const hub: Need[] = store.skillHubPending().map((p) => {
     const kinds = [...new Set(p.flags.map((f) => f.kind))];
     const head = p.kind === "update" ? `A newer version of the ${p.name} skill is ready` : `Skill from the hub: ${p.name}`;
-    return { key: `skill-hub-${p.id}`, push: true, text: `${head}\n${p.repo} @ ${p.sha.slice(0, 7)}\nFlags: ${kinds.length ? kinds.join(", ") : "none"}\nRead it in the ATOM window before you approve.`, buttons: yesNo("Approve", "Reject", `h:${p.id}`) };
+    return { key: `skill-hub-${p.id}`, push: true, text: `${head}\n${p.repo} @ ${p.sha.slice(0, 7)}\nFlags: ${kinds.length ? kinds.join(", ") : "none"}\nRead it in the ARK window before you approve.`, buttons: yesNo("Approve", "Reject", `h:${p.id}`) };
   });
   return [...questions, ...plans, ...proposals, ...drafts, ...edits, ...hub, ...failures.sort((a, b) => b.key.localeCompare(a.key, undefined, { numeric: true }))];
 }
@@ -173,7 +173,7 @@ export function answerNeed(data: string, store: HelperStore | undefined, approva
     return ok ? "Skill installed." : "Skill rejected.";
   }
   if (kind === "r") {
-    if (store.get(n)?.recoveryNeeded) return "Review the interrupted attempt in ATOM on your Mac before retrying.";
+    if (store.get(n)?.recoveryNeeded) return "Review the interrupted attempt in ARK on your Mac before retrying.";
     store.retry(n);
     return "Retry requested.";
   }
@@ -184,7 +184,7 @@ export function answerNeed(data: string, store: HelperStore | undefined, approva
 export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
   const { log, helpers: store, approvals, describe } = options;
   let push = true;
-  // One ATOM turn at a time: the Core answers one request at a time.
+  // One ARK turn at a time: the Core answers one request at a time.
   let turns: Promise<void> = Promise.resolve();
   const turnTimeoutMs = options.turnTimeoutMs ?? TURN_TIMEOUT_MS;
   const pushRetryMs = options.pushRetryMs ?? PUSH_RETRY_MS;
@@ -197,7 +197,7 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
     ...(options.skipBacklog !== undefined ? { skipBacklog: options.skipBacklog } : {}),
     onBacklog: (count) => {
       log.info("telegram.backlog_skipped", { count });
-      later("backlog", say(`ATOM was closed. ${count} ${count === 1 ? "message" : "messages"} arrived meanwhile and ${count === 1 ? "was" : "were"} not run. Send ${count === 1 ? "it" : "them"} again if ${count === 1 ? "it" : "they"} still matter${count === 1 ? "s" : ""}.`));
+      later("backlog", say(`ARK was closed. ${count} ${count === 1 ? "message" : "messages"} arrived meanwhile and ${count === 1 ? "was" : "were"} not run. Send ${count === 1 ? "it" : "them"} again if ${count === 1 ? "it" : "they"} still matter${count === 1 ? "s" : ""}.`));
     },
     ...(options.retryDelaysMs ? { retryDelaysMs: options.retryDelaysMs } : {}),
   });
@@ -243,7 +243,7 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
     if (input.kind === "button") return press(input.data, input.queryId);
     const text = input.text.trim();
     if (!text) return void say("I read text only.");
-    // A command is "/word" (and "@botname"), then a space or the end. "/tmp/build.log is huge" is a message for ATOM, not an unknown command.
+    // A command is "/word" (and "@botname"), then a space or the end. "/tmp/build.log is huge" is a message for ARK, not an unknown command.
     if (COMMAND.test(text)) return command(text);
     turns = turns.then(() => talk(text));
   }
@@ -256,7 +256,7 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
       await say(answer);
     } catch (error) {
       log.warn("telegram.turn", { ok: false, ms: Date.now() - started });
-      await say(`ATOM could not answer: ${describe(error)}`);
+      await say(`ARK could not answer: ${describe(error)}`);
     }
   }
 
@@ -318,7 +318,7 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
     const items = needsYou(store, approvals.pending());
     if (!items.length) return say("Nothing waits for you.");
     for (const item of items.slice(0, NEEDS_SHOWN)) await say(item.text, item.buttons);
-    if (items.length > NEEDS_SHOWN) await say(`${items.length - NEEDS_SHOWN} more wait in the ATOM window.`);
+    if (items.length > NEEDS_SHOWN) await say(`${items.length - NEEDS_SHOWN} more wait in the ARK window.`);
   }
 
   function tasksText(): string {
@@ -330,7 +330,7 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
     const queued = lines("queued");
     if (!running.length && !queued.length) return "No task runs or waits to run.";
     const all = [...(running.length ? ["Running:", ...running] : []), ...(queued.length ? [running.length ? "\nWaiting:" : "Waiting:", ...queued] : [])];
-    return all.length > TASKS_SHOWN ? [...all.slice(0, TASKS_SHOWN), `… and ${all.length - TASKS_SHOWN} more in the ATOM window.`].join("\n") : all.join("\n");
+    return all.length > TASKS_SHOWN ? [...all.slice(0, TASKS_SHOWN), `… and ${all.length - TASKS_SHOWN} more in the ARK window.`].join("\n") : all.join("\n");
   }
 
   function reportText(id: number): string {
@@ -339,7 +339,7 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
     const report = store.report(id);
     if (!report) return `Task #${id} has no report.`;
     const whole = `${report.title}\n\n${report.summary}\n\n${report.body}`;
-    return whole.length > REPORT_CHARS ? `${whole.slice(0, REPORT_CHARS - 1)}…\n\nThe rest is in the ATOM window.` : whole;
+    return whole.length > REPORT_CHARS ? `${whole.slice(0, REPORT_CHARS - 1)}…\n\nThe rest is in the ARK window.` : whole;
   }
 
   function press(data: string, queryId: string) {
@@ -412,7 +412,7 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
         failedTries.set(item.key, tries);
         notBefore.set(item.key, Date.now() + pushRetryMs);
         if (tries >= PUSH_TRIES) {
-          known.add(item.key); // given up: it still waits in the ATOM window and in /needs
+          known.add(item.key); // given up: it still waits in the ARK window and in /needs
           log.warn("telegram.push_given_up", { kind: "needs" });
         } else retry = true;
       }
@@ -463,7 +463,7 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
 function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
   const limit = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`ATOM did not answer in ${ms >= 60_000 ? `${Math.round(ms / 60_000)} minutes` : `${Math.max(1, Math.round(ms / 1000))} seconds`}, so that message was dropped. Send it again.`)), ms);
+    timer = setTimeout(() => reject(new Error(`ARK did not answer in ${ms >= 60_000 ? `${Math.round(ms / 60_000)} minutes` : `${Math.max(1, Math.round(ms / 1000))} seconds`}, so that message was dropped. Send it again.`)), ms);
     timer.unref();
   });
   return Promise.race([work, limit]).finally(() => clearTimeout(timer));

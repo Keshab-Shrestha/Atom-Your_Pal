@@ -1,5 +1,5 @@
-// ADR-098 item 5: ATOM as a server. A local HTTP API (Node's http, no framework) that other tools (Hermes, Claude Code,
-// the MCP entry in mcp-serve.ts) use to give ATOM goals, talk to ATOM, read tasks and reports, answer Needs you and
+// ADR-098 item 5: ARK as a server. A local HTTP API (Node's http, no framework) that other tools (Hermes, Claude Code,
+// the MCP entry in mcp-serve.ts) use to give ARK goals, talk to ARK, read tasks and reports, answer Needs you and
 // start webhook routines. It listens on 127.0.0.1 only, and every request needs the token in data/api-token.
 // Off until Settings → General → "Local API" is on. Logs method, route pattern, status and time: never bodies, goals,
 // answers or the token.
@@ -8,8 +8,8 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { chmodSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { dirname, resolve } from "node:path";
-import { HelperError, isFinal, type GoalReport, type HelperStore, type Job, type JobState, type Routine } from "@atom/helpers";
-import type { Logger } from "@atom/shared";
+import { HelperError, isFinal, type GoalReport, type HelperStore, type Job, type JobState, type Routine } from "@ark/helpers";
+import type { Logger } from "@ark/shared";
 import { answerNeed, needsYou, type TelegramBotOptions } from "./telegram-bot.ts";
 import { APP_CSS, APP_HTML, APP_ICON_PNG, APP_JS, APP_MANIFEST } from "./api-app-page.ts";
 
@@ -24,7 +24,7 @@ const GOAL_CHAT_ID = /^goal-/i;
 const NEED_KEY_PATTERN = /^[A-Za-z0-9_-]{1,80}$/;
 /**
  * The Needs you kinds (the first part of a button's data) the Local API may answer: a plan (`p`) and a retry (`r`). Risky-action
- * cards (`a`), soul changes (`s`), skill drafts, edits and hub installs (`d`, `e`, `h`) are answered in the ATOM window or on
+ * cards (`a`), soul changes (`s`), skill drafts, edits and hub installs (`d`, `e`, `h`) are answered in the ARK window or on
  * Telegram only. A token that could answer them would let whoever holds it start a task and then approve that task's risky steps
  * (security review, 2026-10-16; Keshab chose "plans only").
  */
@@ -59,14 +59,14 @@ export interface ApiServerOptions {
   log: Logger;
   /** Default API_TURN_TIMEOUT_MS. */
   turnTimeoutMs?: number;
-  /** ATOM_API_PORT, or DEFAULT_API_PORT. */
+  /** ARK_API_PORT, or DEFAULT_API_PORT. */
   port?: string | undefined;
-  /** ADR-121: ATOM_API_HOST, the one private name (the Tailscale `.ts.net` name) a request may use besides 127.0.0.1 and localhost. */
+  /** ADR-121: ARK_API_HOST, the one private name (the Tailscale `.ts.net` name) a request may use besides 127.0.0.1 and localhost. */
   host?: string | undefined;
   /** The clock, in ms; tests set it. */
   now?: () => number;
   tokenFile?: string;
-  /** One ATOM chat turn (the same Core setup as the window's) in an API chat; resolves to ATOM's answer. */
+  /** One ARK chat turn (the same Core setup as the window's) in an API chat; resolves to ARK's answer. */
   ask(text: string, chatId?: string, signal?: AbortSignal): Promise<string>;
   helpers?: HelperStore;
   approvals: Pick<TelegramBotOptions["approvals"], "pending" | "answer">;
@@ -87,7 +87,7 @@ export const nativeGoalChat = (id: number) => `api-goal-${id}`;
 export function readOrCreateToken(file: string): string {
   try {
     const token = readFileSync(file, "utf8").trim();
-    if (!TOKEN_PATTERN.test(token)) throw new Error(`${file} does not hold a valid token. Delete it, and ATOM makes a new one.`);
+    if (!TOKEN_PATTERN.test(token)) throw new Error(`${file} does not hold a valid token. Delete it, and ARK makes a new one.`);
     chmodSync(file, 0o600);
     return token;
   } catch (error) {
@@ -99,11 +99,11 @@ export function readOrCreateToken(file: string): string {
   return token;
 }
 
-/** The port in ATOM_API_PORT, or the default. Throws for a value that is not a port. */
+/** The port in ARK_API_PORT, or the default. Throws for a value that is not a port. */
 export function parsePort(value: string | undefined): number {
   if (value === undefined || value.trim() === "") return DEFAULT_API_PORT;
   const port = Number(value);
-  if (!Number.isInteger(port) || port < 1 || port > 65_535) throw new Error(`ATOM_API_PORT must be a port number (1 to 65535), not "${value.slice(0, 20)}".`);
+  if (!Number.isInteger(port) || port < 1 || port > 65_535) throw new Error(`ARK_API_PORT must be a port number (1 to 65535), not "${value.slice(0, 20)}".`);
   return port;
 }
 
@@ -179,7 +179,7 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
     const limit = new Promise<never>((_, reject) => {
       timer = setTimeout(() => {
         controller.abort();
-        reject(new ApiError(504, "ATOM did not answer in time. Ask again."));
+        reject(new ApiError(504, "ARK did not answer in time. Ask again."));
       }, turnLimitMs);
       timer.unref();
     });
@@ -230,7 +230,7 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
   const giveNative = (goal: string) =>
     turn(async (signal) => {
       const id = (lastGoal = Math.max(Date.now(), lastGoal + 1));
-      const answer = await atom(goal, `goal-${id}`, signal); // the chat "api-goal-<id>" (runtime.ts)
+      const answer = await ark(goal, `goal-${id}`, signal); // the chat "api-goal-<id>" (runtime.ts)
       return { goalId: nativeJobs(id).length ? id : null, answer };
     });
   const nativeGoal = (id: number) => {
@@ -272,7 +272,7 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
       pattern: "/v1/goals",
       match: /^\/v1\/goals$/,
       body: true,
-      // The same path as a spoken or typed goal: ATOM reads it and hands it to one of its agents.
+      // The same path as a spoken or typed goal: ARK reads it and hands it to one of its agents.
       run: (_p, body) => giveNative(text(body, "goal")),
     },
     {
@@ -294,7 +294,7 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
         }
         // "api-goal-<id>" is a native goal's chat: a /v1/chat chatId never reaches it.
         if (typeof chatId === "string" && GOAL_CHAT_ID.test(chatId)) throw new ApiError(400, '"chatId" must not start with "goal-": goals have those chats.');
-        return turn(async (signal) => ({ answer: await atom(said, chatId as string | undefined, signal) }));
+        return turn(async (signal) => ({ answer: await ark(said, chatId as string | undefined, signal) }));
       },
     },
     {
@@ -325,7 +325,7 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
       method: "GET",
       pattern: "/v1/audit",
       match: /^\/v1\/audit$/,
-      // The newest changes ATOM made (ids and states only, never task text), newest first.
+      // The newest changes ARK made (ids and states only, never task text), newest first.
       run: (_p, _b, query) => {
         const limit = Number(query.get("limit") ?? 50);
         if (!Number.isInteger(limit) || limit < 1 || limit > 500) throw new ApiError(400, '"limit" must be a whole number from 1 to 500.');
@@ -364,7 +364,7 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
         const button = need.actions.find((a) => a.action === action);
         if (!button) throw new ApiError(400, `"action" must be one of: ${need.actions.map((a) => a.action).join(", ") || "none (it has no actions)"}.`);
         if (!API_ANSWERABLE_KINDS.has(kindOf(button.data))) {
-          throw new ApiError(403, "The Local API cannot answer this. Answer it in the ATOM window or on Telegram.");
+          throw new ApiError(403, "The Local API cannot answer this. Answer it in the ARK window or on Telegram.");
         }
         return { said: answerNeed(button.data, store, approvals) };
       },
@@ -387,12 +387,12 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
     },
   ];
 
-  async function atom(said: string, chatId?: string, signal?: AbortSignal): Promise<string> {
+  async function ark(said: string, chatId?: string, signal?: AbortSignal): Promise<string> {
     try {
       return await options.ask(said, chatId, signal);
     } catch (error) {
       if (error instanceof Error && error.name === "ChatBusy") throw new ApiError(409, error.message); // the window is answering in this chat
-      throw new ApiError(502, `ATOM could not answer: ${describe(error)}`);
+      throw new ApiError(502, `ARK could not answer: ${describe(error)}`);
     }
   }
 
@@ -438,7 +438,7 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
   async function handle(req: IncomingMessage, res: ServerResponse) {
     const started = Date.now();
     // An address the URL parser rejects (a path of "//" does) used to throw here, before the token check and outside any try: the rejection
-    // reached the app's crash handler and ended ATOM, with no token and from any web page that could reach 127.0.0.1 (code check, 2026-10-16).
+    // reached the app's crash handler and ended ARK, with no token and from any web page that could reach 127.0.0.1 (code check, 2026-10-16).
     let url: URL | undefined;
     try {
       url = new URL(req.url ?? "/", "http://127.0.0.1");
@@ -448,12 +448,12 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
     const route = url ? routes.find((r) => r.method === req.method && r.match.test(url.pathname)) : undefined;
     let status = 200;
     try {
-      // ADR-121: only this machine's names and the one private name in ATOM_API_HOST. A web page that makes a victim's browser reach
+      // ADR-121: only this machine's names and the one private name in ARK_API_HOST. A web page that makes a victim's browser reach
       // 127.0.0.1 under its own name (DNS rebinding) sends that name as Host, and is refused before anything else happens.
       if (!allowedHosts.has(hostName(req))) {
         status = 403;
         req.resume();
-        return reply(res, status, null, "This address is not allowed. Use 127.0.0.1, or the name in ATOM_API_HOST.");
+        return reply(res, status, null, "This address is not allowed. Use 127.0.0.1, or the name in ARK_API_HOST.");
       }
       const file = req.method === "GET" && url ? PUBLIC_FILES[url.pathname] : undefined;
       if (file) {
@@ -497,7 +497,7 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
         status = 500;
         log.error("api.failed", { route: route?.pattern ?? "unknown", name: error instanceof Error ? error.name : "unknown" });
       }
-      reply(res, status, null, status === 500 ? "ATOM could not do that. The details are in the log." : (error as Error).message);
+      reply(res, status, null, status === 500 ? "ARK could not do that. The details are in the log." : (error as Error).message);
     } finally {
       log.info("api.request", { method: req.method, route: route?.pattern ?? "unknown", status, ms: Date.now() - started });
     }
@@ -534,11 +534,11 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
           }
         });
       });
-      next.requestTimeout = 30_000; // receiving the request; an ATOM turn after that may take longer
+      next.requestTimeout = 30_000; // receiving the request; an ARK turn after that may take longer
       return new Promise<ApiStatus>((done) => {
         next.once("error", (error: NodeJS.ErrnoException) => {
           log.warn("api.start_failed", { code: error.code ?? "unknown", port });
-          done(status(false, error.code === "EADDRINUSE" ? `Port ${port} is in use. Set ATOM_API_PORT in .env to another port, then restart ATOM.` : describe(error)));
+          done(status(false, error.code === "EADDRINUSE" ? `Port ${port} is in use. Set ARK_API_PORT in .env to another port, then restart ARK.` : describe(error)));
         });
         next.listen(port, "127.0.0.1", () => {
           server = next;

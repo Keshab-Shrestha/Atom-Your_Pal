@@ -1,17 +1,19 @@
 import { randomUUID } from "node:crypto";
 import { importedNoteResult } from "./brain-source-context.ts";
 import { homedir } from "node:os";
-import type { ProjectFiles } from "@atom/contracts";
-import type { HelperStore, HelperView } from "@atom/helpers";
-import { taskFileChecks, type TaskFileCheck } from "@atom/helpers";
-import type { FilePermissionScope } from "@atom/memory";
+import type { ProjectFiles } from "@ark/contracts";
+import type { HelperStore, HelperView } from "@ark/helpers";
+import { taskFileChecks, type TaskFileCheck } from "@ark/helpers";
+import type { FilePermissionScope } from "@ark/memory";
 import type { FileApproval } from "./computer-bridge.ts";
-import { TOOL_SERVER, MAX_PROJECT_FILE_CALLS, redact } from "@atom/llm-gateway";
+import { TOOL_SERVER, MAX_PROJECT_FILE_CALLS, redact } from "@ark/llm-gateway";
 import { BROWSER_SERVER, browserCheck } from "./browser.ts";
-import { checkpointBefore, folderCheck, newFolderMemory, type FolderMemory } from "./folder-run.ts";
+import { TRASH_CALL, checkpointBefore, folderCheck, newFolderMemory, runsOutsideSandbox, type FolderMemory } from "./folder-run.ts";
+import { TRASH_TOOL } from "./trash-tool.ts";
+import { currentBranch, pushBranch } from "./git-branches.ts";
 import { mcpCheck } from "./mcp-servers.ts";
 import { webFetchProblem } from "./web-guard.ts";
-import { grantedServers, kitTools, nativeMembers } from "./native-agents.ts";
+import { grantedServers, kitHas, kitTools, nativeMembers } from "./native-agents.ts";
 import type { BoardRecorder } from "./native-board.ts";
 import type { PlanBook } from "./native-plan.ts";
 import { git, prepareWorkdir, type Workdir } from "./worktree.ts";
@@ -24,8 +26,8 @@ import { captureVerificationWorkspace, verifyTaskFiles, type VerificationWorkspa
  * sub-agent, so every sub-agent decision lives in the hook, which carries its agent_id and agent_type (Phase N2).
  *
  * Main thread (no agent_id):
- * - ATOM's tools (the `atom` server) and ToolSearch: allowed; ATOM's tool engine keeps its own approvals.
- * - Agent: only one of ATOM's agents (never general-purpose or another built-in); the call makes the Board job, and
+ * - ARK's tools (the `ark` server) and ToolSearch: allowed; ARK's tool engine keeps its own approvals.
+ * - Agent: only one of ARK's agents (never general-purpose or another built-in); the call makes the Board job, and
  *   gets its model from Laya unless the agent is pinned. Only description, prompt and subagent_type pass on.
  * - Any tool outside the chat's set: denied. Bash, Write and Edit are never in a main thread's set.
  * - Read, Glob, Grep (project chat, ADR-107): the project's read check, at most MAX_PROJECT_FILE_CALLS per answer.
@@ -46,7 +48,7 @@ const AGENT_FIELDS = ["description", "prompt", "subagent_type"];
 export const HOOK_TIMEOUT_S = 600;
 const MAX_REMEMBERED = 500;
 /**
- * ADR-123: after a session reads web text it is tainted, and these ATOM tools are refused: they make something that lasts (an agent, a skill, a
+ * ADR-123: after a session reads web text it is tainted, and these ARK tools are refused: they make something that lasts (an agent, a skill, a
  * memory, a routine) or send data out. A page can ask for them; only the user's own message may. A new user message clears the main thread's taint.
  */
 export const TAINT_REFUSED_TOOLS: ReadonlySet<string> = new Set([
@@ -76,7 +78,7 @@ export interface TeamScope {
   hostAdvisory?: boolean;
   /** Laya's model alias for this Agent call; undefined keeps the definition's model. */
   chooseModel?(task: string, member: HelperView): Promise<string | undefined>;
-  /** Where task worktrees go (ATOM's worktrees folder). */
+  /** Where task worktrees go (ARK's worktrees folder). */
   worktrees: string;
   /** A project chat: its folder. Bash exists only here; a folders agent works in a worktree of it. */
   project?: { cwd: string };
@@ -201,7 +203,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
     }
   };
 
-  /** The main thread's Agent call: one of ATOM's agents; makes the Board job; Laya's model; a worktree in a project. */
+  /** The main thread's Agent call: one of ARK's agents; makes the Board job; Laya's model; a worktree in a project. */
   const agentCall = async (input: Record<string, unknown>, id: string): Promise<Verdict> => {
     if (!team) return deny("This chat has no agents.");
     if (/^task-retry-\d+$/.test(team.chatId) && !team.plans) return deny("This retry requires host workflow admission. No plain-task fallback is allowed.");
@@ -242,7 +244,9 @@ export function nativeGate(scope: NativeScope): NativeGate {
         if (model) updated.model = model;
       }
       if (admissionSignal?.aborted) return cancelled();
-      const isolated = member.kit === "folders" && team.project && await isRepo(team.project.cwd);
+      // Full access gives every agent the file tools, so its project work is isolated like a folders agent's.
+      const filesKit = kitHas(member, "folders", scope.access?.fullAccess() === true);
+      const isolated = filesKit && team.project && await isRepo(team.project.cwd);
       // Model choice and repository detection may finish after Stop. Never create a late worker/Board row.
       if (admissionSignal?.aborted) return cancelled();
       const problem = planned && team.plans?.confirm?.(planned.plan, planned.n);
@@ -258,7 +262,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
           if (view?.id !== planned.plan || bound?.job !== job.id) throw new Error("The retry's saved plan binding changed before dispatch.");
         } else team.helpers.linkPlanJob(planned.plan, planned.n, job.id);
       }
-      if (planned && team.hostFileChecks && team.project && member.kit === "folders" && team.helpers.recordTaskVerification) {
+      if (planned && team.hostFileChecks && team.project && filesKit && team.helpers.recordTaskVerification) {
         const portion = team.helpers.latestPlan?.(team.chatId)?.portions.find((p) => p.job === job!.id);
         const checks = taskFileChecks(portion?.fileChecks), attempt = team.helpers.taskEvidence?.(job.id);
         if (checks?.length && attempt?.state === "running") fileReadbacks.set(job.id, { attempt: attempt.attempt, helper: member.id, checks,
@@ -283,9 +287,10 @@ export function nativeGate(scope: NativeScope): NativeGate {
   };
 
   const mainDecide = async (name: string, input: Record<string, unknown>, id: string): Promise<Verdict> => {
-    if (name === "AskUserQuestion") return deny("Use ATOM's ask_user tool for a clarification card in the foreground window, or ask in your reply. This does not grant file/system access.");
+    if (name === "AskUserQuestion") return deny("Use ARK's ask_user tool for a clarification card in the foreground window, or ask in your reply. This does not grant file/system access.");
     if (name.startsWith(`mcp__${TOOL_SERVER}__`)) {
       const bare = name.slice(`mcp__${TOOL_SERVER}__`.length);
+      if (bare === TRASH_TOOL) return deny("Hand deletes to an agent with the folders kit: it asks Keshab and moves the file to the Trash.");
       if (tainted.has("main") && TAINT_REFUSED_TOOLS.has(bare)) return log("taint.refused", { tool: bare }), deny(taintNote("main"));
       return { allow: true, input };
     }
@@ -319,7 +324,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
     const job = hostReadbackJob ?? team.board.jobOfAgent(agentId, agentType);
     if (!active(job)) return cancelled();
     const member = runningMember(agentType, job);
-    if (!member) return deny("This agent is not one of ATOM's active workers.");
+    if (!member) return deny("This agent is not one of ARK's active workers.");
     if (hostReadbackJob !== undefined && name !== "Read") return deny("Host readback permits only the declared file Read check.");
     if (job !== undefined && checkingFiles.has(job) && hostReadbackJob === undefined) return deny("The worker returned. Host file readback is in progress; no new worker actions are allowed.");
     const captured = job !== undefined ? fileReadbacks.get(job) : undefined;
@@ -332,29 +337,32 @@ export function nativeGate(scope: NativeScope): NativeGate {
     const approve: TeamScope["approve"] = (request) => taskApproval(job, (signal) => team.approve(request, signal), false);
     const project = Boolean(team.project);
     const say = (verdict: string) => log("agent.tool", { helper: member.id, ...(job !== undefined ? { job } : {}), tool: name.slice(0, 60), verdict });
+    // 2026-11-02: a Full access chat's agents have every kit's tools (kitHas).
+    const full = scope.access?.fullAccess(job !== undefined ? stopFor(job).signal : undefined) === true;
 
     if (name.startsWith(`mcp__${BROWSER_SERVER}__`)) {
-      if (member.kit === "think" || !member.browser) return say("refused"), deny(`${member.name} has no browser.`);
+      if (!kitHas(member, "any", full) || !member.browser) return say("refused"), deny(`${member.name} has no browser.`);
       if (team.hostBrowser && member.planFirst && !planApproved.has(agentId)) return say("refused"), deny("Approve this worker's plan with ExitPlanMode before using its browser.");
       return browserCall(member, job, name, input, agentId);
     }
-    if (name.startsWith("mcp__")) {
+    const trash = name === `mcp__${TOOL_SERVER}__${TRASH_TOOL}`;
+    if (name.startsWith("mcp__") && !trash) {
       if (team.hostMcp && member.planFirst && !planApproved.has(agentId)) return say("refused"), deny("Approve this worker's plan with ExitPlanMode before calling an external MCP tool.");
-      const servers = member.kit === "think" ? [] : grantedServers(team.helpers.mcpServers(), member.id);
+      const servers = kitHas(member, "any", full) ? grantedServers(team.helpers.mcpServers(), member.id) : [];
       const preview = team.hostMcp ? redact(JSON.stringify(input)) : "";
       const problem = await mcpCheck({ servers, worker: member.name, approve: (request) => scope.access?.fullAccess(job !== undefined ? stopFor(job).signal : undefined) && active(job) && !isTainted(agentId) ? Promise.resolve(true) : approve(team.hostMcp ? { ...request, reasonMax: 600 } : request),
         ...(scope.access?.fullAccess() ? { forceApproval: isTainted(agentId) } : {}), ...(team.hostMcp ? {
         forceApproval: isTainted(agentId),
-        reason: `Arguments: ${preview.slice(0, 300)}${preview.length > 300 ? " [preview clipped]" : ""}. ${isTainted(agentId) ? "External content was read: fresh approval is required even for a Trusted server. " : "Allow this one external call. "}The server can have effects outside ATOM's file sandbox.`,
+        reason: `Arguments: ${preview.slice(0, 300)}${preview.length > 300 ? " [preview clipped]" : ""}. ${isTainted(agentId) ? "External content was read: fresh approval is required even for a Trusted server. " : "Allow this one external call. "}The server can have effects outside ARK's file sandbox.`,
       } : {}) })(name);
       return say(problem ? "refused" : "allowed"), problem ? deny(problem) : { allow: true, input };
     }
     if (name === "Bash" && !project) return say("refused"), deny("Commands run only in a project chat. Do the task with the file tools.");
     // Its MCP and browser tools are deferred (ENABLE_TOOL_SEARCH=force): an agent with them needs ToolSearch to load them.
-    const deferred = member.kit !== "think" && (member.browser || grantedServers(team.helpers.mcpServers(), member.id).length > 0);
+    const deferred = kitHas(member, "any", full) && (member.browser || grantedServers(team.helpers.mcpServers(), member.id).length > 0);
     // Skill for every kit, think too: a skill is instructions, not a tool (Keshab, 2026-10-14).
     const kit = new Set([
-      ...kitTools(member.kit, project),
+      ...kitTools(member.kit, project, full),
       ...(member.skills.length ? ["Skill"] : []),
       ...(member.planFirst ? ["ExitPlanMode"] : []),
       ...(deferred ? ["ToolSearch"] : []),
@@ -363,7 +371,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
     if (name === "Skill") {
       const skill = String(input.skill ?? "").split(":").at(-1) ?? "";
       if (!member.skills.includes(skill)) return say("refused"), deny(`${skill || "That skill"} is not one of ${member.name}'s skills.`);
-      // ADR-094: a task that used one of ATOM's skills and then goes badly asks Tinker for an edit to it (store.askEdits).
+      // ADR-094: a task that used one of ARK's skills and then goes badly asks Tinker for an edit to it (store.askEdits).
       if (job !== undefined && team.preloadedSkills !== false) team.helpers.recordSkillUse(job, skill);
       return { allow: true, input };
     }
@@ -381,8 +389,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
       const problem = webFetchProblem(input.url, { tainted: isTainted(agentId) });
       if (problem) return say("refused"), deny(problem);
     }
-    if (!FILE_TOOLS.includes(name)) return { allow: true, input }; // WebSearch, WebFetch, ToolSearch
-    if (name === "Bash" && input.dangerouslyDisableSandbox) return say("refused"), deny("Commands always run in the sandbox.");
+    if (!FILE_TOOLS.includes(name) && !trash) return { allow: true, input }; // WebSearch, WebFetch, ToolSearch
     const tree = job !== undefined ? work.get(job) : undefined;
     // ADR-122: no per-agent folders. The task's own folder (a project, a worktree) is free to write; everywhere else follows the floor and the tiers.
     const roots = tree ? [tree.dir] : team.project ? [team.project.cwd] : [];
@@ -396,10 +403,13 @@ export function nativeGate(scope: NativeScope): NativeGate {
       name: member.name,
       cancelled: () => !active(job),
       fullAccess: () => scope.access?.fullAccess(job !== undefined ? stopFor(job).signal : scope.accessSignal?.()) === true && active(job),
+      tainted: () => isTainted(agentId),
       approve,
       ...(team.approveFile ? { approveFile: (request: { summary: string; reason: string }) => taskApproval<FileApproval>(job, (signal) => team.approveFile!(request, signal), false) } : {}),
       ...(team.permissions ? { permissions: team.permissions } : {}),
       onCheck: (e) => say(e.verdict),
+      // 2026-11-02: an agent's git push asks, then ARK pushes the task's own branch outside the sandbox.
+      push: async (dir) => { const branch = await currentBranch(dir); await pushBranch(dir, branch); return `ARK pushed ${branch} to origin.`; },
       ...(job !== undefined
         ? {
             before: checkpointBefore({ roots: [...roots, team.home ?? homedir()], ...(tree?.tree ? { tree: tree.tree } : {}), keep: (r, p) => team.helpers.checkpoint(job, r, p) }),
@@ -407,8 +417,11 @@ export function nativeGate(scope: NativeScope): NativeGate {
           }
         : {}),
     });
-    const problem = await check(name, input);
-    return problem ? deny(problem) : { allow: true, input };
+    const problem = await check(trash ? TRASH_CALL : name, input);
+    if (problem) return deny(problem);
+    // 2026-11-02: an allowed network, sudo, system-settings or git-history command runs outside the sandbox.
+    const command = typeof input.command === "string" ? input.command : "";
+    return { allow: true, input: name === "Bash" && runsOutsideSandbox(command, input) ? { ...input, dangerouslyDisableSandbox: true } : input };
   };
 
   /** ADR-098 item 4: the browser, one task per worker at a time, each site on Keshab's card. */
@@ -472,7 +485,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
           async (hook: Record<string, any>, toolUseID: string | undefined) => {
             const input = hook.tool_input && typeof hook.tool_input === "object" ? (hook.tool_input as Record<string, unknown>) : {};
             const v = await decide(hook, String(hook.tool_name), input, toolUseID ?? hook.tool_use_id ?? randomUUID()).catch(
-              (error: unknown): Verdict => deny(`ATOM could not check this call: ${error instanceof Error ? error.message : String(error)}`.slice(0, 300)),
+              (error: unknown): Verdict => deny(`ARK could not check this call: ${error instanceof Error ? error.message : String(error)}`.slice(0, 300)),
             );
             return v.allow
               ? { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "allow", updatedInput: v.input } }
@@ -512,7 +525,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
         hooks: [
           async () => {
             const job = pendingTrees.shift();
-            if (job === undefined || !team.project) throw new Error("No ATOM task asked for this worktree.");
+            if (job === undefined || !team.project) throw new Error("No ARK task asked for this worktree.");
             if (!active(job) || checkingFiles.has(job)) throw new Error("This worker no longer needs a worktree.");
             const made = await prepareWorkdir(team.project.cwd, job, team.worktrees);
             if (!active(job) || checkingFiles.has(job)) throw new Error("The task ended during worktree preparation; the copy is retained without dispatch.");

@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ClaudeSdk } from "@atom/llm-gateway";
-import { openHelperStore, skillFile } from "@atom/helpers";
+import type { ClaudeSdk } from "@ark/llm-gateway";
+import { openHelperStore, skillFile } from "@ark/helpers";
 import { runTinker } from "./tinker.ts";
 
 // ADR-094: Tinker's soul review, draft and edit runs, with a fake Claude Code that answers in the asked shape.
@@ -24,8 +24,8 @@ function fakeSdk(structured: unknown) {
 }
 
 function setup() {
-  const home = mkdtempSync(join(tmpdir(), "atom-home-"));
-  const skillsDir = mkdtempSync(join(tmpdir(), "atom-skills-"));
+  const home = mkdtempSync(join(tmpdir(), "ark-home-"));
+  const skillsDir = mkdtempSync(join(tmpdir(), "ark-skills-"));
   const store = openHelperStore({ path: ":memory:", home, skillsDir });
   const { id } = store.addJob("sid", "Compare laptops");
   store.start(id);

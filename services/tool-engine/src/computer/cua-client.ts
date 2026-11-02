@@ -1,7 +1,7 @@
 import { spawn, type ChildProcessByStdio } from "node:child_process";
 import type { Readable, Writable } from "node:stream";
 import { createInterface } from "node:readline";
-import type { ToolImage } from "@atom/contracts";
+import type { ToolImage } from "@ark/contracts";
 
 export interface CuaResult {
   images?: ToolImage[];
@@ -71,6 +71,8 @@ type Proc = ChildProcessByStdio<Writable, Readable, null>;
 interface Pending { resolve: (r: any) => void; reject: (e: Error) => void }
 interface Connection {
   proc: Proc;
+  /** Tools whose input takes a `session`: CUA_SESSION_LABEL is added to their calls. */
+  sessionTools: Set<string>;
   generation: number;
   ready: Promise<void>;
   startupMs: number;
@@ -78,6 +80,11 @@ interface Connection {
   stopped?: Promise<void>;
 }
 
+/**
+ * ARK's session label on every driver call that takes one (2026-11-02). The driver draws its own swinging agent cursor (on by default);
+ * ARK shows its fingertip pointer instead, so on connect it switches the driver's cursor off for this session. Keshab saw two pointers.
+ */
+export const CUA_SESSION_LABEL = "ark";
 const REQUIRED_TOOLS = ["list_apps", "list_windows", "get_window_state", "launch_app", "click", "type_text", "press_key", "hotkey", "scroll", "set_value", "get_screen_size", "get_desktop_state"];
 const elapsed = (start: number) => Math.max(0, Math.round(performance.now() - start));
 class StaleSession extends Error {}
@@ -138,7 +145,7 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
     if (active) return active;
     const started = performance.now();
     const proc = spawn(command, args, { env, stdio: ["pipe", "pipe", "ignore"] });
-    const c: Connection = { proc, generation: ++generation, ready: Promise.resolve(), startupMs: 0, pending: new Map() };
+    const c: Connection = { proc, generation: ++generation, ready: Promise.resolve(), startupMs: 0, pending: new Map(), sessionTools: new Set() };
     active = c;
     // Pending replies belong to one connection: a late old exit cannot reject a replacement's calls.
     proc.on("error", (error) => void retire(c, new Error(`Could not start Cua Driver (${error.message}). Is it installed?`)));
@@ -153,8 +160,9 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
       c.pending.delete(message.id);
       message.error ? p.reject(new Error(String(message.error.message ?? "Cua Driver error"))) : p.resolve(message.result);
     });
-    c.ready = request(c, "initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "atom", version: "0" } }, initializeTimeoutMs)
+    c.ready = request(c, "initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "ark", version: "0" } }, initializeTimeoutMs)
       .then(() => { send(c, { jsonrpc: "2.0", method: "notifications/initialized" }); })
+      .then(() => quietCursor(c))
       .then(() => { c.startupMs = elapsed(started); onTiming?.({ stage: "initialize", durationMs: c.startupMs, ok: true }); })
       .catch((error) => {
         onTiming?.({ stage: "initialize", durationMs: elapsed(started), ok: false });
@@ -162,6 +170,24 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
         throw error;
       });
     return c;
+  }
+
+  /** Learn which tools take a session, then hide the driver's own cursor for ARK's session. An older driver keeps working without it. */
+  async function quietCursor(c: Connection) {
+    try {
+      let cursor: string | undefined;
+      for (let page = 0; page < 20; page++) {
+        const result = await request(c, "tools/list", cursor ? { cursor } : {}, initializeTimeoutMs);
+        for (const tool of Array.isArray(result?.tools) ? result.tools : []) {
+          if (typeof tool?.name === "string" && tool.inputSchema?.properties?.session) c.sessionTools.add(tool.name);
+        }
+        cursor = typeof result?.nextCursor === "string" && result.nextCursor ? result.nextCursor : undefined;
+        if (!cursor) break;
+      }
+      if (c.sessionTools.has("set_agent_cursor_enabled")) {
+        await request(c, "tools/call", { name: "set_agent_cursor_enabled", arguments: { session: CUA_SESSION_LABEL, enabled: false } }, initializeTimeoutMs);
+      }
+    } catch { /* The driver's cursor may show; every action still works. */ }
   }
 
   function touch(c: Connection) {
@@ -180,7 +206,7 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
     const reused = Boolean(active);
     const c = connection();
     const abort = () => {
-      for (const requestId of c.pending.keys()) send(c, { jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId, reason: "ATOM cancelled" } });
+      for (const requestId of c.pending.keys()) send(c, { jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId, reason: "ARK cancelled" } });
       void retire(c, new Error("Cancelled. The action outcome may be unknown; look again before continuing."));
     };
     signal?.addEventListener("abort", abort, { once: true });
@@ -213,7 +239,8 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
         const started = performance.now();
         let ok = false;
         try {
-          const result = await request(c, "tools/call", { name, arguments: callArgs });
+          const args = c.sessionTools.has(name) && !("session" in callArgs) ? { ...callArgs, session: CUA_SESSION_LABEL } : callArgs;
+          const result = await request(c, "tools/call", { name, arguments: args });
           const structured = (result?.structuredContent ?? {}) as Record<string, any>;
           const images = (result?.content ?? []).filter((item: any) => item.type === "image" && ["image/png", "image/jpeg"].includes(item.mimeType)
             && typeof item.data === "string" && item.data.length > 0 && item.data.length <= 12 * 1024 * 1024 && /^[A-Za-z0-9+/]+={0,2}$/.test(item.data))

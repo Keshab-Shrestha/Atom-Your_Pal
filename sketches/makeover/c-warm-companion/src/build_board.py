@@ -70,7 +70,7 @@ def build():
       <li><b>AI model</b> lives on the main page: a 3-way provider control and one model popup replace 13 chips.</li>
       <li><b>Five rows</b> drill into sub-pages. Each row previews its current value. Dictation shares a page with Shortcuts, so both entries open the same sub-page.</li>
       <li><b>One control per setting.</b> Switches for on/off. Segmented controls for up to 4 short options. Popups for longer lists. A stepped slider where order matters (Movement).</li>
-      <li><b>Quit ZENO</b> sits in the footer, away from the switches.</li>
+      <li><b>Quit ARK</b> sits in the footer, away from the switches.</li>
     </ul>
     <h3 style="margin-top:22px">Speech bubble · Panel</h3>
     <div class="card" style="margin-top:10px">
@@ -115,7 +115,7 @@ def build():
         mb += (f'<div class="mbcell"><div class="big">{glyph(k, 64, "G"+k)}</div>'
                f'<div class="realbars"><span class="rb light">{glyph(k, 16, "gl"+k)}</span><span class="rb dark">{glyph(k, 16, "gd"+k, dark=True)}</span></div>'
                f'<div class="mt" style="margin-top:10px">{t}</div></div>')
-    mb += '</div><div class="cap-note" style="margin-top:14px">Template glyph (black, or white on dark menu bars) when idle. Mint when ZENO is busy, coral dot when it needs you, amber badge for problems. Shown at 4× and at real 16 pt, on light and dark menu bars.</div>'
+    mb += '</div><div class="cap-note" style="margin-top:14px">Template glyph (black, or white on dark menu bars) when idle. Mint when ARK is busy, coral dot when it needs you, amber badge for problems. Shown at 4× and at real 16 pt, on light and dark menu bars.</div>'
 
     # (g) tokens
     sw = [("ink", "#1D1B18", "Text, glyph idle"), ("paper", "#FBF8F3", "Panel glass · 88 % + blur 34"),
@@ -150,7 +150,7 @@ def build():
  </div>
 </div>'''
 
-    html = f'''<!doctype html><html><head><meta charset="utf-8"><title>ZENO · C Warm Companion · board</title>
+    html = f'''<!doctype html><html><head><meta charset="utf-8"><title>ARK · C Warm Companion · board</title>
 <style>{CSS}
 html,body{{width:1440px;background:#E9E1D6}}
 .board{{width:1440px;padding:56px 64px 96px;background:
@@ -220,13 +220,13 @@ html,body{{width:1440px;background:#E9E1D6}}
 .mo td:first-child{{font-weight:600;width:70px}} .mo td:nth-child(2){{font-family:ui-monospace,SFMono-Regular,monospace;font-size:11px;color:var(--ink);padding-right:8px}}
 .mo td:last-child{{color:var(--ink2);text-align:right}}
 </style></head><body><div class="board">
-<div class="top"><div><h1>ZENO · <span>Warm Companion</span></h1>
+<div class="top"><div><h1>ARK · <span>Warm Companion</span></h1>
 <p>Direction C. Wisp is a character with a personality, drawn adult and premium. Warm paper glass, ink type, one coral accent, and Wisp’s mint for anything live.</p></div>
 <div style="display:flex;align-items:flex-end;gap:6px">{wisp("floating",86,"hero1")}{wisp("speaking",64,"hero2")}</div></div>
 
 {section("a", "Wisp mood sheet", "Ten moods, carried by pose, squash and the face. Drawn at 124 pt; ships at 64 pt.", moods + anatomy)}
 {section("b", "Panel · 380 pt", "Hangs under the menu-bar icon. The header portrait shows Wisp’s current mood instead of a generic state icon.", panels)}
-{section("c", "Work strip", "Bottom centre, above Wisp’s walkway, only while ZENO operates the Mac.", strips)}
+{section("c", "Work strip", "Bottom centre, above Wisp’s walkway, only while ARK operates the Mac.", strips)}
 {section("d", "Status card", "Used when Wisp is off. Hangs under the menu-bar icon during a voice turn.", cards)}
 {section("e", "Dictation bubble &amp; pointing pill", "The bubble hugs its content, with a tail towards Wisp. Pointing only ever shows a 2–4 word pill.", bub)}
 {section("f", "Menu-bar icon", "Seven states, at 4× and at real size.", mb)}

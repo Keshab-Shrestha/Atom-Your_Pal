@@ -3,11 +3,11 @@
 
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { CoreError, type Core } from "@atom/core";
-import { GatewayError } from "@atom/llm-gateway";
-import { readEnv, type Logger } from "@atom/shared";
-import { openMemoryStore, type MemoryStore } from "@atom/memory";
-import { openHelperStore, type HelperStore } from "@atom/helpers";
+import { CoreError, type Core } from "@ark/core";
+import { GatewayError } from "@ark/llm-gateway";
+import { readEnv, type Logger } from "@ark/shared";
+import { openMemoryStore, type MemoryStore } from "@ark/memory";
+import { openHelperStore, type HelperStore } from "@ark/helpers";
 import type { IslandHelpers } from "./island.ts";
 import { AudioError } from "./audio.ts";
 import { SttError } from "./stt.ts";
@@ -16,9 +16,9 @@ import type { VoiceLoopEvents } from "./voice-loop.ts";
 
 const MEMORY_TIDY_MS = 24 * 60 * 60_000;
 
-/** Opens the memory store, or returns undefined (memory off, or the file cannot be opened: ATOM still runs). */
+/** Opens the memory store, or returns undefined (memory off, or the file cannot be opened: ARK still runs). */
 export function openMemory(path: string, log: Logger): MemoryStore | undefined {
-  if (readEnv(process.env, "ATOM_MEMORY") === "0") return undefined;
+  if (readEnv(process.env, "ARK_MEMORY") === "0") return undefined;
   try {
     const store = openMemoryStore({ path });
     log.info("memory.open", { kept: store.count() });
@@ -41,7 +41,7 @@ export function openMemory(path: string, log: Logger): MemoryStore | undefined {
 }
 
 /**
- * Opens the helper store (ADR-081), or returns undefined if the file cannot be opened (ATOM still runs; the
+ * Opens the helper store (ADR-081), or returns undefined if the file cannot be opened (ARK still runs; the
  * island is told there are no helpers). Every change is logged by ids, state and timing only, never task or report text.
  */
 export function openHelpers(path: string, log: Logger, agentsDir?: string, skillsDir?: string, checkpointsDir?: string, retryNative?: (id: number) => void): HelperStore | undefined {
@@ -112,7 +112,7 @@ export function withLogging(log: Logger, micName: () => Promise<string>, events:
   };
 }
 
-/** A stand-in for ATOM Core that replies with the words it was given, for testing the voice parts alone. */
+/** A stand-in for ARK Core that replies with the words it was given, for testing the voice parts alone. */
 export function createEchoCore(): Core {
   return {
     async handle(input: { text: string }) {
@@ -124,10 +124,10 @@ export function createEchoCore(): Core {
 
 /** The Calendar and Reminders helper: the one the island passes, else a development build. */
 export function findCalendarHelper(): string | undefined {
-  if (readEnv(process.env, "ATOM_CALENDAR") === "0") return undefined;
+  if (readEnv(process.env, "ARK_CALENDAR") === "0") return undefined;
   const candidates = [
-    readEnv(process.env, "ATOM_CALENDAR_HELPER"),
-    fileURLToPath(new URL("../island/build/ATOM.app/Contents/MacOS/atom-calendar", import.meta.url)),
+    readEnv(process.env, "ARK_CALENDAR_HELPER"),
+    fileURLToPath(new URL("../island/build/ARK.app/Contents/MacOS/ark-calendar", import.meta.url)),
   ];
   return candidates.find((p): p is string => Boolean(p) && existsSync(p!));
 }
@@ -141,7 +141,7 @@ export function nowLine(now = new Date()): string {
   return `It is now ${text} (${zone}, UTC${offset}).`;
 }
 
-/** ADR-083: Laya takes about 5 s to start, so it starts when the ATOM window opens, not on the first job. */
+/** ADR-083: Laya takes about 5 s to start, so it starts when the ARK window opens, not on the first job. */
 export function warmOnOpen(island: IslandHelpers, decisions: { warm(): void }): IslandHelpers {
   return {
     ...island,

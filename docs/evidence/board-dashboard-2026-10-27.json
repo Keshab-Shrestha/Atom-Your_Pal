@@ -2,7 +2,7 @@
   "date": "2026-10-27",
   "scope": "Board agent management and Dashboard",
   "syntheticCaptures": true,
-  "captureDirectory": "/tmp/atom-management-20261027",
+  "captureDirectory": "/tmp/ark-management-20261027",
   "captures": [
     "44-add-agent-dark.png",
     "44-add-agent-light.png",

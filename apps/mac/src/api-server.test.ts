@@ -8,9 +8,9 @@ import { createApiServer, parsePort, readOrCreateToken, type ApiServerOptions } 
 import { createApiTurnRunner } from "./api-turns.ts";
 import { createChatTurns } from "./chat-turns.ts";
 
-// ADR-098 item 5: the local API. Real loopback server on a random port, fake store, no real ATOM.
+// ADR-098 item 5: the local API. Real loopback server on a random port, fake store, no real ARK.
 
-const dir = mkdtempSync(join(tmpdir(), "atom-api-"));
+const dir = mkdtempSync(join(tmpdir(), "ark-api-"));
 after(() => rmSync(dir, { recursive: true, force: true }));
 
 const log = { debug() {}, info() {}, warn() {}, error() {} } as unknown as ApiServerOptions["log"];
@@ -215,7 +215,7 @@ test("needs: key pattern and unknown key/action are refused", async () => {
   }
 });
 
-test("an ATOM failure is 502 and an unexpected throw is 500 without details", async () => {
+test("an ARK failure is 502 and an unexpected throw is 500 without details", async () => {
   const { api, port, token } = await boot({ ask: async () => { throw new Error("boom-detail"); } });
   try {
     const r = await call(port, "POST", "/v1/chat", { token, body: '{"text":"hi"}' });
@@ -290,7 +290,7 @@ test("ADR-110 N3: a goal is a turn in its own chat api-goal-<id>; its status and
   await api.set(false);
 });
 
-test("ADR-110 N3: a goal ATOM answers itself has goalId null", async () => {
+test("ADR-110 N3: a goal ARK answers itself has goalId null", async () => {
   const { api, port, token } = await boot({ said: () => undefined, ask: async () => "It is 3 pm." });
   const given = await call(port, "POST", "/v1/goals", { token, body: '{"goal":"what time is it"}' });
   assert.deepEqual(given.json.data, { goalId: null, answer: "It is 3 pm." });
@@ -363,7 +363,7 @@ test("needs: the API answers a plan, but a risky-action card is refused and list
 
     const denied = await call(port, "POST", "/v1/needs/ask-q1", { token, body: '{"action":"allow"}' });
     assert.equal(denied.status, 403);
-    assert.match(denied.json.error, /ATOM window or on Telegram/);
+    assert.match(denied.json.error, /ARK window or on Telegram/);
     assert.deepEqual(answered, [], "the card was not answered");
 
     const plan = await call(port, "POST", "/v1/needs/plan-8", { token, body: '{"action":"approve"}' });
@@ -375,7 +375,7 @@ test("needs: the API answers a plan, but a risky-action card is refused and list
 });
 
 // 2026-10-16 (code check): `new URL("//", base)` threw before the token check, outside any try. handle() rejected, nothing caught it, and the app's
-// crash handler ended ATOM: no token needed, from any web page that could reach 127.0.0.1.
+// crash handler ended ARK: no token needed, from any web page that could reach 127.0.0.1.
 test("a request with an address the URL parser rejects gets an answer and the app keeps running", async () => {
   const rejections: unknown[] = [];
   const onRejection = (e: unknown) => rejections.push(e);
@@ -563,7 +563,7 @@ test("ADR-121: the page holds no script from outside, no eval, no innerHTML, and
   }
 });
 
-test("ADR-121: the Host header must be this machine or the one named in ATOM_API_HOST; anything else is 403, with or without a token", async () => {
+test("ADR-121: the Host header must be this machine or the one named in ARK_API_HOST; anything else is 403, with or without a token", async () => {
   const { api, port, token } = await boot({ host: "Mac-Mini.Tail1234.ts.net" });
   try {
     for (const host of [`127.0.0.1:${port}`, `localhost:${port}`, "localhost", "mac-mini.tail1234.ts.net", "MAC-MINI.TAIL1234.TS.NET", `mac-mini.tail1234.ts.net:443`]) {
@@ -587,7 +587,7 @@ test("ADR-121: the Host header must be this machine or the one named in ATOM_API
   }
 });
 
-test("ADR-121: without ATOM_API_HOST only the local names are allowed", async () => {
+test("ADR-121: without ARK_API_HOST only the local names are allowed", async () => {
   const { api, port } = await boot();
   try {
     assert.equal((await raw(port, "/app", { host: "mac-mini.tail1234.ts.net" })).status, 403);
@@ -642,11 +642,11 @@ test("requests with no Authorization header do not count towards the wrong-token
 // 2026-10-16: a chat that the window is answering in answers the phone with a 409 and a clear line, not a 502.
 test("a busy chat is a 409 with the line from the guard", async () => {
   const { ChatBusyError } = await import("./chat-turns.ts");
-  const { api, port, token } = await boot({ ask: async () => { throw new ChatBusyError("The ATOM window is answering in this chat. Try again in a moment."); } });
+  const { api, port, token } = await boot({ ask: async () => { throw new ChatBusyError("The ARK window is answering in this chat. Try again in a moment."); } });
   try {
     const r = await call(port, "POST", "/v1/chat", { token, body: JSON.stringify({ text: "hi", chatId: "x" }) });
     assert.equal(r.status, 409);
-    assert.match(r.json.error, /The ATOM window is answering in this chat/);
+    assert.match(r.json.error, /The ARK window is answering in this chat/);
   } finally {
     api.stop();
   }

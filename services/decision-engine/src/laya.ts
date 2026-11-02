@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { readEnv, type Logger } from "@atom/shared";
+import { readEnv, type Logger } from "@ark/shared";
 import { DEFAULT_TIER, DIFFICULTY_RUNGS, tierFromScore, type DecisionEngine, type TierChoice } from "./engine.ts";
 
 // ADR-083: Laya (local, MCP server over stdio) rates each job's difficulty in one forward pass. The server starts on
@@ -39,7 +39,7 @@ export interface LayaClient {
 /** Starts a session. `onCrash` is called if the server goes away by itself (not after `close`). */
 export type LayaConnect = (onCrash: () => void) => Promise<LayaClient>;
 
-/** Thrown by a connect when the server program is not there: Laya is then off until ATOM restarts. */
+/** Thrown by a connect when the server program is not there: Laya is then off until ARK restarts. */
 export class LayaMissingError extends Error {
   constructor(path: string) {
     super(`Laya's server was not found at ${path}.`);
@@ -50,7 +50,7 @@ export class LayaMissingError extends Error {
 type Env = Record<string, string | undefined>;
 
 export function layaServerPath(env: Env = process.env): string {
-  return readEnv(env, "ATOM_LAYA_SERVER")?.trim() || join(homedir(), "laya", ".venv", "bin", "laya-mcp-server");
+  return readEnv(env, "ARK_LAYA_SERVER")?.trim() || join(homedir(), "laya", ".venv", "bin", "laya-mcp-server");
 }
 
 /** The real connect: spawns the server over stdio with the settings checked for ADR-083. */
@@ -63,7 +63,7 @@ export function stdioLaya(path: string): LayaConnect {
       env: { LAYA_DEVICE: "mps", LAYA_PRELOAD: "1", LAYA_MODELS: "english", HF_HUB_OFFLINE: "1", TRANSFORMERS_OFFLINE: "1" },
       stderr: "ignore",
     });
-    const client = new Client({ name: "atom", version: "1.0.0" });
+    const client = new Client({ name: "ark", version: "1.0.0" });
     try {
       await client.connect(transport);
     } catch (error) {
@@ -101,7 +101,7 @@ export interface LayaEngineOptions {
   timeoutMs?: number;
   /** A session that lived this long (ms) before it crashed was healthy: the crash counts as a first failure again. Default 5 minutes. */
   stableMs?: number;
-  /** ATOM_LAYA=0 turns Laya off; ATOM_LAYA_SERVER moves the server. Default: process.env. */
+  /** ARK_LAYA=0 turns Laya off; ARK_LAYA_SERVER moves the server. Default: process.env. */
   env?: Env;
   log?: Pick<Logger, "info" | "warn">;
 }
@@ -114,8 +114,8 @@ const reason = (error: unknown) => (error instanceof Error ? error.message : Str
 export function createLayaEngine(options: LayaEngineOptions = {}): DecisionEngine {
   const { env = process.env, timeoutMs = LAYA_TIMEOUT_MS, stableMs = LAYA_STABLE_MS, log } = options;
   const connect = options.connect ?? stdioLaya(layaServerPath(env));
-  /** Why Laya is off for good (until ATOM restarts); undefined while it may be used. */
-  let off: string | undefined = readEnv(env, "ATOM_LAYA") === "0" ? "turned off" : undefined;
+  /** Why Laya is off for good (until ARK restarts); undefined while it may be used. */
+  let off: string | undefined = readEnv(env, "ARK_LAYA") === "0" ? "turned off" : undefined;
   let session: Promise<LayaClient> | undefined;
   /** Crashes and failed starts so far: the first gets one restart, the second turns Laya off. */
   let failures = 0;

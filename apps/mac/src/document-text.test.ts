@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { wordDocumentXML, extractDocumentText, DocumentReaderUnavailable, MAX_DOCUMENT_BYTES } from "./document-text.ts";
 import { createBrainSourceFolder } from "./brain-source-folder.ts";
-import { openMemoryStore } from "@atom/memory";
+import { openMemoryStore } from "@ark/memory";
 
 function archive(xml: Buffer, options: { method?: number; flags?: number; checksum?: number; expanded?: number; duplicate?: boolean } = {}) {
   const name = Buffer.from("word/document.xml"), method = options.method ?? 8;
@@ -38,7 +38,7 @@ test("missing readers fail explicitly, while malformed documents never need a he
 });
 
 test("an owned document helper is bounded and its errors never expose raw output", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-document-helper-")), helper = join(dir, "reader");
+  const dir = mkdtempSync(join(tmpdir(), "ark-document-helper-")), helper = join(dir, "reader");
   try {
     writeFileSync(helper, '#!/usr/bin/env node\nprocess.stdin.resume(); process.stdin.on("end",()=>console.log(JSON.stringify({text:"Cedar 🌲\\n"})));\n', { mode: 0o700 });
     assert.equal(await extractDocumentText("pdf", Buffer.from("%PDF-1.4"), helper), "Cedar 🌲\n");
@@ -49,7 +49,7 @@ test("an owned document helper is bounded and its errors never expose raw output
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-const helper = resolve("apps/mac/island/.build/arm64-apple-macosx/release/AtomDocuments");
+const helper = resolve("apps/mac/island/.build/arm64-apple-macosx/release/ArkDocuments");
 test("native Word reader preserves Unicode and rejects entity declarations", { skip: !existsSync(helper) }, async () => {
   assert.equal(await extractDocumentText("docx", archive(xml), helper), " Cedar & Birch 🌲 日本語 \tThursday\n");
   await assert.rejects(extractDocumentText("docx", archive(Buffer.from('<!DOCTYPE x [<!ENTITY x SYSTEM "file:///etc/passwd">]><x>&x;</x>')), helper));
@@ -69,7 +69,7 @@ test("native PDF reader extracts an actual fictional PDF text layer", { skip: !e
 });
 
 test("document import uses existing preview/revision/correction rules and keeps originals intact", async () => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "atom-source-documents-"))), home = join(root, "home"), folder = join(home, "Notes"); mkdirSync(folder, { recursive: true });
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "ark-source-documents-"))), home = join(root, "home"), folder = join(home, "Notes"); mkdirSync(folder, { recursive: true });
   const memory = openMemoryStore({ path: ":memory:" });
   try {
     const original = Buffer.from("fictional binary fixture"); writeFileSync(join(folder, "cedar.pdf"), original); writeFileSync(join(folder, "birch.docx"), original);
@@ -87,7 +87,7 @@ test("document import uses existing preview/revision/correction rules and keeps 
 });
 
 test("existing text-only sources never widen their read scope on refresh", async () => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "atom-source-legacy-scope-"))), home = join(root, "home"), folder = join(home, "Notes"); mkdirSync(folder, { recursive: true });
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "ark-source-legacy-scope-"))), home = join(root, "home"), folder = join(home, "Notes"); mkdirSync(folder, { recursive: true });
   const memory = openMemoryStore({ path: ":memory:" });
   try {
     writeFileSync(join(folder, "cedar.md"), "# Cedar\nThursday");
@@ -103,7 +103,7 @@ test("existing text-only sources never widen their read scope on refresh", async
 });
 
 test("a source changed during extraction cannot be published as fresh", async () => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "atom-source-extract-change-"))), home = join(root, "home"), folder = join(home, "Notes"); mkdirSync(folder, { recursive: true });
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "ark-source-extract-change-"))), home = join(root, "home"), folder = join(home, "Notes"); mkdirSync(folder, { recursive: true });
   const file = join(folder, "cedar.pdf"); writeFileSync(file, "before");
   const memory = openMemoryStore({ path: ":memory:" });
   try {

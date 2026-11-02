@@ -1,16 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { findClaudeProgram, findCodexProgram, readEnv } from "@atom/shared";
-import { createGateway, createCodexSessionAdapter, listPlanModels, runEdit } from "@atom/llm-gateway";
-import { continuityItems } from "@atom/memory";
+import { findClaudeProgram, findCodexProgram, readEnv } from "@ark/shared";
+import { createGateway, createCodexSessionAdapter, listPlanModels, runEdit } from "@ark/llm-gateway";
+import { continuityItems } from "@ark/memory";
 import { REPLY_INSTRUCTIONS } from "./reply-drafts.ts";
 import { CONTINUITY_INSTRUCTIONS } from "./chat-continuity.ts";
 import { PREPARATION_INSTRUCTIONS, preparationInput, preparedBriefOutput } from "./prepared-brief.ts";
 import { SOURCE_ANALYSIS_INSTRUCTIONS } from "./source-analysis.ts";
 
 // Explicit end-of-plan live smoke only: fictional text, no runtime/store/app, tools or external actions.
-const enabled = readEnv(process.env, "ATOM_LIVE_TESTS") === "1";
+const enabled = readEnv(process.env, "ARK_LIVE_TESTS") === "1";
 for (const provider of ["claude-plan", "codex"] as const) {
   test(`live adaptation: ${provider} returns the four isolated output contracts`, { skip: !enabled, timeout: 300_000 }, async (t) => {
     const program = provider === "claude-plan" ? findClaudeProgram() : findCodexProgram();

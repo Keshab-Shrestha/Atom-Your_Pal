@@ -1,7 +1,7 @@
-import type { Core } from "@atom/core";
-import type { Message } from "@atom/contracts";
-import { HelperError, type Routine, type HelperStore } from "@atom/helpers";
-import type { LogFields } from "@atom/shared";
+import type { Core } from "@ark/core";
+import type { Message } from "@ark/contracts";
+import { HelperError, type Routine, type HelperStore } from "@ark/helpers";
+import type { LogFields } from "@ark/shared";
 import { chatWriter, isSharedChat } from "./chat-owner.ts";
 import { TELEGRAM_CHAT } from "./telegram-bot.ts";
 
@@ -85,7 +85,7 @@ export function routineStarter(deps: RoutineTurnDeps): (routine: Routine) => boo
   };
 }
 
-/** ADR-098 item 3, ADR-110 N5: Keshab's message to a running task (the ATOM window, Telegram). */
+/** ADR-098 item 3, ADR-110 N5: Keshab's message to a running task (the ARK window, Telegram). */
 export interface TaskSteering {
   /** "live": the main agent of the task's chat took the note. Throws HelperError when no open chat runs the task. */
   steer(id: number, text: string): "live";
@@ -108,7 +108,7 @@ export function nativeSteering(cores: () => Iterable<{ steer(job: number, text: 
   };
 }
 
-/** A task given from the ATOM window's worker page or its Retry button: a chat of its own, "task-<n>". */
+/** A task given from the ARK window's worker page or its Retry button: a chat of its own, "task-<n>". */
 export const taskChat = (n: number) => `task-${n}`;
 
 /** Only persisted host-created retry chats inherit the original task's provider/project/read context. */

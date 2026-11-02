@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { openHelperStore } from "@atom/helpers";
+import { openHelperStore } from "@ark/helpers";
 import { createChatUsageRecorder, createOverheadRecorder } from "./usage-report.ts";
 
 test("a chat turn and its note record the chat id; the log line has numbers and names only (token cost, job 1)", () => {

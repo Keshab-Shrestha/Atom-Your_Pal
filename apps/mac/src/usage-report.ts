@@ -1,6 +1,6 @@
-import type { Logger } from "@atom/shared";
-import type { ModelTotal, TokenMeta, TokenUsage } from "@atom/llm-gateway";
-import { OVERHEAD_HELPER, type HelperStore, type RecordedUsage, type UsageEntry } from "@atom/helpers";
+import type { Logger } from "@ark/shared";
+import type { ModelTotal, TokenMeta, TokenUsage } from "@ark/llm-gateway";
+import { OVERHEAD_HELPER, type HelperStore, type RecordedUsage, type UsageEntry } from "@ark/helpers";
 
 // Job 1 (token cost): records one chat answer or its background note. The chat id and the gap since the chat's last
 // call (same model) go in the usage table; the log line gets names and numbers only, never text.

@@ -1,0 +1,101 @@
+/* ARK design tokens. They mirror ThemePalette in apps/mac/island/Sources/ArkIslandCore/Theme.swift for the two flat
+ * themes, Void and Daylight. A test (DesignTokensTests.swift) fails when a value here differs from the Swift theme, so
+ * change both together. The glass themes (Lantern, Lantern Day, Quiet Native, Luminous, Warm) use blur and are not
+ * described here.
+ *
+ * Names follow the Open Design semantic-token contract (design-systems/_schema): identity tokens (--bg, --fg, --accent,
+ * fonts), then shared tokens (state colours, spacing, radius, elevation, focus, motion), then ARK extensions.
+ */
+
+:root,
+[data-theme="void"] {
+  /* Identity: surfaces */
+  --bg: #141414;
+  --surface: #141414;          /* Void does not fill cards: a hairline is the card */
+  --surface-2: #202020;        /* tracks and a selected segment */
+  --surface-3: #282828;
+  --border: #272727;
+  --border-hover: #3E3E3E;
+
+  /* Identity: text. Three levels, all at least 4.5:1 on --bg */
+  --fg: #F2F2F2;
+  --fg-2: #B4B4B4;
+  --fg-3: #8C8C8C;
+
+  /* Identity: accent. Void's accent is white; colour appears only as status */
+  --accent: #DEDEDE;
+  --accent-on: #0F0F0F;
+
+  /* State colours. Use under 5% of any screen. Each one is also shown by a shape or a word, never by colour alone */
+  --live: #79B6F4;             /* listening, running */
+  --warn: #FABB41;             /* needs you */
+  --danger: #FF8880;           /* a problem */
+  --success: #67D283;         /* done, ready */
+  --identifier: #DEDEDE;       /* model names, app names, timings in mono */
+
+  /* Radius (2026-11-01 redesign): the window 8px; cards and controls 4px. Pills are fully round in the views */
+  --radius-lg: 8px;
+  --radius-md: 4px;
+  --radius-sm: 4px;
+}
+
+[data-theme="daylight"] {
+  --bg: #FEFFFF;
+  --surface: #FEFFFF;
+  --surface-2: #F0F1F4;
+  --surface-3: #E5E6E9;
+  --border: #EAEBEB;
+  --border-hover: #D0D1D1;
+
+  --fg: #0F0F11;
+  --fg-2: #525255;             /* softer than --fg on purpose */
+  --fg-3: #717174;
+
+  --accent: #4B53C2;
+  --accent-on: #FFFFFF;
+
+  --live: #1F68BC;
+  --warn: #A15700;
+  --danger: #C52B30;
+  --success: #00762C;
+  --identifier: #4B53C2;
+
+  --radius-lg: 8px;
+  --radius-md: 4px;
+  --radius-sm: 4px;
+}
+
+/* Shared by every theme */
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Type scale: one size per role (DESIGN.md section 3). Hierarchy is size, weight and colour level together */
+  --text-caption: 11px;
+  --text-secondary: 12px;
+  --text-body: 13px;
+  --text-row: 15px;
+  --text-title: 18px;
+  --text-number: 26px;
+
+  /* Spacing on a 4 px grid */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Elevation: two levels in the flat themes. No drop shadows; a hairline is the edge */
+  --elev-flat: none;
+  --elev-ring: 0 0 0 1px var(--border);
+
+  /* Focus: a 2 px ring in the text colour, 3:1 or more against both the control and the page */
+  --focus-ring: 0 0 0 2px var(--fg);
+
+  /* Motion: two short durations and one curve. With Reduce Motion every move is a plain 150 ms fade */
+  --motion-fast: 150ms;
+  --motion-base: 200ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}

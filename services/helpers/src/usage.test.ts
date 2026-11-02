@@ -178,3 +178,19 @@ test("an old goals table gets chat_posted_at filled for goals that had ended, in
   const rows = raw.prepare("SELECT text, chat_posted_at FROM goals ORDER BY id").all() as { text: string; chat_posted_at: string | null }[];
   assert.deepEqual(rows.map((r) => [r.text, r.chat_posted_at]), [["done goal", "2026-10-02T00:00:00.000Z"], ["open goal", null]]);
 });
+
+// 2026-11-02: the Dashboard's 7 / 30 / 90-day range reads the last 90 days, day by day.
+test("history holds the last 90 days; a run 40 days ago is in it but not in the week", () => {
+  let clock = new Date(2026, 8, 25, 10);
+  const usage = usageTable(new DatabaseSync(":memory:"), () => clock);
+  usage.add({ source: "job", helper: "sid", job: 1, model: "claude-sonnet-5-5", input: 100, output: 50, cacheRead: 0, cacheWrite: 0 });
+  clock = new Date(2026, 10, 4, 10);
+  usage.add({ source: "chat", model: "claude-haiku-5-5", input: 30, output: 20, cacheRead: 0, cacheWrite: 0 });
+  const s = usage.summary();
+  assert.equal(s.history.length, 90);
+  assert.equal(s.history.at(-1)!.day, localDay(clock));
+  assert.deepEqual(s.history.at(-1), s.days.at(-1), "today is the same in both");
+  assert.equal(s.history.find((d) => d.day === localDay(new Date(2026, 8, 25)))?.runs, 1);
+  assert.equal(s.week.runs, 1, "the old run is outside the week");
+  assert.equal(s.history.reduce((n, d) => n + d.runs, 0), 2);
+});

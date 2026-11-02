@@ -47,7 +47,7 @@ Not covered: the scheduled daily brief, cancellation by pause or foreground chat
 
 ## Native imported-note analysis batch — completed with two findings
 
-Use a new fictional folder `~/Documents/ATOM fixture cedar-analysis-r2` with three notes: two short notes and one 33 KB logbook (three chunks). The baseline is a private `memory.db` backup with no source and empty analysis tables. Drive the running signed app through Accessibility and the native folder chooser. The job model is `claude-plan / claude-opus-5-5 · low`.
+Use a new fictional folder `~/Documents/ARK fixture cedar-analysis-r2` with three notes: two short notes and one 33 KB logbook (three chunks). The baseline is a private `memory.db` backup with no source and empty analysis tables. Drive the running signed app through Accessibility and the native folder chooser. The job model is `claude-plan / claude-opus-5-5 · low`.
 
 - Preview lists exactly the two first files with 0 skipped. Import adds two notes (34 total). The first job analyzes both in two attempts. Each report states note ID, text offsets, source check time, model and preparation time, and separates the note's content from open questions. The content matches the fixture.
 - Copy analysis puts text on the clipboard that equals the stored report byte for byte (810 bytes). Read original note opens the note in the graph with `Imported · current` provenance and its source path.
@@ -84,7 +84,7 @@ Use an owned fictional loopback fixture on `127.0.0.1:18431` with model `cedar-f
 
 Observation, not a defect: Clear also discards the server check. Send stays disabled until Check server runs again. The reason shows only inside the collapsed Server configuration section. Decide whether the panel should say so.
 
-A separate local tool (`PortPilot/0.1`) sends `GET /` to new listening ports every four seconds. These requests do not come from ATOM and are excluded above.
+A separate local tool (`PortPilot/0.1`) sends `GET /` to new listening ports every four seconds. These requests do not come from ARK and are excluded above.
 
 Limits: fixture replies are synthetic. No real local model ran. Keyboard, IME, VoiceOver and compact layout of this panel are not covered here.
 
@@ -99,22 +99,22 @@ Use one new authored fictional note, `Cedar reply context R8 20261022` (ID 37), 
 - Close, cleanly quit and restart the same signed app. All eleven observed notes/links/source/history/access/reasoning/grant/navigation/project tables retain exact pre-restart hashes, and the saved example remains exact on disk. Original 32 note rows and original chat/access/project records are unchanged; only the test note/sample were added. Current chat, empty composer, Opus 5.5/Off/Saved permissions and the user's current project/theme remain intact. The fictional TextEdit question is unchanged.
 
 - After Keshab physically reopens the panel, the exact saved sample is visible with inclusion Off. Intent, background, search, context selection and output are empty; Copy is disabled. The selected fictional conversation is unchanged.
-- With explicit action-time approval, click Forget saved examples. The editor clears, inclusion stays Off, the native removal message appears and `atom.reply.writingExamples` is absent from preferences.
+- With explicit action-time approval, click Forget saved examples. The editor clears, inclusion stays Off, the native removal message appears and `ark.reply.writingExamples` is absent from preferences.
 - Review the exact revised fixture title/body, then Delete → Delete for good for only note 37. Counts return to 32 notes/25 links. Clear and re-enter the unique date query: No note matches. Compare all 31 original application tables against the pre-fixture baseline: every count and hash matches. Restore the original chat with empty composer, Opus 5.5/Off/Saved permissions, current project/theme and hidden workspace. Close only the saved fictional TextEdit document and temporary Finder build window. Recovery files remain private and preserved.
 
 Cleanup exposed one **open UI defect**: the selected note's deletion updates graph counts immediately but leaves its active search result visible until the query is cleared and re-entered. The database deletion and refreshed search are correct; immediate search-result invalidation is not certified.
 
-Private evidence is under `/tmp/atom-reply-context-native-j8eifzic`, including baseline/restart/panel/cleanup reports and recovery copies. No app source/build/automated test changed in this batch. No real personal source or writing sample was sent, no foreground chat message was added and no permission expanded. This does not certify imported-note provenance UI, native Codex behavior, secure-field/IME/accessibility or the still-unresolved hosted Terminal visual comparison.
+Private evidence is under `/tmp/ark-reply-context-native-j8eifzic`, including baseline/restart/panel/cleanup reports and recovery copies. No app source/build/automated test changed in this batch. No real personal source or writing sample was sent, no foreground chat message was added and no permission expanded. This does not certify imported-note provenance UI, native Codex behavior, secure-field/IME/accessibility or the still-unresolved hosted Terminal visual comparison.
 
 ## Native contextual reply batch — generation/edit/Copy/Cancel completed
 
 Prepare one new fictional Cedar conversation in TextEdit and an updated private database/preferences baseline reflecting the user's current chat/project/theme. Writing examples are initially empty. Automated Control–Option–K inserts a control character, so restore the fictional input and ask Keshab for the physical shortcut. He confirms the selected Cedar capture.
 
-Find an activation defect during native inspection: the reopen handler forces the main chat forward even when another page/panel is visible. Limit its explicit reveal to `hasVisibleWindows == false`. Release compilation passes in 41.18 seconds; rebuild with the existing **ATOM Local Signing** identity and pass strict codesign verification. Finder Open still reveals a hidden main window; repeated Open while Board is visible preserves Board. After the physical post-rebuild handoff, the automation reaches the actual floating Quick actions and Draft a reply panels. This now has native evidence beyond the earlier source/Board inspection.
+Find an activation defect during native inspection: the reopen handler forces the main chat forward even when another page/panel is visible. Limit its explicit reveal to `hasVisibleWindows == false`. Release compilation passes in 41.18 seconds; rebuild with the existing **ARK Local Signing** identity and pass strict codesign verification. Finder Open still reveals a hidden main window; repeated Open while Board is visible preserves Board. After the physical post-rebuild handoff, the automation reaches the actual floating Quick actions and Draft a reply panels. This now has native evidence beyond the earlier source/Board inspection.
 
 - The panel shows `claude-plan / claude-opus-5-5`, draft effort Low; main-chat thinking stays Off. Captured conversation text matches the fictional source. Initial saved context is empty/unselected, and writing-example inclusion is Off.
 - Edit intent/background and manually provided fictional style. An explicit local search for the removed unique fixture note yields no candidates. Opt in to the typed style without saving it, then Generate. A valid short unsent reply appears in an editable field; no new chat exchange is created.
-- Manually edit the draft and press Copy. The panel stays open with a copy confirmation. Manually paste into a **separate blank test document** to verify the exact edited Unicode text, then save that artifact in the private acceptance folder. The original source conversation remains unchanged before/after; ATOM did not paste or send it.
+- Manually edit the draft and press Copy. The panel stays open with a copy confirmation. Manually paste into a **separate blank test document** to verify the exact edited Unicode text, then save that artifact in the private acceptance folder. The original source conversation remains unchanged before/after; ARK did not paste or send it.
 - Change intent: the earlier draft displays an inputs-changed notice. Four manual admissions are exercised in total: three complete, one is cancelled. Two short regenerations finish before a Cancel action can be dispatched; they are not evidence of cancellation. A longer numbered-text fixture exposes the running Cancel control; press it using a fresh accessibility snapshot. The panel reports **Drafting stopped. Nothing was pasted or sent.**, preserves the earlier edited draft and its stale-input attribution, and re-enables Copy. A later native read still shows that same draft; no fourth successful result is logged.
 - Close the ephemeral panel and return to the selected Cedar chat, empty composer, Opus 5.5/Off/Saved permissions and hidden workspace. Preserve the user's current project filter/theme. Save the original fictional TextEdit source in the private acceptance folder as well, and close both document windows without deleting the artifacts. Close the temporary Finder build window.
 
@@ -142,7 +142,7 @@ Hosted [run 39727840071](https://github.com/Keshab-Shrestha/Atom-Your_Pal/action
 
 ## Signed native restart and backup batch
 
-Published the adaptation as `4251304` on `origin/main`. Rebuilt the actual repository app bundle using the existing **ATOM Local Signing** identity; `codesign --verify --deep --strict` passes. Preserve a private consistent SQLite/defaults/draft snapshot and the prior bundle before replacement. Native interactions use the app's real controls, not gallery snapshots.
+Published the adaptation as `4251304` on `origin/main`. Rebuilt the actual repository app bundle using the existing **ARK Local Signing** identity; `codesign --verify --deep --strict` passes. Preserve a private consistent SQLite/defaults/draft snapshot and the prior bundle before replacement. Native interactions use the app's real controls, not gallery snapshots.
 
 - Find and fix a reopen defect: Launch Services opening an already-running menu-bar app now shows the main window idempotently. Verify Finder Open reveals the hidden window and repeated Open keeps it visible. Background cold startup remains background startup; this does not change login behavior.
 - Verify the selected fictional project chat, its two original messages, Opus 5.5, Off thinking and Saved permissions after restart. A fictional unsent draft survives restart; clear only that added text to restore the originally empty composer. Once the provider catalog loads, Off returns normally.
@@ -191,7 +191,7 @@ A reopened fictional database preserves exact original chat messages, Full acces
 
 ## Actual provider checks
 
-`ATOM_LIVE_TESTS=1 node --test apps/mac/src/sentient-adaptation.live.test.ts` uses tool-free Gateway jobs with short fictional Cedar text. Claude used advertised `claude-haiku-5-5`; Codex used `gpt-6-luna` at Low. All four output contracts parsed successfully for both providers, including a correction from Wednesday to Thursday and host-resolved preparation references. No chat/store/app runtime was started, and no real notes, writing examples, screen, account content or external action entered these prompts. Claude sessions were nonpersistent; Codex threads were ephemeral.
+`ARK_LIVE_TESTS=1 node --test apps/mac/src/sentient-adaptation.live.test.ts` uses tool-free Gateway jobs with short fictional Cedar text. Claude used advertised `claude-haiku-5-5`; Codex used `gpt-6-luna` at Low. All four output contracts parsed successfully for both providers, including a correction from Wednesday to Thursday and host-resolved preparation references. No chat/store/app runtime was started, and no real notes, writing examples, screen, account content or external action entered these prompts. Claude sessions were nonpersistent; Codex threads were ephemeral.
 
 | Stage | Claude total | Codex total |
 | --- | --- | --- |
@@ -206,12 +206,12 @@ These are one-run isolated completion durations, with different models and adapt
 
 - The environment-name audit interpreted the imported-note reference marker as an environment variable. Rename the marker to `[IMPORTED_NOTE_REFERENCE_DATA]`; keep the environment audit strict. Its producers and consumers share the same constant, and policy tests cover its action-denial behavior.
 - Add explicit Claude/Codex admission in the contextual-draft service itself, in addition to the isolated-writer restriction. Gemini's existing selected-text reply action stays unchanged.
-- Plain SwiftUI scroll views rendered empty in the image renderer. Reuse ATOM's existing snapshot-aware `Scrollable` wrapper in the draft/backup panels and suppress draft context lookup during snapshot capture. This is renderer coverage, not proof of live scrolling/keyboard behavior.
+- Plain SwiftUI scroll views rendered empty in the image renderer. Reuse ARK's existing snapshot-aware `Scrollable` wrapper in the draft/backup panels and suppress draft context lookup during snapshot capture. This is renderer coverage, not proof of live scrolling/keyboard behavior.
 - The backup composer was below the fold with configuration/replies. Keep Message/Send/Stop outside the scrolling area, collapse saved configuration, and allow a shorter sheet. Inspect light and 500-point dark renders with composer controls visible.
 - The old Terminal CI failure was a stale compact Browser reference. Download and inspect the actual `ui-gallery` artifact from [run 39616156486](https://github.com/Keshab-Shrestha/Atom-Your_Pal/actions/runs/39616156486), head `f63b00a`: its old reference shows four surface tabs; Terminal intentionally changed compact navigation to a surface menu. The CI output and current local output both show that menu. Their direct pixel difference is 0.928%, while the original CI comparison against old tabs was 1.308%. Update only this inspected reference; do not change tolerance or hide the scene. A new hosted CI run has not occurred.
 - The Model settings image gains the intentional Local backup card and longer height. Inspect old/new, then update that reference. Add reviewed light/compact-dark backup and prepared-card references. All other existing references remain unchanged.
 
-Gallery work used a temporary app copy and throwaway defaults; it did not replace or quit the running ATOM app. The gallery exits before runtime startup. It emitted a macOS temporary-bundle sandbox-extension diagnostic but completed with zero `gallery:` errors and every expected image. The isolated binary was verified; this does not certify the installed app's signature or TCC retention after replacement.
+Gallery work used a temporary app copy and throwaway defaults; it did not replace or quit the running ARK app. The gallery exits before runtime startup. It emitted a macOS temporary-bundle sandbox-extension diagnostic but completed with zero `gallery:` errors and every expected image. The isolated binary was verified; this does not certify the installed app's signature or TCC retention after replacement.
 
 ## Remaining release acceptance
 

@@ -1,7 +1,7 @@
-import type { LanguageModel, RequestContext } from "@atom/contracts";
+import type { LanguageModel, RequestContext } from "@ark/contracts";
 
 /**
- * Ask ATOM (upgrades.md B3): the user selects some text, or none, and says what to do to it ("make it shorter"). One model run
+ * Ask ARK (upgrades.md B3): the user selects some text, or none, and says what to do to it ("make it shorter"). One model run
  * without tools rewrites the target and the window shows the change for the user to accept or deny. The text goes to the model
  * only because the user asked. No memory, no chat and no tools go with it. The log has sizes, never the text.
  */
@@ -12,7 +12,7 @@ export const MAX_EDIT_INSTRUCTION = 500;
 export const EDIT_CONTEXT_CHARS = 400;
 
 export const EDIT_INSTRUCTIONS =
-  "You are ATOM's text editor. The user gives a piece of text and says what to do to it. Do exactly that to the target text and return only the new target text.";
+  "You are ARK's text editor. The user gives a piece of text and says what to do to it. Do exactly that to the target text and return only the new target text.";
 
 export interface TextEditRequest {
   text: string;
@@ -34,7 +34,7 @@ export function planEdit(req: TextEditRequest): EditPlan {
   if (!instruction) throw new Error("Say what to do with the text.");
   if (instruction.length > MAX_EDIT_INSTRUCTION) throw new Error(`The instruction is too long (limit ${MAX_EDIT_INSTRUCTION} characters).`);
   if (!req.text.trim()) throw new Error("There is no text to change.");
-  if (req.text.length > MAX_EDIT_TEXT) throw new Error(`The text is too long for ATOM to change (limit ${MAX_EDIT_TEXT} characters).`);
+  if (req.text.length > MAX_EDIT_TEXT) throw new Error(`The text is too long for ARK to change (limit ${MAX_EDIT_TEXT} characters).`);
   const sel = req.selection;
   if (!sel || sel[0] === sel[1]) return { target: req.text, before: "", after: "", instruction };
   const [start, end] = sel;

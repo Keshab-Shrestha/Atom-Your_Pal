@@ -7,25 +7,25 @@ import { SKILL_BODY_CHARS, listSkills, parseSkillCall, readSkill, useSkill } fro
 import { SKILLS_LISTED, createUseSkillTool } from "./skill-tool.ts";
 
 function setup() {
-  const root = mkdtempSync(join(tmpdir(), "atom-skills-chat-"));
+  const root = mkdtempSync(join(tmpdir(), "ark-skills-chat-"));
   const yours = join(root, "yours");
-  const zeno = join(root, "zeno");
+  const ark = join(root, "ark");
   const skill = (dir: string, name: string, description: string, body: string) => {
     mkdirSync(join(dir, name), { recursive: true });
     writeFileSync(join(dir, name, "SKILL.md"), `---\nname: ${name}\ndescription: ${description}\n---\n\n${body}\n`);
   };
-  return { root, yours, zeno, skill, done: () => rmSync(root, { recursive: true, force: true }) };
+  return { root, yours, ark, skill, done: () => rmSync(root, { recursive: true, force: true }) };
 }
 
-test("a skill's steps are read without the front matter; Keshab's skill wins over ATOM's of the same name", () => {
-  const { yours, zeno, skill, done } = setup();
+test("a skill's steps are read without the front matter; Keshab's skill wins over ARK's of the same name", () => {
+  const { yours, ark, skill, done } = setup();
   skill(yours, "summarise", "Short summaries", "1. Read it\n2. Say it in three lines");
-  skill(zeno, "summarise", "ATOM's version", "ATOM steps");
-  skill(zeno, "plan-trip", "Trip plans", "Ask for dates first.");
-  assert.deepEqual(readSkill("summarise", yours, zeno), { name: "summarise", description: "Short summaries", body: "1. Read it\n2. Say it in three lines" });
-  assert.equal(readSkill("plan-trip", yours, zeno)!.body, "Ask for dates first.");
-  assert.equal(readSkill("nope", yours, zeno), undefined);
-  assert.equal(readSkill("../etc", yours, zeno), undefined, "a name is never a path");
+  skill(ark, "summarise", "ARK's version", "ARK steps");
+  skill(ark, "plan-trip", "Trip plans", "Ask for dates first.");
+  assert.deepEqual(readSkill("summarise", yours, ark), { name: "summarise", description: "Short summaries", body: "1. Read it\n2. Say it in three lines" });
+  assert.equal(readSkill("plan-trip", yours, ark)!.body, "Ask for dates first.");
+  assert.equal(readSkill("nope", yours, ark), undefined);
+  assert.equal(readSkill("../etc", yours, ark), undefined, "a name is never a path");
   skill(yours, "long", "x", "y".repeat(SKILL_BODY_CHARS + 100));
   assert.match(readSkill("long", yours)!.body, /\[The rest of the skill is cut\.\]$/);
   done();
@@ -49,10 +49,10 @@ test("/skill at the start of a message: the words after it stay, the steps go in
 });
 
 test("use_skill lists the skills, reads one by name, and says what is missing", async () => {
-  const { yours, zeno, skill, done } = setup();
+  const { yours, ark, skill, done } = setup();
   skill(yours, "summarise", "Short summaries", "Three lines.");
   const used: string[] = [];
-  const tool = createUseSkillTool({ list: () => listSkills(yours, zeno), read: (n) => readSkill(n, yours, zeno), onUse: (e) => used.push(e.skill) });
+  const tool = createUseSkillTool({ list: () => listSkills(yours, ark), read: (n) => readSkill(n, yours, ark), onUse: (e) => used.push(e.skill) });
   assert.equal(await tool.run({}), "- summarise: Short summaries");
   assert.match(String(await tool.run({ name: "/summarise" })), /^Skill summarise\. Follow these steps[\s\S]*Three lines\./);
   assert.deepEqual(used, ["summarise"]);

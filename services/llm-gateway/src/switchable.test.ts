@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { LanguageModel, ModelRequest } from "@atom/contracts";
+import type { LanguageModel, ModelRequest } from "@ark/contracts";
 import { createSwitchableModel } from "./switchable.ts";
 
 const request: ModelRequest = {

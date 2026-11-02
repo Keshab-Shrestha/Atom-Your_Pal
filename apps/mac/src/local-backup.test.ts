@@ -8,7 +8,7 @@ import { localFixture } from "../../../tests/local-backup-harness.ts";
 import { createLocalBackup, parseLocalBackup, type LocalBackupCommand } from "./local-backup.ts";
 
 test("explicit backup lifecycle retains only successful scratch context, never auto-connects/retries or persists transcript", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-local-backup-check-")), path = join(dir, "backup.json");
+  const dir = mkdtempSync(join(tmpdir(), "ark-local-backup-check-")), path = join(dir, "backup.json");
   let calls = 0, fail = false; const messages: any[] = [];
   const fixture = await localFixture((req, res, body) => {
     calls++; if (req.url === "/v1/models") { res.end(JSON.stringify({ data: [{ id: "cedar/fixture:tiny" }] })); return; }
@@ -43,7 +43,7 @@ test("explicit backup lifecycle retains only successful scratch context, never a
 });
 
 test("closing or cancelling backup refuses late output and does not start another provider", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-local-backup-cancel-")); let started!: () => void;
+  const dir = mkdtempSync(join(tmpdir(), "ark-local-backup-cancel-")); let started!: () => void;
   const admitted = new Promise<void>((resolve) => { started = resolve; });
   const fixture = await localFixture((req, res) => {
     if (req.url === "/v1/models") res.end(JSON.stringify({ data: [{ id: "cedar/fixture:tiny" }] })); else started();
@@ -64,7 +64,7 @@ test("closing or cancelling backup refuses late output and does not start anothe
 });
 
 test("invalid/symlink local configuration is not followed and malformed commands cannot invoke inference", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-local-backup-config-")), target = join(dir, "target.json"), path = join(dir, "backup.json");
+  const dir = mkdtempSync(join(tmpdir(), "ark-local-backup-config-")), target = join(dir, "target.json"), path = join(dir, "backup.json");
   writeFileSync(target, JSON.stringify({ endpoint: "http://127.0.0.1:1234/v1", model: "Cedar" })); symlinkSync(target, path);
   const host = createLocalBackup({ path });
   try {

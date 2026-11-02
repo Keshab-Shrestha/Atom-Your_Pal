@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { openMemoryStore } from "./store.ts";
 import { BrainError, linkTitles, namesIn, tagsOf } from "./brain.ts";
 
-// The second brain: notes, [[links]], #tags, ghosts, backlinks, the graph, search, mirrored notes and ATOM's own links.
+// The second brain: notes, [[links]], #tags, ghosts, backlinks, the graph, search, mirrored notes and ARK's own links.
 
 const open = () => openMemoryStore({ path: ":memory:" }).brain;
 
@@ -97,10 +97,20 @@ test("autolink: a note that names another note's title links to it, and a name t
   const mira = brain.byTitle("Mira Haugen")!;
   assert.equal(mira.kind, "entity");
   assert.deepEqual(brain.backlinks(mira.id).map((b) => b.title).sort(), ["Chat note", "Sister"]);
-  // Running it again gives the same graph (ATOM's links are rebuilt, not piled up).
+  // Running it again gives the same graph (ARK's links are rebuilt, not piled up).
   const edges = brain.graph().edges.length;
   brain.autolink();
   assert.equal(brain.graph().edges.length, edges);
+});
+
+test("autolink matches a title only as whole words, in any case, wherever it appears", () => {
+  const brain = open();
+  for (const title of ["Mesh plan", "Eero", "C++ notes", "(draft) ideas", "Kyoto"]) brain.save({ title, body: "x" });
+  const note = brain.save({ title: "Diary", body: "The meshing went fine. Then the MESH PLAN, eero's router, c++ notes and (draft) ideas. Kyotofu, not Kyoto-" });
+  brain.save({ title: "Other", body: "Mesh planner only; eeros too." });
+  brain.autolink();
+  assert.deepEqual(brain.links(note.id).map((l) => l.title).sort(), ["(draft) ideas", "C++ notes", "Eero", "Kyoto", "Mesh plan"]);
+  assert.deepEqual(brain.links(brain.byTitle("Other")!.id), [], "a title inside a longer word is not a mention");
 });
 
 test("names: capitalised words that do not open a sentence, joined when they stand together", () => {

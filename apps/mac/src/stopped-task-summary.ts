@@ -1,4 +1,4 @@
-import type { HelperStore, Job } from "@atom/helpers";
+import type { HelperStore, Job } from "@ark/helpers";
 
 type SummaryStore = Pick<HelperStore, "get"> & Partial<Pick<HelperStore, "taskEvidence" | "toolCalls">>;
 export interface WakeTaskUpdate { job?: number; stopped: boolean }

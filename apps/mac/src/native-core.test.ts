@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { Message, ProjectFiles, ToolRunner } from "@atom/contracts";
-import { answerTail, MAX_PROJECT_FILE_CALLS, type ChatSession, type SessionSdk } from "@atom/llm-gateway";
-import { openHelperStore } from "@atom/helpers";
-import { openMemoryStore } from "@atom/memory";
-import { CONTEXT_LABEL, createNativeCore, NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT, TYPED_NOTE, type NativeCoreDeps } from "./native-core.ts";
+import type { Message, ProjectFiles, ToolRunner } from "@ark/contracts";
+import { answerTail, MAX_PROJECT_FILE_CALLS, type ChatSession, type SessionSdk } from "@ark/llm-gateway";
+import { openHelperStore } from "@ark/helpers";
+import { openMemoryStore } from "@ark/memory";
+import { CODEX_SYSTEM_PROMPT, CONTEXT_LABEL, PLAIN_SYSTEM_PROMPT, createNativeCore, NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT, TYPED_NOTE, type NativeCoreDeps } from "./native-core.ts";
 import { nativeGate } from "./native-safety.ts";
 import { createComputerBridge } from "./computer-bridge.ts";
 
@@ -74,7 +74,7 @@ test("stopped task wakes save host counts instead of partial worker prose and ca
     }
     return Object.assign(run(), { stopTask: async () => release(), close() {} });
   } };
-  const core = make(sdk, { team: { helpers: store, approve: async () => false, worktrees: "/tmp/atom-stop-counts", onWake: (_chat, text) => wake(text) },
+  const core = make(sdk, { team: { helpers: store, approve: async () => false, worktrees: "/tmp/ark-stop-counts", onWake: (_chat, text) => wake(text) },
     onExchange: (_chat, turns) => exchanges.push([...turns]),
     log: (event) => { if (event === "agent.stopped_summary") throw new Error("Diagnostic log unavailable"); } });
   try {
@@ -114,7 +114,7 @@ test("Stop cancels an SDK worker's plan card before a task_started id arrives", 
     }
     return Object.assign(run(), { close() {} });
   } };
-  const core = make(sdk, { team: { helpers: store, approve: bridge.approve, worktrees: "/tmp/atom-stop-plan" } });
+  const core = make(sdk, { team: { helpers: store, approve: bridge.approve, worktrees: "/tmp/ark-stop-plan" } });
   try {
     const turn = core.handle({ text: "Kame, plan Cedar", source: "text" }); await waiting;
     const job = store.list().flatMap((h) => h.jobs)[0]!; const id = bridge.pending()[0]!.id;
@@ -149,7 +149,7 @@ test("a lost SDK connection after host dispatch requires review instead of autom
   };
   const saved = sessions();
   saved.map.set("chat-1", { id: "saved", model: "claude-sonnet-5-5", tail: answerTail("previous") });
-  const core = make(sdk, { chatSessions: saved.store, team: { helpers: store, approve: async () => false, worktrees: "/tmp/atom-recovery-session" } });
+  const core = make(sdk, { chatSessions: saved.store, team: { helpers: store, approve: async () => false, worktrees: "/tmp/ark-recovery-session" } });
   core.resume("chat-1", [{ role: "user", content: "earlier" }, { role: "assistant", content: "previous" }]);
   await assert.rejects(core.handle({ text: "Sid, research Cedar", source: "text" }), /connection lost/);
   assert.equal(queries, 1, "a host-dispatched worker prevents automatic replay even without a tool_use stream event");
@@ -196,7 +196,7 @@ test("a chat with history but no session to resume starts with the transcript", 
   core.resume("old", [{ role: "user", content: "earlier" }, { role: "assistant", content: "answer" }]);
   await core.handle({ text: "now", source: "text" });
   assert.equal(queries[0]!.options.resume, undefined);
-  assert.match(queries[0]!.sent[0]!.message.content, /Conversation so far:\nUser: earlier\nATOM: answer\n\nThe user now says:\nnow/);
+  assert.match(queries[0]!.sent[0]!.message.content, /Conversation so far:\nUser: earlier\nARK: answer\n\nThe user now says:\nnow/);
 });
 
 test("`@.env`, `/cmd` and Telegram/API text go client_composed; plain speech does not", async () => {
@@ -269,13 +269,13 @@ const hookOf = (gate: ReturnType<typeof nativeGate>) => (gate.hooks as any).PreT
 const decision = async (gate: ReturnType<typeof nativeGate>, tool_name: string, tool_input: Record<string, unknown>, id: string) =>
   (await hookOf(gate)({ tool_name, tool_input }, id)).hookSpecificOutput.permissionDecision;
 
-test("the main thread never gets Bash, Write, Edit or a tool outside its set; ATOM's tools and ToolSearch pass", async () => {
+test("the main thread never gets Bash, Write, Edit or a tool outside its set; ARK's tools and ToolSearch pass", async () => {
   const gate = nativeGate({ tools: ["Read", "Glob", "Grep"], files: projectFiles().files });
   for (const tool of ["Bash", "Write", "Edit", "MultiEdit", "NotebookEdit", "WebFetch", "WebSearch", "Task", "Agent", "mcp__other__x"]) {
     assert.equal((await gate.canUseTool(tool, { command: "ls" }, { toolUseID: `c-${tool}` })).behavior, "deny", tool);
     assert.equal(await decision(gate, tool, { command: "ls" }, `h-${tool}`), "deny", tool);
   }
-  for (const tool of ["mcp__atom__delegate", "ToolSearch"]) assert.equal((await gate.canUseTool(tool, {}, { toolUseID: tool })).behavior, "allow", tool);
+  for (const tool of ["mcp__ark__delegate", "ToolSearch"]) assert.equal((await gate.canUseTool(tool, {}, { toolUseID: tool })).behavior, "allow", tool);
   const plain = nativeGate({ tools: ["WebSearch", "WebFetch"] });
   assert.equal(await decision(plain, "Read", { file_path: "/etc/hosts" }, "r1"), "deny", "a plain chat reads no files");
   assert.equal(await decision(plain, "WebFetch", { url: "https://example.com/x" }, "w1"), "allow");
@@ -339,12 +339,12 @@ function backgroundSdk() {
 test("N2: with a team the main thread gets the Agent tool, the team prompt and the sub-agents; 'Sid, …' adds the fixed hand-over line", async () => {
   const { sdk, queries } = fakeSdk();
   const store = openHelperStore({ path: ":memory:" });
-  const core = make(sdk, { team: { helpers: store, approve: async () => false, worktrees: "/tmp/atom-n2-worktrees" } });
+  const core = make(sdk, { team: { helpers: store, approve: async () => false, worktrees: "/tmp/ark-n2-worktrees" } });
   await core.handle({ text: "Sid, find cheap flights", source: "voice" });
   const o = queries[0]!.options;
   // The session's tool set is the ceiling for sub-agents, so it also holds their file tools (Kame, Puff); the main agent's own list stays small.
   assert.deepEqual([...o.tools].sort(), ["Agent", "Edit", "Glob", "Grep", "Read", "ToolSearch", "WebFetch", "WebSearch", "Write"].sort());
-  assert.deepEqual(o.agents.atom.tools.filter((t: string) => !t.startsWith("mcp__")), ["WebSearch", "WebFetch", "Agent", "ToolSearch"], "the main thread cannot write");
+  assert.deepEqual(o.agents.ark.tools.filter((t: string) => !t.startsWith("mcp__")), ["WebSearch", "WebFetch", "Agent", "ToolSearch"], "the main thread cannot write");
   assert.equal(o.systemPrompt, NATIVE_TEAM_PROMPT);
   assert.ok(!NATIVE_TEAM_PROMPT.includes("delegate tool"));
   assert.equal(o.agents.sid.description, "Sid: researcher");
@@ -410,7 +410,7 @@ test("N3 fix: a report that comes during a turn of the same chat stays in the sa
   const wakes: Array<[string, boolean]> = [];
   const core = make(sdk, {
     onExchange: (_id, turns) => saved.push(turns),
-    team: { helpers: store, approve: async () => false, worktrees: "/tmp/atom-n3-wake", onWake: (_chat, text, done) => wakes.push([text, done]) },
+    team: { helpers: store, approve: async () => false, worktrees: "/tmp/ark-n3-wake", onWake: (_chat, text, done) => wakes.push([text, done]) },
   });
   await core.handle({ text: "one", source: "text" });
   await sleep(5); // the self-started turn begins
@@ -429,8 +429,8 @@ test("N3 fix: a report that comes during a turn of the same chat stays in the sa
 // ---- shared context across providers
 
 const other = (reply: (text: string) => string = (t) => `other: ${t}`) => {
-  const requests: import("@atom/contracts").ModelRequest[] = [];
-  return { requests, model: { complete: async (r: import("@atom/contracts").ModelRequest) => (requests.push(r), { text: reply(r.messages.at(-1)!.content) }) } };
+  const requests: import("@ark/contracts").ModelRequest[] = [];
+  return { requests, model: { complete: async (r: import("@ark/contracts").ModelRequest) => (requests.push(r), { text: reply(r.messages.at(-1)!.content) }) } };
 };
 
 test("the full chat survives more than twenty exchanges, persistence, reopening and a provider change", async () => {
@@ -466,7 +466,7 @@ test("file grants are supplied as context and can be inspected or revoked withou
   let revoked = "";
   const core = make(sdk, {
     modelFor: () => undefined, toolModel: () => o.model,
-    team: { helpers, approve: async () => false, filePermissions: memory.filePermissions, worktrees: "/tmp/atom-permissions-wt" },
+    team: { helpers, approve: async () => false, filePermissions: memory.filePermissions, worktrees: "/tmp/ark-permissions-wt" },
     revokeToolPermissions: (chat) => { revoked = chat; },
   });
   try {
@@ -525,17 +525,17 @@ test("a project chat refuses another provider with words; an empty reply is an e
 
 test("a chat with attached files gets Read, Glob and Grep confined to its folder, and no sandbox or Bash; web stays on", async () => {
   const { sdk, queries } = fakeSdk();
-  const files: ProjectFiles = { cwd: "/tmp/atom-attached", check: async () => undefined, web: true };
+  const files: ProjectFiles = { cwd: "/tmp/ark-attached", check: async () => undefined, web: true };
   const store = openHelperStore({ path: ":memory:" });
   const core = make(sdk, {
-    team: { helpers: store, approve: async () => false, worktrees: "/tmp/atom-attached-wt" },
+    team: { helpers: store, approve: async () => false, worktrees: "/tmp/ark-attached-wt" },
     attachments: { turn: () => ({ note: "Files were attached.", files }), expand: (_c, t) => t },
   });
   await core.handle({ text: "read the file", source: "text" });
   const o = queries[0]!.options;
   assert.deepEqual([...o.tools].sort(), ["Agent", "Edit", "Glob", "Grep", "Read", "ToolSearch", "WebFetch", "WebSearch", "Write"].sort());
-  assert.deepEqual(o.agents.atom.tools.filter((t: string) => !t.startsWith("mcp__")), ["Read", "Glob", "Grep", "WebSearch", "WebFetch", "Agent", "ToolSearch"], "no Write, Edit or Bash for the main thread");
-  assert.equal(o.cwd, "/tmp/atom-attached");
+  assert.deepEqual(o.agents.ark.tools.filter((t: string) => !t.startsWith("mcp__")), ["Read", "Glob", "Grep", "WebSearch", "WebFetch", "Agent", "ToolSearch"], "no Write, Edit or Bash for the main thread");
+  assert.equal(o.cwd, "/tmp/ark-attached");
   assert.match(String(o.systemPrompt), /Files were attached\./);
   assert.equal(o.sandbox, undefined, "attached files are not a project: no sandbox, no Bash");
   store.close();
@@ -621,7 +621,7 @@ test("resume of the same chat gives the live session what another surface wrote 
   assert.equal(queries.length, 1, "the same live session");
   const last = queries[0]!.sent.at(-1)!.message.content as string;
   assert.match(last, /Meanwhile, this chat went on elsewhere/);
-  assert.match(last, /User: from the phone\nATOM: phone answer/);
+  assert.match(last, /User: from the phone\nARK: phone answer/);
   assert.match(last, /The user now says:\nthree/);
   // Nothing new: no repeat, and no note.
   core.resume!("chat-1", [...saved, { role: "user", content: "three" }, { role: "assistant", content: "re three" }]);
@@ -646,6 +646,33 @@ test("a large shared-chat catch-up is bounded without deleting saved messages or
   await assert.rejects(core.handle({ text: "z".repeat(1100), source: "text" }), /Shorten it or attach/);
   assert.deepEqual(core.history(), complete);
   assert.equal(queries[0]!.sent.length, 2, "the oversized question is never sent to Claude");
+});
+
+// 2026-11-02: Keshab asked why ARK replied "most likely": web sources disagreed and the model hedged.
+test("the prompts with tools tell ARK to state facts plainly and name the source when sources disagree", () => {
+  for (const prompt of [NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT, CODEX_SYSTEM_PROMPT]) {
+    assert.match(prompt, /State facts plainly\. When sources disagree, give the newest confirmed answer and name its source/);
+  }
+});
+
+// 2026-11-02: a chart came back as a Markdown table; the window now draws a chart block and shows image lines.
+test("every chat prompt describes the chart block and the image line", () => {
+  for (const prompt of [NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT, CODEX_SYSTEM_PROMPT, PLAIN_SYSTEM_PROMPT]) {
+    assert.match(prompt, /write a ```chart block of JSON instead of a table: \{"type":"bar"\|"line"\|"pie"/);
+    assert.match(prompt, /put a Markdown image on its own line/);
+    assert.match(prompt, /For a logo, icon or simple drawing, write a ```svg block/);
+    assert.match(prompt, /Write charts and drawings yourself, in your reply: do not hand them to an agent/);
+  }
+  assert.match(CODEX_SYSTEM_PROMPT, /use your image generation tool; ARK shows the image under your reply/);
+  assert.doesNotMatch(NATIVE_SYSTEM_PROMPT, /image generation tool/, "Claude has no image generation");
+});
+
+// 2026-11-02: Codex had ark_create_agent and ark_plan_work, but its prompt only said to hand file changes to ark_delegate.
+test("the Codex prompt carries the team guidance: answer first, delegate only when needed, make an agent if none fits, plan big jobs", () => {
+  assert.match(CODEX_SYSTEM_PROMPT, /Answer yourself, in a few sentences, any question or request to research or explain a topic you know well/);
+  assert.match(CODEX_SYSTEM_PROMPT, /Hand work to an agent with ark_delegate only when the user names one or asks for sources, when files change, or when it needs many separate lookups/);
+  assert.match(CODEX_SYSTEM_PROMPT, /If none fits, make one with ark_create_agent/);
+  assert.match(CODEX_SYSTEM_PROMPT, /call ark_plan_work first, then start each portion with ark_delegate: description "P<n>", prompt "go"/);
 });
 
 // 2026-10-16: the prompt tells the main agent when to offer a skill and when to improve one.
@@ -685,7 +712,7 @@ test("thinking changes reopen Claude with resume and preserve complete history a
 test("gateway thinking is captured before asynchronous context loading and cannot change the in-flight turn", async () => {
   let reasoning = "low", release!: () => void;
   const gate = new Promise<void>((resolve) => { release = resolve; });
-  const requests: import("@atom/contracts").ModelRequest[] = [];
+  const requests: import("@ark/contracts").ModelRequest[] = [];
   const core = make(fakeSdk().sdk, { modelFor: () => undefined, reasoningFor: () => reasoning,
     otherModel: () => ({ complete: async (r) => { requests.push(r); return { text: "ok" }; } }), context: async () => { await gate; return "context"; } });
   try {
@@ -701,7 +728,7 @@ test("gateway thinking is captured before asynchronous context loading and canno
 test("Chat only keeps conversation and brief but skips new file/context/skill reads and direct action shortcuts on Claude and Codex", async () => {
   for (const provider of ["claude", "codex"]) {
     const { sdk, queries } = fakeSdk();
-    let request: import("@atom/contracts").ModelRequest | undefined;
+    let request: import("@ark/contracts").ModelRequest | undefined;
     let externalReads = 0;
     const forbidden = () => { externalReads++; throw new Error("Chat only called an external-context loader"); };
     const core = make(sdk, {
@@ -719,12 +746,12 @@ test("Chat only keeps conversation and brief but skips new file/context/skill re
       if (provider === "claude") {
         const o = queries[0]!.options;
         assert.equal(o.mcpServers, undefined);
-        assert.equal(o.agents.atom.tools.includes("Agent"), false);
+        assert.equal(o.agents.ark.tools.includes("Agent"), false);
         assert.match(queries[0]!.sent[0]!.message.content, /Cedar brief/);
         assert.match(queries[0]!.sent[0]!.message.content, /Cedar Wednesday/);
         assert.equal((await o.canUseTool("ToolSearch", {})).behavior, "deny");
         const hook = o.hooks.PreToolUse[0].hooks[0];
-        assert.equal((await hook({ tool_name: "mcp__atom__open_app", tool_input: {} }, "bypass")).hookSpecificOutput.permissionDecision, "deny");
+        assert.equal((await hook({ tool_name: "mcp__ark__open_app", tool_input: {} }, "bypass")).hookSpecificOutput.permissionDecision, "deny");
       } else {
         assert.equal(request!.access, "chat-only");
         assert.equal(request!.historyTools, undefined); assert.equal(request!.interactionTools, undefined); assert.equal(request!.files, undefined);
@@ -743,7 +770,7 @@ test("strict Claude approval uses the current turn's cancellation signal in a re
     async function* run() {
       yield { type: "system", subtype: "init", apiKeySource: "none", session_id: "strict-reused" };
       for await (const _ of prompt) {
-        const v = await (options as any).canUseTool("mcp__atom__open_app", { app: "TextEdit" }, { toolUseID: "repeated" });
+        const v = await (options as any).canUseTool("mcp__ark__open_app", { app: "TextEdit" }, { toolUseID: "repeated" });
         verdicts.push(v.behavior);
         yield { type: "result", subtype: "success", is_error: false, result: "Checked", session_id: "strict-reused", usage: {} };
       }

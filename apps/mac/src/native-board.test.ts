@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { openHelperStore } from "@atom/helpers";
+import { openHelperStore } from "@ark/helpers";
 import { boardRecorder, reportFrom } from "./native-board.ts";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

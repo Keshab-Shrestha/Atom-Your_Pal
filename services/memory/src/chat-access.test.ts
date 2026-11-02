@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { openMemoryStore } from "./store.ts";
 
 test("access survives restart before first reply, forks independently, and preserves history, brief and exact-file permissions", () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-access-")), path = join(dir, "memory.db");
+  const dir = mkdtempSync(join(tmpdir(), "ark-access-")), path = join(dir, "memory.db");
   let memory = openMemoryStore({ path });
   try {
     assert.equal(memory.chats.access("cedar"), "checked");
@@ -34,7 +34,7 @@ test("access survives restart before first reply, forks independently, and prese
 
 test("Full access upgrades the old mode table losslessly, survives restart and never propagates into a fork", async () => {
   const { DatabaseSync } = await import("node:sqlite");
-  const dir = mkdtempSync(join(tmpdir(), "atom-full-migration-")), path = join(dir, "memory.db");
+  const dir = mkdtempSync(join(tmpdir(), "ark-full-migration-")), path = join(dir, "memory.db");
   const db = new DatabaseSync(path);
   db.exec("CREATE TABLE chat_access(chat_id TEXT PRIMARY KEY, mode TEXT NOT NULL CHECK(mode IN ('checked', 'chat-only', 'ask-changes'))); INSERT INTO chat_access VALUES ('pending', 'chat-only'), ('cedar', 'ask-changes');"); db.close();
   let memory = openMemoryStore({ path });

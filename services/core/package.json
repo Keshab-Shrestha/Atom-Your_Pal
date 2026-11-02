@@ -1,9 +1,9 @@
 {
-  "name": "@atom/core",
+  "name": "@ark/core",
   "private": true,
   "type": "module",
   "exports": "./src/index.ts",
   "dependencies": {
-    "@atom/contracts": "workspace:*"
+    "@ark/contracts": "workspace:*"
   }
 }

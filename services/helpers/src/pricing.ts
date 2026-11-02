@@ -35,7 +35,7 @@ export function ratesFor(model: string): Rates | undefined {
 
 /**
  * The dollars of one run; undefined when the model has no listed price. `ttl` is how long the written cache is kept: "5m",
- * or "1h" (the default: ATOM asks Claude Code for the one-hour cache). Rounded to a millionth of a dollar.
+ * or "1h" (the default: ARK asks Claude Code for the one-hour cache). Rounded to a millionth of a dollar.
  */
 export function dollarsFor(model: string, tokens: TokenCounts, ttl?: string): number | undefined {
   const rates = ratesFor(model);

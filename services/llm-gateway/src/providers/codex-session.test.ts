@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { ModelRequest, ToolRunner } from "@atom/contracts";
+import type { ModelRequest, ToolRunner } from "@ark/contracts";
 import { createCodexSessionAdapter, listCodexModels, type CodexTurnDiagnostic } from "./codex-session.ts";
 import { fakeCodex } from "../../../../tests/codex-harness.ts";
 
-const request = (messages: ModelRequest["messages"]): ModelRequest => ({ system: "You are ATOM.", messages, context: { requestId: "r", sessionId: "chat", source: "text", receivedAt: new Date() } });
-const runner: ToolRunner = { specs: () => [{ name: "atom_test", description: "Test", inputSchema: { type: "object" } }], run: async (c) => ({ callId: c.id, content: "Cedar" }) };
+const request = (messages: ModelRequest["messages"]): ModelRequest => ({ system: "You are ARK.", messages, context: { requestId: "r", sessionId: "chat", source: "text", receivedAt: new Date() } });
+const runner: ToolRunner = { specs: () => [{ name: "ark_test", description: "Test", inputSchema: { type: "object" } }], run: async (c) => ({ callId: c.id, content: "Cedar" }) };
 
 test("Codex keeps a live thread, sends later turns once, and rehydrates after an external transcript change", async () => {
   const fake = fakeCodex(({ turn }) => `answer ${turn}`);
@@ -29,10 +29,10 @@ test("Codex keeps a live thread, sends later turns once, and rehydrates after an
 test("only registered host tools run; native execution approvals and unknown requests cannot grant access", async () => {
   let calls = 0;
   const fake = fakeCodex(async ({ call, start }) => {
-    assert.equal(start.permissions, "atom_host_tools");
+    assert.equal(start.permissions, "ark_host_tools");
     assert.equal(start.config["features.shell_tool"], false);
     assert.equal(start.config["features.view_image"], false);
-    const good = await call("atom_test", {});
+    const good = await call("ark_test", {});
     assert.equal(good.success, true);
     assert.equal((await call("not_registered", {})).success, false);
     assert.equal((await call("shell", {}, "item/commandExecution/requestApproval")).decision, "decline");
@@ -83,8 +83,8 @@ test("effective config disables inherited servers, plugins and local skills with
     assert.deepEqual(start.config.mcp_servers, { external: { enabled: false } });
     assert.deepEqual(start.config.plugins, { "private-plugin": { enabled: false } });
     assert.deepEqual(start.config.skills, { config: [{ path: "/fictional/local/SKILL.md", enabled: false }] });
-    assert.equal(start.baseInstructions, "You are ATOM.");
-    assert.equal(start.dynamicTools[0].name, "atom_test");
+    assert.equal(start.baseInstructions, "You are ARK.");
+    assert.equal(start.dynamicTools[0].name, "ark_test");
     return "done";
   }, { config: { mcp_servers: { external: { enabled: true } }, plugins: { "private-plugin": { enabled: true } } }, skills: { data: [{ skills: [{ path: "/fictional/local/SKILL.md" }], errors: [] }] } });
   const adapter = createCodexSessionAdapter({ program: "fake", model: "codex-default", runner: () => runner, transport: fake.factory });
@@ -132,7 +132,7 @@ test("diagnostics distinguish real zero-cache reuse, retain raw counters and rec
     assert.equal(diagnostics[1]!.usage!.last.cachedInputTokens, 0);
     assert.deepEqual(usage, [{ input: 200, output: 10, cacheRead: 800, cacheWrite: 0 }, { input: 1000, output: 10, cacheRead: 0, cacheWrite: 0 }]);
     for (const d of diagnostics) assert.ok(d.completed && d.firstTextMs! >= d.readyMs && d.firstTextMs! <= d.totalMs);
-    assert.doesNotMatch(JSON.stringify(diagnostics), /PRIVATE-FICTIONAL-PROMPT|You are ATOM/);
+    assert.doesNotMatch(JSON.stringify(diagnostics), /PRIVATE-FICTIONAL-PROMPT|You are ARK/);
   } finally { adapter.close?.(); }
 });
 
@@ -163,7 +163,7 @@ test("Codex applies effort per turn without restarting or changing the host tool
     }
     assert.equal(fake.wires.length, 1);
     assert.deepEqual(fake.wires[0]!.sent.filter((m) => m.method === "turn/start").map((m) => m.params.effort), ["low", "medium", "high"]);
-    assert.equal(fake.wires[0]!.sent.find((m) => m.method === "thread/start")!.params.permissions, "atom_host_tools");
+    assert.equal(fake.wires[0]!.sent.find((m) => m.method === "thread/start")!.params.permissions, "ark_host_tools");
   } finally { adapter.close?.(); }
 });
 
@@ -191,4 +191,37 @@ test("Codex catalog discovery times out and closes its owned transport", async (
   let closed = false;
   await assert.rejects(listCodexModels("fake", { timeoutMs: 10, transport: () => ({ listen() {}, send() {}, close() { closed = true; } }) }), /discovery ended/);
   assert.ok(closed);
+});
+
+// 2026-11-02: Codex image generation. On only when ARK gives an image folder; each image is kept there and added as an image line.
+test("a generated image is kept in ARK's folder and added to the reply; image generation is off without a folder", async () => {
+  const { mkdtempSync, readFileSync, rmSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const { tmpdir } = await import("node:os");
+  const dir = mkdtempSync(join(tmpdir(), "ark-codex-images-"));
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+  let imageFeature: unknown;
+  const fake = fakeCodex(({ start }) => {
+    imageFeature = start.config["features.image_generation"];
+    fake.wires[0]!.emit({ method: "item/completed", params: { threadId: "thread-0", item: { type: "imageGeneration", id: "i1", status: "completed", revisedPrompt: "A cedar [logo]", result: png.toString("base64") } } });
+    fake.wires[0]!.emit({ method: "item/completed", params: { threadId: "thread-0", item: { type: "imageGeneration", id: "i2", status: "failed", failure: { message: "blocked" } } } });
+    fake.wires[0]!.emit({ method: "item/completed", params: { threadId: "thread-0", item: { type: "imageGeneration", id: "i3", status: "completed", result: Buffer.from("not an image").toString("base64") } } });
+    return "Here it is.";
+  });
+  const adapter = createCodexSessionAdapter({ program: "fake", model: "codex-default", runner: () => runner, transport: fake.factory, images: { dir } });
+  try {
+    const reply = (await adapter.complete(request([{ role: "user", content: "Draw a cedar logo." }]), new AbortController().signal)).text;
+    assert.equal(imageFeature, true);
+    const [said, image, failed, unreadable] = reply.split("\n\n");
+    assert.equal(said, "Here it is.");
+    const path = /^!\[A cedar  logo\]\(<(.+\.png)>\)$/.exec(image!)?.[1];
+    assert.ok(path?.startsWith(dir), image);
+    assert.deepEqual(readFileSync(path!), png);
+    assert.equal(failed, "(Codex could not make the image.)");
+    assert.equal(unreadable, "(Codex could not make the image.)");
+  } finally { adapter.close?.(); rmSync(dir, { recursive: true, force: true }); }
+
+  const plain = fakeCodex(({ start }) => { imageFeature = start.config["features.image_generation"]; return "ok"; });
+  const off = createCodexSessionAdapter({ program: "fake", model: "codex-default", runner: () => runner, transport: plain.factory });
+  try { await off.complete(request([{ role: "user", content: "Hi" }]), new AbortController().signal); assert.equal(imageFeature, false); } finally { off.close?.(); }
 });

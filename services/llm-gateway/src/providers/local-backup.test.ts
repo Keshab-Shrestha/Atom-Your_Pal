@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { localFixture } from "../../../../tests/local-backup-harness.ts";
-import type { ModelRequest } from "@atom/contracts";
+import type { ModelRequest } from "@ark/contracts";
 import { createGateway } from "../gateway.ts";
 import { checkLocalBackup, createLocalBackupAdapter, type LocalBackupUsage } from "./local-backup.ts";
 

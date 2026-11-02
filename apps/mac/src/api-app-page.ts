@@ -8,10 +8,10 @@ export const APP_HTML = `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<title>ATOM</title>
+<title>ARK</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="ATOM">
+<meta name="apple-mobile-web-app-title" content="ARK">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#5b50e6">
 <link rel="manifest" href="/app.webmanifest">
@@ -21,25 +21,25 @@ export const APP_HTML = `<!doctype html>
 </head>
 <body>
 <main>
-  <header><h1>ATOM</h1><button id="out" type="button" hidden>Sign out</button></header>
+  <header><h1>ARK</h1><button id="out" type="button" hidden>Sign out</button></header>
   <p id="note" role="status"></p>
   <form id="login" hidden>
     <label for="token">Token</label>
-    <input id="token" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste the token from ATOM Settings">
+    <input id="token" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste the token from ARK Settings">
     <button type="submit">Connect</button>
   </form>
   <div id="app" hidden>
     <nav id="tabs"><button type="button" data-tab="chat" class="on">Chat</button><button type="button" data-tab="work">Work</button></nav>
     <div id="chatTab">
       <div id="log"></div>
-      <form id="say"><textarea id="sayText" rows="2" maxlength="4000" placeholder="Message ATOM"></textarea><button type="submit">Send</button></form>
+      <form id="say"><textarea id="sayText" rows="2" maxlength="4000" placeholder="Message ARK"></textarea><button type="submit">Send</button></form>
       <button id="newChat" type="button" class="link">New chat</button>
     </div>
     <div id="workTab" hidden>
     <section><h2>Needs you</h2><div id="needs"></div></section>
     <section>
       <h2>New goal</h2>
-      <form id="goal"><textarea id="goalText" rows="3" maxlength="2000" placeholder="What should ATOM do?"></textarea><button type="submit">Send</button></form>
+      <form id="goal"><textarea id="goalText" rows="3" maxlength="2000" placeholder="What should ARK do?"></textarea><button type="submit">Send</button></form>
     </section>
     <section><h2>Tasks</h2><div id="tasks"></div></section>
     </div>
@@ -92,7 +92,7 @@ button.link{background:none;border:none;color:var(--mute);min-height:36px;paddin
 
 export const APP_JS = `(function () {
   "use strict";
-  var KEY = "atom.token";
+  var KEY = "ark.token";
   var REFRESH_MS = 15000;
   var $ = function (id) { return document.getElementById(id); };
   var token = "";
@@ -119,10 +119,10 @@ export const APP_JS = `(function () {
     var init = { method: method || "GET", headers: { authorization: "Bearer " + token } };
     if (body !== undefined) { init.headers["content-type"] = "application/json"; init.body = JSON.stringify(body); }
     return fetch(path, init).then(function (res) {
-      return res.json().catch(function () { return { ok: false, error: "ATOM sent an answer this page cannot read." }; }).then(function (json) {
+      return res.json().catch(function () { return { ok: false, error: "ARK sent an answer this page cannot read." }; }).then(function (json) {
         if (res.status === 401) { signOut("The token is wrong or was regenerated. Paste the new one."); throw new Error("401"); }
         if (res.status === 429) { throw new Error("Too many wrong tokens. Wait a minute."); }
-        if (!json.ok) throw new Error(json.error || "ATOM could not do that.");
+        if (!json.ok) throw new Error(json.error || "ARK could not do that.");
         return json.data;
       });
     });
@@ -178,8 +178,8 @@ export const APP_JS = `(function () {
     Promise.all([api("/v1/needs"), api("/v1/tasks")]).then(function (r) { renderNeeds(r[0].needs); renderTasks(r[1].tasks); }).catch(fail);
   }
 
-  // Chat: the conversation lives in ATOM under this chat id; the page keeps the text of it in this browser so a reload shows it again.
-  var CHAT_KEY = "atom.chat";
+  // Chat: the conversation lives in ARK under this chat id; the page keeps the text of it in this browser so a reload shows it again.
+  var CHAT_KEY = "ark.chat";
   var CHAT_MAX = 60;
   var chat = { id: "", msgs: [] };
   var sending = false;
@@ -192,7 +192,7 @@ export const APP_JS = `(function () {
   function saveChat() { try { localStorage.setItem(CHAT_KEY, JSON.stringify({ id: chat.id, msgs: chat.msgs.slice(-CHAT_MAX) })); } catch (e) { /* private mode */ } }
   function drawChat() {
     var log = $("log"); log.replaceChildren();
-    if (!chat.msgs.length) log.appendChild(el("p", "Say something to ATOM.", "mute"));
+    if (!chat.msgs.length) log.appendChild(el("p", "Say something to ARK.", "mute"));
     chat.msgs.forEach(function (m) { log.appendChild(el("div", m.text, "msg " + m.who)); });
     window.scrollTo(0, document.body.scrollHeight);
   }
@@ -212,7 +212,7 @@ export const APP_JS = `(function () {
   $("login").addEventListener("submit", function (e) {
     e.preventDefault();
     var v = $("token").value.trim();
-    if (!/^[0-9a-f]{64}$/.test(v)) { note("A token is 64 letters and digits (a to f). Copy it again from ATOM Settings.", true); return; }
+    if (!/^[0-9a-f]{64}$/.test(v)) { note("A token is 64 letters and digits (a to f). Copy it again from ARK Settings.", true); return; }
     token = v; note("");
     api("/v1/needs").then(function () { save(v); show(); }).catch(function (err) { if (err.message !== "401") { token = ""; note(err.message, true); } });
   });
@@ -220,7 +220,7 @@ export const APP_JS = `(function () {
   $("goal").addEventListener("submit", function (e) {
     e.preventDefault();
     var box = $("goalText"); var text = box.value.trim(); if (!text) return;
-    var button = e.target.querySelector("button"); button.disabled = true; note("Sending. ATOM is reading it…");
+    var button = e.target.querySelector("button"); button.disabled = true; note("Sending. ARK is reading it…");
     api("/v1/goals", "POST", { goal: text }).then(function (d) { box.value = ""; note(d.answer || "Sent."); refresh(); }).catch(fail).then(function () { button.disabled = false; });
   });
 
@@ -232,9 +232,9 @@ export const APP_JS = `(function () {
     sending = true; box.value = "";
     var button = e.target.querySelector("button"); button.disabled = true;
     chat.msgs.push({ who: "me", text: text }); saveChat(); // kept at once: a reload during a long turn still shows what was sent
-    chat.msgs.push({ who: "wait", text: "ATOM is thinking…" }); drawChat();
+    chat.msgs.push({ who: "wait", text: "ARK is thinking…" }); drawChat();
     api("/v1/chat", "POST", { text: text, chatId: chat.id }).then(function (d) {
-      chat.msgs.pop(); chat.msgs.push({ who: "atom", text: d.answer || "(no answer)" });
+      chat.msgs.pop(); chat.msgs.push({ who: "ark", text: d.answer || "(no answer)" });
     }).catch(function (err) {
       chat.msgs.pop(); if (err.message !== "401") { chat.msgs.push({ who: "bad", text: err.message }); box.value = text; }
     }).then(function () { sending = false; button.disabled = false; saveChat(); drawChat(); });
@@ -246,8 +246,8 @@ export const APP_JS = `(function () {
 `;
 
 export const APP_MANIFEST = JSON.stringify({
-  name: "ATOM",
-  short_name: "ATOM",
+  name: "ARK",
+  short_name: "ARK",
   start_url: "/app",
   scope: "/",
   display: "standalone",

@@ -123,7 +123,7 @@ export function openSuggestions(db: DatabaseSync, store: Pick<MemoryStore, "add"
       if (!row) throw new MemoryError("That suggestion is gone.");
       const text = (edited ?? row.text).replace(/\s+/g, " ").trim();
       if (!text) throw new MemoryError("Say what to remember: the fact is empty.");
-      if (looksSecret(text)) throw new MemoryError("That looks like a password or other secret; ATOM does not keep those.");
+      if (looksSecret(text)) throw new MemoryError("That looks like a password or other secret; ARK does not keep those.");
       // The same checks and limits as the remember tool; a refusal leaves the suggestion waiting so it can be edited.
       const memory = store.add(text, { source: "text" });
       remove.run(id);

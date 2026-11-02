@@ -1,6 +1,6 @@
-// 2026-10-15 (ADR-117): Claude Code's custom commands (~/.claude/commands/<name>.md) work in ATOM's chat. A message that starts
+// 2026-10-15 (ADR-117): Claude Code's custom commands (~/.claude/commands/<name>.md) work in ARK's chat. A message that starts
 // with `/name some words` becomes the command's prompt with the words in place of `$ARGUMENTS`. The command is only a
-// prompt: ATOM reads the file and never writes it, and it runs nothing. Lines that start with `!` (a shell command in Claude
+// prompt: ARK reads the file and never writes it, and it runs nothing. Lines that start with `!` (a shell command in Claude
 // Code) are left as text and the model is told they were not run. A skill of the same name wins (skills.ts); a name that
 // is not a plain file name never matches, so `/../x` reads nothing.
 
@@ -88,7 +88,7 @@ export function expandCommand(body: string, args: string): string {
     return n ? (words[Number(n) - 1] ?? "") : args.trim();
   });
   if (!used && args.trim()) text += `\n\nArguments: ${args.trim()}`;
-  if (/^\s*!/m.test(text)) text = `Lines that start with "!" are shell commands in Claude Code. ATOM did not run them. Say so if one was needed.\n\n${text}`;
+  if (/^\s*!/m.test(text)) text = `Lines that start with "!" are shell commands in Claude Code. ARK did not run them. Say so if one was needed.\n\n${text}`;
   return text;
 }
 

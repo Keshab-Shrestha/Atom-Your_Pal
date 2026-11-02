@@ -2,7 +2,7 @@
   "style": "orbit",
   "schema": "bible-strong/avatar-definition",
   "schemaVersion": 1,
-  "name": "ATOM Orbit",
+  "name": "ARK Orbit",
   "body": {
     "primary": { "type": "cube", "width": 245, "height": 245, "depth": 200.023828125, "roundness": 1.3884375 },
     "nodes": [

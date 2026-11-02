@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { openMemoryStore } from "@atom/memory";
-import type { Message, ToolRunner } from "@atom/contracts";
-import { createGateway, createCodexSessionAdapter, type SessionSdk } from "@atom/llm-gateway";
+import { openMemoryStore } from "@ark/memory";
+import type { Message, ToolRunner } from "@ark/contracts";
+import { createGateway, createCodexSessionAdapter, type SessionSdk } from "@ark/llm-gateway";
 import { fakeCodex } from "../../../tests/codex-harness.ts";
 import { createNativeCore } from "./native-core.ts";
 import { createCodexToolRouter } from "./codex-tools.ts";
@@ -16,11 +16,11 @@ test("reopened Codex recovers an omitted fact through checked RPC history tools,
   const fake = fakeCodex(async ({ text, call, start }) => {
     assert.doesNotMatch(text, /launch is Wednesday/);
     assert.match(text, /earlier saved messages.*omitted/);
-    assert.ok(start.dynamicTools.some((s: { name: string }) => s.name === "atom_read_chat_history"));
-    const found = await call("atom_search_chat_history", { query: "fictional Cedar" });
+    assert.ok(start.dynamicTools.some((s: { name: string }) => s.name === "ark_read_chat_history"));
+    const found = await call("ark_search_chat_history", { query: "fictional Cedar" });
     const hit = JSON.parse(found.contentItems[0].text).hits[0];
     assert.equal(hit.id, "m1");
-    const read = await call("atom_read_chat_history", { message: 1 });
+    const read = await call("ark_read_chat_history", { message: 1 });
     assert.match(read.contentItems[0].text, /launch is Wednesday/);
     return "Cedar launches Wednesday.";
   });
@@ -37,7 +37,7 @@ test("reopened Codex recovers an omitted fact through checked RPC history tools,
         yield { type: "system", subtype: "init", apiKeySource: "none", session_id: "claude-cedar" };
         for await (const message of prompt) {
           assert.doesNotMatch(String((message.message as any).content), /launch is Wednesday/);
-          const server = (options.mcpServers as any).atom;
+          const server = (options.mcpServers as any).ark;
           const search = server.tools.find((t: any) => t.name === "search_chat_history");
           const read = server.tools.find((t: any) => t.name === "read_chat_history");
           assert.equal(JSON.parse((await search.handler({ query: "fictional Cedar" })).content[0].text).hits[0].id, "m1");

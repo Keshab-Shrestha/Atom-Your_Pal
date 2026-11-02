@@ -1,9 +1,9 @@
 {
-  "name": "@atom/tool-engine",
+  "name": "@ark/tool-engine",
   "private": true,
   "type": "module",
   "exports": "./src/index.ts",
   "dependencies": {
-    "@atom/contracts": "workspace:*"
+    "@ark/contracts": "workspace:*"
   }
 }

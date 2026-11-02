@@ -20,7 +20,7 @@ export function soulMethods(ctx: StoreContext): Pick<HelperStore, "soul" | "save
       const known = mustHelper(helper);
       const others = roster().filter((h) => h.id !== known.id).map((h) => current(h.id).name);
       const soul = cleanSoul(input, others);
-      if (!sameSoul(soul, toSoul(current(known.id)))) newSoulVersion(known.id, soul);
+      if (!sameSoul(soul, toSoul(current(known.id)))) newSoulVersion(known, soul);
       writeBack(known);
     },
 
@@ -31,7 +31,7 @@ export function soulMethods(ctx: StoreContext): Pick<HelperStore, "soul" | "save
       if (row.version === current(known.id).version) return;
       // The old name may have been taken by another worker since.
       const others = roster().filter((h) => h.id !== known.id).map((h) => current(h.id).name);
-      newSoulVersion(known.id, cleanSoul(toSoul(row), others));
+      newSoulVersion(known, cleanSoul(toSoul(row), others));
       writeBack(known);
     },
 
@@ -48,7 +48,7 @@ export function soulMethods(ctx: StoreContext): Pick<HelperStore, "soul" | "save
         return;
       }
       // One review per task: Tinker's task waits in the queue like any other. ADR-094: and one edit
-      // for each of ATOM's skills the task used.
+      // for each of ARK's skills the task used.
       askTinker(id, `Review task ${id} (${current(job.helper).name})`, null);
       skills.askEdits(job);
     },

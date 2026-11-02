@@ -1,5 +1,5 @@
-// ADR-080: pointing from a screenshot. Cua Driver takes the screenshot (it holds Screen Recording; ATOM holds none),
-// ATOM shrinks it with macOS `sips` and hands it to the model, which ends its reply with [POINT:x,y:label].
+// ADR-080: pointing from a screenshot. Cua Driver takes the screenshot (it holds Screen Recording; ARK holds none),
+// ARK shrinks it with macOS `sips` and hands it to the model, which ends its reply with [POINT:x,y:label].
 
 import { execFile } from "node:child_process";
 import { access, mkdtemp, readFile, rm } from "node:fs/promises";
@@ -53,7 +53,7 @@ export function createLookAtScreenTool(options: LookAtScreenOptions): Tool<ToolO
     onStep?.({ action: "look" });
     const size = (await cua.call("get_screen_size", {}, signal)).data;
     if (!positive(size.width) || !positive(size.height)) throw new Error("Cua could not report the screen size.");
-    const dir = await mkdtemp(join(tmpdir(), "atom-look-"));
+    const dir = await mkdtemp(join(tmpdir(), "ark-look-"));
     try {
       const raw = join(dir, "screen.png");
       const small = join(dir, "screen.jpg");
@@ -71,7 +71,7 @@ export function createLookAtScreenTool(options: LookAtScreenOptions): Tool<ToolO
           `This is a screenshot of the user's main display only, ${width}×${height} pixels. ` +
           "Find what the user asked about. Answer in one short spoken sentence saying where it is, then end the reply with " +
           "[POINT:x,y:label], where x and y are pixel coordinates in this image (from its top-left corner) of the thing's centre " +
-          'and label is a few words such as "the Wi-Fi icon"; ATOM flies there. If it is not on this screen, say so and end with [POINT:none]. ' +
+          'and label is a few words such as "the Wi-Fi icon"; ARK flies there. If it is not on this screen, say so and end with [POINT:none]. ' +
           "The marker is never spoken or shown, so do not mention it or the coordinates.",
         images: [{ mimeType: "image/jpeg", data }],
       };
@@ -85,7 +85,7 @@ export function createLookAtScreenTool(options: LookAtScreenOptions): Tool<ToolO
     spec: {
       name: "look_at_screen",
       description:
-        "Takes one screenshot of the user's main display so you can show them where something is: ATOM flies to it. " +
+        "Takes one screenshot of the user's main display so you can show them where something is: ARK flies to it. " +
         "Use it only when the user asks where something on screen is or to be shown something, never otherwise.",
       inputSchema: { type: "object", properties: {} },
     },

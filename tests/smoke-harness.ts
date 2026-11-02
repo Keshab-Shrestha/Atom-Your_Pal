@@ -1,4 +1,4 @@
-// A real ATOM runtime for smoke tests. It starts `node apps/mac/src/main.ts --island` in a temp folder with a clean environment, so it never touches
+// A real ARK runtime for smoke tests. It starts `node apps/mac/src/main.ts --island` in a temp folder with a clean environment, so it never touches
 // the user's data, token or settings: the data files, the Local API token and the settings all live under that folder (they are cwd-relative).
 // The harness drives it as the Swift app does: JSON lines on stdin and stdout. Tests built on it say what they check; nothing here asserts.
 
@@ -57,18 +57,18 @@ function cleanEnv(dir: string, port: number, model: string): Record<string, stri
     PATH: process.env.PATH ?? "/usr/bin:/bin",
     HOME: process.env.HOME ?? "", // the signed-in `claude` program finds its credentials through the real home
     ...sessionEnv(),
-    ATOM_API_PORT: String(port),
-    ATOM_LLM_PROVIDER: "claude-plan",
-    ATOM_LLM_MODEL: model,
-    ATOM_ISLAND_SETTINGS: join(dir, "config", "island.json"),
-    ATOM_LOG_FILE: join(dir, "logs", "atom.log"),
+    ARK_API_PORT: String(port),
+    ARK_LLM_PROVIDER: "claude-plan",
+    ARK_LLM_MODEL: model,
+    ARK_ISLAND_SETTINGS: join(dir, "config", "island.json"),
+    ARK_LOG_FILE: join(dir, "logs", "ark.log"),
     // Everything that touches the user's Mac or needs a model download is off.
-    ATOM_COMPUTER: "0", ATOM_APPS: "0", ATOM_MEDIA: "0", ATOM_NOTES: "0", ATOM_WEATHER: "0", ATOM_FRONT_WINDOW: "0", ATOM_SHORTCUTS: "0", ATOM_PREWARM: "0", ATOM_CALENDAR: "0",
+    ARK_COMPUTER: "0", ARK_APPS: "0", ARK_MEDIA: "0", ARK_NOTES: "0", ARK_WEATHER: "0", ARK_FRONT_WINDOW: "0", ARK_SHORTCUTS: "0", ARK_PREWARM: "0", ARK_CALENDAR: "0",
   };
 }
 
 export async function startRuntime(options: { model?: string; readyMs?: number; prepare?: (dir: string) => void } = {}): Promise<SmokeRuntime> {
-  const dir = mkdtempSync(join(tmpdir(), "atom-smoke-"));
+  const dir = mkdtempSync(join(tmpdir(), "ark-smoke-"));
   mkdirSync(join(dir, "config"), { recursive: true });
   mkdirSync(join(dir, "logs"), { recursive: true });
   options.prepare?.(dir); // files the test needs in the temp folder before the runtime starts (a skill, a settings file)
@@ -165,7 +165,9 @@ export async function startRuntime(options: { model?: string; readyMs?: number; 
   };
 
   try {
-    await runtime.waitFor((e) => e.type === "ready", options.readyMs ?? 60_000, "the runtime's ready event");
+    // 2026-11-01: 120 s. In this clean environment the start waits on the signed-in `claude` program, which took 45 to 60 s on
+    // Keshab's Mac (the app itself is ready in about 7 s), so 60 s failed about half the runs.
+    await runtime.waitFor((e) => e.type === "ready", options.readyMs ?? 120_000, "the runtime's ready event");
   } catch (error) {
     await runtime.stop();
     throw error;

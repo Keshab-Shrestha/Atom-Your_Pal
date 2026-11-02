@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { looksSecret, type MemoryStore, type NoteSource } from "@atom/memory";
+import { looksSecret, type MemoryStore, type NoteSource } from "@ark/memory";
 import { excerpt } from "./chat-history.ts";
 import { cleanEditReply } from "./text-edit.ts";
 

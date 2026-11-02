@@ -15,7 +15,7 @@ const folder = { path: "/fictional/notes", identity: "1:2" };
 const profile = { provider: "codex", model: "fictional-local-test", effort: "low" };
 
 test("document format scope persists separately without changing the legacy folder table", () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-source-format-scope-")), path = join(dir, "memory.db");
+  const dir = mkdtempSync(join(tmpdir(), "ark-source-format-scope-")), path = join(dir, "memory.db");
   let memory = openMemoryStore({ path });
   try {
     memory.brainSources!.apply({ ...folder, documents: true }, [file()], 0);
@@ -71,7 +71,7 @@ test("source corrections, conflicts, explicit restore, missing copies and exclus
 });
 
 test("additive stores reopen without altering history, briefs, Full access or exact-file grants", () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-adaptation-store-")), path = join(dir, "memory.db");
+  const dir = mkdtempSync(join(tmpdir(), "ark-adaptation-store-")), path = join(dir, "memory.db");
   let m = openMemoryStore({ path });
   try {
     const turns = [{ role: "user" as const, content: "Cedar launches 水曜日 🌲" }, { role: "assistant" as const, content: "Saved claim; not proof." }];
@@ -146,7 +146,7 @@ test("source analysis atomically validates note hashes, checkpoints, cache profi
 });
 
 test("legacy brief schema migrates and corrupt derived data cannot hide an original brief", () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-brief-migration-")), path = join(dir, "memory.db");
+  const dir = mkdtempSync(join(tmpdir(), "ark-brief-migration-")), path = join(dir, "memory.db");
   const db = new DatabaseSync(path);
   db.exec("CREATE TABLE briefs(id INTEGER PRIMARY KEY AUTOINCREMENT, day TEXT NOT NULL, created_at TEXT NOT NULL, lines TEXT NOT NULL, source TEXT NOT NULL)");
   db.prepare("INSERT INTO briefs(day,created_at,lines,source) VALUES(?,?,?,?)").run("2026-10-22", new Date().toISOString(), '["Original brief"]', "template"); db.close();

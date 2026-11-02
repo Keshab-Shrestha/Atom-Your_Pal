@@ -23,7 +23,10 @@ createInterface({ input: process.stdin }).on("line", (line) => {
     if (process.env.CUA_FIXTURE_LIST === "invalid") return out({ id: m.id, result: {} });
     const names = ["list_apps", "list_windows", "get_window_state", "launch_app", "click", "type_text", "press_key", "hotkey", "scroll", "set_value", "get_screen_size", "get_desktop_state"].filter((name) => name !== process.env.CUA_FIXTURE_MISSING_TOOL);
     const paged = process.env.CUA_FIXTURE_LIST === "paged";
-    const tools = (paged ? (m.params.cursor ? names.slice(6) : names.slice(0, 6)) : names).map((name) => ({ name }));
+    // CUA_FIXTURE_SESSION: like the real 0.28 driver, some tools take a session, and the driver has its own agent cursor.
+    const sessioned = process.env.CUA_FIXTURE_SESSION ? ["echo", "set_agent_cursor_enabled"] : [];
+    const tools = [...(paged ? (m.params.cursor ? names.slice(6) : names.slice(0, 6)) : names), ...(m.params.cursor ? [] : sessioned)]
+      .map((name) => sessioned.includes(name) ? { name, inputSchema: { type: "object", properties: { session: { type: "string" } } } } : { name });
     return out({ id: m.id, result: { tools, ...(process.env.CUA_FIXTURE_LIST === "endless" || (paged && !m.params.cursor) ? { nextCursor: "more" } : {}) } });
   }
   if (m.method !== "tools/call") return out({ id: m.id, error: { code: -32601, message: "no such method" } });
@@ -31,6 +34,7 @@ createInterface({ input: process.stdin }).on("line", (line) => {
   calls.push(name);
   const ok = (text, structuredContent = {}) => out({ id: m.id, result: { content: [{ type: "text", text }], structuredContent } });
   if (name === "echo") return ok(String(a.text), { args: a });
+  if (name === "set_agent_cursor_enabled") { calls.push(JSON.stringify(a)); return ok("cursor", { session: a.session, enabled: a.enabled }); }
   if (name === "pid") return ok("pid", { pid: process.pid });
   if (name === "requests") return ok("requests", { calls, methods });
   if (name === "later") return void setTimeout(() => ok("later"), Number(a.ms ?? 0));

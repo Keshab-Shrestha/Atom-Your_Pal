@@ -5,7 +5,7 @@ import { openSourceAnalysis, type SourceAnalysisStore } from "./source-analysis.
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import type { InputSource } from "@atom/contracts";
+import type { InputSource } from "@ark/contracts";
 import { openChats, type ChatStore } from "./chats.ts";
 import { openFilePermissions, type FilePermissions } from "./file-permissions.ts";
 import { openForeground, type ForegroundStore } from "./foreground.ts";
@@ -15,12 +15,12 @@ import { foldFact, openSuggestions, type Suggestions } from "./suggestions.ts";
 import { openBriefs, type Briefs } from "./briefs.ts";
 import { openRecallReceipts, type RecallReceipts } from "./recall-receipts.ts";
 
-// ADR-058: facts the user asks ATOM to keep, in one local SQLite file. Each memory has an owner, a scope,
+// ADR-058: facts the user asks ARK to keep, in one local SQLite file. Each memory has an owner, a scope,
 // provenance and a lifecycle (SECURITY.md §17). Forgetting deletes the row.
 
 export const MAX_MEMORY_CHARS = 300;
 export const DEFAULT_MAX_MEMORIES = 500;
-/** The single local user, until ATOM has identities. */
+/** The single local user, until ARK has identities. */
 export const LOCAL_OWNER = "local";
 
 export type MemoryScope = "personal";
@@ -105,6 +105,8 @@ export interface MemoryStore {
   /** The newest episodes first. */
   episodes(limit?: number): Episode[];
   removeEpisode(id: number): boolean;
+  /** Deletes the episode of one conversation (a deleted chat's note, 2026-11-01). */
+  removeSessionEpisode(sessionId: string): boolean;
   /** Deletes every episode of this owner. Returns how many were deleted. */
   clearEpisodes(): number;
   /** ADR-091: Keshab's chat sessions. */
@@ -280,6 +282,7 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
     "DELETE FROM episodes WHERE owner = ? AND id NOT IN (SELECT id FROM episodes WHERE owner = ? ORDER BY ended_at DESC, id DESC LIMIT ?)",
   );
   const deleteEpisode = db.prepare("DELETE FROM episodes WHERE owner = ? AND id = ?");
+  const deleteSessionEpisode = db.prepare("DELETE FROM episodes WHERE owner = ? AND session_id = ?");
   const clearAllEpisodes = db.prepare("DELETE FROM episodes WHERE owner = ?");
 
   const insert = db.prepare("INSERT INTO memories (text, owner, scope, source, request_id, created_at, expires_at) VALUES (?, ?, 'personal', ?, ?, ?, ?)");
@@ -448,6 +451,10 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
 
     removeEpisode(id) {
       return Number(deleteEpisode.run(owner, id).changes) > 0;
+    },
+
+    removeSessionEpisode(sessionId) {
+      return Number(deleteSessionEpisode.run(owner, sessionId).changes) > 0;
     },
 
     clearEpisodes() {

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { openHelperStore } from "@atom/helpers";
+import { openHelperStore } from "@ark/helpers";
 import { stoppedTaskSummary } from "./stopped-task-summary.ts";
 
 test("stopped summaries count recent successful host records before Stop, never pending, failed or later calls", () => {

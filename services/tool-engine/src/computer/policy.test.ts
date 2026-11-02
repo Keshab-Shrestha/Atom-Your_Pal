@@ -13,9 +13,10 @@ test("never controls terminals, password managers, system settings, or agents", 
     ["com.apple.systempreferences", "System Settings"],
     ["com.nousresearch.hermes", "Hermes"],
     ["com.trycua.driver", "Cua Driver"],
-    ["com.zeno.island", "old ATOM app"],
-    ["dev.zeno.island", "old ATOM app"],
-    ["dev.atom.island", "ATOM app"],
+    ["com.zeno.island", "old ZENO app"],
+    ["dev.zeno.island", "old ZENO app"],
+    ["dev.atom.island", "old ATOM app"],
+    ["dev.ark.island", "ARK app"],
   ];
   for (const [bundle, name] of blocked) assert.match(appBlock(bundle, name) ?? "", /never/i, bundle);
 });
@@ -183,7 +184,7 @@ test("more secret field names are refused for typing: plural passwords, API and 
   assert.equal(secretField({ role: "AXTextField", label: "Search" }), undefined);
 });
 
-// ADR-123: ATOM never deletes, on the screen as in the shell.
+// ADR-123: ARK never deletes, on the screen as in the shell.
 test("delete controls and keys are refused, not asked; ordinary controls and keys are not touched", () => {
   for (const label of ["Move to Trash", "Empty Trash…", "Delete", "Delete Account", "Erase Disk", "Uninstall", "Ｄｅｌｅｔｅ", "Delete_all", "Secure Empty Trash"]) {
     assert.match(deleteDenial(label, "AXButton") ?? "", /never deletes/, label);

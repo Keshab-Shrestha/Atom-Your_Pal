@@ -3,12 +3,12 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openMemoryStore } from "@atom/memory";
-import { openHelperStore } from "@atom/helpers";
+import { openMemoryStore } from "@ark/memory";
+import { openHelperStore } from "@ark/helpers";
 import { retrySourceChat } from "./native-entry.ts";
 
 test("a first-turn interruption retains the chat's provider for its explicit retry before any transcript was saved", () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-chat-model-recovery-"));
+  const dir = mkdtempSync(join(tmpdir(), "ark-chat-model-recovery-"));
   const choice = { provider: "codex", model: "codex-default" };
   let memory = openMemoryStore({ path: join(dir, "memory.db") });
   let helpers = openHelperStore({ path: join(dir, "helpers.db") });
@@ -36,7 +36,7 @@ test("a first-turn interruption retains the chat's provider for its explicit ret
 });
 
 test("resetting or removing an unsaved chat removes its durable pending model choice", () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-pending-model-"));
+  const dir = mkdtempSync(join(tmpdir(), "ark-pending-model-"));
   let memory = openMemoryStore({ path: join(dir, "memory.db") });
   try {
     for (const id of ["reset", "remove", "keep"]) memory.chats.setModel(id, { provider: "codex", model: "codex-default" });

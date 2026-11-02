@@ -1,4 +1,4 @@
-import type { BriefSettings } from "@atom/memory";
+import type { BriefSettings } from "@ark/memory";
 
 /**
  * Daily brief (upgrades.md C3): the facts of the user's day, gathered by code. No model runs here. A source that fails or is

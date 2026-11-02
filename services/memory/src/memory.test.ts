@@ -52,7 +52,7 @@ test("forgetting deletes the row and its search entry", () => {
 });
 
 test("another owner's memories are never returned", () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-mem-"));
+  const dir = mkdtempSync(join(tmpdir(), "ark-mem-"));
   try {
     const path = join(dir, "m.db");
     const mine = openMemoryStore({ path });
@@ -69,7 +69,7 @@ test("another owner's memories are never returned", () => {
 });
 
 test("memories survive closing and reopening the file", () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-mem-"));
+  const dir = mkdtempSync(join(tmpdir(), "ark-mem-"));
   try {
     const path = join(dir, "nested", "memory.db");
     const first = openMemoryStore({ path });
@@ -170,7 +170,7 @@ test("clear deletes every memory of this owner only", () => {
 // --- episodes (ADR-059) ---
 
 import { createEpisodeRecorder, episodeContext, noteQuietMs, NOTE_QUIET_MS, SUMMARY_PROMPT } from "./index.ts";
-import type { LanguageModel, Message, ModelRequest } from "@atom/contracts";
+import type { LanguageModel, Message, ModelRequest } from "@ark/contracts";
 
 const convo = (n: number): Message[] =>
   Array.from({ length: n }, (_, i) => [
@@ -201,6 +201,15 @@ test("episodes and memories are deleted separately", () => {
   assert.equal(store.episodes().length, 1);
   assert.equal(store.removeEpisode(e.id), true);
   assert.equal(store.removeEpisode(e.id), false);
+});
+
+test("a deleted chat's note goes by the chat's id; other chats keep theirs", () => {
+  const store = openMemoryStore({ path: ":memory:" });
+  store.saveEpisode("chat-a", "We talked about the Cedar launch.", 2);
+  store.saveEpisode("chat-b", "We talked about Thursday.", 2);
+  assert.equal(store.removeSessionEpisode("chat-a"), true);
+  assert.equal(store.removeSessionEpisode("chat-a"), false);
+  assert.deepEqual(store.episodes().map((e) => e.sessionId), ["chat-b"]);
 });
 
 function fakeSummariser(reply: (req: ModelRequest) => string | Promise<string>) {
@@ -325,7 +334,7 @@ test("recorder: a chat with one exchange gets no note; a deleted chat gets none;
   await tick();
 });
 
-test("recorder: quietMs 0 notes after every reply, as before ADR-108; a bad ATOM_NOTE_QUIET_MS is the default", async () => {
+test("recorder: quietMs 0 notes after every reply, as before ADR-108; a bad ARK_NOTE_QUIET_MS is the default", async () => {
   const store = openMemoryStore({ path: ":memory:" });
   const { model, requests } = fakeSummariser(() => "A note.");
   const recorder = createEpisodeRecorder({ store, model, quietMs: 0 });
@@ -463,7 +472,7 @@ test("forgetting stays final: it deletes the row even after a replacement", () =
 });
 
 test("a database made before expiry and replacement existed is upgraded in place and keeps its facts", () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-memory-"));
+  const dir = mkdtempSync(join(tmpdir(), "ark-memory-"));
   try {
     const path = join(dir, "memory.db");
     const old = new DatabaseSync(path);

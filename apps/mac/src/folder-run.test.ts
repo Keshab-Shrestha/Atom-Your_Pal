@@ -3,12 +3,12 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, truncateSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openHelperStore } from "@atom/helpers";
-import { openMemoryStore } from "@atom/memory";
+import { openHelperStore } from "@ark/helpers";
+import { openMemoryStore } from "@ark/memory";
 import { MAX_OUTSIDE_WRITES, PROJECT_FILE_BYTES, holdsSecret, askForFolder, checkpointBefore, denyRead, folderCheck, newFolderMemory, projectReadCheck } from "./folder-run.ts";
 
 test("explicit chat approval survives a new task; other files, other chats, revocation and the floor still ask or refuse", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-grant-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-grant-")));
   const memory = openMemoryStore({ path: ":memory:" });
   const file = join(home, "page.html");
   const other = join(home, "other.html");
@@ -30,12 +30,12 @@ test("explicit chat approval survives a new task; other files, other chats, revo
     assert.equal(asks, 4, "revocation affects the next edit");
     const secret = join(home, ".ssh", "id_test");
     permissions.grant(secret);
-    assert.ok(await check()("Read", { file_path: secret }), "an explicit grant cannot bypass the floor");
+    assert.equal(await check()("Read", { file_path: secret }), undefined, "since 2026-11-01 a chat grant covers a protected file too");
   } finally { memory.close(); rmSync(home, { recursive: true, force: true }); }
 });
 
 test("allowing one edit does not grant a later task access", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-grant-once-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-grant-once-")));
   const memory = openMemoryStore({ path: ":memory:" });
   const file = join(home, "page.html");
   let asks = 0;
@@ -50,8 +50,8 @@ test("allowing one edit does not grant a later task access", async () => {
 
 // Task 3.11: every tool call of a run in folders, checked in code; risky commands ask on Pal's card.
 
-test("paths outside are refused, risky commands ask, refused ones never ask; the log keeps verdicts only", async () => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "atom-run-")));
+test("protected paths ask, risky commands ask, refused ones never ask; the log keeps verdicts only", async () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "ark-run-")));
   try {
     const asked: string[] = [];
     let answer = true;
@@ -64,14 +64,16 @@ test("paths outside are refused, risky commands ask, refused ones never ask; the
       onCheck: (e) => logged.push(e),
     });
     assert.equal(await check("Edit", { file_path: join(root, "a.ts") }), undefined);
-    assert.match((await check("Read", { file_path: "/etc/passwd" }))!, /outside your home folder/);
-    assert.match((await check("Write", { file_path: join(root, ".git") }))!, /commit explicitly in Terminal/);
-    assert.match((await check("Bash", { command: "git push" }))!, /never done/);
-    assert.match((await check("Bash", { command: "rm -rf build" }))!, /Deleting is never done/);
     answer = false;
+    assert.match((await check("Read", { file_path: "/etc/passwd" }))!, /did not allow this file/);
+    assert.match((await check("Write", { file_path: join(root, ".git") }))!, /did not allow this file/);
+    assert.match((await check("Bash", { command: "git push" }))!, /never done/);
+    assert.match((await check("Bash", { command: "rm -rf build" }))!, /trash_file/);
     assert.match((await check("Bash", { command: "npm install x" }))!, /did not allow/);
-    assert.deepEqual(asked, ["Kame wants to run: npm install x"]);
-    assert.deepEqual(logged.map((e) => (e as { verdict: string }).verdict), ["allowed", "refused", "refused", "refused", "refused", "asked", "declined"]);
+    assert.equal(asked.length, 3);
+    assert.match(asked[0]!, /^Kame wants to read a protected file: (?:\/private)?\/etc\/passwd$/);
+    assert.equal(asked[2], "Kame wants to run: npm install x");
+    assert.deepEqual(logged.map((e) => (e as { verdict: string }).verdict), ["allowed", "asked", "declined", "asked", "declined", "refused", "refused", "asked", "declined"]);
     assert.ok(!JSON.stringify(logged).includes("passwd") && !JSON.stringify(logged).includes("npm"), "no paths or commands in the log");
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -85,11 +87,11 @@ test("sandboxed commands cannot read keys and tokens", () => {
 
 // ADR-090: Quill had no folder, ran without file tools and could not save. Now it asks for the folder its task names.
 test("a file worker with no folder asks for the one its task names; allowed, it is made and granted", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-home-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-home-")));
   try {
     const store = openHelperStore({ path: ":memory:", home });
     const asked: string[] = [];
-    const task = "Save it as a text document in a folder named ZenoDoc in the user's home directory.";
+    const task = "Save it as a text document in a folder named ArkDoc in the user's home directory.";
     const grants = await askForFolder({
       task,
       name: "Quill",
@@ -97,9 +99,9 @@ test("a file worker with no folder asks for the one its task names; allowed, it 
       approve: async (r) => (asked.push(`${r.summary} | ${r.reason}`), true),
       grant: (folder) => (store.addGrant("quill", folder), store.list().find((h) => h.id === "quill")!.grants),
     });
-    assert.deepEqual(grants, [join(home, "ZenoDoc")]);
-    assert.ok(existsSync(join(home, "ZenoDoc")));
-    assert.match(asked[0]!, /^Quill needs a folder to save files in: ~\/ZenoDoc \| .*~\/ZenoDoc/);
+    assert.deepEqual(grants, [join(home, "ArkDoc")]);
+    assert.ok(existsSync(join(home, "ArkDoc")));
+    assert.match(asked[0]!, /^Quill needs a folder to save files in: ~\/ArkDoc \| .*~\/ArkDoc/);
     // Said no (or no answer): a clear error, nothing made.
     await assert.rejects(
       askForFolder({ task: "Save it to ~/Other", name: "Kame", home, approve: async () => false, grant: () => [] }),
@@ -113,7 +115,7 @@ test("a file worker with no folder asks for the one its task names; allowed, it 
 
 // B3.4: the before-hook runs for tools that change files, after the checks pass, and never fails the run.
 test("before runs only for file-changing tools whose paths passed; a throw does not fail the call", async () => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "atom-run-")));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "ark-run-")));
   try {
     const seen: [string, string[]][] = [];
     const failed: string[] = [];
@@ -122,7 +124,7 @@ test("before runs only for file-changing tools whose paths passed; a throw does 
       roots: [root],
       cwd: root,
       name: "Kame",
-      approve: async () => true,
+      approve: async () => false,
       before: (tool, paths) => {
         seen.push([tool, paths]);
         if (boom) throw new Error("disk full");
@@ -136,8 +138,8 @@ test("before runs only for file-changing tools whose paths passed; a throw does 
     assert.equal(await check("Read", { file_path: join(root, "a.ts") }), undefined);
     assert.equal(await check("Grep", { pattern: "x", path: root }), undefined);
     assert.equal(await check("Bash", { command: "ls" }), undefined);
-    assert.match((await check("Write", { file_path: "/etc/passwd" }))!, /outside your home folder/);
-    assert.match((await check("Write", { file_path: join(root, ".git", "x") }))!, /commit explicitly in Terminal/);
+    assert.match((await check("Write", { file_path: "/etc/passwd" }))!, /did not allow this file/);
+    assert.match((await check("Write", { file_path: join(root, ".git", "x") }))!, /did not allow this file/);
     assert.deepEqual(seen, [
       ["Write", [join(root, "a.ts")]],
       ["Edit", [join(root, "rel.ts")]],
@@ -153,7 +155,7 @@ test("before runs only for file-changing tools whose paths passed; a throw does 
 });
 
 test("checkpointBefore keeps files outside the git worktree and leaves the worktree to git", () => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "atom-run-")));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "ark-run-")));
   try {
     const tree = join(root, "tree");
     const other = join(root, "other");
@@ -174,7 +176,7 @@ test("checkpointBefore keeps files outside the git worktree and leaves the workt
 // ADR-107: a project chat reads its folder directly (Read, Glob, Grep) and never writes. Each refusal below comes with
 // its twin that passes, so removing the check would fail one of the pair.
 function projectFixture() {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-proj-home-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-proj-home-")));
   const root = join(home, "Developer", "app");
   for (const d of ["src", ".git", "docs"]) mkdirSync(join(root, d), { recursive: true });
   mkdirSync(join(home, ".ssh"), { recursive: true });
@@ -280,7 +282,7 @@ test("project reads: a grep that names no glob is given an exclusion for secrets
 test("a folder question waits 10 minutes, then the error says you did not answer", async (t) => {
   t.after(() => mock.timers.reset());
   mock.timers.enable({ apis: ["setTimeout"] });
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-home-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-home-")));
   try {
     const seen: { timeoutMs: number; summary: string }[] = [];
     let waiting = 0;
@@ -311,7 +313,7 @@ test("a folder question waits 10 minutes, then the error says you did not answer
 test("a folder question answered late (inside 10 minutes) is allowed; stopping the job withdraws it", async (t) => {
   t.after(() => mock.timers.reset());
   mock.timers.enable({ apis: ["setTimeout"] });
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-home-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-home-")));
   try {
     let yes!: (v: boolean) => void;
     const late = askForFolder({ task: "Save it to ~/Late", name: "Quill", home, approve: () => new Promise<boolean>((r) => (yes = r)), grant: (f) => [f] });
@@ -335,17 +337,17 @@ test("a folder question answered late (inside 10 minutes) is allowed; stopping t
 });
 
 // 2026-10-15 (security review): a folders agent had no secret-file check (only the project chat had), so a granted folder that held
-// ATOM's own data or a .env let it read the API token and the databases, or write over the token.
-test("a folders agent never opens .env files, keys, the API token or ATOM's databases, even inside its granted folder", async () => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "atom-secret-")));
+// ARK's own data or a .env let it read the API token and the databases, or write over the token.
+test("a folders agent asks before .env files, keys, the API token or ARK's databases, even inside its granted folder", async () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "ark-secret-")));
   try {
     mkdirSync(join(root, "data"));
-    const check = folderCheck({ roots: [root], cwd: root, name: "Kame", home: "/Users/nobody", approve: async () => true });
+    const check = folderCheck({ roots: [root], cwd: root, name: "Kame", home: "/Users/nobody", approve: async () => false });
     for (const [tool, file] of [
       ["Read", ".env"], ["Read", ".env.local"], ["Read", "data/api-token"], ["Read", "data/helpers.db"], ["Grep", "data/memory.db-wal"],
       ["Write", "data/api-token"], ["Edit", "keys/server.pem"], ["Read", "id_rsa"],
     ] as const) {
-      assert.match((await check(tool, { file_path: join(root, file), path: join(root, file) }))!, /Secret files and key folders/, `${tool} ${file}`);
+      assert.match((await check(tool, { file_path: join(root, file), path: join(root, file) }))!, /did not allow this file/, `${tool} ${file}`);
     }
     assert.equal(await check("Read", { file_path: join(root, "src", "a.ts") }), undefined, "an ordinary file is fine");
     assert.equal(await check("Write", { file_path: join(root, "data", "notes.md") }), undefined, "other files in data/ are fine");
@@ -356,7 +358,7 @@ test("a folders agent never opens .env files, keys, the API token or ATOM's data
 
 // ADR-122, ADR-123: no per-agent folders. A new file is free anywhere the floor allows; a file that exists asks once; the 200-file stop; searches never take the whole home.
 test("tiers: a new file is free, an existing one asks once per task, the whole-home search and the floor are refused", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-tier-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-tier-")));
   try {
     mkdirSync(join(home, "Documents"), { recursive: true });
     writeFileSync(join(home, "Documents", "old.txt"), "old");
@@ -390,7 +392,7 @@ test("tiers: a new file is free, an existing one asks once per task, the whole-h
 });
 
 test("tiers: more than 200 files outside the task's folder asks once more", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-tier-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-tier-")));
   try {
     mkdirSync(join(home, "out"), { recursive: true });
     const asked: string[] = [];
@@ -406,12 +408,12 @@ test("tiers: more than 200 files outside the task's folder asks once more", asyn
 });
 
 // ADR-123: a file that holds a secret is not read; an edit card says what will change.
-test("a file that holds a secret shape is not read; an ordinary file is", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-sec-")));
+test("a file that holds a secret shape asks before it is read; an ordinary file does not", async () => {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-sec-")));
   try {
     mkdirSync(join(home, "Documents"), { recursive: true });
     const write = (name: string, text: string) => (writeFileSync(join(home, "Documents", name), text), join(home, "Documents", name));
-    const check = folderCheck({ roots: [], home, cwd: join(home, "Documents"), name: "Sid", approve: async () => true });
+    const check = folderCheck({ roots: [], home, cwd: join(home, "Documents"), name: "Sid", approve: async () => false });
     const secrets = {
       "key.txt": "-----BEGIN OPENSSH PRIVATE KEY-----\nabc",
       "a.md": "my key is sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789",
@@ -421,7 +423,7 @@ test("a file that holds a secret shape is not read; an ordinary file is", async 
     };
     for (const [name, text] of Object.entries(secrets)) {
       assert.ok(holdsSecret(write(name, text)), name);
-      assert.match((await check("Read", { file_path: join(home, "Documents", name) })) ?? "", /holds a secret/, name);
+      assert.match((await check("Read", { file_path: join(home, "Documents", name) })) ?? "", /did not allow this file/, name);
     }
     for (const [name, text] of [["ok.md", "# Notes\nsk-short and ghp_ nothing here"], ["hash.txt", "a".repeat(64)]] as const) {
       assert.equal(holdsSecret(write(name, text)), false, name);
@@ -434,7 +436,7 @@ test("a file that holds a secret shape is not read; an ordinary file is", async 
 });
 
 test("the edit card says what will change", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-card-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-card-")));
   try {
     mkdirSync(join(home, "Documents"), { recursive: true });
     writeFileSync(join(home, "Documents", "plan.md"), "old");
@@ -452,12 +454,12 @@ test("the edit card says what will change", async () => {
 
 // 2026-10-16 (security review): ~ paths, climbing patterns, Grep lines outside the task's folder, more secret shapes.
 test("~ paths, climbing patterns and Grep content outside the task's folder are refused", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-sec2-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-sec2-")));
   try {
     const proj = join(home, "Developer", "app");
     mkdirSync(proj, { recursive: true });
     mkdirSync(join(home, "Documents"), { recursive: true });
-    const inProject = folderCheck({ roots: [proj], home, cwd: proj, name: "Kame", approve: async () => true });
+    const inProject = folderCheck({ roots: [proj], home, cwd: proj, name: "Kame", approve: async () => false });
     for (const bad of ["~/.zshrc", "~/.ssh/authorized_keys", "$HOME/.ssh/x"]) {
       assert.ok(await inProject("Write", { file_path: bad }), `Write ${bad}`);
       assert.ok(await inProject("Read", { file_path: bad }), `Read ${bad}`);
@@ -471,15 +473,15 @@ test("~ paths, climbing patterns and Grep content outside the task's folder are 
     // The strings are built at run time: a key-shaped literal in the source is refused by GitHub push protection.
     for (const [name, text] of [["s1", ["sk_", "live_", "abcdefghijklmnopqrstuvwx"].join("")], ["s2", ["npm_", "abcdefghijklmnopqrstuvwxyz0123456789"].join("")], ["s3", ["glpat", "-abcdefghijklmnopqrstu"].join("")], ["s4", ["eyJhbGciOiJIUzI1NiJ9", "eyJzdWIiOiIxMjM0NTY3ODkwIn0", "abcdefghijklmnop"].join(".")]] as const) {
       writeFileSync(join(proj, name), text);
-      assert.match((await inProject("Read", { file_path: join(proj, name) })) ?? "", /holds a secret/, name);
+      assert.match((await inProject("Read", { file_path: join(proj, name) })) ?? "", /did not allow this file/, name);
     }
   } finally {
     rmSync(home, { recursive: true, force: true });
   }
 });
 
-test("Full access skips overwrite/install cards without creating grants or bypassing floors, resource caps and cancellation", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-full-files-")));
+test("Full access skips overwrite, install and protected-place cards without creating grants or bypassing resource caps and cancellation", async () => {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-full-files-")));
   const memory = openMemoryStore({ path: ":memory:" });
   const path = join(home, "page.txt"); writeFileSync(path, "old");
   let full = true, stopped = false, asks = 0, checkpoints = 0;
@@ -490,14 +492,39 @@ test("Full access skips overwrite/install cards without creating grants or bypas
     assert.equal(await check("Write", { file_path: path, content: "new" }), undefined);
     assert.equal(await check("Bash", { command: "pnpm install" }), undefined);
     assert.equal(asks, 0); assert.equal(checkpoints, 1); assert.deepEqual(memory.filePermissions.forChat("chat").list(), []);
-    assert.ok(await check("Write", { file_path: join(home, ".ssh", "id_test"), content: "no" }));
-    assert.ok(await check("Bash", { command: "sudo true" })); assert.ok(await check("Bash", { command: "git push origin main" }));
+    assert.equal(await check("Write", { file_path: join(home, ".ssh", "id_test"), content: "yes" }), undefined, "Keshab, 2026-11-01: Full access skips protected places too");
+    assert.equal(checkpoints, 2);
+    assert.equal(await check("Bash", { command: "sudo true" }), undefined, "Keshab, 2026-11-02: Full access runs sudo with no card");
+    assert.equal(asks, 0);
+    const tainted = folderCheck({ roots: [], home, cwd: home, name: "Kame", fullAccess: () => true, tainted: () => true, approve: async () => { asks++; return false; } });
+    assert.ok(await tainted("Bash", { command: "curl https://x" }), "after web text, a command outside the sandbox asks even in Full access");
+    assert.equal(await tainted("Bash", { command: "pnpm test" }), undefined); asks = 0;
+    assert.ok(await check("Bash", { command: "git push origin main" }));
     assert.ok(await check("Bash", { command: "rm page.txt" })); assert.equal(asks, 0);
     state.written = new Set(Array.from({ length: MAX_OUTSIDE_WRITES }, (_, i) => join(home, `other-${i}`)));
     assert.ok(await check("Write", { file_path: join(home, "another.txt"), content: "new" })); assert.equal(asks, 1);
     state.written.clear(); full = false;
     assert.ok(await check("Write", { file_path: path, content: "new" })); assert.equal(asks, 2, "switching back restores existing-file consent");
     full = true; stopped = true;
-    assert.ok(await check("Write", { file_path: path, content: "new" })); assert.equal(checkpoints, 1);
+    assert.ok(await check("Write", { file_path: path, content: "new" })); assert.equal(checkpoints, 2);
   } finally { memory.close(); rmSync(home, { recursive: true, force: true }); }
+});
+
+// 2026-11-02 (Keshab): the sandbox has no network, so an agent's git push asks, and on Allow ARK pushes the task's own branch itself.
+test("git push asks; Deny pushes nothing; Allow pushes from the task's folder; Full access skips the card; a failed push is reported", async () => {
+  const pushed: string[] = [];
+  let answer = false, full = false, fail = false;
+  const check = folderCheck({ roots: ["/r"], cwd: "/r", name: "Kame", fullAccess: () => full, approve: async () => answer,
+    push: async (cwd) => { if (fail) throw new Error("The push failed: rejected"); pushed.push(cwd); return "ARK pushed ark/task-7 to origin."; } });
+  assert.match((await check("Bash", { command: "git push origin HEAD" }))!, /did not allow the push/);
+  assert.deepEqual(pushed, []);
+  answer = true;
+  assert.match((await check("Bash", { command: "git -C . push" }))!, /^ARK pushed ark\/task-7 to origin\. Do not run git push yourself\.$/);
+  assert.deepEqual(pushed, ["/r"]);
+  answer = false; full = true;
+  assert.match((await check("Bash", { command: "git push" }))!, /ARK pushed/);
+  fail = true;
+  assert.match((await check("Bash", { command: "git push" }))!, /ARK could not push: The push failed: rejected/);
+  const noPush = folderCheck({ roots: ["/r"], cwd: "/r", name: "Kame", approve: async () => true });
+  assert.match((await noPush("Bash", { command: "git push" }))!, /never done/, "without a push helper the old refusal stays");
 });

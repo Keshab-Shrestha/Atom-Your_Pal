@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { Message } from "@atom/contracts";
+import type { Message } from "@ark/contracts";
 import { CHAT_REPLAY_BYTES, HISTORY_PAGE_BYTES, chatContext, chatHistoryTools } from "./chat-history.ts";
 
 test("replay drops only model context, leaves room to grow and preserves the current question", () => {

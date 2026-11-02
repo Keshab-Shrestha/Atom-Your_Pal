@@ -8,7 +8,7 @@ import { agentId, formatSoulMd, openHelperStore, parseSoulMd } from "./index.ts"
 // ADR-088: agents Keshab adds, each a folder with its own role, kit and soul.md.
 
 function setup() {
-  const root = mkdtempSync(join(tmpdir(), "atom-agents-"));
+  const root = mkdtempSync(join(tmpdir(), "ark-agents-"));
   const agentsDir = join(root, "agents");
   return { root, agentsDir, store: openHelperStore({ path: ":memory:", agentsDir }), done: () => rmSync(root, { recursive: true, force: true }) };
 }
@@ -40,6 +40,23 @@ test("editing soul.md in an editor becomes a new version; a save in the window w
     store.restoreSoul("rumi", 1);
     assert.match(readFileSync(file, "utf8"), /## Rules\nPrices with dates\.\n/);
     assert.equal(store.list().find((h) => h.id === "rumi")!.soulVersion, 4, "every version kept");
+  } finally {
+    done();
+  }
+});
+
+// 2026-10-31 (Keshab renamed Sandy to Ugway; it stayed Sandy): a listener that reads the team on every change read
+// soul.md before the save wrote it, took the old file as a newer version, and the rename was undone.
+test("a rename survives a listener that reads the team on every change", () => {
+  const { agentsDir, store, done } = setup();
+  try {
+    store.createAgent(rumi);
+    store.onChange(() => void store.list());
+    const before = store.list().find((h) => h.id === "rumi")!;
+    store.saveSoul("rumi", { ...before.soul, name: "Ugway" });
+    const after = store.list().find((h) => h.id === "rumi")!;
+    assert.deepEqual([after.name, after.soulVersion], ["Ugway", before.soulVersion + 1], "one new version, with the new name");
+    assert.match(readFileSync(join(agentsDir, "rumi", "soul.md"), "utf8"), /^---\nname: Ugway\n/);
   } finally {
     done();
   }

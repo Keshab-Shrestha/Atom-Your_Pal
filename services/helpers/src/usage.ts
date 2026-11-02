@@ -1,7 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import { dollarsFor, webSearchDollars } from "./pricing.ts";
 
-// ADR-091: the tokens every Claude run used (a worker's task or ATOM's own chat answer), for the Dashboard. Counts and
+// ADR-091: the tokens every Claude run used (a worker's task or ARK's own chat answer), for the Dashboard. Counts and
 // model ids only: never a task's or answer's text. Kept 90 days.
 
 export interface TokenCounts {
@@ -59,11 +59,13 @@ export interface UsageSummary {
   week: UsageTotals;
   /** The last 7 days, oldest first, each with its local date (YYYY-MM-DD). */
   days: (UsageTotals & { day: string })[];
-  /** The last 7 days by worker (null: ATOM's chat), most tokens first. */
+  /** 2026-11-02: the last USAGE_KEEP_DAYS days the same way, for the Dashboard's 7 / 30 / 90-day range. */
+  history: (UsageTotals & { day: string })[];
+  /** The last 7 days by worker (null: ARK's chat), most tokens first. */
   byWorker: (UsageTotals & { helper: string | null })[];
   /** The last 7 days by model, most tokens first. */
   byModel: (UsageTotals & { model: string })[];
-  /** ADR-098 item 9: ATOM's last chat answers read nothing from the prompt cache. */
+  /** ADR-098 item 9: ARK's last chat answers read nothing from the prompt cache. */
   chatCacheCold: boolean;
   /** Job 4: the newest calls, newest first. */
   recent: RecentRun[];
@@ -193,12 +195,18 @@ export function usageTable(db: DatabaseSync, now: () => Date = () => new Date())
       const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6);
       const days = Array.from({ length: 7 }, (_, i) => ({ ...empty(), day: localDay(new Date(start.getFullYear(), start.getMonth(), start.getDate() + i)) }));
       const byDay = new Map(days.map((d) => [d.day, d]));
+      const first = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (USAGE_KEEP_DAYS - 1));
+      const history = Array.from({ length: USAGE_KEEP_DAYS }, (_, i) => ({ ...empty(), day: localDay(new Date(first.getFullYear(), first.getMonth(), first.getDate() + i)) }));
+      const byHistoryDay = new Map(history.map((d) => [d.day, d]));
       const week = empty();
       const workers = new Map<string | null, UsageTotals & { helper: string | null }>();
       const models = new Map<string, UsageTotals & { model: string }>();
-      for (const r of since.all(start.toISOString()) as Record<string, unknown>[]) {
+      for (const r of since.all(first.toISOString()) as Record<string, unknown>[]) {
         const row = { input: Number(r.input), output: Number(r.output), cacheRead: Number(r.cache_read), cacheWrite: Number(r.cache_write), dollars: Number(r.dollars) };
-        const day = byDay.get(localDay(new Date(String(r.at))));
+        const dayKey = localDay(new Date(String(r.at)));
+        const past = byHistoryDay.get(dayKey);
+        if (past) add(past, row);
+        const day = byDay.get(dayKey);
         if (!day) continue;
         add(day, row);
         add(week, row);
@@ -214,6 +222,7 @@ export function usageTable(db: DatabaseSync, now: () => Date = () => new Date())
         today: days.at(-1)!,
         week,
         days,
+        history,
         byWorker: [...workers.values()].sort(most),
         byModel: [...models.values()].sort(most),
         recent: (newest.all(RECENT_RUNS) as Record<string, unknown>[]).map((r) => ({

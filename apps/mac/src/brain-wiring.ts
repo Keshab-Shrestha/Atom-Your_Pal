@@ -1,14 +1,14 @@
-import { DEFAULT_MAX_EPISODES, DEFAULT_MAX_MEMORIES, type BrainNote, type BrainSource, type MemoryStore } from "@atom/memory";
-import type { LogFields } from "@atom/shared";
-import type { Tool } from "@atom/tool-engine";
+import { DEFAULT_MAX_EPISODES, DEFAULT_MAX_MEMORIES, type BrainNote, type BrainSource, type MemoryStore } from "@ark/memory";
+import type { LogFields } from "@ark/shared";
+import type { Tool } from "@ark/tool-engine";
 import type { IslandBrain } from "./island.ts";
 import type { BrainNoteItem } from "./island-items.ts";
 import { createBrainSourceFolder } from "./brain-source-folder.ts";
 import { SOURCE_DATA_MARKER } from "./brain-source-context.ts";
 
 /**
- * The second brain in the runtime: ATOM's memory mirrored into notes (facts, conversation notes, kept chats, projects),
- * ATOM's own links, three tools for the main agent (`brain_note`, `brain_open`, `brain_search`) and the window's view.
+ * The second brain in the runtime: ARK's memory mirrored into notes (facts, conversation notes, kept chats, projects),
+ * ARK's own links, three tools for the main agent (`brain_note`, `brain_open`, `brain_search`) and the window's view.
  * Note text is the user's own: the log gets counts and ids only.
  */
 
@@ -20,7 +20,7 @@ const day = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
 export interface BrainWiring {
   island: IslandBrain;
   tools: Tool[];
-  /** Mirrors memory into notes and rebuilds ATOM's links. Cheap when nothing changed; never throws. */
+  /** Mirrors memory into notes and rebuilds ARK's links. Cheap when nothing changed; never throws. */
   sync(): void;
 }
 

@@ -2,8 +2,8 @@
 // skill-hub.ts and the checks and writes are in the store; this joins them. Logs: ids, names, repo and sha only, never
 // a skill's text, a URL found in one, or a search.
 
-import type { HelperStore } from "@atom/helpers";
-import type { Logger } from "@atom/shared";
+import type { HelperStore } from "@ark/helpers";
+import type { Logger } from "@ark/shared";
 import type { SkillHubItem } from "./island-protocol.ts";
 import { HUB_SOURCES, HubError, createHubClient, type HubClient, type HubHit } from "./skill-hub.ts";
 
@@ -85,7 +85,7 @@ export function createHubCommands({ store, log, client = createHubClient() }: Hu
         const row = store.skillHubInstalled().find((i) => i.name === name);
         if (!row) throw new HubError(`"${name.slice(0, 40)}" is not a skill from the hub.`);
         const source = HUB_SOURCES.findIndex((s) => s.repo === row.repo);
-        if (source < 0) throw new HubError("That skill's source is not in ATOM's list any more.");
+        if (source < 0) throw new HubError("That skill's source is not in ARK's list any more.");
         const file = await client.fetchSkill(source, row.path, true);
         const pending = store.updateSkillHub(name, { sha: file.sha, text: file.text });
         if (!pending) message = `${name} is up to date.`;

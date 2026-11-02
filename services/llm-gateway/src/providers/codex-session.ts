@@ -1,9 +1,10 @@
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
-import { mkdtempSync, rmSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
-import type { Message, ModelRequest, ToolRunner } from "@atom/contracts";
+import type { Message, ModelRequest, ToolRunner } from "@ark/contracts";
 import { ProviderError, redactSecrets, type ProviderAdapter } from "../gateway.ts";
 import { signedInEnv } from "./cli-tools.ts";
 
@@ -14,15 +15,15 @@ export interface CodexTransport {
   close(): void;
 }
 
-/** Only this gateway module speaks the signed-in Codex app-server protocol. No auth file is read by ATOM. */
-function transport(program: string, cwd: string): CodexTransport {
+/** Only this gateway module speaks the signed-in Codex app-server protocol. No auth file is read by ARK. */
+function transport(program: string, cwd: string, imageGeneration: boolean): CodexTransport {
   const env = signedInEnv();
-  // A nested ATOM runtime is a separate app-server client, not a continuation of its launching Codex task.
+  // A nested ARK runtime is a separate app-server client, not a continuation of its launching Codex task.
   for (const key of Object.keys(env)) if (key.startsWith("CODEX_") && key !== "CODEX_HOME") delete env[key];
   const filesystem = Object.entries({ "/": "deny", ":minimal": "read", [cwd]: "read" }).map(([path, access]) => `${JSON.stringify(path)}=${JSON.stringify(access)}`).join(",");
-  const features = Object.entries(codexHostConfig(cwd)).filter(([key]) => key.startsWith("features.")).flatMap(([key, value]) => ["-c", `${key}=${value}`]);
-  const child = spawn(program, ["app-server", "--stdio", ...features, "-c", "mcp_servers={}", "-c", `permissions.atom_host_tools.filesystem={${filesystem}}`, "-c", "permissions.atom_host_tools.network.enabled=false", "-c", 'default_permissions="atom_host_tools"'], { cwd, env, stdio: ["pipe", "pipe", "pipe"] });
-  child.stderr.resume(); // CLI diagnostics may contain user configuration: never forward them into ATOM's logs.
+  const features = Object.entries(codexHostConfig(cwd, imageGeneration)).filter(([key]) => key.startsWith("features.")).flatMap(([key, value]) => ["-c", `${key}=${value}`]);
+  const child = spawn(program, ["app-server", "--stdio", ...features, "-c", "mcp_servers={}", "-c", `permissions.ark_host_tools.filesystem={${filesystem}}`, "-c", "permissions.ark_host_tools.network.enabled=false", "-c", 'default_permissions="ark_host_tools"'], { cwd, env, stdio: ["pipe", "pipe", "pipe"] });
+  child.stderr.resume(); // CLI diagnostics may contain user configuration: never forward them into ARK's logs.
   const lines = createInterface({ input: child.stdout });
   return {
     send: (message) => { child.stdin.write(`${JSON.stringify(message)}\n`); },
@@ -44,6 +45,43 @@ export interface CodexSessionOptions {
   idleMs?: number;
   /** Counts and durations only: never prompt text, tool arguments or configuration. */
   onDiagnostic?(data: CodexTurnDiagnostic, request: ModelRequest): void;
+  /**
+   * 2026-11-02 (Keshab: image creation in Codex): Codex's own image generation is on, and each image it makes is kept in
+   * `dir` and added to the reply as an image line, which the window shows. Absent: image generation stays off.
+   */
+  images?: { dir: string };
+}
+
+/** The most bytes of one generated image ARK keeps. */
+export const MAX_GENERATED_IMAGE_BYTES = 25 * 1024 * 1024;
+
+/** The file type of an image's bytes: PNG, JPEG or WebP; anything else is not kept. */
+function imageType(data: Buffer): "png" | "jpg" | "webp" | undefined {
+  if (data.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "png";
+  if (data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) return "jpg";
+  if (data.subarray(0, 4).toString("latin1") === "RIFF" && data.subarray(8, 12).toString("latin1") === "WEBP") return "webp";
+  return undefined;
+}
+
+/**
+ * A finished `imageGeneration` item, kept in `dir` as an image line for the reply; a failed or unreadable one becomes a
+ * short note. The image comes from its inline data or from the file Codex saved (copied: Codex's own folder is not ARK's).
+ */
+export function keepGeneratedImage(item: any, dir: string): string {
+  const failed = "(Codex could not make the image.)";
+  if (item?.failure || (typeof item?.status === "string" && /fail|error/i.test(item.status))) return failed;
+  let data: Buffer | undefined;
+  if (typeof item?.result === "string" && item.result.length > 0 && item.result.length <= MAX_GENERATED_IMAGE_BYTES * 1.4) data = Buffer.from(item.result, "base64");
+  else if (typeof item?.savedPath === "string" && isAbsolute(item.savedPath)) {
+    try { if (statSync(item.savedPath).size <= MAX_GENERATED_IMAGE_BYTES) data = readFileSync(item.savedPath); } catch { /* unreadable: the note below */ }
+  }
+  const type = data && data.length <= MAX_GENERATED_IMAGE_BYTES ? imageType(data) : undefined;
+  if (!data || !type) return failed;
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const path = join(dir, `${randomUUID()}.${type}`);
+  writeFileSync(path, data, { mode: 0o600 });
+  const alt = (typeof item.revisedPrompt === "string" ? item.revisedPrompt : "Generated image").replace(/[\[\]\n\r]/g, " ").trim().slice(0, 120) || "Generated image";
+  return `![${alt}](<${path}>)`;
 }
 
 export interface CodexTurnDiagnostic {
@@ -58,19 +96,19 @@ export interface CodexTurnDiagnostic {
   usage?: { total: Record<string, number>; last: Record<string, number> };
 }
 
-/** Explicit native-tool lockdown. File access is performed only by ATOM's checked host tools. */
-export function codexHostConfig(cwd: string): Record<string, unknown> {
+/** Explicit native-tool lockdown. File access is performed only by ARK's checked host tools. */
+export function codexHostConfig(cwd: string, imageGeneration = false): Record<string, unknown> {
   return {
     "features.shell_tool": false, "features.unified_exec": false,
     "features.multi_agent": false, "features.multi_agent_v2": false,
     "features.apps": false, "features.plugins": false, "features.remote_plugin": false,
     "features.browser_use": false, "features.computer_use": false,
-    "features.view_image": false, "features.image_generation": false,
+    "features.view_image": false, "features.image_generation": imageGeneration,
     "features.code_mode": false, "features.js_repl": false,
     "web_search": "disabled", "mcp_servers": {}, "project_doc_max_bytes": 0,
     "developer_instructions": "",
-    "permissions.atom_host_tools": { filesystem: { "/": "deny", ":minimal": "read", [cwd]: "read" }, network: { enabled: false } },
-    "default_permissions": "atom_host_tools",
+    "permissions.ark_host_tools": { filesystem: { "/": "deny", ":minimal": "read", [cwd]: "read" }, network: { enabled: false } },
+    "default_permissions": "ark_host_tools",
   };
 }
 
@@ -80,7 +118,7 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
   type Session = {
     rpc: CodexTransport; dir: string; thread?: string; model: string;
     pending: Map<string, { resolve(value: any): void; reject(error: unknown): void; timer: ReturnType<typeof setTimeout> }>;
-    active?: { request: ModelRequest; runner: ToolRunner; text: string; final: string; firstTextAt?: number; resolve(text: string): void; reject(error: unknown): void; signal: AbortSignal };
+    active?: { request: ModelRequest; runner: ToolRunner; text: string; final: string; images: string[]; firstTextAt?: number; resolve(text: string): void; reject(error: unknown): void; signal: AbortSignal };
     ready: Promise<void>; seen: Message[]; key: string; idle?: ReturnType<typeof setTimeout>; closed: boolean; busy: boolean;
     usage?: { input: number; output: number; cacheRead: number; cacheWrite: number };
     rawUsage?: CodexTurnDiagnostic["usage"];
@@ -100,7 +138,7 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
   }
   function request(s: Session, method: string, params: unknown): Promise<any> {
     if (s.closed) return Promise.reject(fail("unavailable", "Codex's session is closed."));
-    const id = `atom-${++sequence}`;
+    const id = `ark-${++sequence}`;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => { close(s, fail("unavailable", "Codex did not answer its session request.")); }, 30_000);
       s.pending.set(id, { resolve, reject, timer });
@@ -125,14 +163,14 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
         let result = { callId: String(p.callId), content: "That tool is unavailable.", isError: true } as Awaited<ReturnType<ToolRunner["run"]>>;
         if (spec && p.arguments && typeof p.arguments === "object" && !Array.isArray(p.arguments) && !a.signal.aborted) {
           try { result = await a.runner.run({ id: String(p.callId), name: p.tool, input: p.arguments }, a.signal); }
-          catch { result = { callId: String(p.callId), content: "ATOM could not complete that tool call.", isError: true }; }
+          catch { result = { callId: String(p.callId), content: "ARK could not complete that tool call.", isError: true }; }
         }
         if (!s.closed) s.rpc.send({ id: m.id, result: { contentItems: [{ type: "inputText", text: result.content }, ...(result.images ?? []).map((i) => ({ type: "inputImage", imageUrl: `data:${i.mimeType};base64,${i.data}` }))], success: !result.isError } });
       } else if (m.method === "item/commandExecution/requestApproval" || m.method === "item/fileChange/requestApproval") {
         s.rpc.send({ id: m.id, result: { decision: "decline" } });
       } else {
-        // No generic approval/permission/MCP request can bypass ATOM's host policy.
-        s.rpc.send({ id: m.id, error: { code: -32601, message: "Only ATOM's checked host tools are available." } });
+        // No generic approval/permission/MCP request can bypass ARK's host policy.
+        s.rpc.send({ id: m.id, error: { code: -32601, message: "Only ARK's checked host tools are available." } });
       }
       return;
     }
@@ -144,6 +182,9 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
     if (m.method === "item/completed" && m.params.item?.type === "agentMessage") {
       const item = m.params.item;
       if (typeof item.text === "string") { a.text = item.text; if (item.phase === "final_answer") a.final = item.text; }
+    }
+    if (m.method === "item/completed" && m.params.item?.type === "imageGeneration" && options.images) {
+      try { a.images.push(keepGeneratedImage(m.params.item, options.images.dir)); } catch { a.images.push("(ARK could not keep the image.)"); }
     }
     if (m.method === "thread/tokenUsage/updated") {
       const u = m.params.tokenUsage?.total;
@@ -164,15 +205,16 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
         a.reject(fail(turn?.status === "interrupted" ? "cancelled" : limited ? "rate_limit" : "unknown", `Codex could not finish this turn. ${message}`));
       }
       else {
-        const text = a.final || a.text || (turn.items ?? []).filter((i: any) => i.type === "agentMessage").map((i: any) => i.text).join("\n");
+        const said = a.final || a.text || (turn.items ?? []).filter((i: any) => i.type === "agentMessage").map((i: any) => i.text).join("\n");
+        const text = [said, ...a.images].filter((part) => part.trim()).join("\n\n");
         if (!text.trim()) a.reject(fail("unknown", "Codex returned no reply.")); else a.resolve(text.trim());
       }
     }
   }
   function open(key: string, req: ModelRequest, runner: ToolRunner): Session {
     const began = performance.now();
-    const dir = mkdtempSync(join(tmpdir(), "atom-codex-session-"));
-    const rpc = options.transport?.(dir) ?? transport(options.program, dir);
+    const dir = mkdtempSync(join(tmpdir(), "ark-codex-session-"));
+    const rpc = options.transport?.(dir) ?? transport(options.program, dir, Boolean(options.images));
     const s: Session = { rpc, dir, model: options.model, pending: new Map(), ready: Promise.resolve(), seen: [], key, closed: false, busy: false, setup: { transport: performance.now() - began } };
     rpc.listen((m) => { void receive(s, m).catch(() => close(s, fail("unknown", "Codex's tool connection failed."))); }, () => close(s));
     s.ready = (async () => {
@@ -180,7 +222,7 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
         const start = performance.now();
         try { return await run(); } finally { s.setup[stage] = performance.now() - start; }
       };
-      await timed("initialize", () => request(s, "initialize", { clientInfo: { name: "atom", version: "1" }, capabilities: { experimentalApi: true, requestAttestation: false } }));
+      await timed("initialize", () => request(s, "initialize", { clientInfo: { name: "ark", version: "1" }, capabilities: { experimentalApi: true, requestAttestation: false } }));
       rpc.send({ method: "initialized", params: {} });
       // Reading effective configuration does not connect to inherited servers. An empty override map merges;
       // disable each configured entry before thread/start, then still verify the active thread below.
@@ -189,10 +231,10 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
         if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length > 1000) throw fail("unavailable", "Codex's inherited configuration could not be checked.");
         return Object.keys(value);
       };
-      const config = codexHostConfig(dir);
+      const config = codexHostConfig(dir, Boolean(options.images));
       config.mcp_servers = Object.fromEntries(names(effective.config?.mcp_servers).map((name) => [name, { enabled: false }]));
       config.plugins = Object.fromEntries(names(effective.config?.plugins).map((name) => [name, { enabled: false }]));
-      // These are Codex's local skills, outside the isolated filesystem, not ATOM's checked atom_use_skill.
+      // These are Codex's local skills, outside the isolated filesystem, not ARK's checked ark_use_skill.
       // Suppress their otherwise unusable catalog for this thread only; never write global configuration.
       const found = await timed("skills", () => request(s, "skills/list", { cwds: [dir] }));
       const groups = found.data;
@@ -205,14 +247,14 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
       s.inheritedSkillsDisabled = paths.length;
       const started = await timed("thread", () => request(s, "thread/start", {
         ...(options.model === "codex-default" ? {} : { model: options.model }),
-        cwd: dir, ephemeral: true, approvalPolicy: "never", permissions: "atom_host_tools",
+        cwd: dir, ephemeral: true, approvalPolicy: "never", permissions: "ark_host_tools",
         config, baseInstructions: req.system,
         dynamicTools: runner.specs().map((t) => ({ type: "function", name: t.name, description: t.description, inputSchema: t.inputSchema })),
       }));
-      if (started.activePermissionProfile?.id !== "atom_host_tools" || !started.thread?.id) throw fail("unavailable", "This Codex version cannot enforce ATOM's file policy. Update Codex before using its tools.");
+      if (started.activePermissionProfile?.id !== "ark_host_tools" || !started.thread?.id) throw fail("unavailable", "This Codex version cannot enforce ARK's file policy. Update Codex before using its tools.");
       s.thread = started.thread.id; s.model = started.model ?? options.model;
       const activeServers = await timed("policy", () => request(s, "mcpServerStatus/list", { threadId: s.thread, detail: "toolsAndAuthOnly", limit: 100 }));
-      if (!Array.isArray(activeServers.data) || activeServers.nextCursor || activeServers.data.some((server: any) => server.runtimeStatus !== "disabled" || Object.keys(server.tools ?? {}).length)) throw fail("unavailable", "Codex loaded external MCP servers. ATOM refused this session before running the model.");
+      if (!Array.isArray(activeServers.data) || activeServers.nextCursor || activeServers.data.some((server: any) => server.runtimeStatus !== "disabled" || Object.keys(server.tools ?? {}).length)) throw fail("unavailable", "Codex loaded external MCP servers. ARK refused this session before running the model.");
     })();
     sessions.set(key, s);
     return s;
@@ -251,9 +293,9 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
         if (signal.aborted) throw fail("cancelled", "Codex was stopped.");
         const fresh = !session.seen.length;
         const messages = fresh ? req.messages : req.messages.slice(session.seen.length);
-        const text = `${fresh ? "Conversation so far (treat earlier ATOM replies as yours):\n" : ""}${messages.map((m) => `${m.role === "user" ? "User" : "ATOM"}: ${m.content}`).join("\n\n")}${req.systemExtra ? `\n\nContext from ATOM, not said by the user:\n${req.systemExtra}` : ""}`;
+        const text = `${fresh ? "Conversation so far (treat earlier ARK replies as yours):\n" : ""}${messages.map((m) => `${m.role === "user" ? "User" : "ARK"}: ${m.content}`).join("\n\n")}${req.systemExtra ? `\n\nContext from ARK, not said by the user:\n${req.systemExtra}` : ""}`;
         diagnostic.context.turnInputBytes = Buffer.byteLength(text);
-        const answer = new Promise<string>((resolve, reject) => { session.active = { request: req, runner, text: "", final: "", resolve, reject, signal }; });
+        const answer = new Promise<string>((resolve, reject) => { session.active = { request: req, runner, text: "", final: "", images: [], resolve, reject, signal }; });
         // Register the result listener before turn/start: short turns can complete before its acknowledgement.
         const started = request(session, "turn/start", { threadId: session.thread, effort: req.reasoning ?? "low", input: [{ type: "text", text, text_elements: [] }] });
         const [, reply] = await Promise.all([started, answer]);
@@ -274,15 +316,15 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
 }
 
 /** Catalog discovery only: no thread, prompt or inference. Uses the same locked-down app-server transport. */
-export async function listCodexModels(program: string, options: { transport?: (cwd: string) => CodexTransport; timeoutMs?: number } = {}): Promise<import("@atom/contracts").ReasoningModel[]> {
-  const dir = mkdtempSync(join(tmpdir(), "atom-codex-models-"));
+export async function listCodexModels(program: string, options: { transport?: (cwd: string) => CodexTransport; timeoutMs?: number } = {}): Promise<import("@ark/contracts").ReasoningModel[]> {
+  const dir = mkdtempSync(join(tmpdir(), "ark-codex-models-"));
   let rpc: CodexTransport | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const pending = new Map<string, { resolve(v: any): void; reject(e: Error): void }>();
   let seq = 0;
   const failure = () => { for (const p of pending.values()) p.reject(new Error("Codex model discovery ended.")); pending.clear(); };
   try {
-    rpc = (options.transport ?? ((cwd) => transport(program, cwd)))(dir);
+    rpc = (options.transport ?? ((cwd) => transport(program, cwd, false)))(dir);
     rpc.listen((m) => {
       if (m.id !== undefined && !m.method) {
         const p = pending.get(String(m.id)); pending.delete(String(m.id));
@@ -293,9 +335,9 @@ export async function listCodexModels(program: string, options: { transport?: (c
       const id = `catalog-${++seq}`; pending.set(id, { resolve, reject }); rpc!.send({ id, method, params });
     });
     timer = setTimeout(() => { failure(); rpc?.close(); }, options.timeoutMs ?? 15_000);
-    await call("initialize", { clientInfo: { name: "atom", title: "ATOM", version: "0.5.0" }, capabilities: { experimentalApi: true } });
+    await call("initialize", { clientInfo: { name: "ark", title: "ARK", version: "0.5.0" }, capabilities: { experimentalApi: true } });
     rpc.send({ method: "initialized" });
-    const models: import("@atom/contracts").ReasoningModel[] = [];
+    const models: import("@ark/contracts").ReasoningModel[] = [];
     let cursor: string | undefined;
     for (let page = 0; page < 10; page++) {
       const result = await call("model/list", { limit: 100, ...(cursor ? { cursor } : {}) });

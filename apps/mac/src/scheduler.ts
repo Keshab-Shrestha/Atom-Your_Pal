@@ -1,8 +1,8 @@
 // Task 3.9: what runs by itself on the clock. Each tick, routines that came due start as main-agent turns (ADR-110 N3).
 // Deterministic: no model. Logs ids only.
 
-import type { HelperStore, Routine } from "@atom/helpers";
-import type { LogFields, Logger } from "@atom/shared";
+import type { HelperStore, Routine } from "@ark/helpers";
+import type { LogFields, Logger } from "@ark/shared";
 
 /** How often the clock looks. */
 export const SCHEDULER_TICK_MS = 30_000;

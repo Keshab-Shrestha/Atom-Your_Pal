@@ -1,4 +1,4 @@
-import type { LanguageModel } from "@atom/contracts";
+import type { LanguageModel } from "@ark/contracts";
 
 export interface SwitchableModel extends LanguageModel {
   /** Uses `next` for every request from now on. A request already in flight finishes on the old model. */
@@ -6,7 +6,7 @@ export interface SwitchableModel extends LanguageModel {
 }
 
 /**
- * A language model whose underlying gateway can be swapped at run time (e.g. ATOM Island's model
+ * A language model whose underlying gateway can be swapped at run time (e.g. ARK Island's model
  * setting, ADR-038). The Core keeps one model, and with it the conversation, across a switch.
  */
 export function createSwitchableModel(initial: LanguageModel): SwitchableModel {

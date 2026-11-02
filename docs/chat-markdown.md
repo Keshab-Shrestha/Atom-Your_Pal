@@ -16,7 +16,7 @@ List child blocks require indentation to the parent's content column. Tabs use f
 
 Fences need at least three backticks or tildes. A close must use the same marker, at least the opening count, and no trailing info. Shorter fences inside a longer fence remain code. An unfinished streaming block keeps the text received so far. The first info token becomes a label only if it is at most 48 ASCII letters/digits or `_+.#-`; invalid/absent labels display Code. Line endings normalize to LF in parsed blocks. This is not syntax highlighting or byte-for-byte source-file export.
 
-Task indicators are not editable controls and do not create or complete ATOM tasks. Source Markdown and saved conversation history remain unchanged. Exact Markdown reply copying is unaffected; plain/rich formats now serialize the expanded block tree. Existing table alignment/escaped-pipe behavior and individual code/table copy actions remain.
+Task indicators are not editable controls and do not create or complete ARK tasks. Source Markdown and saved conversation history remain unchanged. Exact Markdown reply copying is unaffected; plain/rich formats now serialize the expanded block tree. Existing table alignment/escaped-pipe behavior and individual code/table copy actions remain.
 
 ## Bounds and limitations
 

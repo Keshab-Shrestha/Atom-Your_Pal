@@ -156,7 +156,7 @@ export function taskEvidenceTable(db: DatabaseSync, opened: Date) {
 }
 
 export function taskEvidenceText(evidence: TaskEvidence, detail = false): string {
-  const lines = [`ATOM attempt ${evidence.attempt}: ${evidence.state}; ${evidence.inspectionCount} host inspection receipt(s). ` +
+  const lines = [`ARK attempt ${evidence.attempt}: ${evidence.state}; ${evidence.inspectionCount} host inspection receipt(s). ` +
     (evidence.verification ? fileVerificationSummary(evidence.verification.checks) : evidence.verificationUnavailable ? "The host file-predicate receipt is unreadable; no matched result is inferred." : "No independent file-predicate verification is recorded.")];
   if (detail) {
     lines.push(`Showing ${evidence.inspections.length} readable receipt(s) from the newest twelve; ${evidence.inspectionCount} total recorded.${evidence.unavailableInspections ? ` ${evidence.unavailableInspections} receipt(s) are unavailable or unsupported.` : ""}`);
@@ -174,6 +174,6 @@ export function taskEvidenceText(evidence: TaskEvidence, detail = false): string
 
 export function taskEvidenceSummary(evidence: TaskEvidence): string {
   const state: Record<TaskAttemptState, string> = { running: "Work is in progress.", reported: "The worker returned a report.", failed: "This attempt failed.", stopped: "The task was stopped; effects may remain.", interrupted: "The attempt was interrupted; its result is unconfirmed." };
-  return `${state[evidence.state]} ATOM recorded ${evidence.inspectionCount} inspection record${evidence.inspectionCount === 1 ? "" : "s"}.${evidence.unavailableInspections ? " Some records are unavailable." : ""} `
+  return `${state[evidence.state]} ARK recorded ${evidence.inspectionCount} inspection record${evidence.inspectionCount === 1 ? "" : "s"}.${evidence.unavailableInspections ? " Some records are unavailable." : ""} `
     + (evidence.verification ? fileVerificationSummary(evidence.verification.checks) : evidence.verificationUnavailable ? "The file-check receipt is unavailable; whole-task correctness is unverified." : "No independent file-predicate verification is recorded; whole-task correctness is unverified.");
 }

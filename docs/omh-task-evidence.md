@@ -1,6 +1,6 @@
 # Native workflow task evidence
 
-26 October 2026 · Second bounded slice of [ATOM-native OMH orchestration](omh-native-orchestration.md).
+26 October 2026 · Second bounded slice of [ARK-native OMH orchestration](omh-native-orchestration.md).
 
 ## Outcome and boundary
 
@@ -50,7 +50,7 @@ No new panel, settings switch, provider route, automatic commit or knowledge sto
 
 ## Validation and remaining acceptance
 
-TypeScript type-check and diff checks passed. Native `swift build --build-system native -c release --product AtomIsland` passed initially in 68.22 seconds and again in 46.44 seconds after the final task-selection guard, with existing warnings in IslandSettings.swift/main.swift and the build-system deprecation notice. No unit/Swift test suites, model calls, app installation/restart, live acceptance, commit or push were performed for this slice.
+TypeScript type-check and diff checks passed. Native `swift build --build-system native -c release --product ArkIsland` passed initially in 68.22 seconds and again in 46.44 seconds after the final task-selection guard, with existing warnings in IslandSettings.swift/main.swift and the build-system deprecation notice. No unit/Swift test suites, model calls, app installation/restart, live acceptance, commit or push were performed for this slice.
 
 At the agreed end-of-adaptation verification stage, use isolated fictional data to exercise:
 

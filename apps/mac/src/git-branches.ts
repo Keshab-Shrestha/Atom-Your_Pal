@@ -1,5 +1,5 @@
-// ADR-091: the branches ATOM made for workers' tasks (`atom/task-<id>` or, from before ADR-105, `zeno/task-<id>`; Task 3.11), shown like a pull request: their
-// commits, changed files and whether they are on the remote. Keshab pushes one by clicking and confirming in the ATOM
+// ADR-091: the branches ARK made for workers' tasks (`ark/task-<id>` or, from before ADR-105, `ark/task-<id>`; Task 3.11), shown like a pull request: their
+// commits, changed files and whether they are on the remote. Keshab pushes one by clicking and confirming in the ARK
 // window: only such a branch, only to the repository's own `origin`, never forced, no hooks, no password prompts.
 // Workers and models never push.
 
@@ -33,7 +33,7 @@ export interface BranchFile {
   removed: number | null;
 }
 
-export interface ZenoBranch {
+export interface ArkBranch {
   repo: string;
   repoName: string;
   branch: string;
@@ -87,7 +87,7 @@ async function comparison(repo: string, branch: string, worktrees?: string) {
   if (!saved) {
     ref = await git(repo, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD").catch(() => "");
     if (!ref) ref = await git(repo, "symbolic-ref", "--quiet", "HEAD").catch(() => "");
-    if (!ref || /^refs\/heads\/(?:atom|zeno)\/task-\d+$/.test(ref)) throw new Error("No saved starting point. Check out the intended base branch to estimate a comparison.");
+    if (!ref || /^refs\/heads\/(?:ark|atom|zeno)\/task-\d+$/.test(ref)) throw new Error("No saved starting point. Check out the intended base branch to estimate a comparison.");
   }
   const candidate = await git(repo, "rev-parse", "--verify", `${saved?.sha ?? ref}^{commit}`);
   const head = await git(repo, "rev-parse", "--verify", `refs/heads/${branch}^{commit}`);
@@ -98,14 +98,14 @@ async function comparison(repo: string, branch: string, worktrees?: string) {
   return { sha, head, base: ref?.replace(/^refs\/(heads|remotes)\//, "") ?? "detached HEAD", baseSource: saved ? "saved" as const : "estimated" as const, ...(behind !== undefined ? { behind } : {}) };
 }
 
-/** Every `atom/task-<id>` and `zeno/task-<id>` branch in a repository, newest task first. */
-export async function zenoBranches(repo: string, worktrees?: string): Promise<ZenoBranch[]> {
+/** Every `ark/task-<id>` and `ark/task-<id>` branch in a repository, newest task first. */
+export async function arkBranches(repo: string, worktrees?: string): Promise<ArkBranch[]> {
   const names = (await git(repo, "for-each-ref", "--format=%(refname:short)", ...BRANCH_REF_FOLDERS)).split("\n").filter((b) => BRANCH_PATTERN.test(b));
   if (!names.length) return [];
   const remote = await git(repo, "remote", "get-url", "origin").catch(() => undefined);
   const repoName = repo.split("/").at(-1) ?? repo;
   const branches = await Promise.all(
-    names.map(async (branch): Promise<ZenoBranch> => {
+    names.map(async (branch): Promise<ArkBranch> => {
       let point: Awaited<ReturnType<typeof comparison>> | undefined;
       let baseWarning: string | undefined;
       try { point = await comparison(repo, branch, worktrees); }
@@ -151,7 +151,7 @@ export async function zenoBranches(repo: string, worktrees?: string): Promise<Ze
 
 /** The branch's changes since its base, as a patch, cut at `limit` characters. */
 export async function branchDiff(repo: string, branch: string, limit = 200_000, worktrees?: string): Promise<{ text: string; truncated: boolean }> {
-  if (!BRANCH_PATTERN.test(branch)) throw new Error("Only ATOM's task branches can be shown.");
+  if (!BRANCH_PATTERN.test(branch)) throw new Error("Only ARK's task branches can be shown.");
   const point = await comparison(repo, branch, worktrees);
   const tree = await taskWorkingCopy(repo, branch, worktrees);
   const patch = tree ? await workingCopyDiff(tree, point.sha) : (await run("git", ["-C", repo, "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "diff", "--no-color", "--no-ext-diff", "--no-textconv", `${point.sha}..${point.head}`], { timeout: 30_000, maxBuffer: 20 * 1024 * 1024, env: environment() })).stdout;
@@ -162,11 +162,16 @@ export async function branchDiff(repo: string, branch: string, limit = 200_000, 
 }
 
 /**
- * Pushes one of ATOM's task branches to the repository's `origin`, as Keshab asked. Throws, with words for him, for
+ * Pushes one of ARK's task branches to the repository's `origin`, as Keshab asked. Throws, with words for him, for
  * any other branch, a repository with no `origin`, or a push git refuses (it is never forced).
  */
+/** The branch a folder (a task's worktree) has checked out. */
+export async function currentBranch(dir: string): Promise<string> {
+  return git(dir, "rev-parse", "--abbrev-ref", "HEAD");
+}
+
 export async function pushBranch(repo: string, branch: string): Promise<void> {
-  if (!BRANCH_PATTERN.test(branch)) throw new Error("Only ATOM's task branches can be pushed from here.");
+  if (!BRANCH_PATTERN.test(branch)) throw new Error("Only ARK's task branches can be pushed from here.");
   await git(repo, "rev-parse", "--verify", "--quiet", `refs/heads/${branch}`).catch(() => {
     throw new Error(`There is no branch ${branch} in ${repo}.`);
   });

@@ -8,7 +8,7 @@ export const OMH_SKILLS_ROOT = fileURLToPath(new URL("../../../assets/skills/omh
 const safePath = (value: unknown): value is string => typeof value === "string" && value.length <= 240
   && !isAbsolute(value) && value.split("/").every((part) => /^[a-zA-Z0-9._-]+$/.test(part) && part !== "." && part !== "..");
 
-/** Seed ATOM-owned copies once. Never synchronize over edits, remove skills or write Claude's global directory. */
+/** Seed ARK-owned copies once. Never synchronize over edits, remove skills or write Claude's global directory. */
 export function installBundledSkills(destination: string, source = OMH_SKILLS_ROOT): { installed: number; retained: number } {
   const catalog = JSON.parse(readFileSync(join(source, "catalog.json"), "utf8"));
   if (catalog?.schema !== "atom.bundled-skills/v1" || !Array.isArray(catalog.skills) || catalog.skills.length > 500) throw new Error("Invalid bundled skill catalog.");
@@ -23,7 +23,7 @@ export function installBundledSkills(destination: string, source = OMH_SKILLS_RO
       paths.add(file.path);
     }
   }
-  if (existsSync(destination) && (!lstatSync(destination).isDirectory() || lstatSync(destination).isSymbolicLink())) throw new Error("ATOM's skills destination must be a normal directory.");
+  if (existsSync(destination) && (!lstatSync(destination).isDirectory() || lstatSync(destination).isSymbolicLink())) throw new Error("ARK's skills destination must be a normal directory.");
   mkdirSync(destination, { recursive: true, mode: 0o700 });
   const root = realpathSync(source);
   let installed = 0, retained = 0;

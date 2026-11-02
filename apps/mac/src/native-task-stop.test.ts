@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { mkdtempSync, realpathSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { openHelperStore } from "@atom/helpers";
-import { openMemoryStore } from "@atom/memory";
+import { openHelperStore } from "@ark/helpers";
+import { openMemoryStore } from "@ark/memory";
 import { nativeGate, type NativeGate } from "./native-safety.ts";
 import { boardRecorder } from "./native-board.ts";
 import { createComputerBridge } from "./computer-bridge.ts";
@@ -18,7 +18,7 @@ const pre = async (gate: NativeGate, agent: string, file: string, id: string) =>
 };
 
 test("Stop between an approval answer and policy continuation cannot persist its continuing grant", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-stop-grant-race-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-stop-grant-race-")));
   const memory = openMemoryStore({ path: ":memory:" });
   const permissions = memory.filePermissions.forChat("chat");
   let stopped = false, checkpoints = 0;
@@ -34,7 +34,7 @@ test("Stop between an approval answer and policy continuation cannot persist its
 });
 
 test("Stop closes only that task's file card, rejects late approval, and leaves another task's approval working", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-task-stop-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-task-stop-")));
   const helpers = openHelperStore({ path: ":memory:", home });
   const memory = openMemoryStore({ path: ":memory:" });
   const bridge = createComputerBridge(); bridge.attach(() => {});
@@ -71,7 +71,7 @@ test("Stop closes only that task's file card, rejects late approval, and leaves 
 });
 
 test("a late approval adapter that ignores cancellation cannot create a grant or allow a write", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-late-approval-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-late-approval-")));
   const helpers = openHelperStore({ path: ":memory:", home });
   const memory = openMemoryStore({ path: ":memory:" });
   const board = boardRecorder(helpers, "chat");

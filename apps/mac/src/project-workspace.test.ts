@@ -4,12 +4,12 @@ import { randomUUID } from "node:crypto";
 import { existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, readdirSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openHelperStore } from "@atom/helpers";
+import { openHelperStore } from "@ark/helpers";
 import { createProjectWorkspace, type WorkspaceRequest } from "./project-workspace.ts";
 import { parseCommand } from "./island-protocol.ts";
 
 function fixture() {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-workspace-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-workspace-")));
   const root = join(home, "プロジェクト🌲"); mkdirSync(root);
   const storePath = join(home, "helpers.db"), cp = join(home, "copies");
   let store = openHelperStore({ path: storePath, home, checkpointsDir: cp });

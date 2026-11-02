@@ -1,8 +1,8 @@
-import type { HelperStore } from "@atom/helpers";
-import type { Tool } from "@atom/tool-engine";
+import type { HelperStore } from "@ark/helpers";
+import type { Tool } from "@ark/tool-engine";
 
 /**
- * ATOM tools for the main agent that reach into what ATOM already keeps (docs/v2-plan.md items 1 and 2):
+ * ARK tools for the main agent that reach into what ARK already keeps (docs/v2-plan.md items 1 and 2):
  * `search_chats` finds past chats, `propose_skill` suggests a skill from a finished task. Logs counts and ids only.
  */
 
@@ -70,21 +70,21 @@ export function createProposeSkillTool(options: {
       if (!Number.isInteger(job)) throw new Error("No finished task to make a skill from. Give job: the task's number.");
       const draft = options.store.proposeSkill(job, { name: String(input.name ?? ""), description: String(input.description ?? ""), body: String(input.body ?? "") });
       options.onProposed?.({ job, skill: draft.name });
-      return `Skill "${draft.name}" is proposed. The user approves or rejects it in the ATOM window.`;
+      return `Skill "${draft.name}" is proposed. The user approves or rejects it in the ARK window.`;
     },
   };
 }
 
 /**
- * 2026-10-16: the user said in a chat that one of ATOM's skills did not work well (a skill used with `/name` has no task, so Tinker's task-based edit cannot
- * run). The main agent writes the improved steps itself; the user still accepts or rejects them in the ATOM window, and Undo works.
+ * 2026-10-16: the user said in a chat that one of ARK's skills did not work well (a skill used with `/name` has no task, so Tinker's task-based edit cannot
+ * run). The main agent writes the improved steps itself; the user still accepts or rejects them in the ARK window, and Undo works.
  */
 export function createImproveSkillTool(options: { store: Pick<HelperStore, "proposeSkillEdit">; onProposed?(event: { skill: string }): void }): Tool {
   return {
     spec: {
       name: "improve_skill",
       description:
-        "Only when the user says that one of ATOM's own skills did not work well or should change: propose an improved version. skill: the skill's name. " +
+        "Only when the user says that one of ARK's own skills did not work well or should change: propose an improved version. skill: the skill's name. " +
         "reason: one or two sentences on what went wrong and what the change fixes. body: the complete new steps in plain Markdown (not a diff), general enough " +
         "to reuse, with no personal data. The user accepts or rejects it; nothing changes before that. Never use it on your own idea.",
       inputSchema: {
@@ -101,7 +101,7 @@ export function createImproveSkillTool(options: { store: Pick<HelperStore, "prop
       const skill = String(input.skill ?? "").trim();
       const edit = options.store.proposeSkillEdit(skill, { body: String(input.body ?? ""), reason: String(input.reason ?? "") });
       options.onProposed?.({ skill });
-      return `An edit to "${skill}" is proposed (#${edit.id}). The user accepts or rejects it in the ATOM window.`;
+      return `An edit to "${skill}" is proposed (#${edit.id}). The user accepts or rejects it in the ARK window.`;
     },
   };
 }

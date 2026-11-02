@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { openHelperStore } from "@atom/helpers";
+import { openHelperStore } from "@ark/helpers";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -45,8 +45,8 @@ test("propose_skill makes a pending draft from a finished task only", async () =
 });
 
 // 2026-10-16: the main agent does not see task numbers, so propose_skill without `job` takes the task that finished last; improve_skill proposes an edit.
-test("propose_skill without a job takes the latest finished task; improve_skill proposes an edit to one of ATOM's own skills only", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-reach-skills-"));
+test("propose_skill without a job takes the latest finished task; improve_skill proposes an edit to one of ARK's own skills only", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "ark-reach-skills-"));
   const skillsDir = join(dir, "skills");
   mkdirSync(join(skillsDir, "greeting"), { recursive: true });
   writeFileSync(join(skillsDir, "greeting", "SKILL.md"), '---\nname: greeting\ndescription: "Say hello."\n---\n\nSay hello.\n');
@@ -64,7 +64,7 @@ test("propose_skill without a job takes the latest finished task; improve_skill 
   assert.match(String(await improve.run({ skill: "greeting", reason: "It must say who it is for.", body: "Say hello, and name the person." })), /edit to "greeting" is proposed/);
   assert.deepEqual(seen, ["greeting"]);
   assert.equal(store.skillEdits()[0]!.jobId, 0);
-  await assert.rejects(async () => improve.run({ skill: "not-a-skill", reason: "x", body: "y" }), /Only ATOM's own skills/);
+  await assert.rejects(async () => improve.run({ skill: "not-a-skill", reason: "x", body: "y" }), /Only ARK's own skills/);
   store.close();
   rmSync(dir, { recursive: true, force: true });
 });

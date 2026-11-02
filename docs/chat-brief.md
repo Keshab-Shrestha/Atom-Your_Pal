@@ -1,6 +1,6 @@
 # Chat brief
 
-Open a saved writable chat, open **Chat options → Chat brief**, and keep the project, decisions or next step you want ATOM to have on every request. Click **Save for this chat**. A new chat needs a saved exchange before its brief is available. The editor is unavailable while a request is active.
+Open a saved writable chat, open **Chat options → Chat brief**, and keep the project, decisions or next step you want ARK to have on every request. Click **Save for this chat**. A new chat needs a saved exchange before its brief is available. The editor is unavailable while a request is active.
 
 For example:
 

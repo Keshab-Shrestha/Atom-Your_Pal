@@ -31,7 +31,7 @@ export function fakeCodex(script: (turn: FakeCodexTurn) => Promise<string> | str
         if (message.method === "mcpServerStatus/list") reply(message.id, { data: (options.servers ?? []).map((name) => ({ name })), nextCursor: null });
         if (message.method === "thread/start") {
           start = message.params;
-          reply(message.id, { thread: { id: threadId }, model: "gpt-test", activePermissionProfile: { id: options.profile ?? "atom_host_tools" } });
+          reply(message.id, { thread: { id: threadId }, model: "gpt-test", activePermissionProfile: { id: options.profile ?? "ark_host_tools" } });
         }
         if (message.method === "turn/start") {
           const turnId = `turn-${++turn}`;

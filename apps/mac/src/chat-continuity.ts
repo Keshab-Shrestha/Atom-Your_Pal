@@ -1,5 +1,5 @@
-import type { Message } from "@atom/contracts";
-import { continuityHash, continuityItems, looksSecret, type ContinuityState, type MemoryStore } from "@atom/memory";
+import type { Message } from "@ark/contracts";
+import { continuityHash, continuityItems, looksSecret, type ContinuityState, type MemoryStore } from "@ark/memory";
 import { chatContext } from "./chat-history.ts";
 import type { ReplyProfile } from "./reply-drafts.ts";
 import { cleanEditReply } from "./text-edit.ts";

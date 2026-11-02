@@ -1,11 +1,11 @@
-import type { ZenoInput } from "@atom/contracts";
+import type { ArkInput } from "@ark/contracts";
 import { peakLevel, type AudioClip, type AudioError, type Recording } from "./audio.ts";
 import type { SpeechToText } from "./stt.ts";
 import type { SpeakHooks, TextToSpeech } from "./tts.ts";
 
-/** The parts of ATOM Core the voice loop uses. */
+/** The parts of ARK Core the voice loop uses. */
 export interface CoreLike {
-  handle(input: ZenoInput, signal?: AbortSignal, hooks?: { onText?: (delta: string) => void }): Promise<{ text: string; requestId?: string }>;
+  handle(input: ArkInput, signal?: AbortSignal, hooks?: { onText?: (delta: string) => void }): Promise<{ text: string; requestId?: string }>;
 }
 
 export type LoopState = "idle" | "listening" | "transcribing" | "thinking" | "speaking";
@@ -74,13 +74,13 @@ export interface VoiceLoop {
    */
   press(): void;
   /** A typed request: answered and spoken like a voice turn, without the microphone. */
-  ask(text: string, delivery?: Pick<ZenoInput, "deliveryId" | "deliveryChat">): void;
+  ask(text: string, delivery?: Pick<ArkInput, "deliveryId" | "deliveryChat">): void;
   /** Abandons the current turn (recording, request or speech) and returns to idle. */
   cancel(): void;
 }
 
 /**
- * Connects Microphone → Whisper → ATOM Core → (LLM Gateway → remote LLM) → TTS → speaker.
+ * Connects Microphone → Whisper → ARK Core → (LLM Gateway → remote LLM) → TTS → speaker.
  * One turn at a time; every turn can be interrupted at any stage.
  */
 export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
@@ -200,7 +200,7 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
     signal: AbortSignal,
     heard: { speechMs: number; transcription: number },
     onStage: (stage: LoopStage) => void,
-    delivery?: Pick<ZenoInput, "deliveryId" | "deliveryChat">,
+    delivery?: Pick<ArkInput, "deliveryId" | "deliveryChat">,
   ) {
     setState("thinking");
     const started = now();
@@ -258,7 +258,7 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
     }
   }
 
-  async function typed(text: string, delivery?: Pick<ZenoInput, "deliveryId" | "deliveryChat">) {
+  async function typed(text: string, delivery?: Pick<ArkInput, "deliveryId" | "deliveryChat">) {
     const controller = new AbortController();
     turn = controller;
     const { signal } = controller;
@@ -280,10 +280,10 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
     get state() {
       return state;
     },
-    ask(text: string, delivery?: Pick<ZenoInput, "deliveryId" | "deliveryChat">) {
+    ask(text: string, delivery?: Pick<ArkInput, "deliveryId" | "deliveryChat">) {
       const clean = text.trim();
       if (!clean) return;
-      abandonTurn(); // typing over ATOM, like talking over it, starts a new turn
+      abandonTurn(); // typing over ARK, like talking over it, starts a new turn
       void typed(clean, delivery);
     },
     press() {
@@ -294,7 +294,7 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
         void answer(current, micReady);
         return;
       }
-      // Idle, or interrupting a turn in progress: talking over ATOM starts a new turn.
+      // Idle, or interrupting a turn in progress: talking over ARK starts a new turn.
       abandonTurn();
       startListening();
     },

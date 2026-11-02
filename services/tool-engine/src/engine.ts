@@ -1,4 +1,4 @@
-import type { ToolCall, ToolImage, ToolResult, ToolRunner, ToolSpec } from "@atom/contracts";
+import type { ToolCall, ToolImage, ToolResult, ToolRunner, ToolSpec } from "@ark/contracts";
 
 /** One line of the island's "What can I ask?" page (ADR-076): a plain title and phrases that really work. */
 export interface Capability {
@@ -12,7 +12,7 @@ export interface ToolOutput {
   images?: ToolImage[];
 }
 
-/** A capability ATOM can run for the model. `run` returns words (or `ToolOutput`: words and images) for the model, or throws to report failure. */
+/** A capability ARK can run for the model. `run` returns words (or `ToolOutput`: words and images) for the model, or throws to report failure. */
 export interface Tool<Out extends string | ToolOutput = string> {
   spec: ToolSpec;
   /** What the user can ask for with this tool. Every user-facing tool has one (the tool engine's tests check). */

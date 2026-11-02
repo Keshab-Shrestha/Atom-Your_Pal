@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
-import { createCuaTransport, cuaEnvironment, type CuaTiming } from "./cua-client.ts";
+import { CUA_SESSION_LABEL, createCuaTransport, cuaEnvironment, type CuaTiming } from "./cua-client.ts";
 
 const fixture = fileURLToPath(new URL("./fake-cua.fixture.mjs", import.meta.url));
 const make = (extra: Parameters<typeof createCuaTransport>[0] = {}) =>
@@ -201,7 +201,8 @@ test("readiness uses only initialize and tools/list, reuses the helper, and reco
     assert.equal(cua.generation, generation);
     const audit = (await cua.call("requests", {})).data;
     assert.deepEqual(audit.calls, ["requests"], "the probe never calls a desktop tool");
-    assert.deepEqual(audit.methods, ["initialize", "notifications/initialized", "tools/list", "tools/list", "tools/list", "tools/list", "tools/call"]);
+    // Two pages at connect (which tools take a session), then two per probe.
+    assert.deepEqual(audit.methods, ["initialize", "notifications/initialized", "tools/list", "tools/list", "tools/list", "tools/list", "tools/list", "tools/list", "tools/call"]);
     assert.deepEqual(timings.map((timing) => timing.stage), ["initialize", "probe", "probe", "call"]);
     assert.ok(timings.every((timing) => timing.ok && Number.isFinite(timing.durationMs)));
     assert.ok(timings.every((timing) => Object.keys(timing).every((key) => ["stage", "durationMs", "ok", "tool"].includes(key))));
@@ -277,4 +278,22 @@ test("already-cancelled readiness never starts a driver", async () => {
     await assert.rejects(cua.probe!(ac.signal), /Cancelled/);
     assert.equal(cua.generation, 0);
   } finally { await cua.close(); }
+});
+
+// 2026-11-02: Keshab saw a second, swinging pointer: the driver's own agent cursor. ARK switches it off for its session on connect.
+test("on connect ARK hides the driver's own cursor for its session and sends its session label to tools that take one", async () => {
+  const cua = make({ env: { ...process.env, CUA_FIXTURE_SESSION: "1" } });
+  try {
+    const echoed = await cua.call("echo", { text: "hi" });
+    assert.equal(echoed.data.args.session, CUA_SESSION_LABEL, "a tool that takes a session gets ARK's");
+    assert.equal((await cua.call("echo", { text: "hi", session: "other" })).data.args.session, "other", "an explicit session is kept");
+    const audit = (await cua.call("requests", {})).data;
+    assert.deepEqual(audit.calls.slice(0, 3), ["set_agent_cursor_enabled", JSON.stringify({ session: CUA_SESSION_LABEL, enabled: false }), "echo"], "the cursor is hidden before the first action");
+    assert.equal(audit.calls.filter((c: string) => c === "set_agent_cursor_enabled").length, 1, "once per connection");
+  } finally { await cua.close(); }
+  const plain = make();
+  try {
+    assert.equal((await plain.call("echo", { text: "hi" })).data.args.session, undefined, "a driver without sessions gets none");
+    assert.ok(!(await plain.call("requests", {})).data.calls.includes("set_agent_cursor_enabled"));
+  } finally { await plain.close(); }
 });

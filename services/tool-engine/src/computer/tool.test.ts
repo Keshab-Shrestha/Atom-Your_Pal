@@ -89,7 +89,7 @@ test("the tool exposes one `computer` spec with an action enum", () => {
   assert.deepEqual(tool.spec.inputSchema.required, ["action"]);
 });
 
-test("list_apps shows apps but hides ones ATOM may not control", async () => {
+test("list_apps shows apps but hides ones ARK may not control", async () => {
   const s = setup();
   const r = await s.run({ action: "list_apps" });
   assert.equal(r.ok, true);
@@ -856,7 +856,7 @@ test("status reports driver permissions read-only, never prompts, and names whos
   assert.match(r.text, /Accessibility: granted/);
   assert.match(r.text, /Screen Recording: missing/);
   assert.match(r.text, /com\.trycua\.driver/);
-  assert.match(r.text, /ATOM did not change any permission/);
+  assert.match(r.text, /ARK did not change any permission/);
   assert.deepEqual(s.asked, []);
 });
 
@@ -1008,6 +1008,42 @@ test("uncertain input returns a fresh observation without replaying the action",
   assert.equal(s.calls.filter((c) => c.name === "type_text").length, 1);
   assert.equal(s.calls.filter((c) => c.name === "get_window_state").length, 2);
   assert.equal(s.calls.filter((c) => c.name === "list_windows").length, 1);
+});
+
+// Token and speed (2026-10-31): a look carries the window image and the intro; a read after a confirmed action carries neither.
+const withBounds = (a: any) => {
+  const images = [{ mimeType: "image/png" as const, data: "iVBORw0KGgo=" }];
+  const state = ok("state", { pid: a.pid, window_id: a.window_id, app_name: "TextEdit", elements, ...(a.include_screenshot ? { window_bounds: { x: 0, y: 0, width: 800, height: 600 } } : {}) });
+  return a.include_screenshot ? { ...state, images } : state;
+};
+const stateCalls = (s: ReturnType<typeof setup>) => s.calls.filter((c) => c.name === "get_window_state").map((c) => c.args);
+
+test("look_after after a confirmed action reads the elements only, without the image or the intro", async () => {
+  const s = setup({ handlers: { get_window_state: withBounds } });
+  const looked = await s.tool.run({ action: "look", app: "TextEdit" });
+  assert.ok(typeof looked === "object" && looked.images?.length === 1);
+  assert.match(looked.text, /Current computer actions include/);
+  assert.match(looked.text, /Fast decision provider/);
+  const after = await s.tool.run({ action: "click", element: 2, look_after: true });
+  assert.equal(typeof after, "string", "no image comes with it");
+  assert.match(after as string, /\[1\] AXTextArea/);
+  assert.match(after as string, /No window image with this read/);
+  assert.doesNotMatch(after as string, /Current computer actions include|Fast decision provider/);
+  assert.match(after as string, /Window bounds in global screen points/, "the bounds of the look before are kept");
+  const [first, second] = stateCalls(s);
+  assert.deepEqual([first!.include_screenshot, first!.max_dimension], [true, 1280]);
+  assert.deepEqual([second!.include_screenshot, second!.max_dimension], [false, undefined]);
+  assert.equal((await s.run({ action: "click", element: 2 })).ok, true, "the new read's numbers are live");
+});
+
+test("look_after after an uncertain action keeps the image but not the intro", async () => {
+  const s = setup({ handlers: { get_window_state: withBounds, click: () => ok("clicked", { effect: "unverifiable" }) } });
+  await s.tool.run({ action: "look", app: "TextEdit" });
+  const after = await s.tool.run({ action: "click", element: 2 });
+  assert.ok(typeof after === "object" && after.images?.length === 1);
+  assert.match(after.text, /Complete window image attached/);
+  assert.doesNotMatch(after.text, /Current computer actions include/);
+  assert.equal(stateCalls(s)[1]!.include_screenshot, true);
 });
 
 test("confirmed input does not add an unrequested post-action read", async () => {

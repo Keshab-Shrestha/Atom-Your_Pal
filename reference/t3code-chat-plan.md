@@ -1,20 +1,20 @@
 # Chat plan: what to copy from T3 Code
 
-> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ATOM status. Detailed observations below retain the earlier snapshot unless updated explicitly.
+> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ARK status. Detailed observations below retain the earlier snapshot unless updated explicitly.
 
 This plan joins two files: `t3code-chat-timeline-and-messages.md` (how T3 Code draws and copies messages) and `t3code-composer-and-controls.md` (the chat box).
-It answers one complaint: ATOM's chat feels like plain text, and a table is hard to copy.
+It answers one complaint: ARK's chat feels like plain text, and a table is hard to copy.
 
 ## Why the chat feels like plain text
 
-- ATOM draws a Markdown reply as separate SwiftUI blocks (`MarkdownReply.swift`). SwiftUI lets you select text inside one `Text` only.
+- ARK draws a Markdown reply as separate SwiftUI blocks (`MarkdownReply.swift`). SwiftUI lets you select text inside one `Text` only.
 - A table is a grid of many small `Text` pieces. You cannot select it with the mouse as one thing.
 - The only copy action is one button for the whole reply (`TurnView.copy`). It does put a real HTML table on the clipboard, but you cannot copy one table or one code block alone.
 - The Copy button appears on hover only. It does not exist for the keyboard or VoiceOver.
 - The parser knows paragraphs, headings, flat lists, code and tables. A quote, a rule, a nested list and the code language fall back to plain paragraphs.
 - The scroll jumps to the newest turn every time. Long user messages fill the screen.
 
-T3 Code web is a web page, so selection and copy come from the browser. T3 Code mobile has the same limit as ATOM. It draws prose as selectable segments and tables as separate blocks, and it adds copy buttons.
+T3 Code web is a web page, so selection and copy come from the browser. T3 Code mobile has the same limit as ARK. It draws prose as selectable segments and tables as separate blocks, and it adds copy buttons.
 
 ## Technical choice for selection and copy
 
@@ -24,7 +24,7 @@ T3 Code web is a web page, so selection and copy come from the browser. T3 Code 
 | (b) One `NSTextView` per run of prose, code and tables stay as blocks | Spike later. This is T3 mobile's model. Needs a Mac build |
 | (c) A `WKWebView` per message | Not now. Memory, a bridge and a new attack surface |
 
-Keep the Markdown-to-clipboard code in `AtomIslandCore`. All three options need it.
+Keep the Markdown-to-clipboard code in `ArkIslandCore`. All three options need it.
 
 ## Phases
 
@@ -36,7 +36,7 @@ Each item is its own task and ADR (CLAUDE.md section 3). Stop after each. Sizes:
 | --- | --- | --- | --- |
 | C1 | Copy button on each code block ("Copy code") and each table (menu: Markdown plus HTML, TSV, CSV). The icon shows a check for about a second | timeline idea 1 | S to M |
 | C2 | One copy menu on a reply (Markdown, plain text, rich text), a Copy button on the user's bubble, and a key for "Copy last reply" | timeline idea 2 | S to M |
-| C3 | Make Copy reachable by keyboard and VoiceOver: an accessibility action, the button kept in the layout, turns labelled "You said" and "ATOM said" | timeline idea 3 | S |
+| C3 | Make Copy reachable by keyboard and VoiceOver: an accessibility action, the button kept in the layout, turns labelled "You said" and "ARK said" | timeline idea 3 | S |
 | C4 | A fuller parser: block quote, horizontal rule, nested and task lists, code language shown as a small label | timeline idea 4 | M |
 | C5 | Collapse a long user message (over about 600 characters or 8 lines) with "Show full message" | timeline idea 6 | S |
 
@@ -49,7 +49,7 @@ Table copy rules to copy from T3 Code: escape `|` as `\|`, turn a line break in 
 | B1 | State-aware placeholder and send button: the tooltip says Return waits and Cmd+Return sends now, and a disabled control says why | composer idea 1 | S |
 | B2 | Strip hidden characters (zero-width, bidi, tag characters) from pasted text, with a notice | composer idea 3 | S |
 | B3 | Thumbnails and Quick Look on attached file chips. A pasted screenshot shows only a file name today | composer idea 2 | S to M |
-| B4 | Save drafts to disk. Today a draft is lost when ATOM quits (ADR-125) | composer idea 4 | S |
+| B4 | Save drafts to disk. Today a draft is lost when ARK quits (ADR-125) | composer idea 4 | S |
 | B5 | A list of waiting messages with Edit, Send now and Remove. ADR-127 joins them into one message today | composer idea 5 | M |
 | B6 | Long paste (4000 characters or more) becomes a file attachment | sessions idea 8 in the ideas file | S |
 
@@ -72,7 +72,7 @@ Table copy rules to copy from T3 Code: escape `|` as `\|`, turn a line break in 
 ### Later (needs the runtime)
 
 - "Worked for N s" and a folded work log of tool calls. The chat model carries only text and timings today. It needs a new protocol event and an ADR.
-- A question card where the model asks the user something; a read-only "Access" pill; `atom://` prompt links.
+- A question card where the model asks the user something; a read-only "Access" pill; `ark://` prompt links.
 
 ## Suggested start
 

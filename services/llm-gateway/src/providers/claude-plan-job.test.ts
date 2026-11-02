@@ -61,7 +61,7 @@ test("Tinker drafts a skill and proposes skill edits with no tools, in their own
   });
   assert.deepEqual(await runSkillEdit({ ...base, sdk: two.sdk }), { edit });
   assert.deepEqual(two.seen[0]!.options.outputFormat.schema.required, ["change", "body", "reason"]);
-  assert.match(two.seen[0]!.options.systemPrompt, /improves one of ATOM's skills/);
+  assert.match(two.seen[0]!.options.systemPrompt, /improves one of ARK's skills/);
 });
 
 test("Tinker's review uses no tools and returns one proposed change (Task 3.13)", async () => {

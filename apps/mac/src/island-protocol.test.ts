@@ -141,8 +141,8 @@ test("rejects context.window without both strings, or with overlong ones", () =>
 test("encodes context.ready, with a message when refused", () => {
   assert.equal(encodeEvent({ type: "context.ready", app: "Brave Browser", ok: true }), '{"type":"context.ready","app":"Brave Browser","ok":true}\n');
   assert.equal(
-    encodeEvent({ type: "context.ready", app: "Terminal", ok: false, message: "ATOM doesn't read Terminal." }),
-    '{"type":"context.ready","app":"Terminal","ok":false,"message":"ATOM doesn\'t read Terminal."}\n',
+    encodeEvent({ type: "context.ready", app: "Terminal", ok: false, message: "ARK doesn't read Terminal." }),
+    '{"type":"context.ready","app":"Terminal","ok":false,"message":"ARK doesn\'t read Terminal."}\n',
   );
 });
 
@@ -224,10 +224,10 @@ test("parses the helper commands", () => {
     { type: "speech.set", reports: false, updates: true },
     { type: "git.list" },
     { type: "tools.scan" },
-    { type: "git.push", repo: "/Users/me/site", branch: "zeno/task-7" },
-    { type: "git.diff", repo: "/Users/me/site", branch: "zeno/task-7" },
-    { type: "git.push", repo: "/Users/me/site", branch: "atom/task-8" },
-    { type: "git.diff", repo: "/Users/me/site", branch: "atom/task-8" },
+    { type: "git.push", repo: "/Users/me/site", branch: "ark/task-7" },
+    { type: "git.diff", repo: "/Users/me/site", branch: "ark/task-7" },
+    { type: "git.push", repo: "/Users/me/site", branch: "ark/task-8" },
+    { type: "git.diff", repo: "/Users/me/site", branch: "ark/task-8" },
     { type: "chats.list" },
     { type: "chat.open", id: "4f1c-aa" },
     { type: "chat.delete", id: "4f1c-aa" },
@@ -306,13 +306,13 @@ test("helper commands with missing or wrong fields are protocol errors", () => {
   }
 });
 
-test("git.push and git.diff take only a full path and a ATOM task branch; chats take an id (ADR-091)", () => {
+test("git.push and git.diff take only a full path and a ARK task branch; chats take an id (ADR-091)", () => {
   const cases: [object, RegExp][] = [
-    [{ type: "git.push", repo: "/r", branch: "main" }, /atom\/task-<id>/],
-    [{ type: "git.push", repo: "/r", branch: "zeno/task-7; rm -rf /" }, /atom\/task-<id>/],
-    [{ type: "git.push", repo: "/r", branch: "atom/task-7; rm -rf /" }, /atom\/task-<id>/],
-    [{ type: "git.push", repo: "relative/path", branch: "zeno/task-7" }, /full path/],
-    [{ type: "git.diff", branch: "zeno/task-7" }, /full path/],
+    [{ type: "git.push", repo: "/r", branch: "main" }, /ark\/task-<id>/],
+    [{ type: "git.push", repo: "/r", branch: "ark/task-7; rm -rf /" }, /ark\/task-<id>/],
+    [{ type: "git.push", repo: "/r", branch: "ark/task-7; rm -rf /" }, /ark\/task-<id>/],
+    [{ type: "git.push", repo: "relative/path", branch: "ark/task-7" }, /full path/],
+    [{ type: "git.diff", branch: "ark/task-7" }, /full path/],
     [{ type: "chat.open", id: "../x" }, /chat's "id"/],
     [{ type: "chat.delete" }, /chat's "id"/],
   ];

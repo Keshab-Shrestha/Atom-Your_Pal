@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import type { ModelRequest, ToolCall, ToolResult, ToolRunner, ToolSpec } from "@atom/contracts";
-import { instructionsFor } from "@atom/helpers";
-import { createCodexSessionAdapter, createGateway, redact } from "@atom/llm-gateway";
+import type { ModelRequest, ToolCall, ToolResult, ToolRunner, ToolSpec } from "@ark/contracts";
+import { instructionsFor } from "@ark/helpers";
+import { createCodexSessionAdapter, createGateway, redact } from "@ark/llm-gateway";
 import type { CodexToolRouterOptions } from "./codex-tools.ts";
 import type { NativeTeamDeps } from "./native-core.ts";
 import type { NativeGate } from "./native-safety.ts";

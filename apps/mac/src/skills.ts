@@ -1,21 +1,21 @@
-// ADR-082, Task 3.12: skills from ~/.claude/skills for a worker. Only the ones Keshab chose for it are loaded: ATOM
+// ADR-082, Task 3.12: skills from ~/.claude/skills for a worker. Only the ones Keshab chose for it are loaded: ARK
 // builds a small local plugin per worker linking just those, and the run loads that plugin and nothing else (no user
 // settings). Skill content is data for the task; it can never widen a worker's tools.
-// ADR-094: ATOM's own skills (data/skills/<name>/SKILL.md, approved by Keshab) can be chosen too. A name in both places
-// is Keshab's: ATOM's is used only when it does not clash.
+// ADR-094: ARK's own skills (data/skills/<name>/SKILL.md, approved by Keshab) can be chosen too. A name in both places
+// is Keshab's: ARK's is used only when it does not clash.
 
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, relative, sep } from "node:path";
 
-export const SKILLS_PLUGIN = "atom-skills";
+export const SKILLS_PLUGIN = "ark-skills";
 export const SKILL_NAME = /^[a-z0-9][a-z0-9._-]{0,63}$/i;
 
 export interface SkillInfo {
   name: string;
   description: string;
-  /** "yours": from ~/.claude/skills; "zeno": ATOM-owned, including bundled adaptations (ADR-094/209); "hub": installed from the skills hub (B3.5). */
-  source: "yours" | "zeno" | "hub";
+  /** "yours": from ~/.claude/skills; "ark": ARK-owned, including bundled adaptations (ADR-094/209); "hub": installed from the skills hub (B3.5). */
+  source: "yours" | "ark" | "hub";
 }
 
 export const userSkillsDir = () => join(homedir(), ".claude", "skills");
@@ -38,33 +38,33 @@ function skillNames(dir: string | undefined): string[] {
   return readdirSync(dir).filter((name) => SKILL_NAME.test(name) && existsSync(join(dir, name, "SKILL.md")));
 }
 
-/** Keshab's skills and ATOM's (those whose name is not one of his), sorted by name. Unreadable entries are left out. */
-export function listSkills(dir = userSkillsDir(), zenoDir?: string, hub: ReadonlySet<string> = new Set()): SkillInfo[] {
+/** Keshab's skills and ARK's (those whose name is not one of his), sorted by name. Unreadable entries are left out. */
+export function listSkills(dir = userSkillsDir(), arkDir?: string, hub: ReadonlySet<string> = new Set()): SkillInfo[] {
   const yours = skillNames(dir);
-  const zeno = skillNames(zenoDir).filter((name) => !yours.includes(name));
+  const ark = skillNames(arkDir).filter((name) => !yours.includes(name));
   return [
     ...yours.map((name) => ({ name, description: describe(join(dir, name, "SKILL.md")), source: "yours" as const })),
-    ...zeno.map((name) => ({ name, description: describe(join(zenoDir!, name, "SKILL.md")), source: hub.has(name) ? ("hub" as const) : ("zeno" as const) })),
+    ...ark.map((name) => ({ name, description: describe(join(arkDir!, name, "SKILL.md")), source: hub.has(name) ? ("hub" as const) : ("ark" as const) })),
   ].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**
  * The worker's plugin folder, rebuilt with links to exactly `names` (each one of Keshab's skills or, when he has none
- * of that name, ATOM's). Returns the folder and the names actually linked.
+ * of that name, ARK's). Returns the folder and the names actually linked.
  */
-export function prepareSkills(pluginDir: string, names: readonly string[], dir = userSkillsDir(), zenoDir?: string): { pluginDir: string; names: string[] } {
+export function prepareSkills(pluginDir: string, names: readonly string[], dir = userSkillsDir(), arkDir?: string): { pluginDir: string; names: string[] } {
   const skills = join(pluginDir, "skills");
   rmSync(skills, { recursive: true, force: true }); // only links live here: nothing of the skills themselves is removed
   mkdirSync(skills, { recursive: true });
   mkdirSync(join(pluginDir, ".claude-plugin"), { recursive: true });
   writeFileSync(
     join(pluginDir, ".claude-plugin", "plugin.json"),
-    JSON.stringify({ name: SKILLS_PLUGIN, version: "1.0.0", description: "The skills Keshab chose for this ATOM worker." }, null, 2),
+    JSON.stringify({ name: SKILLS_PLUGIN, version: "1.0.0", description: "The skills Keshab chose for this ARK worker." }, null, 2),
   );
   const linked: string[] = [];
   for (const name of names) {
     if (!SKILL_NAME.test(name)) continue;
-    const source = [dir, zenoDir].filter((d): d is string => Boolean(d)).map((d) => join(d, name)).find((d) => existsSync(join(d, "SKILL.md")));
+    const source = [dir, arkDir].filter((d): d is string => Boolean(d)).map((d) => join(d, name)).find((d) => existsSync(join(d, "SKILL.md")));
     if (!source) continue;
     symlinkSync(realpathSync(source), join(skills, name));
     linked.push(name);
@@ -78,10 +78,10 @@ export const SKILL_BODY_CHARS = 8000;
 export interface SkillPage { name: string; file: string; body: string; offset: number; totalChars: number; nextOffset?: number }
 
 /** Bounded pages of one skill and its local materials. This never executes supporting scripts. */
-export function readSkillPage(name: string, file = "SKILL.md", offset = 0, dir = userSkillsDir(), zenoDir?: string): SkillPage | undefined {
+export function readSkillPage(name: string, file = "SKILL.md", offset = 0, dir = userSkillsDir(), arkDir?: string): SkillPage | undefined {
   if (!SKILL_NAME.test(name) || !Number.isSafeInteger(offset) || offset < 0 || file.length > 240
     || isAbsolute(file) || !file.split("/").every((p) => /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(p))) return;
-  const folder = [dir, zenoDir].filter((d): d is string => Boolean(d)).map((d) => join(d, name)).find((d) => existsSync(join(d, "SKILL.md")));
+  const folder = [dir, arkDir].filter((d): d is string => Boolean(d)).map((d) => join(d, name)).find((d) => existsSync(join(d, "SKILL.md")));
   if (!folder) return;
   try {
     const root = realpathSync(folder), path = join(root, file), canonical = realpathSync(path);
@@ -99,10 +99,10 @@ export function readSkillPage(name: string, file = "SKILL.md", offset = 0, dir =
   } catch { return; }
 }
 
-/** A skill's steps (SKILL.md without its front matter), cut to length; Keshab's skill before ATOM's of the same name. Undefined when none. */
-export function readSkill(name: string, dir = userSkillsDir(), zenoDir?: string): { name: string; description: string; body: string } | undefined {
+/** A skill's steps (SKILL.md without its front matter), cut to length; Keshab's skill before ARK's of the same name. Undefined when none. */
+export function readSkill(name: string, dir = userSkillsDir(), arkDir?: string): { name: string; description: string; body: string } | undefined {
   if (!SKILL_NAME.test(name)) return undefined;
-  const folder = [dir, zenoDir].filter((d): d is string => Boolean(d)).map((d) => join(d, name)).find((d) => existsSync(join(d, "SKILL.md")));
+  const folder = [dir, arkDir].filter((d): d is string => Boolean(d)).map((d) => join(d, name)).find((d) => existsSync(join(d, "SKILL.md")));
   if (!folder) return undefined;
   try {
     const text = readFileSync(join(folder, "SKILL.md"), "utf8");
@@ -117,23 +117,23 @@ export function readSkill(name: string, dir = userSkillsDir(), zenoDir?: string)
 
 export interface SkillFile {
   name: string;
-  /** Where it lives: Keshab's own folder, or ATOM's (made by ATOM or from the hub). */
-  source: "yours" | "zeno";
+  /** Where it lives: Keshab's own folder, or ARK's (made by ARK or from the hub). */
+  source: "yours" | "ark";
   /** The whole SKILL.md, front matter and steps. */
   text: string;
 }
 
-const skillFolder = (name: string, dir: string, zenoDir?: string): { folder: string; source: SkillFile["source"] } | undefined => {
+const skillFolder = (name: string, dir: string, arkDir?: string): { folder: string; source: SkillFile["source"] } | undefined => {
   if (!SKILL_NAME.test(name)) return undefined;
-  for (const [d, source] of [[dir, "yours"], [zenoDir, "zeno"]] as const) {
+  for (const [d, source] of [[dir, "yours"], [arkDir, "ark"]] as const) {
     if (d && existsSync(join(d, name, "SKILL.md"))) return { folder: join(d, name), source };
   }
   return undefined;
 };
 
-/** One skill's whole SKILL.md for the editor (Keshab's before ATOM's of the same name). Undefined when there is none. */
-export function readSkillFile(name: string, dir = userSkillsDir(), zenoDir?: string): SkillFile | undefined {
-  const found = skillFolder(name, dir, zenoDir);
+/** One skill's whole SKILL.md for the editor (Keshab's before ARK's of the same name). Undefined when there is none. */
+export function readSkillFile(name: string, dir = userSkillsDir(), arkDir?: string): SkillFile | undefined {
+  const found = skillFolder(name, dir, arkDir);
   if (!found) return undefined;
   try {
     return { name, source: found.source, text: readFileSync(join(found.folder, "SKILL.md"), "utf8") };
@@ -147,8 +147,8 @@ export function readSkillFile(name: string, dir = userSkillsDir(), zenoDir?: str
  * that exists, never makes or removes one, and keeps the text it replaced in SKILL.md.bak (one backup, the newest).
  * Throws with words for the user.
  */
-export function writeSkillFile(name: string, text: string, dir = userSkillsDir(), zenoDir?: string): SkillFile {
-  const found = skillFolder(name, dir, zenoDir);
+export function writeSkillFile(name: string, text: string, dir = userSkillsDir(), arkDir?: string): SkillFile {
+  const found = skillFolder(name, dir, arkDir);
   if (!found) throw new Error(`There is no skill called "${name}".`);
   if (!text.trim()) throw new Error("A skill cannot be empty.");
   const file = join(found.folder, "SKILL.md");
@@ -167,9 +167,9 @@ export function parseSkillCall(text: string): { name: string; rest: string } | u
 }
 
 /** What a message that starts with `/skill` becomes: the words after the name, and the skill's steps as context. */
-export function useSkill(text: string, dir = userSkillsDir(), zenoDir?: string): { text: string; block: string } | undefined {
+export function useSkill(text: string, dir = userSkillsDir(), arkDir?: string): { text: string; block: string } | undefined {
   const call = parseSkillCall(text);
-  const skill = call && readSkill(call.name, dir, zenoDir);
+  const skill = call && readSkill(call.name, dir, arkDir);
   if (!call || !skill) return undefined;
   return {
     text: call.rest || `Use the ${skill.name} skill.`,

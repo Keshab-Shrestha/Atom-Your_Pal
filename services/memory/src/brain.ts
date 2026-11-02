@@ -4,8 +4,8 @@ import type { DatabaseSync } from "node:sqlite";
  * The second brain: notes that link to each other, as in Obsidian. A note has a title, a Markdown body, a kind and
  * tags. `[[Title]]` in a body links to another note (a title nobody wrote yet makes a ghost note, drawn dim), and
  * `#tag` tags it. The graph is the notes and their links. Notes come from three places: Keshab and the agent write
- * them (`save`), ATOM's memory is mirrored into them (`sync`: facts, conversation notes, projects, kept chats), and
- * ATOM links what it can find by itself (`autolink`: a note that names another note's title, or a name that two notes
+ * them (`save`), ARK's memory is mirrored into them (`sync`: facts, conversation notes, projects, kept chats), and
+ * ARK links what it can find by itself (`autolink`: a note that names another note's title, or a name that two notes
  * share). Note text is the user's own: never logged.
  */
 
@@ -54,7 +54,7 @@ export interface BrainNode {
 export interface BrainEdge {
   a: number;
   b: number;
-  /** Found by ATOM, not written in a note. */
+  /** Found by ARK, not written in a note. */
   auto: boolean;
 }
 
@@ -72,7 +72,7 @@ export interface BrainHit {
   snippet: string;
 }
 
-/** A note to mirror from ATOM's memory. */
+/** A note to mirror from ARK's memory. */
 export interface BrainSource {
   ref: string;
   title: string;
@@ -100,7 +100,7 @@ export interface Brain {
   tags(): { tag: string; count: number }[];
   /** Makes the mirrored notes of the given `ref` prefixes equal to `items`: adds, updates and drops. */
   sync(items: readonly BrainSource[], prefixes: readonly string[]): { added: number; updated: number; removed: number };
-  /** Rebuilds ATOM's own links: title mentions and shared names. Returns how many it made. */
+  /** Rebuilds ARK's own links: title mentions and shared names. Returns how many it made. */
   autolink(): number;
   count(): number;
 }
@@ -137,7 +137,7 @@ export function tagsOf(body: string): string[] {
 
 /** Words that start a sentence or name a day or month: never a name on their own. */
 const NOT_NAMES = new Set(
-  "the a an and but or so if when then this that these those it its i we you he she they my our your his her their there here what which who how why monday tuesday wednesday thursday friday saturday sunday january february march april may june july august september october november december keshab user atom pal".split(" "),
+  "the a an and but or so if when then this that these those it its i we you he she they my our your his her their there here what which who how why monday tuesday wednesday thursday friday saturday sunday january february march april may june july august september october november december keshab user ark pal".split(" "),
 );
 
 /** Capitalised names in a text: one or more capitalised words, not at the start of a sentence unless two words long. */
@@ -438,33 +438,60 @@ export function openBrain(db: DatabaseSync, now: () => Date): Brain {
     transaction(() => {
       dropAutoLinks.run();
       const notes = (allNotes.all() as unknown as Row[]).filter((r) => r.ghost === 0);
-      // 1. A note whose text names another note's title (3 or more letters) links to it.
+      // 1. A note whose text names another note's title (3 or more letters, as whole words) links to it. Titles are
+      // looked up by their first word, so the cost follows the amount of text, not notes × titles (1.4 s at 500 notes
+      // and 20 s at 2,000 before, 2026-11-01). A title that does not start with a letter or digit is searched directly.
       const titled = notes.filter((n) => [...n.title].length >= 3 && n.kind !== "memory" && n.kind !== "episode" && n.kind !== "entity");
+      // First word → title length → title → note ids: many titles can share a first word ("Meeting …"), few lengths.
+      const byFirstWord = new Map<string, Map<number, Map<string, number[]>>>();
+      const odd: { id: number; title: string }[] = [];
+      for (const other of titled) {
+        const title = other.title.toLowerCase();
+        const first = /^[\p{L}\p{N}]+/u.exec(title)?.[0];
+        if (!first) {
+          odd.push({ id: other.id, title });
+          continue;
+        }
+        const lengths = byFirstWord.get(first) ?? new Map<number, Map<string, number[]>>();
+        const titles = lengths.get(title.length) ?? new Map<string, number[]>();
+        titles.set(title, [...(titles.get(title) ?? []), other.id]);
+        lengths.set(title.length, titles);
+        byFirstWord.set(first, lengths);
+      }
+      const wordChar = (c: string | undefined) => c !== undefined && /[\p{L}\p{N}]/u.test(c);
       for (const note of notes) {
         const text = note.body.toLowerCase();
-        for (const other of titled) {
-          if (other.id === note.id) continue;
-          const t = other.title.toLowerCase();
-          const at = text.indexOf(t);
-          if (at < 0) continue;
-          const before = text[at - 1];
-          const after = text[at + t.length];
-          if ((before && /[\p{L}\p{N}]/u.test(before)) || (after && /[\p{L}\p{N}]/u.test(after))) continue; // inside a longer word
-          addLink.run(note.id, other.id, 1);
+        const found = new Set<number>();
+        for (const word of text.matchAll(/[\p{L}\p{N}]+/gu)) {
+          for (const [length, titles] of byFirstWord.get(word[0]) ?? []) {
+            if (wordChar(text[word.index + length])) continue; // the title would end inside a longer word
+            for (const id of titles.get(text.slice(word.index, word.index + length)) ?? []) found.add(id);
+          }
+        }
+        for (const other of odd) {
+          for (let at = text.indexOf(other.title); at >= 0 && !found.has(other.id); at = text.indexOf(other.title, at + 1)) {
+            if (!wordChar(text[at - 1]) && !wordChar(text[at + other.title.length])) found.add(other.id);
+          }
+        }
+        found.delete(note.id);
+        for (const id of found) {
+          addLink.run(note.id, id, 1);
           made++;
         }
       }
       // 2. A name that two or more notes share becomes an entity note they all link to.
       const holders = new Map<string, number[]>();
+      const display = new Map<string, string>();
       for (const note of notes) {
         if (note.kind === "entity") continue; // an entity is made from the names, never a holder of one
         for (const name of namesIn(`${note.title}. ${note.body}`)) {
           const key = name.toLowerCase();
-          holders.set(key, [...(holders.get(key) ?? []), note.id]);
+          const ids = holders.get(key);
+          if (ids) ids.push(note.id);
+          else holders.set(key, [note.id]);
+          display.set(key, name);
         }
       }
-      const display = new Map<string, string>();
-      for (const note of notes) if (note.kind !== "entity") for (const name of namesIn(`${note.title}. ${note.body}`)) display.set(name.toLowerCase(), name);
       for (const [key, ids] of holders) {
         const unique = [...new Set(ids)];
         if (unique.length < 2) continue;

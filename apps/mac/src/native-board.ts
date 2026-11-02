@@ -1,5 +1,5 @@
-import { withRoleNotice, type HelperStore, type ReportInput } from "@atom/helpers";
-import { redact, tokensOf, toolCallRecorder } from "@atom/llm-gateway";
+import { withRoleNotice, type HelperStore, type ReportInput } from "@ark/helpers";
+import { redact, tokensOf, toolCallRecorder } from "@ark/llm-gateway";
 
 /**
  * ADR-110 (Phase N2): the Board rows of one chat's sub-agents, from its Claude Code session. The safety gate makes the

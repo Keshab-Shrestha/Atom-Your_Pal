@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ToolRunner, ToolSpec } from "@atom/contracts";
+import type { ToolRunner, ToolSpec } from "@ark/contracts";
 
 export interface ChatWork {
   type: "chat.work";
@@ -20,10 +20,10 @@ interface Run {
 }
 const questionSpec: ToolSpec = {
   name: "ask_user",
-  description: "Ask the person in the ATOM window one necessary clarification and wait for their answer. Not a permission approval: never use this to obtain file/system access. Do not ask for passwords or secrets. Optional choices is up to four short suggestions separated by newlines. The user may type an answer or skip. Available only during a foreground window turn; not to workers.",
+  description: "Ask the person in the ARK window one necessary clarification and wait for their answer. Not a permission approval: never use this to obtain file/system access. Do not ask for passwords or secrets. Optional choices is up to four short suggestions separated by newlines. The user may type an answer or skip. Available only during a foreground window turn; not to workers.",
   inputSchema: { type: "object", properties: { question: { type: "string", description: "One question, 1–600 characters" }, choices: { type: "string", description: "Optional newline-separated suggestions, at most four, each at most 100 characters" } }, required: ["question"] },
 };
-const toolName = (name: unknown) => typeof name === "string" && /^[a-zA-Z0-9_.:-]{1,100}$/.test(name) ? name.replace(/^mcp__atom__|^atom_/, "") : "Provider tool";
+const toolName = (name: unknown) => typeof name === "string" && /^[a-zA-Z0-9_.:-]{1,100}$/.test(name) ? name.replace(/^mcp__ark__|^ark_/, "") : "Provider tool";
 
 /** Ephemeral foreground observations. Tool rows omit arguments/results; explicit question-card data stays in memory. No policy changes. */
 export function createChatWork(options: { persistAnswer?(turn: string, card: string, question: string, answer: string): void } = {}) {
@@ -98,7 +98,7 @@ export function createChatWork(options: { persistAnswer?(turn: string, card: str
         if (call.name !== "ask_user") return base.run(call, signal);
         const fail = (content: string) => ({ callId: call.id, content, isError: true });
         const run = active;
-        if (!send || !cardsEnabled || !run || run.event.chat !== chat || signal?.aborted) return fail("Question cards are unavailable outside a supported active ATOM window turn. Ask in your reply instead.");
+        if (!send || !cardsEnabled || !run || run.event.chat !== chat || signal?.aborted) return fail("Question cards are unavailable outside a supported active ARK window turn. Ask in your reply instead.");
         if (run.finishQuestion || run.event.questions.length >= 4) return fail("Only one question may wait at a time, and at most four cards may be asked per turn. Continue with the available answer or ask in your reply.");
         const prompt = call.input.question;
         const suggestions = call.input.choices;

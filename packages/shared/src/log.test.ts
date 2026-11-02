@@ -21,9 +21,9 @@ test("writes one JSON object per line, filtered by level", () => {
 });
 
 test("creates the log folder and appends", () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-log-"));
+  const dir = mkdtempSync(join(tmpdir(), "ark-log-"));
   try {
-    const file = join(dir, "nested", "zeno.log");
+    const file = join(dir, "nested", "ark.log");
     const log = createLogger({ level: "debug", file, now: fixed });
     log.info("a");
     log.info("b");
@@ -36,17 +36,17 @@ test("creates the log folder and appends", () => {
 test("a write failure is reported once and never throws", (t) => {
   const messages: string[] = [];
   t.mock.method(console, "error", (m: string) => messages.push(m));
-  const log = createLogger({ level: "info", file: "/x/zeno.log", write: () => { throw new Error("read-only"); } });
+  const log = createLogger({ level: "info", file: "/x/ark.log", write: () => { throw new Error("read-only"); } });
   log.info("a");
   log.error("b");
   assert.equal(messages.length, 1);
-  assert.match(messages[0], /Logging disabled: cannot write \/x\/zeno.log \(read-only\)/);
+  assert.match(messages[0], /Logging disabled: cannot write \/x\/ark.log \(read-only\)/);
 });
 
 test("migrateLegacyLog renames the old log only when the new one is absent", () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-log-"));
-  const old = join(dir, "zeno.log");
-  const next = join(dir, "atom.log");
+  const dir = mkdtempSync(join(tmpdir(), "ark-log-"));
+  const old = join(dir, "atom.log");
+  const next = join(dir, "ark.log");
   writeFileSync(old, "old\n");
   migrateLegacyLog(next, old);
   assert.equal(readFileSync(next, "utf8"), "old\n");

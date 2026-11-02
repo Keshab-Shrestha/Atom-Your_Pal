@@ -1,4 +1,4 @@
-// ADR-098 item 4: ZENO's own init script for the worker browser (Playwright MCP --init-script). It runs in every page
+// ADR-098 item 4: ARK's own init script for the worker browser (Playwright MCP --init-script). It runs in every page
 // before the page's scripts. It puts "[password field] " in front of the accessible name of each password input, so
 // the page snapshot shows it and `browserCheck` can ask before anything is typed there. Not a tool: the model cannot call it.
 // ponytail: inputs in shadow roots are not marked; they look like plain text fields. Upgrade: walk open shadow roots.

@@ -14,11 +14,11 @@ models/
 # Runtime logs
 logs/
 
-# Swift build output (ZENO Island)
+# Swift build output (ARK Island)
 .build/
 apps/mac/island/build/
 
-# ZENO Island settings (written by the runtime on model.set)
+# ARK Island settings (written by the runtime on model.set)
 config/island.json
 config/local-backup.json
 config/local-backup.json.*.tmp
@@ -28,5 +28,8 @@ sketches/**/*.png
 sketches/review/
 sketches/**/tmp/
 
-# ZENO memory (ADR-058): personal, local only
+# ARK memory (ADR-058): personal, local only
 data/
+
+# Flaticon UIcons: each Mac downloads its own copy (scripts/setup.sh); the licence does not allow sharing it in git.
+assets/fonts/vendor/

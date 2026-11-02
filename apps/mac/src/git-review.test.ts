@@ -10,7 +10,7 @@ import { gitFiles, gitFileReview, type GitSection } from "./git-review.ts";
 
 const git = (root: string, ...args: string[]) => execFileSync("git", ["-C", root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 function fixture() {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-git-review-"))), root = join(home, "project"); mkdirSync(root);
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-git-review-"))), root = join(home, "project"); mkdirSync(root);
   git(root, "init", "-b", "main");
   for (const path of ["note.txt", "staged.txt", "mixed.txt", "removed.txt", "renamed.txt", "conflict.txt"]) writeFileSync(join(root, path), "original\n");
   mkdirSync(join(root, "sub")); writeFileSync(join(root, "sub", "inside.txt"), "inside\n");

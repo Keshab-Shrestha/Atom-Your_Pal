@@ -1,10 +1,10 @@
 import type { Tool, ToolOutput } from "../engine.ts";
-import type { ToolImage } from "@atom/contracts";
+import type { ToolImage } from "@ark/contracts";
 import type { CuaTransport } from "./cua-client.ts";
 import { appBlock, deleteDenial, deleteKeyDenial, isSearchField, keyApproval, labelApproval, secretField, typeApproval } from "./policy.ts";
 
 export interface ApprovalRequest {
-  /** What ATOM is about to do, in words for the user: "Click \"Send\" in Mail". */
+  /** What ARK is about to do, in words for the user: "Click \"Send\" in Mail". */
   summary: string;
   /** Why it is asking. */
   reason: string;
@@ -16,7 +16,7 @@ export interface ComputerAction {
   action: string;
   app?: string;
   ok: boolean;
-  /** Set when ATOM refused or the user declined. Never contains typed text. */
+  /** Set when ARK refused or the user declined. Never contains typed text. */
   reason?: string;
 }
 
@@ -31,7 +31,7 @@ export interface ComputerToolOptions {
    * island to show it. Coordinates are screen points, origin at the top-left of the main display, as Cua reports them.
    */
   onPoint?: (target: { x: number; y: number; w: number; h: number; label: string }) => boolean | void;
-  /** Called as an action begins, so the user can see what ATOM is doing. Carries the action and app only. */
+  /** Called as an action begins, so the user can see what ARK is doing. Carries the action and app only. */
   onStep?: (step: { action: string; app?: string }) => void;
   /** Progress within one action; does not begin another action or extend its authority. */
   onProgress?: (step: { action: string; app: string; current: number; total: number }) => void;
@@ -76,7 +76,7 @@ class Refused extends Error {}
 
 /**
  * Drops the app menu bar and everything under it. It is a long list (the whole Apple menu) that crowds out the window, and
- * ATOM has no menu action. Elements keep Cua's own numbers, so a dropped element simply cannot be picked.
+ * ARK has no menu action. Elements keep Cua's own numbers, so a dropped element simply cannot be picked.
  */
 function withoutMenuBar(elements: Element[]): Element[] {
   const kept: Element[] = [];
@@ -97,6 +97,14 @@ const ACTIONS = ["status", "list_apps", "windows", "look", "open", "click", "cli
 
 /** Actions that change something in an app, so `look_after` makes sense for them. */
 const INPUT_ACTIONS = new Set(["click", "type", "key", "scroll", "set_value"]);
+
+/** What a window read carries besides the numbered elements. Both default to true, as for a look. */
+interface ReadView {
+  /** The window image (about 1 300 tokens and one screenshot grab). */
+  image?: boolean;
+  /** The paragraph naming the computer actions and the decision provider (about 250 tokens). */
+  intro?: boolean;
+}
 const TEXT_INPUT_ROLES = new Set(["AXTextArea", "AXTextField", "AXSearchField", "AXComboBox"]);
 
 /** Roles that take typed text, so a value set into one counts as typing. */
@@ -182,7 +190,7 @@ function screenTexts(tree: string): string[] {
 
 /**
  * The one computer-control tool the model sees (ADR-054). It exposes a small set of actions on top of Cua Driver,
- * and enforces ATOM's rules around every one: blocked apps, approval for risky clicks and keys, no typing into
+ * and enforces ARK's rules around every one: blocked apps, approval for risky clicks and keys, no typing into
  * secret fields, and only elements from the latest `look`. The model chooses actions; it never touches Cua directly.
  */
 export function createComputerTool(options: ComputerToolOptions): Tool<string | ToolOutput> {
@@ -241,15 +249,19 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
     // this Space (true): reading one returned an empty window, and input then blamed "another Space" (live baseline 2026-10-23).
     // Older drivers do not report the field (undefined) and keep the earlier fallback.
     const win = windowId === undefined ? wins.find((w) => w.is_on_screen) ?? wins.find((w) => w.on_current_space === false || w.on_current_space === undefined) : wins.find((w) => w.window_id === windowId);
-    if (!win) throw new Refused(`${app.name} has no window open (no document) that ATOM can see. Open, unhide or create one, or ask the user to, then look again.`);
+    if (!win) throw new Refused(`${app.name} has no window open (no document) that ARK can see. Open, unhide or create one, or ask the user to, then look again.`);
     return readWindow(app, pid, win.window_id, win.title, signal, undefined, query);
   }
 
   /** Read exactly the observed window; the driver rechecks its ownership and this host checks the returned identity. */
-  async function readWindow(app: { name: string; bundle_id?: string }, pid: number, windowId: number, title?: string, signal?: AbortSignal, generation?: number, query?: string): Promise<string> {
+  async function readWindow(app: { name: string; bundle_id?: string }, pid: number, windowId: number, title?: string, signal?: AbortSignal, generation?: number, query?: string, view: ReadView = {}): Promise<string> {
+    // Token and speed cost: the window image is about 1 300 tokens and a screenshot grab, the intro about 250 tokens. A look sends both;
+    // a read after an action or between sequence clicks sends only what the model needs (measured 2026-10-31).
+    const { image = true, intro = true } = view;
+    const prior = target;
     target = undefined;
     lastApp = undefined;
-    const state = await cua.call("get_window_state", { pid, window_id: windowId, include_screenshot: true, max_dimension: 1280, ...(query ? { query } : {}) }, signal, generation);
+    const state = await cua.call("get_window_state", { pid, window_id: windowId, include_screenshot: image, ...(image ? { max_dimension: 1280 } : {}), ...(query ? { query } : {}) }, signal, generation);
     if (state.isError) refuse(state.refusal?.code, app.name, `Could not read ${app.name}: ${state.refusal?.message ?? state.text}`);
     if (generation !== undefined && generation !== cua.generation) throw new Refused("The computer session changed while reading the window. Look again.");
     if ((state.data.pid !== undefined && state.data.pid !== pid) ||
@@ -258,8 +270,10 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
       throw new Refused(`The ${app.name} window owner changed. No elements were retained; look again.`);
     }
     const elements = withoutMenuBar((state.data.elements ?? []) as Element[]);
-    observationImages = state.images;
-    target = { generation: cua.generation, pid, windowId: windowId, app: app.name, bundleId: app.bundle_id, bounds: state.data.window_bounds, elements: new Map(elements.map((e) => [e.element_index, e])), justTyped: false, readings: labelledReadings(String(state.data.tree_markdown ?? "")) };
+    observationImages = image ? state.images : undefined;
+    // A read without an image carries no window bounds; the same window keeps the bounds of the read before.
+    const bounds = state.data.window_bounds ?? (prior && prior.pid === pid && prior.windowId === windowId ? prior.bounds : undefined);
+    target = { generation: cua.generation, pid, windowId: windowId, app: app.name, bundleId: app.bundle_id, bounds, elements: new Map(elements.map((e) => [e.element_index, e])), justTyped: false, readings: labelledReadings(String(state.data.tree_markdown ?? "")) };
     lastApp = { name: app.name, ...(app.bundle_id ? { bundle_id: app.bundle_id } : {}), pid, generation: cua.generation };
     const shown = elements.slice(0, maxElements).map((e) => {
       const bits = [`[${e.element_index}] ${e.role ?? "?"}`];
@@ -272,25 +286,31 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
     const more = elements.length > maxElements ? `\n(${elements.length - maxElements} more elements not shown)` : "";
     const texts = screenTexts(String(state.data.tree_markdown ?? ""));
     const read = texts.length ? `\nText on screen (read only): ${texts.join("; ")}` : "";
-    const picture = observationImages?.length ? "Complete window image attached; cross-check it with the elements." : "No usable window image was returned: accessibility-only observation. Do not claim visual verification.";
-    const decisionProvider = options.decisionProvider?.() ?? "off";
-    const decisionHint = `Fast decision provider: ${decisionProvider === "off" ? "off (use the main model and ordinary checked sequences)" : decisionProvider + " (choose_sequence may select between prepared plans)"}.`;
-    const geometry = state.data.window_bounds ? `Window bounds in global screen points: ${JSON.stringify(state.data.window_bounds)}.\n` : "";
-    return `${app.name} — window "${title ?? state.data.window_title ?? ""}" (window_id=${windowId})\n${geometry}Current computer actions include windows(app) to list windows on connected displays, look(app, window_id) to select one, and click_sequence with steps:[{button:"exact button label",expect:{label:"read-only text label",value:"expected text"}}] for up to 8 buttons, checking fresh labelled text after each click. Refresh the tool definition if an earlier session described fewer actions.\n${decisionHint}\n${picture}\n${shown.join("\n")}${more}${read}`;
+    const picture = !image
+      ? "No window image with this read: use the numbered elements and do not claim visual verification. Look again for the image."
+      : observationImages?.length ? "Complete window image attached; cross-check it with the elements." : "No usable window image was returned: accessibility-only observation. Do not claim visual verification.";
+    const geometry = bounds ? `Window bounds in global screen points: ${JSON.stringify(bounds)}.\n` : "";
+    let introduction = "";
+    if (intro) {
+      const decisionProvider = options.decisionProvider?.() ?? "off";
+      const decisionHint = `Fast decision provider: ${decisionProvider === "off" ? "off (use the main model and ordinary checked sequences)" : decisionProvider + " (choose_sequence may select between prepared plans)"}.`;
+      introduction = `Current computer actions include windows(app) to list windows on connected displays, look(app, window_id) to select one, and click_sequence with steps:[{button:"exact button label",expect:{label:"read-only text label",value:"expected text"}}] for up to 8 buttons, checking fresh labelled text after each click. Refresh the tool definition if an earlier session described fewer actions.\n${decisionHint}\n`;
+    }
+    return `${app.name} — window "${title ?? state.data.window_title ?? ""}" (window_id=${windowId})\n${geometry}${introduction}${picture}\n${shown.join("\n")}${more}${read}`;
   }
 
   /** The new screen, appended to an action's reply so the model needs no extra step. The "just typed" memory survives it. */
-  async function lookAfter(signal?: AbortSignal): Promise<string> {
+  async function lookAfter(signal?: AbortSignal, image = false): Promise<string> {
     const keep = target?.justTyped ?? false;
     try {
       const previous = need();
-      const seen = await readWindow({ name: previous.app, ...(previous.bundleId ? { bundle_id: previous.bundleId } : {}) }, previous.pid, previous.windowId, undefined, signal, previous.generation);
+      const seen = await readWindow({ name: previous.app, ...(previous.bundleId ? { bundle_id: previous.bundleId } : {}) }, previous.pid, previous.windowId, undefined, signal, previous.generation, undefined, { image, intro: false });
       if (target) target.justTyped = keep;
       return `\n\n${seen}`;
     } catch (error) {
       // A cancel is not "could not read": Cua's cancel is a plain Error("Cancelled."), not an AbortError, so the name alone never caught it.
       if (signal?.aborted || (error as Error)?.name === "AbortError" || /^cancel/i.test((error as Error)?.message ?? "")) throw error;
-      return "\n\nATOM could not read the window again. Look again.";
+      return "\n\nARK could not read the window again. Look again.";
     }
   }
 
@@ -319,14 +339,14 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
   function explain(code: string | undefined, app: string): string | undefined {
     switch (code) {
       case "same_pid_keyboard_ambiguity":
-        return `${app} has more than one window open, so ATOM cannot type or press keys there without risking the wrong window. Ask the user to close the other ${app} windows. Clicking still works. ${FINAL}`;
+        return `${app} has more than one window open, so ARK cannot type or press keys there without risking the wrong window. Ask the user to close the other ${app} windows. Clicking still works. ${FINAL}`;
       case "minimized_or_hidden_window":
         return `The ${app} window is minimized or hidden. Ask the user to bring it back. ${FINAL}`;
       case "off_space_or_ax_unresolved":
-        return `The ${app} window is on another desktop (Space) or ATOM cannot read it. Ask the user to switch to it. ${FINAL}`;
+        return `The ${app} window is on another desktop (Space) or ARK cannot read it. Ask the user to switch to it. ${FINAL}`;
       case "window_not_found":
       case "owner_pid_mismatch":
-        return `ATOM lost track of the ${app} window. Look again; if that fails, ${FINAL.toLowerCase()}`;
+        return `ARK lost track of the ${app} window. Look again; if that fails, ${FINAL.toLowerCase()}`;
       default:
         return undefined;
     }
@@ -372,7 +392,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
     }
     lastNoop = undefined;
     if (effect === "confirmed") return " (confirmed)";
-    if (effect === "unverifiable") return " ATOM could not confirm it worked; look to check.";
+    if (effect === "unverifiable") return " ARK could not confirm it worked; look to check.";
     return "";
   }
 
@@ -391,7 +411,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
       const result = await perform(action, input, signal);
       let out = typeof result === "string" ? result : result.text;
       const uncertain = typeof result !== "string" && result.uncertain;
-      if ((input.look_after === true || uncertain) && INPUT_ACTIONS.has(action) && target) out += await lookAfter(signal);
+      if ((input.look_after === true || uncertain) && INPUT_ACTIONS.has(action) && target) out += await lookAfter(signal, Boolean(uncertain)); // an uncertain effect keeps the image to check it by eye
       const images = capturedImages();
       const stopped = typeof result !== "string" && result.stopped === true;
       log({ action, ...(appName ? { app: appName } : {}), ok: !stopped, ...(stopped ? { reason: "sequence_stopped" } : {}), ...(images?.length ? { imageCount: images.length } : {}) });
@@ -415,7 +435,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
       const state = (on: boolean) => (on ? "granted" : "missing");
       const who = typeof d.source?.bundle_id === "string" ? ` for ${d.source.bundle_id}` : "";
       const fix = d.accessibility && d.screen_recording ? "" : " To grant, open System Settings → Privacy & Security, or run `cua-driver permissions grant` in Terminal.";
-      return `Permissions${who} (read-only check, no prompt): Accessibility: ${state(d.accessibility)}; Screen Recording: ${state(d.screen_recording)}.${fix} ATOM did not change any permission.`;
+      return `Permissions${who} (read-only check, no prompt): Accessibility: ${state(d.accessibility)}; Screen Recording: ${state(d.screen_recording)}.${fix} ARK did not change any permission.`;
     } catch (error) {
       if (signal?.aborted) throw error;
       return "The driver's permission status could not be read; Accessibility and Screen Recording are unknown, not confirmed.";
@@ -498,6 +518,10 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
         let completed = 0;
         let unconfirmed = 0;
         let seen = "";
+        // Between clicks only the elements and labelled text are checked, so the image (and its screenshot grab) is skipped; the last read, and
+        // the read of a stopped sequence, carry it because the model then looks at the result.
+        const readPinned = (image: boolean) => readWindow({ name: pinned.app, ...(pinned.bundleId ? { bundle_id: pinned.bundleId } : {}) }, pinned.pid, pinned.windowId, undefined, signal, pinned.generation, undefined, { image, intro: false });
+        const withImage = async () => { seen = await readPinned(true).catch(() => seen); };
         for (const [i, step] of steps.entries()) {
           if (signal?.aborted) {
             target = undefined;
@@ -507,6 +531,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
           if (t.pid !== pinned.pid || t.windowId !== pinned.windowId || t.generation !== pinned.generation) throw new Refused("The sequence window changed. No remaining clicks were sent; look again.");
           const buttons = [...t.elements.values()].filter((e) => e.role === "AXButton" && e.label === step.button);
           if (buttons.length !== 1 || buttons[0]!.enabled === false) {
+            if (seen) await withImage();
             return { text: `Sequence stopped after ${completed}/${steps.length} checked clicks: the next button was missing, ambiguous or disabled. No remaining clicks were sent. Look again; do not replay the sequence.${seen ? `\n\n${seen}` : ""}`, uncertain: false, stopped: true };
           }
           const before = matchesReading(t, step.expect);
@@ -515,7 +540,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
           let clicked: Awaited<ReturnType<typeof perform>>;
           try {
             clicked = await perform("click", { element: buttons[0]!.element_index, mode }, signal);
-            seen = await readWindow({ name: pinned.app, ...(pinned.bundleId ? { bundle_id: pinned.bundleId } : {}) }, pinned.pid, pinned.windowId, undefined, signal, pinned.generation);
+            seen = await readPinned(i === steps.length - 1);
             if (signal?.aborted) throw new Refused("Cancelled.");
           } catch (error) {
             target = undefined;
@@ -524,6 +549,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
           const effect = typeof clicked !== "string" ? clicked.effect : undefined;
           const matched = matchesReading(need(), step.expect);
           if (!matched || (effect !== "confirmed" && !(effect === "unverifiable" && !before))) {
+            if (i < steps.length - 1) await withImage();
             return { text: `Sequence stopped at click ${i + 1}/${steps.length}; ${completed} earlier clicks passed their checks. The expected unique labelled value was missing, unchanged after unconfirmed input, or the driver reported no effect. This click is uncertain. No remaining clicks were sent. Inspect the observation; do not replay the sequence.\n\n${seen}`, uncertain: false, stopped: true };
           }
           completed += 1;
@@ -559,7 +585,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
         const t = need();
         const el = pick(t, input.element);
         const secret = secretField(el);
-        if (secret) throw new Refused(`ATOM never types into ${secret}. Ask the user to type it themselves.`);
+        if (secret) throw new Refused(`ARK never types into ${secret}. Ask the user to type it themselves.`);
         if (typeof input.text !== "string" || !input.text) throw new Refused('"text" is required.');
         const lineBreak = typeApproval(input.text);
         if (lineBreak) await ask(`Type text with a line break into ${t.app}`, `it has ${lineBreak}`, signal);
@@ -591,7 +617,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
         const t = need();
         const el = pick(t, input.element);
         const box = usableFrame(el.frame);
-        if (!box) throw new Refused(`ATOM cannot show where [${el.element_index}] is: it has no place on screen. Describe it in words instead.`);
+        if (!box) throw new Refused(`ARK cannot show where [${el.element_index}] is: it has no place on screen. Describe it in words instead.`);
         if (!onPoint) throw new Refused("Pointing is not available right now. Describe where it is in words instead.");
         const label = (typeof input.text === "string" && input.text.trim() ? input.text : el.label ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
         if (onPoint({ ...box, label }) === false) throw new Refused("Pointing is not available right now. Describe where it is in words instead.");
@@ -613,7 +639,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
         const t = need();
         const el = pick(t, input.element);
         const secret = secretField(el);
-        if (secret) throw new Refused(`ATOM never types into ${secret}. Ask the user to type it themselves.`);
+        if (secret) throw new Refused(`ARK never types into ${secret}. Ask the user to type it themselves.`);
         if (typeof input.text !== "string" || !input.text) throw new Refused('"text" is required: the value to set.');
         // A value of a setting ("Delete files after: 30 days") is not a delete: it asks, like a click on a risky control, and is never refused outright.
         const why = labelApproval(el.label, el.role);
@@ -643,9 +669,9 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
         "For a known short button task prefer click_sequence with 1–8 steps {button, expect:{label,value}}: exact unique AXButton labels from the observed window, and an exact labelled AXStaticText value expected after EACH click. The host re-resolves each button from a fresh same-window snapshot, applies ordinary click policy, observes the complete window after every click, and stops at any mismatch, ambiguity, failure or cancellation. Approval-requiring buttons are excluded. For unconfirmed input the expected value must newly appear/change; unchanged values cannot verify it. Only the final observation reaches the model. Never invent labels, batch unknown UI transitions, or replay a stopped sequence. Use individual actions where these checks are unavailable. " +
         "Only when the latest look reports a fast decision provider enabled and a genuine choice between prepared button sequences is needed, use choose_sequence with goal and plans:[{description,steps:[{button,expect:{label,value}}]}] (2–4 plans, each 1–8 steps). The Settings-selected Jev/Laya decider chooses one or returns review; off/low confidence/failure sends no input. The main model still prepares the plans and reviews outcomes. Do not use this for a single deterministic path or retry uncertain decisions. It shares bounded goal, button/read-only labels and prepared plans only, never images or editable-field values. " +
         "Unconfirmed input includes a fresh observation of the same window when available; inspect it before taking another step. A changed screen alone does not prove the intended outcome. Never replay uncertain input automatically. " +
-        "Use `point` with an element number (and a short label) to show the user where something is: ATOM flies to it. " +
+        "Use `point` with an element number (and a short label) to show the user where something is: ARK flies to it. " +
         "Point when the user asks where something is or how to do it, instead of doing it for them. " +
-        "ATOM asks the user before sending, buying, deleting or changing anything, and never types passwords. " +
+        "ARK asks the user before sending, buying, deleting or changing anything, and never types passwords. " +
         "If the user declines, stop and say so. " +
         'Set `mode: "foreground"` on a click, type, key or scroll only when the user asks for it to happen in the foreground (it briefly brings the window to the front), and `mode: "background"` only when they ask for background; otherwise leave it out. Never switch mode by yourself to retry.',
       inputSchema: {

@@ -1,19 +1,19 @@
 {
-  "name": "@atom/mac",
+  "name": "@ark/mac",
   "private": true,
   "type": "module",
   "dependencies": {
+    "@ark/contracts": "workspace:*",
+    "@ark/core": "workspace:*",
+    "@ark/decision-engine": "workspace:*",
+    "@ark/helpers": "workspace:*",
+    "@ark/llm-gateway": "workspace:*",
+    "@ark/memory": "workspace:*",
+    "@ark/shared": "workspace:*",
+    "@ark/tool-engine": "workspace:*",
     "@huggingface/transformers": "3.8.1",
     "@modelcontextprotocol/sdk": "1.31.0",
-    "@playwright/mcp": "0.0.83",
-    "@atom/contracts": "workspace:*",
-    "@atom/core": "workspace:*",
-    "@atom/decision-engine": "workspace:*",
-    "@atom/helpers": "workspace:*",
-    "@atom/llm-gateway": "workspace:*",
-    "@atom/memory": "workspace:*",
-    "@atom/shared": "workspace:*",
-    "@atom/tool-engine": "workspace:*",
+    "agent-browser": "0.41.0",
     "kokoro-js": "^1.2.1"
   }
 }

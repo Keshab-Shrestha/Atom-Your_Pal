@@ -8,7 +8,7 @@ import { openMemoryStore } from "./store.ts";
 const turns = [{ role: "user" as const, content: "Fictional Juniper" }, { role: "assistant" as const, content: "Outline" }];
 
 test("window selection persists separately from chat recency and explicit fresh-start intent", () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-window-selection-")), path = join(dir, "memory.db");
+  const dir = mkdtempSync(join(tmpdir(), "ark-window-selection-")), path = join(dir, "memory.db");
   let memory = openMemoryStore({ path });
   try {
     assert.equal(memory.chats.lastOpened(), undefined);

@@ -4,9 +4,9 @@
 import { existsSync, mkdirSync, openSync, readSync, closeSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve, sep } from "node:path";
-import type { FilePermissionScope } from "@atom/memory";
+import type { FilePermissionScope } from "@ark/memory";
 import type { FileApproval } from "./computer-bridge.ts";
-import { DENY_READ_DIRS, WRITE_TOOLS, classifyCommand, expandHome, floorProblem, folderForTask, hasGitPart, isInside, isSecretLike, pathProblem, realish, toolPaths } from "@atom/helpers";
+import { DENY_READ_DIRS, WRITE_TOOLS, classifyCommand, isPushCommand, expandHome, floorProblem, folderForTask, hasGitPart, isInside, isSecretLike, pathProblem, realish, toolPaths } from "@ark/helpers";
 
 /** Never readable by sandboxed commands: keys, tokens and other apps' secrets. */
 export function denyRead(home = homedir()): string[] {
@@ -23,10 +23,15 @@ export const newFolderMemory = (): FolderMemory => ({ approved: new Set(), writt
 export const MAX_OUTSIDE_WRITES = 200;
 
 export interface FolderCheckOptions {
+  /** 2026-11-02: pushes the task's own branch from `cwd` outside the sandbox (which has no network) and says what happened. With it, an agent's
+   *  `git push` asks Keshab instead of being refused. */
+  push?(cwd: string): Promise<string>;
   /** The task's own folders (a project's folder, a git worktree): writes inside them are free (git or the checkpoints keep the undo). May be empty. */
   roots: string[];
   /** Explicit chat opt-in, rechecked at each call. Skips routine overwrite/command cards, never path/secret/undo checks. */
   fullAccess?(): boolean;
+  /** The task read web text (ADR-123): a command outside the sandbox then asks even in Full access, as an MCP call does. */
+  tainted?(): boolean;
   /** ADR-122: kept by the caller across the task's calls. A fresh one per call asks for every overwrite. */
   memory?: FolderMemory;
   cwd: string;
@@ -102,6 +107,15 @@ function preview(name: string, input: Record<string, unknown>): string {
 const shortPath = (real: string, home: string) => (isInside(realish(home), real) ? `~${real.slice(realish(home).length)}` : real);
 const oneLine = (s: string, max: number) => (s.replace(/\s+/g, " ").trim().length > max ? `${s.replace(/\s+/g, " ").trim().slice(0, max - 1)}…` : s.replace(/\s+/g, " ").trim());
 
+/** True when an allowed Bash call runs outside the sandbox (2026-11-02): its command needs it, or the agent asked for it. */
+export function runsOutsideSandbox(command: string, input: Record<string, unknown>): boolean {
+  const verdict = classifyCommand(command);
+  return input.dangerouslyDisableSandbox === true || (verdict.verdict === "ask" && verdict.outside === true);
+}
+
+/** The name `folderCheck` gets for the trash_file tool (2026-11-01). */
+export const TRASH_CALL = "Trash";
+
 /** The `check` a file run's tool calls go through: why a call is refused, or undefined to allow it. */
 export function folderCheck(options: FolderCheckOptions) {
   const roots = options.roots.map((r) => realish(r));
@@ -112,19 +126,39 @@ export function folderCheck(options: FolderCheckOptions) {
     if (options.cancelled?.()) return stopped;
     if (name === "Bash") {
       const command = typeof input.command === "string" ? input.command : "";
+      if (options.push && isPushCommand(command)) {
+        // The sandbox has no network, so the command itself could never push: on Allow, ARK pushes the task's branch (origin only, never forced).
+        if (!options.fullAccess?.()) {
+          say(name, "asked");
+          const ok = await options.approve({ summary: `${options.name} wants to push its task branch to origin`, reason: `Command: ${oneLine(command, 120)}. ARK pushes only the task's own branch, to origin, never forced.` });
+          if (options.cancelled?.()) return stopped;
+          if (!ok) return say(name, "declined"), "Keshab did not allow the push (he said no, or the card expired with no answer). Leave the work on its branch and say in the report that it is ready to push.";
+        }
+        try {
+          return say(name, "refused"), `${await options.push(options.cwd)} Do not run git push yourself.`;
+        } catch (error) {
+          return say(name, "refused"), `ARK could not push: ${error instanceof Error ? error.message : String(error)}`;
+        }
+      }
       const verdict = classifyCommand(command);
       if (verdict.verdict === "refuse") return say(name, "refused"), verdict.reason;
-      if (verdict.verdict === "ask" && !options.fullAccess?.()) {
+      // 2026-11-02: an agent may ask to leave the sandbox itself (dangerouslyDisableSandbox), like Claude Code; that asks too.
+      const outside = runsOutsideSandbox(command, input);
+      if ((verdict.verdict === "ask" || outside) && (!options.fullAccess?.() || (outside && options.tainted?.()))) {
         say(name, "asked");
-        const ok = await options.approve({ summary: `${options.name} wants to run: ${oneLine(command, 120)}`, reason: `This command ${verdict.reason}.` });
+        const why = verdict.verdict === "ask" ? `This command ${verdict.reason}.` : "The agent asked to run it outside the sandbox.";
+        const ok = await options.approve({ summary: `${options.name} wants to run: ${oneLine(command, 120)}`, reason: outside ? `${why} It runs outside the sandbox: it can use the network and change files anywhere you can.` : why });
         if (options.cancelled?.()) return stopped;
-        if (!ok) return say(name, "declined"), "Keshab did not allow this command. Do the job without it, or say in the report what is needed.";
+        if (!ok) return say(name, "declined"), "Keshab did not allow this command (he said no, or the card expired with no answer). Do the job without it, or say in the report what is needed.";
       }
       return say(name, "allowed"), undefined;
     }
-    const writing = WRITE_TOOLS.includes(name);
+    // 2026-11-01 (Keshab: "ask and give any permission, like Claude Code"): `Trash` is the trash_file tool, a write that removes a file.
+    const trashing = name === TRASH_CALL;
+    const writing = WRITE_TOOLS.includes(name) || trashing;
     // "~/x" is the home folder's x, as a shell reads it: expanded here, before every check, so it cannot pass as a path inside the task's folder.
-    const paths = toolPaths(name, input).map((p) => expandHome(p, home));
+    const paths = (trashing ? (typeof input.path === "string" && input.path ? [input.path] : []) : toolPaths(name, input)).map((p) => expandHome(p, home));
+    if (trashing && !paths.length) return say(name, "refused"), "Name the file or folder to move to the Trash.";
     // A pattern may climb out of the folder or name a variable: never checked, so never used.
     for (const key of ["pattern", "glob"]) {
       const value = input[key];
@@ -140,14 +174,33 @@ export function folderCheck(options: FolderCheckOptions) {
     // A search with no path searches the working folder: never the whole home folder (it holds ~/Library and every hidden folder).
     if ((name === "Glob" || name === "Grep") && !paths.length && realish(options.cwd) === realish(home)) return say(name, "refused"), "Search inside a folder, not the whole home folder.";
     for (const p of paths) {
-      // ADR-122: the same floor for every agent; no per-agent folders.
-      const problem = floorProblem(home, roots, options.cwd, p, writing);
-      if (problem) return say(name, "refused"), problem;
+      if (/[$`]/.test(p)) return say(name, "refused"), "A path with $ or a backtick in it cannot be checked, so it is not used. Write the whole path.";
       const target = realish(isAbsolute(p) ? p : resolve(options.cwd, p));
       if ((name === "Glob" || name === "Grep") && target === realish(home)) return say(name, "refused"), "Search inside a folder, not the whole home folder.";
-      // 2026-10-15 (security review): a folder that holds ATOM's own data (or any .env or key) let a folders agent read the API token and the databases.
-      if (isSecretLike(target, home) || isSecretLike(resolve(options.cwd, p), home)) return say(name, "refused"), "Secret files and key folders are never opened by an agent.";
-      if (name === "Read" && holdsSecret(target)) return say(name, "refused"), "This file holds a secret (an API key, a token or a private key), so an agent does not read it. Say in the report that you skipped it.";
+      // ADR-122's floor and the secret checks (2026-10-15) used to refuse. Since 2026-11-01 they ask, with the exact path: Allow can cover the
+      // rest of the chat, and Full access skips the question.
+      const problem = floorProblem(home, roots, options.cwd, p, writing)
+        ?? (isSecretLike(target, home) || isSecretLike(resolve(options.cwd, p), home) ? "It is a secret file or a key folder." : undefined)
+        ?? (name === "Read" && holdsSecret(target) ? "It holds a secret (an API key, a token or a private key)." : undefined);
+      if (!problem || options.fullAccess?.() || options.permissions?.has(target) || options.memory?.approved.has(target)) continue;
+      say(name, "asked");
+      const request = { summary: `${options.name} wants to ${writing ? "change" : "read"} a protected file: ${shortPath(target, home)}`, reason: `${problem} ${name} ${shortPath(target, home)}.` };
+      const ok = options.approveFile ? await options.approveFile(request) : await options.approve(request);
+      if (options.cancelled?.()) return stopped;
+      if (!ok) return say(name, "declined"), "Keshab did not allow this file (he said no, or the card expired with no answer). Do the job without it, or say in the report what is needed.";
+      if (ok === "chat" && options.permissions) options.permissions.grant(target);
+      else options.memory?.approved.add(target);
+    }
+    if (trashing) {
+      // Every delete asks (once per call), unless the chat is in Full access. The tool moves the item to the macOS Trash.
+      const target = realish(isAbsolute(paths[0]!) ? paths[0]! : resolve(options.cwd, paths[0]!));
+      if (!options.fullAccess?.()) {
+        say(name, "asked");
+        const ok = await options.approve({ summary: `${options.name} wants to move ${shortPath(target, home)} to the Trash`, reason: "You can put it back from the Trash in Finder." });
+        if (options.cancelled?.()) return stopped;
+        if (!ok) return say(name, "declined"), "Keshab did not allow this delete (he said no, or the card expired with no answer). Leave the file, or say in the report what should go.";
+      }
+      return say(name, "allowed"), undefined;
     }
     if (writing) {
       // ADR-123: a new file is free; an edit or overwrite of a file that exists asks Keshab once per file. Inside the task's own folders it is free
@@ -166,7 +219,7 @@ export function folderCheck(options: FolderCheckOptions) {
           const canRemember = asks.length === 1 && memory.written.size < MAX_OUTSIDE_WRITES && options.permissions && options.approveFile;
           const ok = canRemember ? await options.approveFile!(request) : await options.approve(request);
           if (options.cancelled?.()) return stopped;
-          if (!ok) return say(name, "declined"), "Keshab did not allow this change. Do the job without it, or say in the report what is needed.";
+          if (!ok) return say(name, "declined"), "Keshab did not allow this change (he said no, or the card expired with no answer). Do the job without it, or say in the report what is needed.";
           if (ok === "chat") options.permissions!.grant(real);
           if (ok !== "chat") memory.approved.add(real);
         }
@@ -200,8 +253,8 @@ export function checkpointBefore(options: { roots: string[]; tree?: string; keep
 export const FOLDER_WAIT_MS = 10 * 60_000;
 
 /**
- * ADR-090: a file worker with no folder asks on Pal's card for the one its task names (else ~/Documents/ATOM). Allowed:
- * ATOM makes the folder and grants it, and the worker's folders come back. Refused or no answer in `waitMs`: an error
+ * ADR-090: a file worker with no folder asks on Pal's card for the one its task names (else ~/Documents/ARK). Allowed:
+ * ARK makes the folder and grants it, and the worker's folders come back. Refused or no answer in `waitMs`: an error
  * that says which one happened.
  */
 export async function askForFolder(options: {
@@ -235,7 +288,7 @@ export async function askForFolder(options: {
       {
         // The folder is in the summary: the card and Telegram cut the reason short.
         summary: `${name} needs a folder to save files in: ${shown}`,
-        reason: `Let ${name} read, write, copy and edit files in ${shown}? ATOM makes the folder if it is missing. Change it on ${name}'s page.`,
+        reason: `Let ${name} read, write, copy and edit files in ${shown}? ARK makes the folder if it is missing. Change it on ${name}'s page.`,
         timeoutMs: waitMs + 5_000, // a backstop: the timer above decides and says so
       },
       options.signal ? AbortSignal.any([options.signal, timer.signal]) : timer.signal,

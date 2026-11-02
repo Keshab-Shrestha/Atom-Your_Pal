@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { looksSecret, validChatBrief, type MemoryStore, type PreparationSource } from "@atom/memory";
+import { looksSecret, validChatBrief, type MemoryStore, type PreparationSource } from "@ark/memory";
 
 export interface PreparationSelection { sources: PreparationSource[]; valid(): boolean }
 

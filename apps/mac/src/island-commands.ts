@@ -1,6 +1,6 @@
 // The commands from the island, their allowlist and the parser (moved from island-protocol.ts; docs/island-protocol.md is the specification).
 
-import { isChatAccessMode, type ChatAccessMode } from "@atom/contracts";
+import { isChatAccessMode, type ChatAccessMode } from "@ark/contracts";
 import type { ProjectSourceRequest } from "./project-sources.ts";
 import type { WorkspaceRequest } from "./project-workspace.ts";
 import { parseChatControl, type ChatControlRequest } from "./chat-controls.ts";
@@ -25,6 +25,8 @@ export type IslandCommand =
   | WorkspaceRequest
   | ForegroundCommand
   | { type: "chat.access"; id: string; mode: ChatAccessMode; expected: ChatAccessMode }
+  /** 2026-11-02: Settings → Defaults. A chat started in the ARK window gets this access and thinking level (empty: the model's default). */
+  | { type: "chat.defaults"; access: ChatAccessMode; effort: string }
   | { type: "chat.work.watch" }
   | { type: "chat.question.answer"; chat: string; turn: string; id: string; text?: string }
   | ChatControlRequest
@@ -52,6 +54,10 @@ export type IslandCommand =
   | { type: "skill.get"; name: string }
   | { type: "skill.save"; name: string; text: string }
   | { type: "chats.list" }
+  /** Settings > Privacy > Chat history: every saved chat as Markdown in a new folder inside `folder` (a full path). */
+  | { type: "chats.export"; folder: string }
+  /** Settings > Privacy > Chat history: delete every saved chat (the window asked Keshab first). */
+  | { type: "chats.clear" }
   /** ADR-107: a new chat, in a project when `projectId` is given (`conversation.reset` is the same without a project). */
   | { type: "chat.new"; projectId?: string }
   /** ADR-107: Keshab's own title for a chat (any chat the window writes). */
@@ -80,7 +86,7 @@ export type IslandCommand =
   | { type: "suggestions.deny"; id: number }
   | { type: "suggestions.set"; enabled: boolean }
   /** Daily brief (upgrades.md C3): the settings and briefs (and their changes from then on), make one now, change settings (only the given fields). */
-  /** Ask ATOM (upgrades.md B3): rewrite some text as asked. `id` ties the answer (`text.edit.result`) to the request; a new request with the same `id`, or `text.edit.cancel`, stops the old one. */
+  /** Ask ARK (upgrades.md B3): rewrite some text as asked. `id` ties the answer (`text.edit.result`) to the request; a new request with the same `id`, or `text.edit.cancel`, stops the old one. */
   | { type: "text.edit"; id: string; text: string; selection?: [number, number]; instruction: string }
   | { type: "text.edit.cancel"; id: string }
   | { type: "brief.get" }
@@ -128,7 +134,7 @@ export type IslandCommand =
   | { type: "proposal.accept"; id: number }
   | { type: "proposal.reject"; id: number }
   | { type: "proposal.undo"; id: number }
-  // ADR-098 item 8: save a done task as a test case (for its agent's soul or a ATOM-made skill its run used), delete one,
+  // ADR-098 item 8: save a done task as a test case (for its agent's soul or a ARK-made skill its run used), delete one,
   // and run the test cases of a pending soul proposal ("soul") or skill edit ("skill") again.
   | { type: "testcase.save"; jobId: number; kind: "soul" | "skill"; target: string }
   | { type: "testcase.delete"; id: number }
@@ -180,6 +186,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "model.refresh",
   "chat.reasoning",
   "chat.access",
+  "chat.defaults",
   "chat.model",
   "approval.answer",
   "memory.list",
@@ -195,6 +202,8 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "skill.get",
   "skill.save",
   "chats.list",
+  "chats.export",
+  "chats.clear",
   "chat.control",
   "chat.question.answer",
   "chat.work.watch",
@@ -375,6 +384,12 @@ export function parseCommand(line: string): ParsedLine {
     const v = value as Record<string, unknown>;
     if (Object.keys(v).some((k) => !["type", "id", "mode", "expected"].includes(k)) || typeof v.id !== "string" || !/^[\w-]{1,100}$/.test(v.id) || !isChatAccessMode(v.mode) || !isChatAccessMode(v.expected)) return { error: "Invalid chat access preference." };
     return { command: v as unknown as Extract<IslandCommand, { type: "chat.access" }> };
+  }
+  if (type === "chat.defaults") {
+    const v = value as Record<string, unknown>;
+    if (Object.keys(v).some((k) => !["type", "access", "effort"].includes(k)) || !isChatAccessMode(v.access)
+        || typeof v.effort !== "string" || (v.effort !== "" && !/^[a-z][a-z0-9_-]{0,31}$/.test(v.effort))) return { error: "Invalid new chat defaults." };
+    return { command: { type, access: v.access, effort: v.effort } };
   }
   if (type === "chat.reasoning") {
     const v = value as Record<string, unknown>;
@@ -631,7 +646,7 @@ export function parseCommand(line: string): ParsedLine {
     return { command: { type, helper, version } };
   }
   if (type === "git.push" || type === "git.diff") {
-    // Which repositories and branches are allowed is the runtime's to check (only ATOM's task branches, in granted folders).
+    // Which repositories and branches are allowed is the runtime's to check (only ARK's task branches, in granted folders).
     const { repo, branch } = value as { repo?: unknown; branch?: unknown };
     if (typeof repo !== "string" || !repo.startsWith("/") || repo.length > 1000 || typeof branch !== "string" || !BRANCH_COMMAND_PATTERN.test(branch)) {
       return { error: `${type} needs a "repo" (a full path) and a "branch" (${BRANCH_SHAPE}).` };
@@ -769,6 +784,13 @@ export function parseCommand(line: string): ParsedLine {
     const { enabled } = value as { enabled?: unknown };
     if (typeof enabled !== "boolean") return { error: 'suggestions.set needs "enabled" to be true or false.' };
     return { command: { type, enabled } };
+  }
+  if (type === "chats.export") {
+    const { folder } = value as { folder?: unknown };
+    if (typeof folder !== "string" || !folder.startsWith("/") || folder.length > MAX_PROJECT_PATH || /[\x00-\x1f\x7f]/.test(folder) || folder.split("/").includes("..")) {
+      return { error: 'chats.export needs "folder", a full path to a folder on this Mac.' };
+    }
+    return { command: { type, folder } };
   }
   if (type === "brain.search") {
     const { query } = value as { query?: unknown };

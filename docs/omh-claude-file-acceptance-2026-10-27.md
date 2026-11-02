@@ -1,12 +1,12 @@
 # Claude file-verification acceptance — 27 October 2026
 
-Actual native-app/provider checks in the signed local ATOM build, following the [first cumulative acceptance](omh-acceptance-2026-10-26.md). No product source changed in this step. No build, unit/Swift suite, commit or push was needed. The model workers were explicitly forbidden to run commands/tests, install, commit, push, merge, change original files or write memory.
+Actual native-app/provider checks in the signed local ARK build, following the [first cumulative acceptance](omh-acceptance-2026-10-26.md). No product source changed in this step. No build, unit/Swift suite, commit or push was needed. The model workers were explicitly forbidden to run commands/tests, install, commit, push, merge, change original files or write memory.
 
 ## Setup and independent evidence
 
 Used the existing fictional **Cedar Live Acceptance** project with a separate new chat, `7b5b6d49-376b-4b58-90a9-9139d5676d75`. Main chat: Claude Haiku 5.5, thinking Off, Saved permissions. The actual worker models recorded by the SDK were Opus 5.5 for tasks 43/45/46 and Sonnet 5.5 for 44/47; this was not a fixed-model performance comparison.
 
-Source project: `~/Documents/ATOM-live-acceptance-vmh7kxvb/Cedar Numbers`, clean at `c1d4b5afdc2c42407f4af57b049c2a6266229e9f`. Its baseline `fruitTotal` subtracts instead of adding. Every worker got a new ATOM-managed task worktree on `atom/task-<id>`; earlier copies were retained.
+Source project: `~/Documents/ARK-live-acceptance-vmh7kxvb/Cedar Numbers`, clean at `c1d4b5afdc2c42407f4af57b049c2a6266229e9f`. Its baseline `fruitTotal` subtracts instead of adding. Every worker got a new ARK-managed task worktree on `ark/task-<id>`; earlier copies were retained.
 
 The app UI, host event log, read-only SQLite queries, independent file hashing and Git status supplied distinct evidence. [Saved content-free evidence snapshot](evidence/omh-claude-file-checks-2026-10-27.json) includes attempt/receipt IDs, result enums, tool lifecycle metadata, file hashes and Git state for only these fictional tasks. Log timestamps are UTC on 26 October; all checks occurred on 27 October in Japan.
 
@@ -36,7 +36,7 @@ Task 47 declared the same addition literal that had succeeded in the earlier edi
 
 ### Stop and late completion
 
-Task 46 had declared file predicates and a deliberately long sequence of read-only calls so Stop could be exercised. The parent had already acknowledged Started. The fresh visible Stop control returned ATOM to Ready and the task row became stopped.
+Task 46 had declared file predicates and a deliberately long sequence of read-only calls so Stop could be exercised. The parent had already acknowledged Started. The fresh visible Stop control returned ARK to Ready and the task row became stopped.
 
 Host tool history contains five completed Read calls before Stop. The attempt `a848576e-307d-4b4a-ba7f-b976f25e42ad` stopped at `2026-10-26T16:40:06.438Z`; the provider callback at `.480Z` respected the stopped row. Subsequent inspection still found no task verification, no later tool calls and no active workers in this chat. Its worktree retained the unchanged baseline. This is Stop **before collection**, not proof of the narrow race while host readback is already running.
 

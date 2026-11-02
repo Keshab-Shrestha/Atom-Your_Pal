@@ -61,6 +61,20 @@ test("checked sequence re-resolves fresh buttons, pins ownership/mode and return
   assert.doesNotMatch(JSON.stringify(f.finished), /Result|Next|image-3/);
 });
 
+test("sequence reads without the window image between clicks, and with it at the end or when it stops", async () => {
+  const flags = (f: ReturnType<typeof fixture>) => f.calls.filter((c) => c.name === "get_window_state").map((c) => c.args.include_screenshot);
+  const done = fixture();
+  await done.look();
+  await done.run();
+  assert.deepEqual(flags(done), [true, false, true]);
+  const stopped = fixture({ noChange: true });
+  await stopped.look();
+  const result = await stopped.run([step("Next", "1"), step("Next", "2")]);
+  assert.match(text(result), /Sequence stopped at click 1\/2/);
+  assert.deepEqual(flags(stopped), [true, false, true]); // the stop adds one read that carries the image
+  assert.deepEqual(typeof result === "object" && result.images, [{ mimeType: "image/png", data: "image-3" }]);
+});
+
 test("sequence preflights every step and delivery mode before any input/progress", async () => {
   const invalid = [[], Array.from({ length: 9 }, () => step("Next", "1")), [step("Next", "1"), { button: "Next", expect: { label: "Result", value: 2 } }], [step("Next", "1"), { ...step("Next", "2"), keys: ["return"] }], [step("Next", "1"), step("Send", "2")], [step("Next", "1"), step("Delete", "2")], [{ button: "Next", expect: { label: "Password", value: "secret" } }]];
   for (const steps of invalid) {

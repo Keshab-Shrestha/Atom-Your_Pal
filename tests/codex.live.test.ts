@@ -11,8 +11,8 @@ import { createCodexToolRouter } from "../apps/mac/src/codex-tools.ts";
 import { createNativeCore } from "../apps/mac/src/native-core.ts";
 import type { ToolCall } from "../packages/contracts/src/index.ts";
 
-test("live Codex: recover an omitted fact from this chat's archive after reopening", { skip: process.env.ATOM_LIVE_CODEX_TESTS !== "1" && "set ATOM_LIVE_CODEX_TESTS=1 to run the signed-in Codex workflow", timeout: 180_000 }, async () => {
-  const program = findProgram("codex", "ATOM_CODEX_PATH");
+test("live Codex: recover an omitted fact from this chat's archive after reopening", { skip: process.env.ARK_LIVE_CODEX_TESTS !== "1" && "set ARK_LIVE_CODEX_TESTS=1 to run the signed-in Codex workflow", timeout: 180_000 }, async () => {
+  const program = findProgram("codex", "ARK_CODEX_PATH");
   assert.ok(program, "Codex must be installed and signed in");
   const memory = openMemoryStore({ path: ":memory:" });
   const archive: import("../packages/contracts/src/index.ts").Message[] = [
@@ -30,7 +30,7 @@ test("live Codex: recover an omitted fact from this chat's archive after reopeni
     const checked = router.forRequest(request);
     return { specs: () => checked.specs(), async run(call, signal) {
       const reply = await checked.run(call, signal);
-      if (/^atom_(?:search|read)_chat_history$/.test(call.name) && /Friday at 09:40/.test(reply.content)) recovered = true;
+      if (/^ark_(?:search|read)_chat_history$/.test(call.name) && /Friday at 09:40/.test(reply.content)) recovered = true;
       return reply;
     } };
   } }), timeoutMs: 120_000, maxRetries: 0 });
@@ -45,10 +45,10 @@ test("live Codex: recover an omitted fact from this chat's archive after reopeni
   } finally { model.close?.(); router.close(); memory.close(); }
 });
 
-test("live Codex: delegate a checked edit, retain chat context and reuse an explicit file grant in a later task", { skip: process.env.ATOM_LIVE_CODEX_TESTS !== "1" && "set ATOM_LIVE_CODEX_TESTS=1 to run the signed-in Codex workflow", timeout: 300_000 }, async () => {
-  const program = findProgram("codex", "ATOM_CODEX_PATH");
+test("live Codex: delegate a checked edit, retain chat context and reuse an explicit file grant in a later task", { skip: process.env.ARK_LIVE_CODEX_TESTS !== "1" && "set ARK_LIVE_CODEX_TESTS=1 to run the signed-in Codex workflow", timeout: 300_000 }, async () => {
+  const program = findProgram("codex", "ARK_CODEX_PATH");
   assert.ok(program, "Codex must be installed and signed in");
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-codex-live-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-codex-live-")));
   const helpers = openHelperStore({ path: ":memory:", home });
   const memory = openMemoryStore({ path: ":memory:" });
   const path = join(home, "launch.txt"); writeFileSync(path, "Cedar launches Tuesday.");
@@ -59,13 +59,13 @@ test("live Codex: delegate a checked edit, retain chat context and reuse an expl
   const model = createGateway({ provider: createCodexSessionAdapter({ program, model: "codex-default", runner: (r) => router.forRequest(r) }), timeoutMs: 120_000, maxRetries: 0 });
   const core = createNativeCore({ claudePath: "", tools, team, modelFor: () => undefined, toolModel: () => model, onExchange: (id, turns) => memory.chats.save(id, turns), newId: () => "live-codex" });
   try {
-    const first = await core.handle({ source: "text", text: `The fictional project is Cedar. Its new launch day is Wednesday. Kame, read ${path} and replace its entire content with exactly 'Cedar launches Wednesday.' using atom_Write. ATOM, return the actual worker's report.` });
+    const first = await core.handle({ source: "text", text: `The fictional project is Cedar. Its new launch day is Wednesday. Kame, read ${path} and replace its entire content with exactly 'Cedar launches Wednesday.' using ark_Write. ARK, return the actual worker's report.` });
     assert.match(readFileSync(path, "utf8"), /^Cedar launches Wednesday\.\s*$/);
     assert.equal(approvals, 1);
     assert.ok(helpers.list().flatMap((h) => h.jobs).some((j) => j.state === "done"), first.text);
     const second = await core.handle({ source: "text", text: "What project and new launch day did we agree on? Don't use any tool." });
     assert.match(second.text, /Cedar/); assert.match(second.text, /Wednesday/i);
-    const third = await core.handle({ source: "text", text: `Kame, rewrite that same file to exactly 'Cedar launches Wednesday. Doors open at noon.' ATOM, report when the worker has actually saved it.` });
+    const third = await core.handle({ source: "text", text: `Kame, rewrite that same file to exactly 'Cedar launches Wednesday. Doors open at noon.' ARK, report when the worker has actually saved it.` });
     assert.match(readFileSync(path, "utf8"), /Doors open at noon/, JSON.stringify({ reply: third.text, jobs: helpers.list().flatMap((h) => h.jobs).map((j) => ({ id: j.id, state: j.state, error: j.error, report: helpers.report(j.id)?.body })) }));
     assert.equal(approvals, 1, "the second task must reuse only the explicit grant for this chat/file");
     assert.equal(memory.chats.messages("live-codex").length, 6);

@@ -1,4 +1,4 @@
-import type { Brief, BriefPreparation, BriefSettings, Briefs, PreparationSource } from "@atom/memory";
+import type { Brief, BriefPreparation, BriefSettings, Briefs, PreparationSource } from "@ark/memory";
 import type { PreparationSelection } from "./preparation-notes.ts";
 import { isBriefDue, localDay } from "./brief-due.ts";
 import { dataText, gatherBrief, type BriefData, type BriefPartKey, type BriefSources } from "./brief-gather.ts";
@@ -10,7 +10,7 @@ import { dataText, gatherBrief, type BriefData, type BriefPartKey, type BriefSou
  */
 
 export const BRIEF_INSTRUCTIONS =
-  "You are ATOM, the user's assistant on their Mac. Write the user's morning brief in your usual warm, short voice. Use only " +
+  "You are ARK, the user's assistant on their Mac. Write the user's morning brief in your usual warm, short voice. Use only " +
   "the data in the job. Say the weather first if there is any, then the events in time order, then reminders, then what is done and what waits for the user.";
 
 /** The job text for the model: the day and the gathered data, and nothing else (no chat, no memory). */

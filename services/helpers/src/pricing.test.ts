@@ -20,7 +20,7 @@ test("the price table gives the SDK's own cost for each model it measured", () =
   }
 });
 
-test("a row of ATOM's own table is priced as it was recorded (an Opus chat turn, cold cache)", () => {
+test("a row of ARK's own table is priced as it was recorded (an Opus chat turn, cold cache)", () => {
   // usage row 73 (2026-10-15): input 2, output 13, cache written 5097 (1 h): recorded $0.041.
   assert.ok(Math.abs(dollarsFor("claude-opus-5-5", { input: 2, output: 13, cacheRead: 0, cacheWrite: 5097 }, "1h")! - 0.041044) < 1e-6);
 });

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { openMemoryStore } from "@atom/memory";
+import { openMemoryStore } from "@ark/memory";
 import { capturePreparationNotes } from "./preparation-notes.ts";
 import { preparationInput } from "./prepared-brief.ts";
 import { createBriefRunner } from "./brief.ts";

@@ -1,15 +1,15 @@
 import { chatAccessPolicy, CHAT_ONLY_NOTICE, type AccessApproval, type ChatAccessPolicy } from "./chat-access.ts";
-import type { ChatAccessMode } from "@atom/contracts";
+import type { ChatAccessMode } from "@ark/contracts";
 import { createHash, randomUUID } from "node:crypto";
 import { importedNoteResult } from "./brain-source-context.ts";
 import { readFile, writeFile, mkdir, readdir, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { AsyncLocalStorage } from "node:async_hooks";
-import type { ModelRequest, ToolCall, ToolResult, ToolRunner, ToolSpec } from "@atom/contracts";
-import { createGateway, createCodexSessionAdapter, redact, runCodexProjectInspection, type CodexSessionOptions } from "@atom/llm-gateway";
-import { realish, type HelperView } from "@atom/helpers";
-import { nativeMembers, RESEARCH_PAGES } from "./native-agents.ts";
+import type { ModelRequest, ToolCall, ToolResult, ToolRunner, ToolSpec } from "@ark/contracts";
+import { createGateway, createCodexSessionAdapter, redact, runCodexProjectInspection, type CodexSessionOptions } from "@ark/llm-gateway";
+import { realish, type HelperView } from "@ark/helpers";
+import { kitHas, nativeMembers, RESEARCH_PAGES } from "./native-agents.ts";
 import { CODEX_SKILL_BUDGET, CODEX_SKILL_CHARS, codexWorkerCapabilities, codexWorkerPrompt, observeCodexWorker } from "./codex-worker.ts";
 import { boardRecorder } from "./native-board.ts";
 import { nativeGate, type NativeGate } from "./native-safety.ts";
@@ -20,7 +20,7 @@ import { SKILL_NAME } from "./skills.ts";
 import { readPublicPage } from "./public-page.ts";
 import { prepareProjectInspection, PROJECT_INSPECTION_COMMANDS } from "./project-command.ts";
 import { taskRevisionObservation } from "./git-review.ts";
-import { fileVerificationSummary, taskFileChecks } from "@atom/helpers";
+import { fileVerificationSummary, taskFileChecks } from "@ark/helpers";
 import { captureVerificationWorkspace, verifyTaskFiles } from "./task-file-verification.ts";
 import { SECRET_SHAPES } from "./folder-run.ts";
 import { codexMcpServers, codexWorkerMcp } from "./codex-mcp.ts";
@@ -37,10 +37,10 @@ const fileSpecs: ToolSpec[] = [
   { name: "Read", description: "Read one text file, up to 1 MB. Use an absolute file_path.", inputSchema: { type: "object", properties: { file_path: property("Absolute file path") }, required: ["file_path"] } },
   { name: "Glob", description: "Find files by name under path, up to four directories deep and 200 results. Protected folders and symlinks are skipped.", inputSchema: { type: "object", properties: { path: property("Absolute folder path"), pattern: property("File name glob, e.g. *.html or **/test.html") }, required: ["path", "pattern"] } },
   { name: "Grep", description: "Find a literal text pattern in one text file. Returns at most 100 matching lines.", inputSchema: { type: "object", properties: { path: property("Absolute file path"), pattern: property("Literal text to find") }, required: ["path", "pattern"] } },
-  { name: "Write", description: "ATOM host tool: create or replace a text file, up to 1 MB. This tool works independently of Codex's read-only native sandbox. ATOM checks access, asks for approval when needed and keeps an undo copy.", inputSchema: { type: "object", properties: { file_path: property("Absolute file path"), content: property("Full new text") }, required: ["file_path", "content"] } },
-  { name: "Edit", description: "ATOM host tool: replace exactly one occurrence of old_string in a text file. This tool has its own approval checks; Codex's native read-only sandbox does not prevent using it.", inputSchema: { type: "object", properties: { file_path: property("Absolute file path"), old_string: property("Exact existing text, nonempty and unique"), new_string: property("Replacement text") }, required: ["file_path", "old_string", "new_string"] } },
+  { name: "Write", description: "ARK host tool: create or replace a text file, up to 1 MB. This tool works independently of Codex's read-only native sandbox. ARK checks access, asks for approval when needed and keeps an undo copy.", inputSchema: { type: "object", properties: { file_path: property("Absolute file path"), content: property("Full new text") }, required: ["file_path", "content"] } },
+  { name: "Edit", description: "ARK host tool: replace exactly one occurrence of old_string in a text file. This tool has its own approval checks; Codex's native read-only sandbox does not prevent using it.", inputSchema: { type: "object", properties: { file_path: property("Absolute file path"), old_string: property("Exact existing text, nonempty and unique"), new_string: property("Replacement text") }, required: ["file_path", "old_string", "new_string"] } },
 ];
-const exposed = (spec: ToolSpec): ToolSpec => ({ ...spec, name: `atom_${spec.name}` });
+const exposed = (spec: ToolSpec): ToolSpec => ({ ...spec, name: `ark_${spec.name}` });
 const result = (call: ToolCall, content: string, isError = false): ToolResult => ({ callId: call.id, content, ...(isError ? { isError } : {}) });
 
 export interface CodexToolRouterOptions {
@@ -69,8 +69,8 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
   const approvalSignal = new AsyncLocalStorage<AbortSignal | undefined>();
   const webAllowed = (req: ModelRequest): boolean => req.web === true && (!req.files || req.files.web === true) && options.webAllowed?.(req.context.sessionId) === true;
   const commandsAllowed = (req: ModelRequest): boolean => process.platform === "darwin" && req.project === true && Boolean(req.files) && options.projectCommandsAllowed?.(req.context.sessionId, req.files!.cwd) === true;
-  const browserConfig = (member: HelperView) => {
-    if (member.kit === "think" || !member.browser) return undefined;
+  const browserConfig = (member: HelperView, full: boolean) => {
+    if (!kitHas(member, "any", full) || !member.browser) return undefined;
     try { return options.team?.browser?.(member.id); } catch { return undefined; }
   };
 
@@ -225,7 +225,7 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
     if (verdict.behavior !== "allow") return result(call, verdict.message ?? "That agent cannot start.", true);
     const id = `codex-${randomUUID()}`;
     const job = entry.board.jobOfAgent(id, member.id);
-    if (job === undefined) return result(call, "ATOM could not link that agent's task.", true);
+    if (job === undefined) return result(call, "ARK could not link that agent's task.", true);
     const controller = new AbortController();
     const cancel = () => controller.abort(); signal?.addEventListener("abort", cancel, { once: true });
     if (signal?.aborted) controller.abort();
@@ -235,7 +235,9 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
     team.helpers.setModel(job, workerModel, member.codexPinnedModel ? "Codex model pinned by Keshab for this worker." : "Uses this chat's Codex model; Claude pins are separate.");
     const worker = { id, type: member.id, cwd: req.files?.cwd ?? options.home ?? homedir() };
     // Native shell stays disabled; host commands use separate inspection/disposable-copy sandboxes.
-    const names = member.kit === "folders" ? FILE_NAMES : [];
+    // 2026-11-02: a Full access chat's agents have every kit's tools (kitHas), checked again before each use.
+    const full = () => entry.policy.fullAccess(controller.signal) === true;
+    const names = kitHas(member, "folders", full()) ? FILE_NAMES : [];
     const skillNames = member.skills.filter((name) => SKILL_NAME.test(name));
     let skillChars = 0;
     let pageReads = 0;
@@ -244,24 +246,24 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
     let reviewCalls = 0;
     const previews = new Map<string, { root: string; inputs: Map<string, string> }>();
     const previewHolds = new Set<string>();
-    const hasCommands = member.kit === "folders" && commandsAllowed(req);
+    const hasCommands = kitHas(member, "folders", full()) && commandsAllowed(req);
     const hasPreviewReview = hasCommands && typeof team.helpers.guardPreviewEdit === "function";
     const commandAllowed = () => {
       const current = nativeMembers(team.helpers.list()).find((m) => m.id === member.id);
-      return !controller.signal.aborted && team.helpers.get(job)?.state === "running" && current?.kit === "folders" && commandsAllowed(req);
+      return !controller.signal.aborted && team.helpers.get(job)?.state === "running" && current !== undefined && kitHas(current, "folders", full()) && commandsAllowed(req);
     };
-    const hasWeb = member.kit === "research" && webAllowed(req);
+    const hasWeb = kitHas(member, "research", full()) && webAllowed(req);
     const pageAllowed = () => {
       const current = nativeMembers(team.helpers.list()).find((m) => m.id === member.id);
-      return !controller.signal.aborted && team.helpers.get(job)?.state === "running" && current?.kit === "research" && webAllowed(req);
+      return !controller.signal.aborted && team.helpers.get(job)?.state === "running" && current !== undefined && kitHas(current, "research", full()) && webAllowed(req);
     };
-    const mcpServers = member.kit === "think" ? [] : codexMcpServers(team.helpers.mcpServers(), member.id);
+    const mcpServers = kitHas(member, "any", full()) ? codexMcpServers(team.helpers.mcpServers(), member.id) : [];
     const mcp = codexWorkerMcp({
       servers: mcpServers,
       signal: controller.signal,
       current: (server) => {
         const current = nativeMembers(team.helpers.list()).find((m) => m.id === member.id);
-        if (controller.signal.aborted || team.helpers.get(job)?.state !== "running" || !current || current.kit === "think") return undefined;
+        if (controller.signal.aborted || team.helpers.get(job)?.state !== "running" || !current || !kitHas(current, "any", full())) return undefined;
         return codexMcpServers(team.helpers.mcpServers(), member.id).find((s) => s.id === server.id);
       },
       authorize: async (name, input, activeSignal) => {
@@ -270,13 +272,13 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
       },
       read: () => entry.gate.mcpRead(worker.id),
     });
-    const config = browserConfig(member);
+    const config = browserConfig(member, full());
     const browser = codexWorkerBrowser({
       config, signal: controller.signal,
       current: () => {
         if (controller.signal.aborted || team.helpers.get(job)?.state !== "running") return undefined;
         const current = nativeMembers(team.helpers.list()).find((m) => m.id === member.id);
-        return current ? browserConfig(current) : undefined;
+        return current ? browserConfig(current, full()) : undefined;
       },
       authorize: async (name, input, activeSignal) => {
         const verdict = await approvalSignal.run(activeSignal, () => checked(entry.gate, { id: randomUUID(), name, input }, worker));
@@ -295,7 +297,7 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
       ...advisory.specs,
       ...mcp.specs,
       ...browser.specs,
-      ...(hasPreviewReview ? [{ name: "ReviewPreviewEdit", description: `Propose a separately approved replacement for ONE existing text input of a successful preview in THIS task. Host receipt binds the original source hash, not generated output. Use a returned preview_id and exact relative file_path; supply proposed complete content. Two attempts, serial with inspection/preview. ${team.approveFileEdit ? "Complete native review supports up to 32 KiB and 1,000 lines combined across before/after, with exact source text tabs and a computed diff. Approve in ATOM on the Mac; Telegram and legacy generic Allow cannot approve." : "Full file path and JSON before/after must fit a 600-character review card."} No clipping, new files or deletes. Requires current native Read/Write policy and a verified undo copy, even in a worktree; refuses changed source or unavailable undo. Every attempt consumes that input receipt, including refusal. No automatic retry/apply, shell execution, build/test claim or multi-file transaction.`, inputSchema: { type: "object" as const, properties: { preview_id: property("Exact host receipt returned by a successful ProjectShellPreview in this task"), file_path: property("Exact selected relative input-file path from that receipt"), content: property("Complete proposed replacement text; the full before/after must fit the host review limits") }, required: ["preview_id", "file_path", "content"] } }] : []),
+      ...(hasPreviewReview ? [{ name: "ReviewPreviewEdit", description: `Propose a separately approved replacement for ONE existing text input of a successful preview in THIS task. Host receipt binds the original source hash, not generated output. Use a returned preview_id and exact relative file_path; supply proposed complete content. Two attempts, serial with inspection/preview. ${team.approveFileEdit ? "Complete native review supports up to 32 KiB and 1,000 lines combined across before/after, with exact source text tabs and a computed diff. Approve in ARK on the Mac; Telegram and legacy generic Allow cannot approve." : "Full file path and JSON before/after must fit a 600-character review card."} No clipping, new files or deletes. Requires current native Read/Write policy and a verified undo copy, even in a worktree; refuses changed source or unavailable undo. Every attempt consumes that input receipt, including refusal. No automatic retry/apply, shell execution, build/test claim or multi-file transaction.`, inputSchema: { type: "object" as const, properties: { preview_id: property("Exact host receipt returned by a successful ProjectShellPreview in this task"), file_path: property("Exact selected relative input-file path from that receipt"), content: property("Complete proposed replacement text; the full before/after must fit the host review limits") }, required: ["preview_id", "file_path", "content"] } }] : []),
       ...(hasCommands ? [{ name: "ProjectShellPreview", description: "Run a shell command on a disposable selected-input project copy only. Real project access is denied to the command and changes never copy back automatically. Select up to sixteen regular UTF-8 relative input files, <=256 KiB each/2 MiB total; hidden/symlink/secret inputs excluded. Two attempts per task, serial with ProjectCommand. Native command/plan policy plus explicit preview approval (the complete command/input list must fit a 600-character card), no network, 30-second execution/32 KiB output and best-effort 8 MiB/128-entry work budget. Returns untrusted stdout plus a baseline/copy diff. This is a partial simulation, never proof the real project built/tested. Use ordinary checked file tools for authorized real edits; no shell undo or automatic apply.", inputSchema: { type: "object" as const, properties: { command: property("Shell command <=2,000 characters, evaluated only in the disposable copy; paths are relative to that copy"), input_files: { type: "array", description: "Zero to sixteen plain relative project file paths needed by the command; no directories, parent traversal, hidden paths, links or dependency-tree copying" } }, required: ["command", "input_files"] } }] : []),
       ...(hasCommands ? [{ name: "ProjectCommand", description: `Read-only project inspection using ${PROJECT_INSPECTION_COMMANDS}. Fixed executable/argument invocation, no shell parsing, scripts, network, recursive scans, stdin, background processes or project writes. At most six attempts per task, one at a time; 30 seconds/32 KiB output per command. Plan-first workers require plan approval.`, inputSchema: { type: "object" as const, properties: { command: property("One listed utility name, without a path"), arguments: { type: "array", description: "Plain string arguments, e.g. [\"-n\", \"40\", \"src/main.ts\"]. Paths stay in the task folder. Use simple read-only flags; no shell syntax is expanded." } }, required: ["command", "arguments"] } }] : []),
       ...(hasWeb ? [{ name: "WebFetch", description: `Read a known public HTTPS page as text. At most ${RESEARCH_PAGES} attempts per task, including failures. No search, browser login, JavaScript, downloads or custom headers. Response capped at 512 KiB and 12,000 text characters; 15 seconds and two redirects.`, inputSchema: { type: "object" as const, properties: { url: property("Full public https:// page address on the standard port") }, required: ["url"] } }] : []),
@@ -307,7 +309,7 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
       async run(workerCall, toolSignal) {
         const activeSignal = toolSignal ? AbortSignal.any([toolSignal, controller.signal]) : controller.signal;
         if (activeSignal.aborted) return result(workerCall, "The task was stopped.", true);
-        const name = workerCall.name.replace(/^atom_/, "");
+        const name = workerCall.name.replace(/^ark_/, "");
         if (!specs.some((s) => s.name === name)) return result(workerCall, "That tool is outside this agent's kit.", true);
         team.helpers.step(job, `Using ${name}`);
         const checkCall = { ...workerCall, name };
@@ -467,13 +469,13 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
       const verificationWorkspace = fileChecks?.length ? captureVerificationWorkspace(worker.cwd) : undefined;
       const verificationAttempt = fileChecks?.length ? team.helpers.taskEvidence?.(job) : undefined;
       const recordVerification = team.helpers.recordTaskVerification?.bind(team.helpers);
-      const system = codexWorkerPrompt(member, worker.cwd, Boolean(team.readAssignedSkill), hasWeb, hasCommands, mcpServers.map((s) => s.name), Boolean(config), advisory.specs.length > 0, hasPreviewReview);
+      const system = codexWorkerPrompt(member, worker.cwd, Boolean(team.readAssignedSkill), hasWeb, hasCommands, mcpServers.map((s) => s.name), Boolean(config), advisory.specs.length > 0, hasPreviewReview, full());
       const reply = await createGateway({ provider: adapter, timeoutMs: 300_000, maxRetries: 0 }).complete({ system, messages: [{ role: "user", content: String(verdict.updatedInput?.prompt ?? call.input.prompt) }], context: { ...req.context, sessionId: `${req.context.sessionId}:job:${job}` } }, controller.signal);
       await advisory.close(); // A parent cannot finish while an unawaited child still owns a provider session.
       if (controller.signal.aborted) throw new Error("The task was stopped before completion was recorded.");
       let verificationNote = "";
       if (fileChecks?.length) {
-        verificationNote = "\n\nATOM host file checks: unavailable; no matched result or whole-task correctness is claimed.";
+        verificationNote = "\n\nARK host file checks: unavailable; no matched result or whole-task correctness is claimed.";
         if (hasCommands && verificationWorkspace && verificationAttempt?.state === "running" && recordVerification) {
           const allowed = () => commandAllowed() && realish(worker.cwd) === verificationWorkspace.root
             && (!options.accessFor || options.accessFor(req.context.sessionId) === (req.access ?? "checked"))
@@ -483,7 +485,7 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
             const observed = await verifyTaskFiles({ workspace: verificationWorkspace, checks: fileChecks, signal: checkSignal, allowed,
               readAllowed: async (path, check) => (await approvalSignal.run(check, () => checked(entry.gate, { id: randomUUID(), name: "Read", input: { file_path: path } }, worker))).behavior === "allow" });
             if (allowed() && recordVerification(job, { id: randomUUID(), attempt: verificationAttempt.attempt, ...observed })) {
-              verificationNote = `\n\nATOM host receipt: ${fileVerificationSummary(observed.checks)}`;
+              verificationNote = `\n\nARK host receipt: ${fileVerificationSummary(observed.checks)}`;
             }
           } catch { /* A verification failure never rewrites the worker's report or fabricates evidence. */ }
         }
@@ -513,20 +515,21 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
       const entry = state(req);
       const tools = withHistoryTools(withHistoryTools(entry.tools, req.historyTools), req.interactionTools);
       const members = options.team ? nativeMembers(options.team.helpers.list()) : [];
-      const specs = [...tools.specs().map(exposed), ...(req.files ? fileSpecs.filter((s) => READ_NAMES.includes(s.name)).map(exposed) : []), ...(members.length ? [{ name: "atom_delegate", description: `Run an ATOM agent and return its actual report. Available capabilities: ${members.map((m) => `${m.id} (${m.name}: ${m.role}; ${codexWorkerCapabilities(m, Boolean(options.team?.readAssignedSkill), webAllowed(req), commandsAllowed(req), m.kit === "think" ? [] : codexMcpServers(options.team!.helpers.mcpServers(), m.id).map((s) => s.name), Boolean(browserConfig(m)), members.length > 1, commandsAllowed(req) && typeof options.team?.helpers.guardPreviewEdit === "function")})`).join(". ")}. Give the complete task in prompt.`, inputSchema: { type: "object" as const, properties: { subagent_type: property("Agent id"), description: property("Short task title"), prompt: property("Complete task, relevant context and end condition") }, required: ["subagent_type", "description", "prompt"] } }] : [])];
+      const full = entry.policy.fullAccess() === true;
+      const specs = [...tools.specs().map(exposed), ...(req.files ? fileSpecs.filter((s) => READ_NAMES.includes(s.name)).map(exposed) : []), ...(members.length ? [{ name: "ark_delegate", description: `Run an ARK agent and return its actual report. Available capabilities: ${members.map((m) => `${m.id} (${m.name}: ${m.role}; ${codexWorkerCapabilities(m, Boolean(options.team?.readAssignedSkill), webAllowed(req), commandsAllowed(req), kitHas(m, "any", full) ? codexMcpServers(options.team!.helpers.mcpServers(), m.id).map((s) => s.name) : [], Boolean(browserConfig(m, full)), members.length > 1, commandsAllowed(req) && typeof options.team?.helpers.guardPreviewEdit === "function", full)})`).join(". ")}. Give the complete task in prompt.`, inputSchema: { type: "object" as const, properties: { subagent_type: property("Agent id"), description: property("Short task title"), prompt: property("Complete task, relevant context and end condition") }, required: ["subagent_type", "description", "prompt"] } }] : [])];
       const runner: ToolRunner = {
         specs: () => specs,
         async run(call, signal) {
           if (signal?.aborted) return result(call, "Stopped.", true);
-          if (!specs.some((s) => s.name === call.name)) return result(call, "Unknown ATOM tool.", true);
-          if (call.name === "atom_delegate") return delegate(req, entry, call, signal);
-          const name = call.name.replace(/^atom_/, "");
+          if (!specs.some((s) => s.name === call.name)) return result(call, "Unknown ARK tool.", true);
+          if (call.name === "ark_delegate") return delegate(req, entry, call, signal);
+          const name = call.name.replace(/^ark_/, "");
           if (READ_NAMES.includes(name)) {
             const answer = await file(entry.gate, { ...call, name }, undefined, signal);
             if (importedNoteResult(answer.content)) entry.gate.knowledgeRead("");
             return answer;
           }
-          const verdict = await approvalSignal.run(signal, () => entry.gate.canUseTool(`mcp__atom__${name}`, call.input, { toolUseID: randomUUID() }));
+          const verdict = await approvalSignal.run(signal, () => entry.gate.canUseTool(`mcp__ark__${name}`, call.input, { toolUseID: randomUUID() }));
           if (signal?.aborted) return result(call, "Stopped.", true);
           if (verdict.behavior !== "allow") return result(call, verdict.message ?? "Not allowed.", true);
           const answer = await tools.run({ ...call, name }, signal);

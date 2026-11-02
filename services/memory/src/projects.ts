@@ -175,7 +175,7 @@ export function openProjects(db: DatabaseSync, now: () => Date): ProjectStore {
           const keep = Number((counter.get(id) as { n: number }).n);
           const plain = Number((plainCount.get() as { n: number }).n);
           if (keep + plain > PLAIN_CHAT_LIMIT) {
-            throw new ProjectError(`Keeping this project's ${keep} chats would make ${keep + plain} plain chats, and ATOM keeps ${PLAIN_CHAT_LIMIT}. Delete some chats first, or remove the project with its chats.`);
+            throw new ProjectError(`Keeping this project's ${keep} chats would make ${keep + plain} plain chats, and ARK keeps ${PLAIN_CHAT_LIMIT}. Delete some chats first, or remove the project with its chats.`);
           }
           detach.run(id);
         }

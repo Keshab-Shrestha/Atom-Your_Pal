@@ -175,39 +175,39 @@ importers:
 
   apps/mac:
     dependencies:
+      '@ark/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@ark/core':
+        specifier: workspace:*
+        version: link:../../services/core
+      '@ark/decision-engine':
+        specifier: workspace:*
+        version: link:../../services/decision-engine
+      '@ark/helpers':
+        specifier: workspace:*
+        version: link:../../services/helpers
+      '@ark/llm-gateway':
+        specifier: workspace:*
+        version: link:../../services/llm-gateway
+      '@ark/memory':
+        specifier: workspace:*
+        version: link:../../services/memory
+      '@ark/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@ark/tool-engine':
+        specifier: workspace:*
+        version: link:../../services/tool-engine
       '@huggingface/transformers':
         specifier: 3.8.1
         version: 3.8.1
       '@modelcontextprotocol/sdk':
         specifier: 1.31.0
         version: 1.31.0(zod@4.6.5)
-      '@playwright/mcp':
-        specifier: 0.0.83
-        version: 0.0.83
-      '@atom/contracts':
-        specifier: workspace:*
-        version: link:../../packages/contracts
-      '@atom/core':
-        specifier: workspace:*
-        version: link:../../services/core
-      '@atom/decision-engine':
-        specifier: workspace:*
-        version: link:../../services/decision-engine
-      '@atom/helpers':
-        specifier: workspace:*
-        version: link:../../services/helpers
-      '@atom/llm-gateway':
-        specifier: workspace:*
-        version: link:../../services/llm-gateway
-      '@atom/memory':
-        specifier: workspace:*
-        version: link:../../services/memory
-      '@atom/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@atom/tool-engine':
-        specifier: workspace:*
-        version: link:../../services/tool-engine
+      agent-browser:
+        specifier: 0.41.0
+        version: 0.41.0
       kokoro-js:
         specifier: ^1.2.1
         version: 1.2.1
@@ -218,22 +218,22 @@ importers:
 
   services/core:
     dependencies:
-      '@atom/contracts':
+      '@ark/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
 
   services/decision-engine:
     dependencies:
+      '@ark/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@modelcontextprotocol/sdk':
         specifier: 1.31.0
         version: 1.31.0(zod@4.6.5)
-      '@atom/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
 
   services/helpers:
     dependencies:
-      '@atom/decision-engine':
+      '@ark/decision-engine':
         specifier: workspace:*
         version: link:../decision-engine
 
@@ -242,10 +242,10 @@ importers:
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.3.287
         version: 0.3.287(@anthropic-ai/sdk@0.129.0(zod@4.6.5))(@modelcontextprotocol/sdk@1.31.0(zod@4.6.5))(zod@4.6.5)
-      '@atom/contracts':
+      '@ark/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
-      '@atom/shared':
+      '@ark/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       zod:
@@ -254,13 +254,13 @@ importers:
 
   services/memory:
     dependencies:
-      '@atom/contracts':
+      '@ark/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
 
   services/tool-engine:
     dependencies:
-      '@atom/contracts':
+      '@ark/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
 
@@ -514,11 +514,6 @@ packages:
       '@cfworker/json-schema':
         optional: true
 
-  '@playwright/mcp@0.0.83':
-    resolution: {integrity: sha512-oNcl+Ae2/IAjhfPeP46BfIkSakfmprY+aOtkv5MjrQ4lPav4/yNtPhL0iq8SlIM90oApWgBDUxaNKvktazUKOg==}
-    engines: {node: '>=18'}
-    hasBin: true
-
   '@protobufjs/aspromise@1.1.2':
     resolution: {integrity: sha512-j+gKExEuLmKwvz3OgROXtrJ2UG2x8Ch2YZUxahh+s1F2HZ+wAceUNLkvy6zKCPVRkU++ZWQrdxsUeQXmcg4uoQ==}
 
@@ -675,6 +670,11 @@ packages:
   accepts@2.0.0:
     resolution: {integrity: sha512-5cvg6CtKwfgdmVqY1WIiXKc3Q1bkRqGLi+2W/6ao+6Y7gu/RCwRuAhGEzh5B4KlszSuTLgZYuqFqo5bImjNKng==}
     engines: {node: '>= 0.6'}
+
+  agent-browser@0.41.0:
+    resolution: {integrity: sha512-XJtBouE5+gGUKyZU1COSmnxU6MKIlmLE2oEyHzl0ohLVOhuRjx9kqQ9vOqxiiW/Gbvi4JPF4Oz777Mn3FGiHAA==}
+    engines: {node: '>=24.0.0', pnpm: '>=11.0.0'}
+    hasBin: true
 
   ajv-formats@3.0.1:
     resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
@@ -1026,16 +1026,6 @@ packages:
   platform@1.3.6:
     resolution: {integrity: sha512-fnWVljUchTro6RiCFvCXBbNhJc2NijN7oIQxbwsyL0buWJPG85v81ehlHI9fXrJsMNgTofEoWIQeClKpgxFLrg==}
 
-  playwright-core@1.64.0-alpha-1790635538000:
-    resolution: {integrity: sha512-pNwaXirhXMRLaRQs4NQ18EpTdtDoFwyPH9FOaaDC7YXG4hpwE2xmwCic/1srbuExVQC7zT9LJSJpDBAru+Vo9A==}
-    engines: {node: '>=20'}
-    hasBin: true
-
-  playwright@1.64.0-alpha-1790635538000:
-    resolution: {integrity: sha512-/5XDUMxpOd/9AojJtWDFIRV3EJZNQ0AwvK69wgt3CPzy8wTgiBG9pX45VfxtqtvIRGwfWzMhrvawNKreG69Snw==}
-    engines: {node: '>=20'}
-    hasBin: true
-
   protobufjs@7.6.6:
     resolution: {integrity: sha512-dYDWdjSl5RNb7SgPxGQcRU+GtvP7s2fpkrY0r432PcOIaZ0/rBcxEZnQN67iJhFuQiVw754JDoPruPCNdGsbjg==}
     engines: {node: '>=12.0.0'}
@@ -1380,11 +1370,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@playwright/mcp@0.0.83':
-    dependencies:
-      playwright: 1.64.0-alpha-1790635538000
-      playwright-core: 1.64.0-alpha-1790635538000
-
   '@protobufjs/aspromise@1.1.2': {}
 
   '@protobufjs/base64@1.1.2': {}
@@ -1475,6 +1460,8 @@ snapshots:
     dependencies:
       mime-types: 3.0.2
       negotiator: 1.1.0
+
+  agent-browser@0.41.0: {}
 
   ajv-formats@3.0.1(ajv@8.20.0):
     optionalDependencies:
@@ -1820,12 +1807,6 @@ snapshots:
   pkce-challenge@5.0.1: {}
 
   platform@1.3.6: {}
-
-  playwright-core@1.64.0-alpha-1790635538000: {}
-
-  playwright@1.64.0-alpha-1790635538000:
-    dependencies:
-      playwright-core: 1.64.0-alpha-1790635538000
 
   protobufjs@7.6.6:
     dependencies:

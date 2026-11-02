@@ -62,7 +62,7 @@ function harness(
       onState: (s) => states.push(s),
       onMicReady: () => (over.autoReady === false ? log.push("mic-ready") : undefined),
       onTranscript: (t) => log.push(`you:${t}`),
-      onReply: (t) => log.push(`zeno:${t}`),
+      onReply: (t) => log.push(`ark:${t}`),
       onTurnComplete: () => log.push("done"),
       onNotice: (n) => log.push(`notice:${n.kind === "no_speech" ? `no_speech(${n.loudest})` : n.kind}`),
       onLevel: (p) => log.push(`level:${p}`),
@@ -87,7 +87,7 @@ test("a full turn: listen, transcribe, ask the Core, speak", async () => {
   assert.equal(h.loop.state, "listening");
   h.loop.press();
   await tick(5);
-  assert.deepEqual(h.log, ["you:what time is it", "zeno:reply to what time is it", "speak:reply to what time is it", "done"]);
+  assert.deepEqual(h.log, ["you:what time is it", "ark:reply to what time is it", "speak:reply to what time is it", "done"]);
   assert.deepEqual(h.states, ["listening", "transcribing", "thinking", "speaking", "idle"]);
   assert.deepEqual(h.errors, []);
   assert.equal(h.recordings[0].stopped, true);
@@ -123,7 +123,7 @@ test("sending before the microphone has started says to wait, and is not an erro
   assert.equal(h.loop.state, "idle");
 });
 
-test("pressing while ATOM is thinking cancels the request and starts listening", async () => {
+test("pressing while ARK is thinking cancels the request and starts listening", async () => {
   const pending = gate<{ text: string }>();
   let signal: AbortSignal | undefined;
   const h = harness({
@@ -148,7 +148,7 @@ test("pressing while ATOM is thinking cancels the request and starts listening",
   assert.equal(h.recordings.length, 2);
 });
 
-test("pressing while ATOM is speaking stops the speech and starts listening", async () => {
+test("pressing while ARK is speaking stops the speech and starts listening", async () => {
   let stopped = false;
   const h = harness({
     tts: {

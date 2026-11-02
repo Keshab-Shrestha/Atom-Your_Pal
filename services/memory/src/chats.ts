@@ -1,7 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import { createHash } from "node:crypto";
 import { openForeground } from "./foreground.ts";
-import { isChatAccessMode, type ChatAccessMode, type Message } from "@atom/contracts";
+import { isChatAccessMode, type ChatAccessMode, type Message } from "@ark/contracts";
 import { chatSearch, type ChatSearchHit } from "./chat-search.ts";
 import { PLAIN_CHAT_LIMIT, ProjectError } from "./projects.ts";
 
@@ -10,8 +10,8 @@ export function validChatBrief(text: unknown): text is string {
     && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\ud800-\udfff]/u.test(text);
 }
 
-// ADR-091: Keshab's chat sessions with ATOM, kept on this Mac (in the memory file) so he can go back to one. A chat is
-// ATOM Core's session: its id, a title from its first words and its turns. Never logged; the newest 200 are kept.
+// ADR-091: Keshab's chat sessions with ARK, kept on this Mac (in the memory file) so he can go back to one. A chat is
+// ARK Core's session: its id, a title from its first words and its turns. Never logged; the newest 200 are kept.
 
 export interface ChatSummary {
   id: string;

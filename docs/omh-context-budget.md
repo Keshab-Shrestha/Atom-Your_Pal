@@ -1,6 +1,6 @@
 # Shared optional-context budget
 
-26 October 2026 · Third bounded slice of [ATOM-native OMH orchestration](omh-native-orchestration.md).
+26 October 2026 · Third bounded slice of [ARK-native OMH orchestration](omh-native-orchestration.md).
 
 ## Outcome
 

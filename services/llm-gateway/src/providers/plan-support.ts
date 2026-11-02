@@ -3,16 +3,16 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { z, type ZodType } from "zod";
-import type { Message, ToolRunner, ToolSpec } from "@atom/contracts";
+import type { Message, ToolRunner, ToolSpec } from "@ark/contracts";
 import { ProviderError, type ErrorKind } from "../gateway.ts";
 
 /**
  * What every run on the user's Claude plan shares (ADR-092, ADR-110): the money rule (`planGuard`), the environment
- * Claude Code starts with (`scrubbedEnv`), how its errors read (`classify`), the tokens of a result (`tokensOf`), ATOM's
+ * Claude Code starts with (`scrubbedEnv`), how its errors read (`classify`), the tokens of a result (`tokensOf`), ARK's
  * tools as SDK tools (`sdkToolsFor`), and the small text helpers. The money rule: a run never falls back to per-token billing.
  */
 
-/** The parts of the SDK ATOM uses (lets tests supply a fake). Loaded only when first needed. */
+/** The parts of the SDK ARK uses (lets tests supply a fake). Loaded only when first needed. */
 export interface ClaudeSdk {
   query(args: { prompt: string; options: Record<string, unknown> }): AsyncIterable<Record<string, any>>;
   tool(
@@ -82,7 +82,7 @@ export function tokensOf(result: Record<string, any> | undefined, opts: { allMod
 }
 
 /**
- * ADR-098 item 9: one Claude Code session per chat. Claude Code keeps the session on this Mac; ATOM stores only its
+ * ADR-098 item 9: one Claude Code session per chat. Claude Code keeps the session on this Mac; ARK stores only its
  * id, the model it ran on and a hash of its last answer (`tail`), so a chat that changed outside it starts afresh.
  */
 export interface ChatSession {
@@ -119,7 +119,7 @@ export function scrubbedEnv(env: Record<string, string | undefined>): Record<str
 }
 
 /**
- * The installed Agent SDK's version, for the log: ATOM's safety gate depends on how Claude Code treats hook output, so
+ * The installed Agent SDK's version, for the log: ARK's safety gate depends on how Claude Code treats hook output, so
  * a changed version explains a changed behaviour. "unknown" when it cannot be read.
  */
 export function sdkVersion(): string {
@@ -148,7 +148,7 @@ export const PLAN_MODELS_TIMEOUT_MS = 30_000;
 export async function listPlanModels(
   claudePath: string,
   options: { env?: Record<string, string | undefined>; timeoutMs?: number } = {},
-): Promise<import("@atom/contracts").ReasoningModel[]> {
+): Promise<import("@ark/contracts").ReasoningModel[]> {
   const sdk = await import("@anthropic-ai/claude-agent-sdk");
   const controller = new AbortController();
   const stopped = new Promise<never>((_, reject) =>
@@ -174,7 +174,7 @@ export async function listPlanModels(
   const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? PLAN_MODELS_TIMEOUT_MS);
   try {
     const found = await Promise.race([run.supportedModels(), stopped]);
-    const models: import("@atom/contracts").ReasoningModel[] = [];
+    const models: import("@ark/contracts").ReasoningModel[] = [];
     for (const m of found) {
       // "default" is an alias for one of the others; an alias row is kept under the model id it resolves to.
       const id = (m.resolvedModel || m.value || "").trim();
@@ -223,7 +223,7 @@ function shapeOf(spec: ToolSpec): Record<string, ZodType> {
 }
 
 /**
- * ATOM's tools as SDK tools of an in-process MCP server: each call goes straight to ATOM's own tool engine, so
+ * ARK's tools as SDK tools of an in-process MCP server: each call goes straight to ARK's own tool engine, so
  * approvals and safety rules are unchanged. `onCall` is told before a tool runs.
  */
 export function sdkToolsFor(sdk: Pick<ClaudeSdk, "tool">, specs: ToolSpec[], runner: ToolRunner, signal: () => AbortSignal, onCall?: () => void): unknown[] {
@@ -245,7 +245,7 @@ export function promptFrom(messages: Message[]): string {
   if (turns.length <= 1) return last;
   const earlier = turns
     .slice(0, -1)
-    .map((m) => `${m.role === "user" ? "User" : "ATOM"}: ${m.content.trim()}`)
+    .map((m) => `${m.role === "user" ? "User" : "ARK"}: ${m.content.trim()}`)
     .join("\n");
   return `Conversation so far:\n${earlier}\n\nThe user now says:\n${last}`;
 }
@@ -295,7 +295,7 @@ export function planGuard(message: Record<string, any>, onUsage?: (usage: PlanUs
     if (!PLAN_CREDENTIALS.has(source)) {
       throw new ProviderError(
         "auth",
-        `Claude Code is using an API key (${source || "unknown"}), which bills per token, so ATOM stopped. Remove the key from Claude Code or use the Claude (API) provider on purpose.`,
+        `Claude Code is using an API key (${source || "unknown"}), which bills per token, so ARK stopped. Remove the key from Claude Code or use the Claude (API) provider on purpose.`,
       );
     }
     return;
@@ -316,7 +316,7 @@ export function planGuard(message: Record<string, any>, onUsage?: (usage: PlanUs
     }
   }
   if (info.isUsingOverage === true) {
-    throw new ProviderError("rate_limit", "Your Claude plan is used up and Claude would charge extra usage, so ATOM stopped. Switch model or wait for the plan to reset.");
+    throw new ProviderError("rate_limit", "Your Claude plan is used up and Claude would charge extra usage, so ARK stopped. Switch model or wait for the plan to reset.");
   }
   if (info.status === "rejected") {
     throw new ProviderError("rate_limit", `Your Claude plan limit is reached.${resetTime(info.resetsAt)}`);

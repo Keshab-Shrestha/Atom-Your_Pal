@@ -5,7 +5,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import type { McpServer } from "@atom/helpers";
+import type { McpServer } from "@ark/helpers";
 
 export const MCP_TEST_TIMEOUT_MS = 15_000;
 
@@ -17,7 +17,7 @@ export function sdkConfig(server: McpServer): Record<string, unknown> {
 
 /** Starts (or connects to) the server, completes the MCP handshake and lists its tools. Never throws. */
 export async function testMcpServer(server: McpServer, timeoutMs = MCP_TEST_TIMEOUT_MS): Promise<{ tools: string[] } | { problem: string }> {
-  const client = new Client({ name: "atom", version: "1.0.0" });
+  const client = new Client({ name: "ark", version: "1.0.0" });
   const transport =
     server.kind === "command"
       ? new StdioClientTransport({ command: server.command!, args: server.args, env: { ...getDefaultEnvironment(), ...server.env }, stderr: "ignore" })

@@ -1,6 +1,6 @@
-# ATOM Engineering Constitution
+# ARK Engineering Constitution
 
-This document defines how ATOM should be built.
+This document defines how ARK should be built.
 
 It is intended for Claude Code and other coding agents working on the repository.
 
@@ -10,7 +10,7 @@ It is intended for Claude Code and other coding agents working on the repository
 
 > See the whole mountain. Climb only the next step.
 
-Understand the complete ATOM architecture before making architectural decisions.
+Understand the complete ARK architecture before making architectural decisions.
 
 However, implement only the smallest capability required by the current task.
 
@@ -18,9 +18,9 @@ Do not prematurely implement future systems.
 
 ---
 
-## 2. Build ATOM as a System
+## 2. Build ARK as a System
 
-ATOM is not a chatbot.
+ARK is not a chatbot.
 
 Do not structure the project around a single LLM call.
 
@@ -140,7 +140,7 @@ Do not scatter provider-specific API calls throughout the codebase.
 Preferred architecture:
 
 ```text
-ATOM
+ARK
   ↓
 LLM Gateway
   ├── Claude
@@ -201,7 +201,7 @@ Potential implementations:
 - Jev
 - future decision systems
 
-Do not hard-code ATOM around one decision model.
+Do not hard-code ARK around one decision model.
 
 Use an abstraction.
 
@@ -211,7 +211,7 @@ The Decision Engine should only be used when probabilistic decision-making provi
 
 ## 11. Local AI Policy
 
-ATOM does not require a local general-purpose LLM.
+ARK does not require a local general-purpose LLM.
 
 Do not introduce Ollama or another local LLM runtime unless a future architectural decision explicitly requires it.
 
@@ -444,7 +444,7 @@ Avoid cleverness unless it solves a real problem.
 
 ---
 
-## 24. ATOM Development Mentality
+## 24. ARK Development Mentality
 
 Think like a senior engineer operating under a strict complexity budget.
 

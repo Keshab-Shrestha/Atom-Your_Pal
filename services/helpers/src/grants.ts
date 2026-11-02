@@ -80,11 +80,11 @@ export function checkGrant(path: string, home: string): string {
 /** Words in a task that mean files are to be saved, so a file worker without a folder asks for one. */
 /**
  * ADR-090: the folder to offer a file worker that has none: a path the task names inside the home folder ("~/Notes",
- * "/Users/me/Notes"), a folder it names ("a folder named ZenoDoc", in Documents or on the Desktop if it says so,
- * else in the home folder), or ~/Documents/ATOM. Never the home folder itself, ~/Library or a hidden folder.
+ * "/Users/me/Notes"), a folder it names ("a folder named ArkDoc", in Documents or on the Desktop if it says so,
+ * else in the home folder), or ~/Documents/ARK. Never the home folder itself, ~/Library or a hidden folder.
  */
 export function folderForTask(task: string, home: string): string {
-  const fallback = join(home, "Documents", "ATOM");
+  const fallback = join(home, "Documents", "ARK");
   const allowed = (p: string) => {
     const real = resolve(p);
     if (!isInside(home, real) || real === resolve(home)) return false;
@@ -108,7 +108,7 @@ export function folderForTask(task: string, home: string): string {
 
 /**
  * Why a file tool's path is refused, or undefined when it is inside one of the run's folders. A change inside a `.git`
- * folder or file is refused too: git's own data is ATOM's to write (commits require explicit user action), never the worker's.
+ * folder or file is refused too: git's own data is ARK's to write (commits require explicit user action), never the worker's.
  */
 export function pathProblem(roots: readonly string[], cwd: string, p: string, writing = false): string | undefined {
   const real = realish(isAbsolute(p) ? p : resolve(cwd, p));
@@ -176,7 +176,8 @@ export function toolPaths(name: string, input: Record<string, unknown>): string[
   }
 }
 
-export type CommandVerdict = { verdict: "allow" } | { verdict: "ask"; reason: string } | { verdict: "refuse"; reason: string };
+/** `outside`: on Allow the command runs outside the sandbox (network, sudo, system settings, git history), 2026-11-02. */
+export type CommandVerdict = { verdict: "allow" } | { verdict: "ask"; reason: string; outside?: boolean } | { verdict: "refuse"; reason: string };
 
 // git's own options may stand between "git" and the subcommand ("git -C . push", "git -c k=v push", "git --git-dir=x push"): the rules below read
 // through them (code check, 2026-10-16). A newline, `env`, `xargs` and `command` can stand in front of sudo.
@@ -185,10 +186,17 @@ const GIT = String.raw`\bgit(?:\s+(?:-[cC]\s+\S+|--[\w-]+(?:=\S+)?|-[abd-zABD-Z]
 const REFUSED: [RegExp, string][] = [
   [new RegExp(`${GIT}push\\b`), "Pushing is never done: the work stays on its branch on this Mac."],
   [new RegExp(`${GIT}remote\\s+(?:add|set-url|rename|remove|rm)\\b`), "Changing the repository's remotes is not allowed."],
-  [new RegExp(`${GIT}(?:checkout|switch)(?:\\s+-\\S+)*\\s+(?:main|master)\\b|${GIT}(?:reset\\s+--hard|rebase|filter-branch|update-ref)\\b`), "Only the task's own branch is touched."],
-  [/(?:^|[;&|(\n]\s*|\b(?:env|xargs|command|exec|nohup|time)\s+)(?:sudo|doas|su)\b/, "Nothing runs as an administrator."],
-  [/\bsecurity\s+(?:find|dump|export)|\bdefaults\s+write\b|\blaunchctl\b|\bosascript\b/, "System settings, keychains and other apps are out of reach."],
-  [/\bcurl\b|\bwget\b|\bssh\b|\bscp\b|\brsync\b.*:|\bnc\b/, "Commands have no network."],
+  [/\bsecurity\s+(?:find|dump|export)/, "Keychains are out of reach."],
+];
+// 2026-11-02 (Keshab: "allow ark network commands, sudo, system settings and history rewrites"): these were refused. Now they ask, and on Allow
+// they run outside the sandbox (which has no network and writes only in the project). Full access skips the question.
+const OUTSIDE: [RegExp, string][] = [
+  [/\bcurl\b|\bwget\b|\bssh\b|\bscp\b|\brsync\b.*:|\bnc\b/, "uses the network"],
+  [new RegExp(`${GIT}(?:fetch|pull|clone|ls-remote)\\b`), "uses the network"],
+  [/\b(?:npm|pnpm|yarn|bun)\s+(?:i|install|add)\b|\bpip3?\s+install\b|\bbrew\s+install\b|\bcargo\s+install\b|\bgem\s+install\b/, "installs software from the network"],
+  [/(?:^|[;&|(\n]\s*|\b(?:env|xargs|command|exec|nohup|time)\s+)(?:sudo|doas|su)\b/, "runs as an administrator (sudo cannot ask for a password here, so it works only where none is needed)"],
+  [/\bdefaults\s+write\b|\blaunchctl\b|\bosascript\b/, "changes system settings or controls other apps"],
+  [new RegExp(`${GIT}(?:checkout|switch)(?:\\s+-\\S+)*\\s+(?:main|master)\\b|${GIT}(?:reset\\s+--hard|rebase|filter-branch|update-ref)\\b`), "rewrites git history or leaves the task's branch"],
 ];
 // ADR-123: delete and anything that harms the OS is never run. Deleting is refused outright (Keshab, 2026-10-16); an agent has no delete tool, and
 // this closes the shell.
@@ -196,30 +204,30 @@ const DELETE_AND_HARM: [RegExp, string][] = [
   // 2026-10-16 (security review): a regex list cannot be complete, so the common ways round it are closed too: the command anywhere as a word (not only
   // after a separator), a backslash or full path before it, inline code in a shell or an interpreter, and the delete calls of the usual languages.
   // The real limits are the sandbox (writes only in the project folder, no network) and the copies kept for undo.
-  [/(?<![\w.\-])\\?(?:\/(?:usr\/)?(?:local\/)?bin\/)?(?:rm|rmdir|unlink|trash|shred|srm)(?=\s|$|;|&|\|)/, "Deleting is never done by an agent: Keshab deletes in Finder."],
+  [/(?<![\w.\-])\\?(?:\/(?:usr\/)?(?:local\/)?bin\/)?(?:rm|rmdir|unlink|trash|shred|srm)(?=\s|$|;|&|\|)/, "Commands do not delete files. Use the trash_file tool: it asks Keshab and moves the file to the Trash."],
   [/(?<![\w.\-])(?:sh|bash|zsh|dash|ksh|fish)\s+(?:-[a-zA-Z]*c\b|--command)|(?<![\w.\-])eval\s|(?<![\w.\-])(?:node|nodejs|deno|bun)\s+(?:-e\b|--eval\b|-p\b|--print\b)|(?<![\w.\-])python[0-9.]*\s+-[a-zA-Z]*c\b|(?<![\w.\-])(?:perl|ruby|php)\s+-[a-zA-Z]*[er]\b/, "Run a script file, not inline code: inline code cannot be checked."],
-  [/\b(?:rmSync|unlinkSync|rmdirSync|fs\.rm|fs\.unlink|fs\.rmdir|rmtree|os\.remove|os\.unlink|os\.rmdir|shutil\.rmtree|FileUtils\.rm|File\.delete|Files\.delete|unlink\s*\()/, "Deleting is never done by an agent: Keshab deletes in Finder."],
+  [/\b(?:rmSync|unlinkSync|rmdirSync|fs\.rm|fs\.unlink|fs\.rmdir|rmtree|os\.remove|os\.unlink|os\.rmdir|shutil\.rmtree|FileUtils\.rm|File\.delete|Files\.delete|unlink\s*\()/, "Commands do not delete files. Use the trash_file tool: it asks Keshab and moves the file to the Trash."],
   [/\bmv\b[^\n;|&]*\/dev\/null|(?<![\w.\-])truncate\s/, "Emptying files is never done by an agent."],
   [new RegExp(`${GIT}(?:stash\\s+(?:clear|drop)|worktree\\s+(?:remove|prune)|gc\\s+--prune|reflog\\s+expire|prune\\b|replace\\b)`), "That git command throws work away and is never run by an agent."],
-  [/(?:^|[;&|(\n]\s*|\b(?:env|xargs|command|exec|nohup|time|sudo)\s+)(?:rm|rmdir|unlink|trash|shred|srm)\b|\bfind\b[^\n;|&]*(?:-delete\b|-exec\s+(?:rm|rmdir|unlink)\b)/, "Deleting is never done by an agent: Keshab deletes in Finder."],
+  [/(?:^|[;&|(\n]\s*|\b(?:env|xargs|command|exec|nohup|time|sudo)\s+)(?:rm|rmdir|unlink|trash|shred|srm)\b|\bfind\b[^\n;|&]*(?:-delete\b|-exec\s+(?:rm|rmdir|unlink)\b)/, "Commands do not delete files. Use the trash_file tool: it asks Keshab and moves the file to the Trash."],
   [new RegExp(`${GIT}(?:clean|rm)\\b|${GIT}branch\\s+(?:-[dD]|--delete)\\b`), "Deleting files or branches is never done by an agent."],
-  [/(?:^|[;&|(\n]\s*|\b(?:env|xargs|command|exec|nohup|time)\s+)(?:dd|mkfs\S*|diskutil|hdiutil|fdisk|newfs\S*|chown|chgrp|kill|killall|pkill|shutdown|reboot|halt|pmset|networksetup|scutil|csrutil|spctl|tccutil|nvram|systemsetup|dscl|fdesetup)\b/, "That command changes the system and is never run by an agent."],
+  [/(?:^|[;&|(\n]\s*|\b(?:env|xargs|command|exec|nohup|time|sudo)\s+)(?:dd|mkfs\S*|diskutil|hdiutil|fdisk|newfs\S*|chown|chgrp|kill|killall|pkill|shutdown|reboot|halt|pmset|networksetup|scutil|csrutil|spctl|tccutil|nvram|systemsetup|dscl|fdesetup)\b/, "That command changes the system and is never run by an agent."],
   [/\bchmod\s+(?:-[a-zA-Z]*R[a-zA-Z]*|--recursive)\b/, "Changing permissions of whole folders is never done by an agent."],
   [/>>?\s*\/(?:System|Library|usr|etc|bin|sbin|private|Applications|var)\b|\btee\s+(?:-a\s+)?\/(?:System|Library|usr|etc|bin|sbin|private|Applications|var)\b/, "System folders are never written by an agent."],
   [/:\s*\(\s*\)\s*\{[^}]*:\s*\|\s*:/, "A fork bomb."],
 ];
-const ASKED: [RegExp, string][] = [
-  [/\b(?:npm|pnpm|yarn|bun)\s+(?:i|install|add)\b|\bpip3?\s+install\b|\bbrew\s+install\b|\bcargo\s+install\b|\bgem\s+install\b/, "installs software"],
-]; 
 
 /** A sandboxed command's fate, in code: some are never run, some ask Keshab first, the rest run. */
 /** A command longer than this is refused unread: the checks below are regular expressions and the text comes from a model. */
 export const MAX_COMMAND_CHARS = 8_000;
 
+/** A `git push` in any of its spellings (2026-11-02): the safety gate asks, then ARK pushes the task's own branch outside the sandbox. */
+export const isPushCommand = (command: string): boolean => new RegExp(`${GIT}push\\b`).test(command);
+
 export function classifyCommand(command: string): CommandVerdict {
   if (command.length > MAX_COMMAND_CHARS) return { verdict: "refuse", reason: `The command is longer than ${MAX_COMMAND_CHARS} characters. Put it in a script file.` };
   for (const [re, reason] of REFUSED) if (re.test(command)) return { verdict: "refuse", reason };
   for (const [re, reason] of DELETE_AND_HARM) if (re.test(command)) return { verdict: "refuse", reason };
-  for (const [re, reason] of ASKED) if (re.test(command)) return { verdict: "ask", reason };
+  for (const [re, reason] of OUTSIDE) if (re.test(command)) return { verdict: "ask", reason, outside: true };
   return { verdict: "allow" };
 }

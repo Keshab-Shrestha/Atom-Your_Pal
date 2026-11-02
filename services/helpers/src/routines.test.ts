@@ -10,7 +10,7 @@ import { createScheduleTool, describeSchedule, isDue, lastDue, openHelperStore, 
 const at = (s: string) => new Date(s);
 
 test("long schedule instructions survive creation, editing, reopening and task creation without truncation", () => {
-  const home = mkdtempSync(join(tmpdir(), "atom-long-schedule-"));
+  const home = mkdtempSync(join(tmpdir(), "ark-long-schedule-"));
   const path = join(home, "helpers.db");
   let store = openHelperStore({ path, home });
   try {

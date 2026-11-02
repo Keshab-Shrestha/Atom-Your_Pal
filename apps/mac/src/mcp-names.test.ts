@@ -4,8 +4,8 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { BROWSER_SERVER } from "./browser.ts";
 
-// ADR-105: the server names ATOM registers. A tool name `mcp__<server>__<tool>` in a run's flags must name one of them.
-const REGISTERED_SERVERS = new Set(["atom", BROWSER_SERVER]);
+// ADR-105: the server names ARK registers. A tool name `mcp__<server>__<tool>` in a run's flags must name one of them.
+const REGISTERED_SERVERS = new Set(["ark", BROWSER_SERVER]);
 
 function sources(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
@@ -18,10 +18,10 @@ function sources(dir: string, out: string[] = []): string[] {
 }
 
 test("the names are the new ones", () => {
-  assert.equal(BROWSER_SERVER, "atom-browser");
+  assert.equal(BROWSER_SERVER, "ark-browser");
 });
 
-test("every mcp__<server>__ in the sources names a server ATOM registers", () => {
+test("every mcp__<server>__ in the sources names a server ARK registers", () => {
   const root = join(import.meta.dirname, "../../..");
   const bad: string[] = [];
   for (const top of ["apps", "services", "packages"]) {

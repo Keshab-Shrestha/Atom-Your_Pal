@@ -3,12 +3,12 @@
 import type { ProjectSourceRequest, ProjectSourceResponse } from "./project-sources.ts";
 import type { ChatControlRequest, ChatControlResponse } from "./chat-controls.ts";
 import type { ChatWorkBridge } from "./chat-work.ts";
-import type { ForegroundStore } from "@atom/memory";
+import type { ForegroundStore } from "@ark/memory";
 import type { ChatTurns } from "./chat-turns.ts";
 import type { HubCommands } from "./hub-commands.ts";
 import type { Readable } from "node:stream";
-import type { Logger } from "@atom/shared";
-import type { Message } from "@atom/contracts";
+import type { Logger } from "@ark/shared";
+import type { Message } from "@ark/contracts";
 import { type EpisodeItem, type HelperItem, type ModelItem, type MemoryItem, type SuggestionItem, type BriefItem, type BriefSettingsItem, type MemoryChatItem, type SoulItem, type ThreadEvent, type SearchHitItem, type PaperclipItem, type PlanItem, type BrainNodeItem, type BrainEdgeItem, type BrainNoteItem, type BrainHitItem, type McpItem, type SkillDraftItem, type SkillEditItem, type TestCaseItem, type UsageItem, type ChatItem, type ProjectItem, type GitBranchItem, type RoutineInput } from "./island-protocol.ts";
 import type { BriefChange } from "./island-commands.ts";
 import type { EverythingResults } from "./everything-search.ts";
@@ -17,7 +17,7 @@ import type { WindowPointer } from "./screen-context.ts";
 import type { ModelSettings } from "./model-settings.ts";
 import type { SpeechToText } from "./stt.ts";
 import type { TextToSpeech } from "./tts.ts";
-import { type Capability } from "@atom/tool-engine";
+import { type Capability } from "@ark/tool-engine";
 import type { ApiServer } from "./api-server.ts";
 import { type CoreLike, type VoiceLoopEvents, type VoiceLoopOptions } from "./voice-loop.ts";
 
@@ -33,7 +33,7 @@ export interface IslandOptions {
   /** ADR-091: a Core that can resume a saved chat names its session (the chat voice and typing go to). */
   core: CoreLike & { reset(): void; resume?(id: string, turns: readonly Message[]): void; readonly sessionId?: string; readonly busy?: boolean };
   tts: TextToSpeech;
-  /** Reported in the `ready` event. ADR-098: `telegram` is true when ATOM's Telegram bot is set up in .env. */
+  /** Reported in the `ready` event. ADR-098: `telegram` is true when ARK's Telegram bot is set up in .env. */
   info: { provider: string; model: string; microphone: string; telegram?: boolean; computer?: boolean };
   /** ADR-098: Settings' "Send to Telegram" switch. Absent when Telegram is not set up: `telegram.set` does nothing. */
   telegram?: { setPush(on: boolean): void };
@@ -41,13 +41,13 @@ export interface IslandOptions {
   api?: Pick<ApiServer, "set" | "regenerate">;
   /** The AI model choice: sent as `info` after `ready`, changed by `model.set`. Without it, `model.set` is refused. */
   settings?: Pick<ModelSettings, "info" | "setModel" | "scanTools" | "refreshModels">;
-  /** Computer control (ADR-054): shows what ATOM is doing and asks before risky actions. Absent when it is off. */
+  /** Computer control (ADR-054): shows what ARK is doing and asks before risky actions. Absent when it is off. */
   computer?: Pick<ComputerBridge, "attach" | "answer" | "cancelAll" | "setForeground"> & Partial<Pick<ComputerBridge, "setDecisions" | "decisionResult">>;
   /** Window task/retry turns have their own Core, outside the foreground voice/text loop. */
   taskActivity?: { busy(): boolean; onChange(listener: () => void): () => void };
   chatWork?: ChatWorkBridge;
   foreground?: ForegroundStore & { profile(chat: string, source: "voice" | "text"): { provider: string; model: string } };
-  /** What ATOM keeps (ADR-058), for Settings. Absent when memory is off: `memory.*` answers `enabled: false`. */
+  /** What ARK keeps (ADR-058), for Settings. Absent when memory is off: `memory.*` answers `enabled: false`. */
   memory?: IslandMemory;
   /** The second brain (Memory → Graph). */
   brain?: IslandBrain;
@@ -56,14 +56,14 @@ export interface IslandOptions {
   slashCommands?: { list(): { name: string; description: string; hint: string }[] };
   /** Plugins → Skills: open a skill's SKILL.md and save Keshab's edit. `write` throws with words for the user. */
   skillFiles?: {
-    read(name: string): { name: string; source: "yours" | "zeno"; text: string } | undefined;
-    write(name: string, text: string): { name: string; source: "yours" | "zeno"; text: string };
+    read(name: string): { name: string; source: "yours" | "ark"; text: string } | undefined;
+    write(name: string, text: string): { name: string; source: "yours" | "ark"; text: string };
   };
   /** ADR-091: chat sessions. Absent when memory is off. */
   chats?: IslandChats;
   /** Who is answering in which chat: a second turn in a chat that is answering is refused (the window and the phone share a chat). */
   chatTurns?: ChatTurns;
-  /** Ask ATOM (upgrades.md B3). Absent: `text.edit` answers with an error. */
+  /** Ask ARK (upgrades.md B3). Absent: `text.edit` answers with an error. */
   textEdit?: IslandTextEdit;
   /** Daily brief (upgrades.md C3). Absent when memory is off: `brief.*` answer with the defaults. */
   dailyBrief?: IslandDailyBrief;
@@ -76,7 +76,7 @@ export interface IslandOptions {
   /** ADR-107: projects. Absent when memory is off: `project.*` and `chat.new` with a project are refused. */
   projects?: IslandProjects;
   workspace?: Pick<ReturnType<typeof import("./project-workspace.ts").createProjectWorkspace>, "handle"> & Partial<Pick<ReturnType<typeof import("./project-workspace.ts").createProjectWorkspace>, "git">>;
-  /** ADR-091: ATOM's task branches. */
+  /** ADR-091: ARK's task branches. */
   git?: IslandGit;
   /** Helpers and their jobs (ADR-081). Absent when their file could not be opened: no helpers are listed. */
   helpers?: IslandHelpers;
@@ -136,7 +136,7 @@ export interface IslandMemory {
   /** ADR-097: starts keeping a chat (the summary and index are written in the background). False when there is no such chat. */
   keepChat?(id: string): boolean;
   dropChat?(id: string): boolean;
-  /** Called after ATOM keeps or forgets something by itself (the remember / forget tools). Returns an unsubscribe. */
+  /** Called after ARK keeps or forgets something by itself (the remember / forget tools). Returns an unsubscribe. */
   onChange(listener: () => void): () => void;
 }
 
@@ -151,14 +151,14 @@ export interface IslandSuggestions {
   onChange(listener: () => void): () => void;
 }
 
-/** Ask ATOM (upgrades.md B3): rewrites text as asked. Rejects with words for the user; an abort rejects too. */
+/** Ask ARK (upgrades.md B3): rewrites text as asked. Rejects with words for the user; an abort rejects too. */
 export interface IslandTextEdit {
   edit(req: { text: string; selection?: [number, number]; instruction: string }, signal: AbortSignal): Promise<{ answer: string; changed: boolean }>;
 }
 
 /** Daily brief (upgrades.md C3). */
 export interface IslandDailyBrief {
-  state(): { settings: BriefSettingsItem; history: BriefItem[]; running: boolean; preparationBudget?: import("@atom/memory").PreparationBudget; preparationModel?: string; notice?: string };
+  state(): { settings: BriefSettingsItem; history: BriefItem[]; running: boolean; preparationBudget?: import("@ark/memory").PreparationBudget; preparationModel?: string; notice?: string };
   /** Starts a brief now (the answer comes as a `brief` event). */
   run(): void;
   /** Changes the given settings. Throws, with words for the user, for a value that is not allowed. */
@@ -167,18 +167,20 @@ export interface IslandDailyBrief {
   onChange(listener: () => void): () => void;
 }
 
-/** ADR-091: ATOM's task branches; pushing one is Keshab's alone (the window asks him to confirm first). */
+/** ADR-091: ARK's task branches; pushing one is Keshab's alone (the window asks him to confirm first). */
 export interface IslandGit {
   list(): Promise<GitBranchItem[]>;
   push(repo: string, branch: string): Promise<void>;
   diff(repo: string, branch: string): Promise<{ text: string; truncated: boolean }>;
 }
 
-/** ADR-091: Keshab's chat sessions with ATOM (kept on this Mac). */
+/** ADR-091: Keshab's chat sessions with ARK (kept on this Mac). */
 export interface IslandChats {
-  confirmFullAccess?(id: string, expected: import("@atom/contracts").ChatAccessMode, signal: AbortSignal): Promise<boolean>;
-  accessOf?(id: string): import("@atom/contracts").ChatAccessMode;
-  setAccess?(id: string, mode: import("@atom/contracts").ChatAccessMode, expected: import("@atom/contracts").ChatAccessMode): { ok: true } | { error: string };
+  confirmFullAccess?(id: string, expected: import("@ark/contracts").ChatAccessMode, signal: AbortSignal): Promise<boolean>;
+  accessOf?(id: string): import("@ark/contracts").ChatAccessMode;
+  setAccess?(id: string, mode: import("@ark/contracts").ChatAccessMode, expected: import("@ark/contracts").ChatAccessMode): { ok: true } | { error: string };
+  /** 2026-11-02 (Settings → Defaults): a new chat's access and thinking level. Returns what could not be applied, if anything. */
+  applyDefaults?(id: string, defaults: { access: import("@ark/contracts").ChatAccessMode; effort: string }): string | undefined;
   reasoningOf?(id: string): import("./model-settings.ts").ChatReasoning;
   setReasoning?(id: string, provider: string, model: string, effort: string): { ok: true } | { error: string };
   lastOpened?(): string | undefined;
@@ -274,8 +276,8 @@ export interface IslandHelpers {
   acceptProposal(id: number): void;
   rejectProposal(id: number): void;
   undoProposal(id: number): void;
-  /** Task 3.12: the skills (Keshab's and, ADR-094, ATOM's), and a worker's choice of them. Throws, with words for the user, for an unknown skill. */
-  skills(): { name: string; description: string; source?: "yours" | "zeno" | "hub" }[];
+  /** Task 3.12: the skills (Keshab's and, ADR-094, ARK's), and a worker's choice of them. Throws, with words for the user, for an unknown skill. */
+  skills(): { name: string; description: string; source?: "yours" | "ark" | "hub" }[];
   /** B3.5, ADR-102: the skills hub (search, preview, approve, reject, uninstall, update); absent: the commands are refused. */
   hub?: HubCommands;
   /** ADR-094: Tinker's skill drafts and edits (pending and recent), and the answers to them. Each answer throws with words for the user. */

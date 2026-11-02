@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ATOM UI Playground</title>
+<title>ARK UI Playground</title>
 <style>
 :root {
   --bg: #0b0b0d; --surface: #111114; --surface2: #17171b; --border: #26262b;
@@ -20,7 +20,7 @@ input[type=text], select, textarea { background: #17171b; border: 1px solid #2a2
 input[type=range], input[type=checkbox] { accent-color: #7c6cff; }
 select option { background: #17171b; color: #e4e4ea; }
 
-/* ---- tool chrome (not part of ATOM's design) ---- */
+/* ---- tool chrome (not part of ARK's design) ---- */
 .top { display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: #101013; border-bottom: 1px solid #222; flex-wrap: wrap; }
 .top h1 { font-size: 13px; margin: 0 14px 0 0; letter-spacing: .04em; color: #fff; }
 .tab, .btn { background: #1a1a1f; border: 1px solid #2a2a31; border-radius: 7px; padding: 5px 11px; color: #cfcfd6; }
@@ -53,7 +53,7 @@ textarea.field { width: 100%; min-height: 64px; resize: vertical; }
 .mode button { background: #17171b; border: 0; padding: 4px 10px; color: #aaa; }
 .mode button[aria-pressed="true"] { background: #2b2570; color: #fff; }
 
-/* ---- the mock ATOM window (uses the tokens above) ---- */
+/* ---- the mock ARK window (uses the tokens above) ---- */
 #win { width: 980px; max-width: 100%; height: 640px; display: flex; background: var(--bg); color: var(--text); font-family: var(--font); border: 1px solid var(--border); border-radius: calc(var(--radius) + 4px); overflow: hidden; box-shadow: 0 20px 60px #000a; }
 #win.edit *:hover { outline: 1px dashed var(--accent); outline-offset: 1px; cursor: grab; }
 #win.edit { user-select: none; -webkit-user-select: none; }
@@ -124,7 +124,7 @@ table.pol td { padding: 5px 4px; border-bottom: 1px solid #222; }
 </head>
 <body>
 <div class="top">
-  <h1>ATOM UI PLAYGROUND</h1>
+  <h1>ARK UI PLAYGROUND</h1>
   <button class="tab" data-view="window" aria-selected="true">Window</button>
   <button class="tab" data-view="browser" aria-selected="false">Browser automation</button>
   <button class="tab" data-view="ideas" aria-selected="false">Ideas<span class="count" id="nIdeas">0</span></button>
@@ -186,7 +186,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&
 const toast = (t) => { const e = $("#toast"); e.textContent = t; e.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove("on"), 1600); };
 
 /* ================= state ================= */
-const KEY = "atom-ui-playground-v2";
+const KEY = "ark-ui-playground-v2";
 const FONT_SYS = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif';
 const TOKEN_DEFS = [
   { v: "--accent", name: "Accent", type: "color", def: "#8b7cff" },
@@ -224,7 +224,7 @@ const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch
 
 /* ================= mock window ================= */
 const NAV = [
-  ["overview", "Overview", "◔", "3 running"], ["chat", "Chat", "✎", "Ask ATOM"], ["board", "Board", "▦", "Tasks and agents"],
+  ["overview", "Overview", "◔", "3 running"], ["chat", "Chat", "✎", "Ask ARK"], ["board", "Board", "▦", "Tasks and agents"],
   ["needs", "Needs you", "!", "2 waiting"], ["issues", "Issues", "△", "1 failed"], ["scheduled", "Scheduled", "◷", "4 routines"],
   ["plugins", "Plugins", "⚙", "Skills and MCP"], ["settings", "Settings", "☰", ""],
 ];
@@ -251,12 +251,12 @@ function renderWin() {
   const w = $("#win");
   w.className = S.mode === "edit" ? "edit" : "";
   const title = (NAV.find((n) => n[0] === S.page) || NAV[1])[1];
-  w.innerHTML = `<nav class="sb"><div class="pal"><i></i><div><b>ATOM</b><span>Ready</span></div></div>
+  w.innerHTML = `<nav class="sb"><div class="pal"><i></i><div><b>ARK</b><span>Ready</span></div></div>
     ${NAV.map(([id, t, ic, d]) => `<button class="nav" data-page="${id}" ${id === S.page ? 'aria-current="page"' : ""}><span class="ic">${ic}</span><span>${t}${d ? `<small>${d}</small>` : ""}</span>${id === "needs" ? '<span class="badge">2</span>' : ""}</button>`).join("")}
     <div class="grow"></div><div class="chat-item">Compare Tokyo, Kyoto, Osaka…</div><div class="chat-item">Weekly report draft</div></nav>
     <section class="pg"><div class="bar"><h3>${title}</h3><span class="st">Claude plan · Opus</span></div>
     <div class="body">${PAGES[S.page]()}</div>
-    ${S.page === "chat" ? '<div class="input"><div class="box">Message ATOM…</div><button class="gbtn main">Send</button></div>' : ""}</section>`;
+    ${S.page === "chat" ? '<div class="input"><div class="box">Message ARK…</div><button class="gbtn main">Send</button></div>' : ""}</section>`;
   assignIds(w, "e");
   S.ops.forEach(applyOp);
   selected = null;
@@ -567,7 +567,7 @@ function dryRun() {
 /* ================= export ================= */
 function buildMd() {
   const L = [], b = S.browser;
-  L.push("# ATOM UI changes and ideas", "", "Source: design/ui-playground.html (a mock of the ATOM window). Apply what is listed to the real SwiftUI app (apps/mac/island/Sources/AtomIsland). Ask before you change anything that is not listed.", "");
+  L.push("# ARK UI changes and ideas", "", "Source: design/ui-playground.html (a mock of the ARK window). Apply what is listed to the real SwiftUI app (apps/mac/island/Sources/ArkIsland). Ask before you change anything that is not listed.", "");
   const toks = Object.entries(S.tokens);
   L.push("## Theme changes", "");
   if (toks.length) toks.forEach(([k, v]) => { const d = TOKEN_DEFS.find((x) => x.v === k); L.push(`- ${d.name} (${k}): ${d.def} -> ${v}`); }); else L.push("- None.");
@@ -592,8 +592,8 @@ function buildMd() {
 const refreshExport = () => { $("#exportText").value = buildMd(); };
 const download = (name, text, type) => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
 $("#copyMd").addEventListener("click", async () => { refreshExport(); try { await navigator.clipboard.writeText($("#exportText").value); toast("Copied"); } catch (e) { $("#exportText").select(); toast("Press Cmd+C to copy"); } });
-$("#dlMd").addEventListener("click", () => download("atom-ui-ideas.md", buildMd(), "text/markdown"));
-$("#dlJson").addEventListener("click", () => download("atom-ui-ideas.json", JSON.stringify(S, null, 2), "application/json"));
+$("#dlMd").addEventListener("click", () => download("ark-ui-ideas.md", buildMd(), "text/markdown"));
+$("#dlJson").addEventListener("click", () => download("ark-ui-ideas.json", JSON.stringify(S, null, 2), "application/json"));
 $("#impJson").addEventListener("click", () => $("#impFile").click());
 $("#impFile").addEventListener("change", async (e) => {
   try { const j = JSON.parse(await e.target.files[0].text()); S = { ...fresh(), ...j }; S.browser = { ...DEFAULT_BROWSER(), ...S.browser }; save(); boot(); toast("Imported"); }

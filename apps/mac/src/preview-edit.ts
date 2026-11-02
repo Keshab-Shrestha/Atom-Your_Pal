@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { constants, closeSync, fchmodSync, fsyncSync, fstatSync, lstatSync, openSync, readSync, realpathSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
-import { isInside } from "@atom/helpers";
+import { isInside } from "@ark/helpers";
 import { SECRET_SHAPES } from "./folder-run.ts";
 import { validFileReview, type FileEditReview } from "./computer-bridge.ts";
 
@@ -74,7 +74,7 @@ export async function reviewPreviewEdit(options: {
     if (!allowed() || signal.aborted) return { text: "Stopped before replacement. The armed checkpoint may show a conflict; no replacement ran.", isError: true };
     const parent = dirname(options.path), directory = lstatSync(parent);
     if (realpathSync(parent) !== parent || !directory.isDirectory()) throw new Error("changed parent");
-    temp = join(parent, `.atom-preview-edit-${randomUUID()}`);
+    temp = join(parent, `.ark-preview-edit-${randomUUID()}`);
     const fd = openSync(temp, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
     let stage;
     try { writeFileSync(fd, content, "utf8"); fchmodSync(fd, now.mode); fsyncSync(fd); stage = fstatSync(fd); } finally { closeSync(fd); }

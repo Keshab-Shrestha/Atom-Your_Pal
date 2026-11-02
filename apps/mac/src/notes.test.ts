@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { openMemoryStore } from "@atom/memory";
-import type { LanguageModel, Message } from "@atom/contracts";
-import type { ClaudeSdk } from "@atom/llm-gateway";
+import { openMemoryStore } from "@ark/memory";
+import type { LanguageModel, Message } from "@ark/contracts";
+import type { ClaudeSdk } from "@ark/llm-gateway";
 import { createNoteModel, createNotes } from "./notes.ts";
 
 const convo = (n: number): Message[] => Array.from({ length: n }, (_, i) => [{ role: "user" as const, content: `q${i}` }, { role: "assistant" as const, content: `a${i}` }]).flat();
@@ -14,13 +14,13 @@ function setup(env: Record<string, string>, memory = openMemoryStore({ path: ":m
   return { requests, memory, notes: createNotes({ memory, model, env, log, changed: () => {} }) };
 }
 
-test("ATOM_EPISODES=0 turns notes off; without memory there are none (ADR-108)", async () => {
-  assert.equal(setup({ ATOM_EPISODES: "0" }).notes, undefined);
+test("ARK_EPISODES=0 turns notes off; without memory there are none (ADR-108)", async () => {
+  assert.equal(setup({ ARK_EPISODES: "0" }).notes, undefined);
   assert.equal(createNotes({ memory: undefined, model: { complete: async () => ({ text: "" }) }, env: {}, log, changed: () => {} }), undefined);
 });
 
-test("ATOM_NOTE_QUIET_MS 0 restores a note after every reply; the default waits (ADR-108)", async () => {
-  const each = setup({ ATOM_NOTE_QUIET_MS: "0" });
+test("ARK_NOTE_QUIET_MS 0 restores a note after every reply; the default waits (ADR-108)", async () => {
+  const each = setup({ ARK_NOTE_QUIET_MS: "0" });
   each.notes!.update("s", convo(1));
   await each.notes!.idle();
   assert.equal(each.requests.length, 1);

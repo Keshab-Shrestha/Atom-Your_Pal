@@ -1,6 +1,6 @@
 import { stat } from "node:fs/promises";
 import { resolve } from "node:path";
-import { isInside, realish } from "@atom/helpers";
+import { isInside, realish } from "@ark/helpers";
 import { SECRET_SHAPES } from "./folder-run.ts";
 
 const TOOLS: Record<string, { binary: string; flags: string; directory?: boolean }> = {

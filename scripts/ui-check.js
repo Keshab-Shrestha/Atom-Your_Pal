@@ -1,20 +1,20 @@
-// The live half of scripts/ui-check.sh: reads the text ATOM's window shows, through Accessibility (no screen
+// The live half of scripts/ui-check.sh: reads the text ARK's window shows, through Accessibility (no screen
 // recording needed), and fails when the window is not up or when raw Markdown reaches the screen (a table drawn as
 // `| a | b |`, `**bold**` marks). Read-only: it clicks nothing.
 // (System Events cannot read SwiftUI's accessibility labels, so buttons are not checked here.)
 // Run with: osascript -l JavaScript scripts/ui-check.js
 // The sidebar rows are buttons whose text System Events cannot read; the header text is readable.
-const HEADER = ["ATOM"];
+const HEADER = ["ARK"];
 const RAW_TABLE_ROW = /^\s*\|.*\|\s*$/;
 const RAW_BOLD = /\*\*[^*]+\*\*/;
 
 function run() {
-  const p = Application("System Events").processes.byName("ATOM");
+  const p = Application("System Events").processes.byName("ARK");
   let count;
   try { count = p.windows.length; } catch { count = 0; }
-  if (!count) return "FAIL no ATOM window (open it, or run scripts/ui-check.sh)";
+  if (!count) return "FAIL no ARK window (open it, or run scripts/ui-check.sh)";
 
-  // Read every window: ATOM also shows a small pet window, which is not always first.
+  // Read every window: ARK also shows a small pet window, which is not always first.
   const texts = [];
   for (let i = 0; i < count; i++) {
     for (const e of p.windows[i].entireContents()) {

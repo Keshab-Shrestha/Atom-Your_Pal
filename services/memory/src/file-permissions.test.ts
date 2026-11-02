@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { openMemoryStore } from "./store.ts";
 
 test("explicit file grants survive reopening, remain scoped to the chat and are removed with it", () => {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), "atom-file-permission-")));
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), "ark-file-permission-")));
   const path = join(dir, "memory.db");
   let memory = openMemoryStore({ path });
   try {

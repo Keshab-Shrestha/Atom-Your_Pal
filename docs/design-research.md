@@ -4,11 +4,11 @@ Date: 2026-10-15. Source: `github.com/nexu-io/open-design`, folders `design-syst
 
 ## 1. What I read
 
-- `design-systems/`: 151 packages. I read the README, the schema (`_schema`), and the systems closest to ATOM: HUD, Agentic, Dashboard, Linear, Raycast, Warp and Claude.
-- `design-templates/`: more than 100 templates. I read the rules file and five templates that fit ATOM: Dashboard, Kanban board, Live dashboard, Worker visualizer and Critique.
+- `design-systems/`: 151 packages. I read the README, the schema (`_schema`), and the systems closest to ARK: HUD, Agentic, Dashboard, Linear, Raycast, Warp and Claude.
+- `design-templates/`: more than 100 templates. I read the rules file and five templates that fit ARK: Dashboard, Kanban board, Live dashboard, Worker visualizer and Critique.
 - `craft/`: the shared rules the templates require. I read State coverage, Anti-AI-slop, Animation discipline, Accessibility baseline, Typography hierarchy, Laws of UX and Color.
 
-I did not read every package. Most of the 151 are the same shape with different colours. The sample above covers the ideas that matter for ATOM.
+I did not read every package. Most of the 151 are the same shape with different colours. The sample above covers the ideas that matter for ARK.
 
 ## 2. What a design system is, in this repository
 
@@ -26,26 +26,26 @@ The tokens have layers:
 
 This split is the main idea to keep. An agent that reads the package knows which values it may choose and which are fixed.
 
-## 3. Ideas that I took for ATOM
+## 3. Ideas that I took for ARK
 
-1. **A package for ATOM.** `design/atom-design-system/` has `manifest.json`, `DESIGN.md` and `tokens.css` for Void and Daylight. The designer agent (Puff) and the playground can read it.
-2. **A test against drift.** The reference repository has a guard that compares `tokens.css` with the prose. ATOM now has `DesignTokensTests.swift`. It fails when a value in `tokens.css` differs from `Theme.swift`. I proved this with a one-digit change.
-3. **A 4 px spacing grid.** ATOM's spacing constants were 22, 14, 18 and 26. They are now 24, 16, 20 and 24.
-4. **Three text levels, with secondary text softer than main text.** ATOM already had this. The Daylight theme broke it in the first draft (black secondary text). The test now checks it.
-5. **Two elevation levels in a flat theme.** A hairline is the edge, and a lighter surface is the depth. Linear and Raycast do the same on dark surfaces. ATOM's Void already works this way.
+1. **A package for ARK.** `design/ark-design-system/` has `manifest.json`, `DESIGN.md` and `tokens.css` for Void and Daylight. The designer agent (Puff) and the playground can read it.
+2. **A test against drift.** The reference repository has a guard that compares `tokens.css` with the prose. ARK now has `DesignTokensTests.swift`. It fails when a value in `tokens.css` differs from `Theme.swift`. I proved this with a one-digit change.
+3. **A 4 px spacing grid.** ARK's spacing constants were 22, 14, 18 and 26. They are now 24, 16, 20 and 24.
+4. **Three text levels, with secondary text softer than main text.** ARK already had this. The Daylight theme broke it in the first draft (black secondary text). The test now checks it.
+5. **Two elevation levels in a flat theme.** A hairline is the edge, and a lighter surface is the depth. Linear and Raycast do the same on dark surfaces. ARK's Void already works this way.
 6. **Keyboard and focus.** The accessibility baseline says to keep focus visible. I found a fault that I caused: the draggable sidebar rows lost keyboard focus. They now take focus, and Return and Space press them.
 7. **Five states for every list and page.** Loading, empty, error, populated and edge. This is the most useful rule in the whole set. It is now in `DESIGN.md` and in the backlog below.
-8. **Status as a dot with a word** (from HUD). ATOM already does this in Void.
+8. **Status as a dot with a word** (from HUD). ARK already does this in Void.
 
 ## 4. Ideas that I did not take
 
-- **Warm parchment, serif headlines and terracotta (Claude).** It is a good look, but it is Anthropic's brand. ATOM has its own.
-- **Uppercase labels with wide spacing (Warp).** ATOM uses this in the Second brain page only, where it fits the HUD look.
-- **Phosphor green (HUD).** The Second brain page uses ATOM's own "live" colour for the same effect.
-- **Large display type with negative letter spacing (Linear).** ATOM is a tool window, not a marketing page.
-- **A strict seven-section dashboard layout.** ATOM's Dashboard is about token use, not sales.
+- **Warm parchment, serif headlines and terracotta (Claude).** It is a good look, but it is Anthropic's brand. ARK has its own.
+- **Uppercase labels with wide spacing (Warp).** ARK uses this in the Second brain page only, where it fits the HUD look.
+- **Phosphor green (HUD).** The Second brain page uses ARK's own "live" colour for the same effect.
+- **Large display type with negative letter spacing (Linear).** ARK is a tool window, not a marketing page.
+- **A strict seven-section dashboard layout.** ARK's Dashboard is about token use, not sales.
 
-## 5. Review of ATOM, with the Critique template's five dimensions
+## 5. Review of ARK, with the Critique template's five dimensions
 
 Scores are my judgement from the rendered screens, not a measurement. 0 is poor and 10 is excellent.
 
@@ -90,7 +90,7 @@ Check each page for the five states. A page that lacks a state is a task.
 | Issues | "Loading issues…" (done; it said "No issues" before) | headline and a sentence (done) | the command error line; each failed task shows its reason | many failures |
 | Board | "Loading the Board…" (done) | headline and a sentence (done); each column shows a count | the command error line | 50 agents (done in the gallery) |
 | Scheduled | "Loading what is scheduled…" (done; it said "Nothing is scheduled" before) | headline and a sentence (done) | the command error line | not checked |
-| Second brain | "Waiting for ATOM…" | yes | yes | 400 notes cap |
+| Second brain | "Waiting for ARK…" | yes | yes | 400 notes cap |
 | Plugins | "Loading servers…", "Loading skills…" (done; they said "None yet" and "No skills" before) | a headline, a sentence and Add server (done) | server test fails | very long skill list (dropdown now) |
 | Dashboard | "Loading tokens…" with the slow fallback (done) | zero use shows zeros and "Nothing used yet." | not checked | many models and workers |
 
@@ -98,8 +98,8 @@ Check each page for the five states. A page that lacks a state is a task.
 
 ## 7. What changed in the repository for this research
 
-- New: `design/atom-design-system/` (three files).
-- New: `apps/mac/island/Tests/AtomIslandCoreTests/DesignTokensTests.swift` (3 tests).
+- New: `design/ark-design-system/` (three files).
+- New: `apps/mac/island/Tests/ArkIslandCoreTests/DesignTokensTests.swift` (3 tests).
 - Changed: `Spacing` constants on a 4 pt grid (`Theme.swift`).
 - Changed: sidebar rows take keyboard focus (`HelpersView.swift`).
 - Golden shots updated for the spacing change.

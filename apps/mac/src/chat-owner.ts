@@ -1,4 +1,4 @@
-// ADR-098: the "telegram" chat has one writer. The ATOM window only reads it.
+// ADR-098: the "telegram" chat has one writer. The ARK window only reads it.
 // ADR-110 (N3): so does a routine's chat ("routine-<id>") on the native engine.
 // 2026-10-16 (ADR-121): the "api" / "api-<chatId>" chats are shared. The phone page writes them and so does the window (Keshab wanted to
 // continue a phone chat on the Mac). Each side reads the saved messages again when the other has written (see `isSharedChat`).

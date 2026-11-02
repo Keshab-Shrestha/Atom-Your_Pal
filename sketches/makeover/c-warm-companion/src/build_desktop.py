@@ -103,7 +103,7 @@ def build():
 <button class="btn soft">{ic("compose", 14)}New conversation</button></div>'''
     panel = panel_wrap(head + tabs("Conversation") + f'<div class="p-body">{body}</div>' + foot, style="height:auto")
 
-    html = f'''<!doctype html><html><head><meta charset="utf-8"><title>ZENO · C Warm Companion · desktop</title>
+    html = f'''<!doctype html><html><head><meta charset="utf-8"><title>ARK · C Warm Companion · desktop</title>
 <style>{CSS}
 html,body{{width:1440px;height:900px;overflow:hidden}}
 .desk{{position:relative;width:1440px;height:900px;overflow:hidden;
@@ -154,7 +154,7 @@ html,body{{width:1440px;height:900px;overflow:hidden}}
   <div class="menubar">
     <span class="m">{apple}</span><span class="m app">TextEdit</span><span class="m">File</span><span class="m">Edit</span><span class="m">Format</span><span class="m">View</span><span class="m">Window</span><span class="m">Help</span>
     <span class="sp"></span>
-    {mb_icon(glyph("attention", 16, "mbz"), 'class="mbi open" id="zeno"')}
+    {mb_icon(glyph("attention", 16, "mbz"), 'class="mbi open" id="ark"')}
     {mb_icon(moon)}
     {mb_icon(other)}
     {mb_icon(volume)}
@@ -181,8 +181,8 @@ html,body{{width:1440px;height:900px;overflow:hidden}}
 
   {dock}
 </div>
-<script>/* hang the panel centred under ZENO's menu-bar icon, kept 8pt from the screen edge */
-const z=document.getElementById('zeno').getBoundingClientRect(),w=document.getElementById('panelwrap');
+<script>/* hang the panel centred under ARK's menu-bar icon, kept 8pt from the screen edge */
+const z=document.getElementById('ark').getBoundingClientRect(),w=document.getElementById('panelwrap');
 w.style.left=Math.min(1440-8-380,Math.round(z.left+z.width/2-190))+'px';</script>
 </body></html>'''
     open(os.path.join(ROOT, "desktop.html"), "w").write(html)

@@ -106,11 +106,11 @@ export function selectWorkflow(text: string, capabilities: WorkflowCapabilities 
 /** Selected guide only. Never expands all profiles or authorizes automatic worker dispatch. */
 export function workflowRouteContext(route: WorkflowRoute): string | undefined {
   if (route.kind === "none") return;
-  if (route.kind === "invalid") return "ATOM workflow selection: use /workflow research, /workflow build or /workflow review followed by the task. An unknown workflow was not selected; do not invent or execute one.";
-  if (route.kind === "unavailable") return `ATOM workflow selection unavailable: ${route.workflow.id}. ${route.message}`;
+  if (route.kind === "invalid") return "ARK workflow selection: use /workflow research, /workflow build or /workflow review followed by the task. An unknown workflow was not selected; do not invent or execute one.";
+  if (route.kind === "unavailable") return `ARK workflow selection unavailable: ${route.workflow.id}. ${route.message}`;
   const guide = DEFINITIONS[route.workflow.id];
   return [
-    `ATOM workflow guide: ${guide.title} (revision ${route.workflow.revision}; ${route.reason === "explicit" ? "explicit user selection" : "suggested by this request's opening"}).`,
+    `ARK workflow guide: ${guide.title} (revision ${route.workflow.revision}; ${route.reason === "explicit" ? "explicit user selection" : "suggested by this request's opening"}).`,
     "This guide applies to this request, not a lasting chat mode. Do not carry it into unrelated later turns; saved planned portions retain their own guide.",
     "This is task-shaping advice, not permission. Current user constraints, explicit skill/worker choices, permissions and Stop take precedence. Use a direct response when sufficient; selecting a guide does not require a plan or worker.",
     ...guide.steps,

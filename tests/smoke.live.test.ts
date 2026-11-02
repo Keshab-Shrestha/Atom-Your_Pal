@@ -12,15 +12,15 @@ import { enableApi, startRuntime, until, type SmokeRuntime } from "./smoke-harne
 // ~/Documents and removes it at the end. 2026-10-16: the bug that no folders agent could use Write in a normal chat passed ~970 unit tests; this is the test
 // that would have caught it.
 
-const live = process.env.ATOM_LIVE_TESTS === "1";
-const SKIP = live ? false : "set ATOM_LIVE_TESTS=1 (pnpm test:live) to run the live smoke test";
+const live = process.env.ARK_LIVE_TESTS === "1";
+const SKIP = live ? false : "set ARK_LIVE_TESTS=1 (pnpm test:live) to run the live smoke test";
 const GOAL_MS = 240_000;
 
 async function giveGoal(runtime: SmokeRuntime, goal: string): Promise<number> {
   const made = await runtime.api("POST", "/v1/goals", { body: { goal } });
   assert.equal(made.status, 200, JSON.stringify(made.json));
   const id = made.json.data.goalId as number | null;
-  assert.ok(id, `no task was made for the goal. ATOM said: ${String(made.json.data.answer).slice(0, 300)}`);
+  assert.ok(id, `no task was made for the goal. ARK said: ${String(made.json.data.answer).slice(0, 300)}`);
   return id;
 }
 
@@ -34,7 +34,7 @@ const goalEnded = (runtime: SmokeRuntime, id: number) =>
 
 test("live: chat, shared phone chat, an agent saves a file with no folder granted, an edit asks, a delete is refused", { skip: SKIP, timeout: 900_000 }, async () => {
   const runtime = await startRuntime({ readyMs: 90_000 });
-  const folder = join(homedir(), "Documents", `atom-smoke-${randomBytes(4).toString("hex")}`);
+  const folder = join(homedir(), "Documents", `ark-smoke-${randomBytes(4).toString("hex")}`);
   const file = join(folder, "hello.txt");
   try {
     mkdirSync(folder, { recursive: true });

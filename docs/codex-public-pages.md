@@ -4,9 +4,9 @@ Implemented 2026-10-18, ADR-159. This closes known-URL page reading for Codex re
 
 ## User behavior
 
-When a chat's web access is enabled, a Codex research worker can read a known public HTTPS page through `atom_WebFetch` and return a report with the actual source URL. Main delegation and worker instructions describe this capability explicitly. Folders/think workers and the foreground model do not receive this tool. There is no automatic provider switch or Claude fallback.
+When a chat's web access is enabled, a Codex research worker can read a known public HTTPS page through `ark_WebFetch` and return a report with the actual source URL. Main delegation and worker instructions describe this capability explicitly. Folders/think workers and the foreground model do not receive this tool. There is no automatic provider switch or Claude fallback.
 
-Admission requires a host-only request flag, the current global `ATOM_WEB` configuration and the current project's web setting. Missing admission/configuration denies access. Deleted source chats deny it. The worker must still be available, have the research kit and have an active running task. Current configuration/task checks run before connections, on response headers/data and before returning text; disabling access withholds a pending result and prevents subsequent connections. A stalled connection may remain open until Stop, incoming data or timeout. Stop aborts the socket and prevents a late DNS result from connecting. Previously returned text cannot be recalled.
+Admission requires a host-only request flag, the current global `ARK_WEB` configuration and the current project's web setting. Missing admission/configuration denies access. Deleted source chats deny it. The worker must still be available, have the research kit and have an active running task. Current configuration/task checks run before connections, on response headers/data and before returning text; disabling access withholds a pending result and prevents subsequent connections. A stalled connection may remain open until Stop, incoming data or timeout. Stop aborts the socket and prevents a late DNS result from connecting. Previously returned text cannot be recalled.
 
 ## Bounds and destination policy
 
@@ -23,7 +23,7 @@ This deliberately refuses IPv6-only sites, HTTP-only sites, nonstandard ports, c
 
 Requests contain a fixed user agent/Accept headers and the requested URL, with no supplied headers, cookies, credentials, request body, browser profile, local file or chat upload. Sites see the URL and the Mac's network connection; DNS resolution uses the host's configured resolver. URL/data bounds limit what an address carries but do not prove it contains no sensitive data. Nothing executes page instructions.
 
-Successful page responses and redirects mark the worker as having read untrusted web data through the same native gate helper used by Claude's post-tool hook. Subsequent URLs receive the stricter tainted-data checks; finishing a worker propagates this state to the main chat for the rest of its answer. Existing restrictions on persistent/outgoing ATOM actions still apply. Existing worker Board entries keep tool/timing/generic outcome only, not URLs or page text. No new storage/schema/cache/logging is added; the worker's report and final reply retain existing provider/chat behavior.
+Successful page responses and redirects mark the worker as having read untrusted web data through the same native gate helper used by Claude's post-tool hook. Subsequent URLs receive the stricter tainted-data checks; finishing a worker propagates this state to the main chat for the rest of its answer. Existing restrictions on persistent/outgoing ARK actions still apply. Existing worker Board entries keep tool/timing/generic outcome only, not URLs or page text. No new storage/schema/cache/logging is added; the worker's report and final reply retain existing provider/chat behavior.
 
 ## Verification and remaining work
 

@@ -2,7 +2,7 @@
 // It only shows data. All text goes in with textContent; nothing is built as HTML.
 (() => {
   'use strict';
-  const post = message => window.webkit.messageHandlers.atomPanel.postMessage(message);
+  const post = message => window.webkit.messageHandlers.arkPanel.postMessage(message);
   const $ = id => document.getElementById(id);
   const TOKEN_NAME = /^--[a-z-]{1,32}$/;
   const TOKEN_VALUE = /^rgb\(\d{1,3} \d{1,3} \d{1,3}\)$/;
@@ -94,7 +94,7 @@
     showStatus();
   };
 
-  window.atomPanel = {
+  window.arkPanel = {
     receive(message) {
       if (!message || message.v !== 1) return;
       if (message.type === 'init' || message.type === 'theme') {

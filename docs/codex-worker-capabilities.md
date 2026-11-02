@@ -14,7 +14,7 @@ ADR-163 adds bounded browser navigation/text snapshots/form interactions under e
 
 ADR-164 adds one generation of bounded advisory children: supplied context only, no tools or inherited grants, separate linked tasks and parent-owned Stop. [Advisory child scope and verification limits](codex-advisory-workers.md).
 
-Codex delegation inherits the chat's signed-in Codex model unless the worker has a validated separate Codex pin. A folders worker gets checked text-file tools and, in a project, its task worktree. Every kit can now load skill instructions explicitly assigned to that worker. The runtime supplies the existing local skill reader, with the user's skill taking precedence over an ATOM skill of the same name.
+Codex delegation inherits the chat's signed-in Codex model unless the worker has a validated separate Codex pin. A folders worker gets checked text-file tools and, in a project, its task worktree. Every kit can now load skill instructions explicitly assigned to that worker. The runtime supplies the existing local skill reader, with the user's skill taking precedence over an ARK skill of the same name.
 
 ADR-165 adds discard-only shell previews on explicitly selected input copies. Native checks and a fresh complete-request card apply; the real task root is denied and nothing applies automatically. [Preview scope and verification limits](codex-shell-previews.md).
 
@@ -24,7 +24,7 @@ ADR-167 expands capable hosts to a bounded native diff with complete Before/Afte
 
 ## Assigned instructions
 
-`atom_Skill` accepts an exact assigned name, without a plugin prefix or path. The router checks the worker's task-start assignment and current assignment before reading; the native gate checks the active worker/task and current assignment again before returning instructions. An assignment added during a task is available on its next task. Removing one refuses later loads; already-returned text cannot be recalled from a provider context.
+`ark_Skill` accepts an exact assigned name, without a plugin prefix or path. The router checks the worker's task-start assignment and current assignment before reading; the native gate checks the active worker/task and current assignment again before returning instructions. An assignment added during a task is available on its next task. Removing one refuses later loads; already-returned text cannot be recalled from a provider context.
 
 Each successful return contains at most 8,000 instruction characters, with 24,000 across the task, including repeated loads. Parallel loads recheck the remaining budget after awaiting policy. Long bodies are visibly cut. Missing, unreadable, empty, unassigned, over-budget, denied and cancelled loads do not count as skill use. The host records use immediately before a successful tool return, not on task creation or policy authorization. This proves returned instructions, not that the model followed them.
 
