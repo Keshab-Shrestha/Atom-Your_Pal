@@ -113,61 +113,67 @@ ARK runs on your Mac. You talk or type. ARK answers, uses tools, and hands bigge
 
 Details: [SECURITY.md](SECURITY.md). Every decision: [DECISIONS.md](DECISIONS.md).
 
-## Quick start
+## Install
 
-ARK is built from source on each Mac (R4, [docs/release-r4.md](docs/release-r4.md)). The fast way:
+ARK is built on your own Mac from this repository. The installer does everything: it installs what is missing, downloads ARK, builds it, signs it for this Mac and opens it.
+
+### Option 1: download the installer
+
+1. Download **Install-ARK.command** from the [latest release](https://github.com/Keshab-Shrestha/Atom-Your_Pal/releases/latest).
+2. In Finder, right-click the file and choose **Open**. (macOS blocks a double-click the first time, because the file is not from the App Store.)
+3. Answer the questions in the Terminal window. The first build takes a few minutes.
+
+### Option 2: one command in Terminal
 
 ```sh
-git clone <this repository>
-cd ark
+curl -fsSL https://raw.githubusercontent.com/Keshab-Shrestha/Atom-Your_Pal/main/scripts/install-ark.command | bash
+```
+
+ARK goes to `~/ARK`. To use another folder, put `ARK_DIR=/path/to/folder` before `bash`.
+
+### What ARK needs
+
+The installer checks each item and installs the missing ones with Homebrew. It asks before each install.
+
+| Item | Required | What it is for | Install by hand |
+|---|---|---|---|
+| macOS 14 or later | Yes | The app | — |
+| Xcode Command Line Tools | Yes | Swift compiler, git | `xcode-select --install` |
+| Homebrew | Yes | Installs the tools below | [brew.sh](https://brew.sh) |
+| Node.js 22.18 or later | Yes | ARK's runtime | `brew install node` |
+| pnpm | Yes | ARK's packages | `brew install pnpm` |
+| Claude Code, signed in | Yes | ARK's model, on your own Claude plan. No API key. | `brew install --cask claude-code`, then `claude auth login` |
+| Codex | No | Codex as a chat model, and image generation | Install the ChatGPT app, or `npm install -g @openai/codex`. Sign in once. |
+| Gemini CLI | No | Gemini as a chat model | `npm install -g @google/gemini-cli` |
+| ffmpeg and whisper.cpp | No | The fallback for speech to text | `brew install ffmpeg whisper-cpp` |
+| Cua Driver | No | Computer control (clicks and typing in other apps) | [github.com/trycua/cua](https://github.com/trycua/cua), then `cua-driver permissions grant` |
+
+The voice (Kokoro) and dictation (Parakeet) models download themselves the first time you use them.
+
+### Option 3: build by hand
+
+```sh
+git clone https://github.com/Keshab-Shrestha/Atom-Your_Pal.git ARK
+cd ARK
 sh scripts/setup.sh
 ```
 
-The script checks the requirements below and says how to get what is missing. Then it installs the packages, makes the local signing identity, builds the app and opens it. Run it again after each `git pull`. The steps below do the same by hand.
+`scripts/setup.sh` checks the items above, installs the packages, makes the local signing identity ("ARK Local Signing", so macOS keeps ARK's permissions across rebuilds), builds `ARK.app` and opens it. To run ARK in Terminal without the app, run `pnpm start`.
 
-### Requirements
+### First run
 
-- macOS 14 or later.
-- Xcode Command Line Tools: `xcode-select --install`.
-- Node.js 22.18 or later and pnpm (the repository pins `pnpm@12.6.0`).
-- ffmpeg and whisper.cpp: `brew install ffmpeg whisper-cpp`.
-- Claude Code, signed in: `claude auth login`. ARK runs on your own Claude plan. No API key is needed.
+1. Sign in to Claude Code once: `claude auth login`.
+2. Open ARK. Its icon shows in the menu bar and Pal appears on the screen.
+3. Optional settings go in `.env` in the ARK folder (copy `.env.example`). All of them are optional, for example `ARK_TELEGRAM_BOT_TOKEN` and `ARK_TELEGRAM_CHAT_ID` for Telegram.
+4. To control other apps, install Cua Driver and turn on Settings → Computer.
 
-### Install
+### Update
 
-```sh
-git clone <this repository>
-cd ark
-pnpm install
-mkdir -p models
-curl -L -o models/ggml-small.en.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin
-```
+Run the installer again, or in the ARK folder run `git pull` and then `sh scripts/setup.sh`.
 
-The Kokoro voice and the Parakeet dictation model download themselves on first use.
+### Uninstall
 
-### Configure
-
-```sh
-cp .env.example .env
-```
-
-Set the `ARK_*` values you need in `.env`. All of them are optional.
-
-### Build and open the app
-
-Once per Mac, create a local signing identity so macOS keeps the permissions across rebuilds:
-
-```sh
-apps/mac/island/make-signing-identity.sh
-```
-
-Then build and open the app:
-
-```sh
-pnpm island:open    # builds apps/mac/island/build/ARK.app and opens it
-```
-
-To run ARK in the terminal without the app, run `pnpm start`.
+Quit ARK, then delete the ARK folder (`~/ARK`). Your chats and memory are in its `data/` folder, so copy that folder first to keep them.
 
 ### Permissions
 
@@ -179,11 +185,9 @@ macOS asks the first time ARK needs each one.
 - Automation: when you ask for Music, Notes or the browser tab.
 - Calendar and Reminders: when you ask about your schedule or reminders.
 - Notifications: when something needs you.
-- Screen Recording and Accessibility for Cua Driver: only with `ARK_COMPUTER=1`.
+- Screen Recording and Accessibility for Cua Driver: only for computer control.
 
-After a rebuild under a new bundle id (`dev.ark.island`), grant them again.
-
-### Tests
+## Tests
 
 ```sh
 pnpm typecheck
