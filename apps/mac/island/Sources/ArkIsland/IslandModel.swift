@@ -197,6 +197,8 @@ final class IslandModel {
 
     /// ADR-152: transient literal search of loaded turns, separate from global/sidebar search.
     var chatFindShown = false
+    /// 2026-11-02: "Select text": the chat shown as one selectable text view (ChatSelectView).
+    var chatSelecting = false
     var chatFindQuery = ""
     var chatFindSelection = 0
     var chatFindFocusTick = 0

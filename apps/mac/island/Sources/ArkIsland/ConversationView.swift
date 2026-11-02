@@ -718,6 +718,9 @@ struct ConversationTab: View {
                     .padding(.bottom, 20)
             } else {
                 if let note = model.trimmedNotice { TrimmedNote(text: note) } // ADR-107
+                if model.chatSelecting {
+                    ChatSelectView(model: model)
+                } else {
                 ScrollViewReader { proxy in
                     ChatScrollView(turnIDs: model.conversation.turns.map(\.id), suspendFollowing: model.chatFindShown) {
                         LazyVStack(alignment: .leading, spacing: Spacing.turn) {
@@ -748,6 +751,7 @@ struct ConversationTab: View {
                         }
                     }
                 }
+                }
             }
             composer
             if model.conversation.isEmpty {
@@ -756,6 +760,7 @@ struct ConversationTab: View {
             }
         }
         .frame(maxWidth: .infinity)
+        .onChange(of: model.chats?.current) { _, _ in model.chatSelecting = false }
     }
 }
 

@@ -45,6 +45,7 @@ struct ConversationControls: View {
             Button("Find in chat", action: model.openChatFind)
             Button("Copy whole chat") { _ = ChatClipboard.write(MarkdownCopy.Content(text: model.conversation.markdown)) }
                 .disabled(model.conversation.turns.isEmpty)
+            Button("Select text") { model.chatSelecting = true }.disabled(model.conversation.turns.isEmpty)
             Divider()
             Button("Task results (\(taskCount))") { taskResults = true }.disabled(taskCount == 0)
             Button("Saved history", action: model.openSavedHistory).disabled(model.savedChat == nil)

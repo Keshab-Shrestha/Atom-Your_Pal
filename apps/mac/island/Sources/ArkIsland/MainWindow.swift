@@ -68,6 +68,10 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSMenuItemValidati
         if model.windowPage == .chat { model.openChatFind() } else { model.focusSearch() }
     }
     @objc private func searchAll(_ sender: Any?) { if canFind { model.focusSearch() } }
+    /// ⇧⌘A (2026-11-02): the chat as one selectable text view, everything selected.
+    @objc private func selectChatText(_ sender: Any?) {
+        if canFind, model.windowPage == .chat, !model.conversation.turns.isEmpty { model.chatSelecting = true }
+    }
     /// ⌘N and ⇧⌘N (Keshab, 2026-11-02): window menu shortcuts, like the sidebar's buttons.
     @objc private func newChat(_ sender: Any?) { if canFind { model.startNewChat() } }
     @objc private func newProject(_ sender: Any?) { if canFind && model.canOpenProjectSources { model.openProjectSources() } }
@@ -191,11 +195,13 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSMenuItemValidati
         searchAll.target = self
         let copyReply = item("Copy Last Reply", #selector(copyLastReply(_:)), "c", [.command, .shift])
         copyReply.target = self
+        let selectChat = item("Select Text in Chat", #selector(selectChatText(_:)), "a", [.command, .shift])
+        selectChat.target = self
         add("Edit", [
             item("Undo", Selector(("undo:")), "z"), item("Redo", Selector(("redo:")), "z", [.command, .shift]), .separator(),
             item("Cut", #selector(NSText.cut(_:)), "x"), item("Copy", #selector(NSText.copy(_:)), "c"),
             item("Paste", #selector(NSText.paste(_:)), "v"), item("Select All", #selector(NSText.selectAll(_:)), "a"), .separator(),
-            copyReply, find, searchAll,
+            copyReply, selectChat, find, searchAll,
         ])
         let sidebar = item(WindowChrome.sidebarToggleTitle(hidden: model.settings.sidebarHidden), #selector(toggleSidebar(_:)), "h", [.command, .option])
         sidebar.target = self

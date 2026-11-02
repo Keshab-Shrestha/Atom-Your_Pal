@@ -82,6 +82,19 @@ struct ReplyMediaTests {
         #expect(chat.markdown == "**You:** Hi\n\n**ARK:** Hello.\n\n- one\n\n**You:** Thanks")
     }
 
+    @Test func theTranscriptKeepsFormattingAndTurnsMediaIntoText() {
+        var chat = Conversation()
+        let reply = "Here is **bold**, *italic*, <u>under</u> and ~~gone~~.\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\n```chart\n{\"type\":\"bar\",\"title\":\"Sales\",\"labels\":[\"Jan\"],\"series\":[{\"name\":\"2026\",\"values\":[12]}]}\n```\n\n```svg\n<svg viewBox=\"0 0 1 1\"><rect/></svg>\n```\n\nLook:\n![Cedar logo](/tmp/c.png)"
+        chat.replay([ChatLine(fromUser: true, text: "Show <me> a & b"), ChatLine(fromUser: false, text: reply)])
+        let html = ChatTranscript.html(chat, style: .init(text: "#eee", muted: "#999", rule: "#555"))
+        #expect(html.contains("<div class=\"who\">You</div><p>Show &lt;me&gt; a &amp; b</p>"))
+        #expect(html.contains("<strong>bold</strong>") && html.contains("<em>italic</em>") && html.contains("<u>under</u>") && html.contains("<s>gone</s>"))
+        #expect(html.contains("<th>A</th><th>B</th>") && html.contains("<td>1</td><td>2</td>"))
+        #expect(html.contains("<th>Sales</th><th>2026</th>") && html.contains("<td>Jan</td><td>12</td>"), "a chart becomes its table")
+        #expect(html.contains("<em>Drawing</em>") && html.contains("<em>Image: Cedar logo</em>"))
+        #expect(!html.contains("<img") && !html.contains("<svg") && !html.contains("<script"), "nothing in the page loads or runs")
+    }
+
     @Test func imagesAndChartsUseTheBlockRenderer() {
         #expect(MarkdownBlocks.isRich("Look:\n![c](/tmp/c.png)"))
         #expect(MarkdownBlocks.isRich("```chart\n{}\n```"))

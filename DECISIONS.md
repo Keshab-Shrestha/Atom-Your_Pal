@@ -4065,3 +4065,21 @@ Keshab asked for a visual. ARK gave it to the agent Puff, which asked to write a
 
 - The approval card still expires after 60 seconds.
 - Drag selection across paragraphs and messages still stops at each block. A selectable transcript needs a text-view rewrite, which is a separate change.
+
+## ADR-224 — Select text: the whole chat as one selectable text (2026-11-02)
+
+### Context
+
+Keshab wants to select any amount of a chat's text and keep its formatting: bold, italic, underline and tables. SwiftUI selects within one block of text only, so a drag stopped at each paragraph, table and message.
+
+### Decision
+
+- "Select text" (chat options menu, or Edit → Select Text in Chat, ⇧⌘A) shows the open chat as one read-only `NSTextView`. It opens with everything selected. A drag selects any range across messages. Esc or Done goes back to the normal chat.
+- `ChatTranscript.html` builds the page: "You" and "ARK" labels, each message's Markdown as HTML, tables as real tables, a chart as its numbers in a table, and a drawing or an image as a label. The page has no images, links or scripts.
+- ⌘C writes the selection as RTF, HTML and plain text, without the screen's text colour. Pages, Notes, Mail and Docs paste bold, italic, underline and tables.
+- The Markdown HTML export also turns `~~text~~` into strikethrough and `<u>text</u>` into underline.
+
+### Consequences
+
+- The normal chat keeps charts, images, drawings, copy buttons and menus. Selecting across messages needs the Select text view.
+- The chat's own view does not draw `<u>` as underline. Only Select text and copies do.

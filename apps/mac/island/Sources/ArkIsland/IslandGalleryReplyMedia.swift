@@ -60,5 +60,33 @@ extension IslandGallery {
             model.conversation.replay([ChatLine(fromUser: true, text: "Make a logo for Cedar."), ChatLine(fromUser: false, text: logo)])
             save(HelpersView(model: model).frame(width: 1080, height: 820).environment(\.islandSnapshot, true), name: name, to: directory)
         }
+        writeSelectText(to: directory)
+    }
+
+    /// 2026-11-02: Select text's page drawn by an offscreen text view (ImageRenderer cannot draw an NSTextView), and what a copy
+    /// of all of it holds as HTML: the check that tables and formatting survive.
+    private static func writeSelectText(to directory: URL) {
+        var chat = Conversation()
+        chat.replay([ChatLine(fromUser: true, text: "Compare the plans in a table and chart them."),
+                     ChatLine(fromUser: false, text: "Here is **the comparison**, with *notes* and <u>one caveat</u>.\n\n| Plan | Price | Seats |\n|---|---|---|\n| Solo | $10 | 1 |\n| Team | $40 | 5 |\n\n```chart\n{\"type\":\"bar\",\"title\":\"Price per seat\",\"labels\":[\"Solo\",\"Team\"],\"series\":[{\"name\":\"USD\",\"values\":[10,8]}]}\n```\n\n- Solo suits one person.\n- Team saves **20%** per seat."),
+                     ChatLine(fromUser: true, text: "Thanks!")])
+        let palette = AppTheme.void.palette
+        let text = NSTextView(frame: NSRect(x: 0, y: 0, width: 760, height: 10))
+        text.textContainerInset = NSSize(width: 24, height: 16)
+        text.backgroundColor = NSColor(palette.surfaceSolid.color)
+        text.textStorage?.setAttributedString(ChatSelectView.attributed(ChatTranscript.html(chat, style: .init(text: palette.text.hex, muted: palette.text2.hex, rule: palette.text3.hex))))
+        text.sizeToFit()
+        if let layout = text.layoutManager, let container = text.textContainer {
+            layout.ensureLayout(for: container)
+            text.setFrameSize(NSSize(width: 760, height: layout.usedRect(for: container).height + 40))
+        }
+        if let rep = text.bitmapImageRepForCachingDisplay(in: text.bounds) {
+            text.cacheDisplay(in: text.bounds, to: rep)
+            try? rep.representation(using: .png, properties: [:])?.write(to: directory.appendingPathComponent("48-select-text-dark.png"))
+        }
+        let all = ChatSelectView.copyable(text.attributedString())
+        let html = (try? all.data(from: NSRange(location: 0, length: all.length), documentAttributes: [.documentType: NSAttributedString.DocumentType.html]))
+            .flatMap { String(data: $0, encoding: .utf8) } ?? ""
+        try? html.write(to: directory.appendingPathComponent("48-select-text-copy.html"), atomically: true, encoding: .utf8)
     }
 }

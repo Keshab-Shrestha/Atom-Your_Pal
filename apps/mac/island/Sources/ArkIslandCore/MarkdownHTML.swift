@@ -41,14 +41,15 @@ extension MarkdownBlocks {
         }
     }
 
-    private static func escape(_ s: String) -> String {
+    static func escape(_ s: String) -> String {
         s.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;")
     }
 
-    /// Bold, italic and `code` only; anything else stays as the text it is.
+    /// Bold, italic, `code`, ~~strikethrough~~ and <u>underline</u> (2026-11-02, for Select text); anything else stays as the text it is.
     private static func inline(_ s: String) -> String {
         var out = escape(s)
-        for (pattern, template) in [("`([^`]+)`", "<code>$1</code>"), ("\\*\\*([^*]+)\\*\\*", "<strong>$1</strong>"), ("\\*([^*]+)\\*", "<em>$1</em>")] {
+        for (pattern, template) in [("`([^`]+)`", "<code>$1</code>"), ("\\*\\*([^*]+)\\*\\*", "<strong>$1</strong>"), ("\\*([^*]+)\\*", "<em>$1</em>"),
+                                    ("~~([^~]+)~~", "<s>$1</s>"), ("&lt;u&gt;(.+?)&lt;/u&gt;", "<u>$1</u>")] {
             out = out.replacingOccurrences(of: pattern, with: template, options: .regularExpression)
         }
         return out
