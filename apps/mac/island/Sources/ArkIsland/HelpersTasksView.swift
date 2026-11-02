@@ -74,7 +74,7 @@ struct BoardPane: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(model.boardView == .floor ? "Your team" : model.boardView.title)
-                        .appFont(.system(size: 20, weight: .semibold)).foregroundStyle(theme.text.color)
+                        .appFont(theme.pageTitleFont()).foregroundStyle(theme.text.color)
                     Text(model.boardView == .floor ? "Manage your agents and keep work moving." : model.boardView == .team ? "Who works for whom, live." : "Tasks, decisions and results from your team.")
                         .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }

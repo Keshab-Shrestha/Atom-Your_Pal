@@ -21,6 +21,9 @@ public extension AppTheme {
         case .plum: ThemeTone(dark: true, hue: 318, chroma: 0.02, accent: .oklch(0.74, 0.11, 318))
         case .teal: ThemeTone(dark: true, hue: 195, chroma: 0.018, accent: .oklch(0.78, 0.10, 190))
         case .ember: ThemeTone(dark: true, hue: 50, chroma: 0.004, accent: .oklch(0.70, 0.17, 45))
+        // The reference's own colours: paper #f4f2ee and teal #2f5d50; graphite #121311 and sage #7fb8a4.
+        case .paper: ThemeTone(dark: false, hue: 85, chroma: 0.006, accent: .oklch(0.44, 0.056, 173))
+        case .ink: ThemeTone(dark: true, hue: 110, chroma: 0.005, accent: .oklch(0.74, 0.066, 170))
         }
     }
 }
@@ -68,6 +71,10 @@ public enum ThemeBuilder {
         p.surfaceStyle = .flat; p.buttonStyle = .filled; p.usesGlow = false; p.usesShadows = false; p.glow = RGBA(0, 0, 0, 0)
         // Square cards, round pills (Keshab, 2026-11-01): cards and controls take one small corner; pills are Capsules in the views.
         p.radiusSurface = 8; p.radiusCard = 4; p.radiusControl = 4; p.cornerGap = 4
+        // The editorial pair: the reference's 18 / 12 / 8 corners and serif titles.
+        if theme == .paper || theme == .ink {
+            p.radiusSurface = 18; p.radiusCard = 12; p.radiusControl = 8; p.serifTitles = true
+        }
         return p
     }
 

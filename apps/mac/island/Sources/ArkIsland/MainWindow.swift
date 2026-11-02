@@ -68,6 +68,8 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSMenuItemValidati
         if model.windowPage == .chat { model.openChatFind() } else { model.focusSearch() }
     }
     @objc private func searchAll(_ sender: Any?) { if canFind { model.focusSearch() } }
+    /// ⌘K (2026-11-02): the command palette.
+    @objc private func openPalette(_ sender: Any?) { if canFind { model.paletteShown.toggle() } }
     /// ⇧⌘A (2026-11-02): the chat as one selectable text view, everything selected.
     @objc private func selectChatText(_ sender: Any?) {
         if canFind, model.windowPage == .chat, !model.conversation.turns.isEmpty { model.chatSelecting = true }
@@ -197,11 +199,13 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSMenuItemValidati
         copyReply.target = self
         let selectChat = item("Select Text in Chat", #selector(selectChatText(_:)), "a", [.command, .shift])
         selectChat.target = self
+        let palette = item("Command Palette…", #selector(openPalette(_:)), "k")
+        palette.target = self
         add("Edit", [
             item("Undo", Selector(("undo:")), "z"), item("Redo", Selector(("redo:")), "z", [.command, .shift]), .separator(),
             item("Cut", #selector(NSText.cut(_:)), "x"), item("Copy", #selector(NSText.copy(_:)), "c"),
             item("Paste", #selector(NSText.paste(_:)), "v"), item("Select All", #selector(NSText.selectAll(_:)), "a"), .separator(),
-            copyReply, selectChat, find, searchAll,
+            copyReply, selectChat, find, searchAll, .separator(), palette,
         ])
         let sidebar = item(WindowChrome.sidebarToggleTitle(hidden: model.settings.sidebarHidden), #selector(toggleSidebar(_:)), "h", [.command, .option])
         sidebar.target = self

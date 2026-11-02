@@ -73,6 +73,7 @@ struct HelpersView: View {
         .sheet(isPresented: Binding(get: { model.showsProjectSources }, set: { model.showsProjectSources = $0 })) {
             ProjectSourceSheet(model: model).themed(palette)
         }
+        .overlay { if model.paletteShown { CommandPaletteView(model: model).themed(palette) } }
         .themed(palette)
         .environment(\.desktopDesign, true)
         .appFont(.system(size: 13))
@@ -213,6 +214,7 @@ private struct HelperSidebar: View {
                         ChatsList(model: model)
                     }
                         .frame(maxHeight: .infinity)
+                    SidebarAgents(model: model)
                 }
                 if !model.searchQuery.isEmpty { Spacer(minLength: 0) }
             }
@@ -264,7 +266,7 @@ private struct WindowHeader: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(model.windowPage == .settings ? "Settings" : "Chats")
-                    .appFont(.system(size: 22, weight: .semibold)).foregroundStyle(theme.text.color)
+                    .appFont(theme.pageTitleFont(22)).foregroundStyle(theme.text.color)
                 HStack(spacing: 4) {
                     Circle().fill(statusColor).frame(width: 5, height: 5)
                     Text(model.status.title).appFont(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(1)

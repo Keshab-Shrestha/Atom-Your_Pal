@@ -48,6 +48,9 @@ enum AppFonts {
 
     static func font(size: CGFloat, weight: Font.Weight, design: Font.Design, face: AppTypeface) -> Font {
         if design == .monospaced { return .system(size: size, weight: weight, design: .monospaced) }
+        // 2026-11-02: serif text (page titles in Paper & Teal and Ink & Sage, soul titles) is Instrument Serif when bundled
+        // (OFL, assets/fonts); it has one weight, so the asked weight is not used. Otherwise New York.
+        if design == .serif, registered.contains("Instrument Serif") { return Font.custom("Instrument Serif", fixedSize: size) }
         guard let family = face.family, !face.bundled || registered.contains(family) else {
             return .system(size: size, weight: weight, design: design)
         }
@@ -134,6 +137,11 @@ extension Text {
 }
 
 extension ThemePalette {
+    /// A page's title: a larger serif in the editorial themes (`serifTitles`), else the usual semibold sans.
+    func pageTitleFont(_ size: CGFloat = 20) -> AppFont {
+        serifTitles ? .system(size: size + 8, design: .serif) : .system(size: size, weight: .semibold)
+    }
+
     func appIdentifierFont(_ font: AppFont, size: CGFloat, weight: Font.Weight = .regular) -> AppFont {
         monoIdentifiers ? .system(size: size, weight: weight, design: .monospaced) : font
     }

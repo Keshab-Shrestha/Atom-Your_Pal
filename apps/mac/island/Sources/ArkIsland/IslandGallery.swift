@@ -314,6 +314,10 @@ enum IslandGallery {
             if let event = try? decodeEvent(line) { tabled.apply(event) } else { FileHandle.standardError.write(Data("gallery: could not decode a chat line\n".utf8)) }
         }
         save(window("Chat: a reply with a table, a list and code", tabled), name: name + "-chat-table", to: directory)
+        // 2026-11-02: the ⌘K command palette over the chat.
+        tabled.paletteShown = true
+        save(window("⌘K: the command palette", tabled), name: name + "-palette", to: directory)
+        tabled.paletteShown = false
         let paged = model(theme)
         paged.windowPage = .settings
         paged.settingsPage = .model

@@ -4140,3 +4140,20 @@ Keshab: "Allow full permission to the agents as well. Do not meet the agents wit
 - Without Full access the kit still decides, as before.
 - Full access still refuses deletes outside the Trash, remote changes and keychain reads. A tainted session (web text read) still asks for outside-sandbox commands, MCP calls and lasting changes. Plan-first agents still need their plan approved.
 - MCP servers and the browser stay per-agent grants. Full access does not add a server that an agent was not given.
+
+## ADR-228 — Phase 1 of the "Agent CRM workspace" reference: Paper & Teal, sidebar agents, ⌘K (2026-11-02)
+
+### Context
+
+Keshab gave a design reference (an "Agent CRM workspace" with the taste-skill "Editorial greeting" style) and asked to bring its pages and features into ARK. The work runs in phases: (1) look, sidebar agents and ⌘K; (2) Home and the ⌘J agent panel; (3) Workflows; (4) a You page. The CRM-only pages (Customers, Contracts, Balances, Transactions) are not taken.
+
+### Decision
+
+- Two themes from the reference's colours: Paper & Teal (light, paper `#f4f2ee`, teal `#2f5d50`) and Ink & Sage (dark, graphite `#121311`, sage `#7fb8a4`). They use 18 / 12 / 8 corners and serif page titles (`ThemePalette.serifTitles`).
+- Instrument Serif (SIL OFL, from github.com/google/fonts) is bundled. Serif text uses it when it is registered, else New York.
+- The chat sidebar lists the agents (`SidebarAgents`) with a live dot from `AgentPresence`: waiting (amber), working (green, pulsing), idle (grey), paused (ring), in that order. It shows six, then "All agents". + makes a new agent.
+- ⌘K (Edit → Command Palette) opens a palette over the window: actions, pages and Board views, the 30 newest chats, agents, projects, Settings pages and themes. `PaletteSearch` keeps entries that hold every typed word and puts title starts first. ↑ ↓ choose, Return runs, Esc closes.
+
+### Consequences
+
+- Snapshots draw the palette's placeholder and first rows, because ImageRenderer draws neither text fields nor scroll views.

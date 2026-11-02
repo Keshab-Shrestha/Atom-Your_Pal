@@ -199,6 +199,8 @@ final class IslandModel {
     var chatFindShown = false
     /// 2026-11-02: "Select text": the chat shown as one selectable text view (ChatSelectView).
     var chatSelecting = false
+    /// 2026-11-02: the ⌘K command palette is open.
+    var paletteShown = false
     var chatFindQuery = ""
     var chatFindSelection = 0
     var chatFindFocusTick = 0

@@ -117,7 +117,7 @@ import Testing
             #expect(IslandSettings(defaults: defaults).theme == .void, "raw \(removed)")
             defaults.removePersistentDomain(forName: suite)
         }
-        #expect(AppTheme.allCases.map(\.rawValue).sorted() == [5, 6, 7, 8, 10, 12, 13])
+        #expect(AppTheme.allCases.map(\.rawValue).sorted() == [5, 6, 7, 8, 10, 12, 13, 14, 15])
         let suite = "ark.test.theme.kept.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.set(AppTheme.teal.rawValue, forKey: IslandSettings.themeKey)
@@ -153,7 +153,10 @@ import Testing
             let q = t.palette
             #expect(q.surfaceStyle == .flat && q.buttonStyle == .filled && !q.usesGlow && !q.usesShadows, "\(t.title)")
             #expect(!q.monoIdentifiers && !q.statusDots && q.surfaceTop == nil, "\(t.title)")
-            #expect((q.radiusSurface, q.radiusCard, q.radiusControl) == (8, 4, 4), "\(t.title)")
+            // 2026-11-02: Paper & Teal and Ink & Sage take the reference's 18 / 12 / 8 corners and serif titles.
+            let editorial = t == .paper || t == .ink
+            #expect((q.radiusSurface, q.radiusCard, q.radiusControl) == (editorial ? (18, 12, 8) : (8, 4, 4)), "\(t.title)")
+            #expect(q.serifTitles == editorial, "\(t.title)")
         }
     }
 }
