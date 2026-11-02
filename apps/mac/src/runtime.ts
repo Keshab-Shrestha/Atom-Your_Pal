@@ -97,6 +97,7 @@ import { SCHEDULER_TICK_MS, scheduleTick } from "./scheduler.ts";
 import { createBrainWiring, type BrainWiring } from "./brain-wiring.ts";
 import { createImproveSkillTool, createProposeSkillTool, createSearchChatsTool } from "./reach-tools.ts";
 import { nativeSteering, nativeRetryStarter, retrySourceChat, routeWake, routineStarter, taskStarter } from "./native-entry.ts";
+import { createWorkflowStore, dueWorkflows, eventWorkflows, workflowPrompt, type Workflow, type WorkflowEvent } from "./workflows.ts";
 import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
 import { testMcpServer } from "./mcp-servers.ts";
 import { scanAiTools } from "./ai-tools.ts";
@@ -119,6 +120,8 @@ const POINT_BOX = 20;
 const WEB_SEARCH: Capability = { title: "Search the web", examples: ["What's in the news today?", "Who won the match last night?"] };
 
 export interface Runtime {
+  /** 2026-11-02: workflows (workflows.ts), when the helpers file is open. */
+  workflows?: import("./island-types.ts").IslandWorkflows;
   islandLocalBackup?: IslandOptions["localBackup"];
   islandSourceAnalysis?: IslandOptions["sourceAnalysis"];
   config: Config;
@@ -1088,6 +1091,54 @@ export function createRuntime(
     tick();
     setInterval(tick, SCHEDULER_TICK_MS).unref();
   }
+  // 2026-11-02: workflows (workflows.ts). A run is one hidden turn of its own Core that plans the steps in order; runs go one at a time.
+  // Schedules join the routines' clock; a Board task that fails or finishes starts the event workflows, never a task of a
+  // workflow's own run, and each workflow waits 5 minutes between event starts, so runs cannot start each other in a loop.
+  let workflows: import("./island-types.ts").IslandWorkflows | undefined;
+  if (helpers && generatedImages) {
+    const store = createWorkflowStore(join(dirname(generatedImages), "workflows.json"), () => helpers.list().map((h) => h.id));
+    const workflowCore = makeCore(true);
+    const listeners = new Set<() => void>();
+    const changed = () => listeners.forEach((listener) => listener());
+    const lastEventStart = new Map<string, number>();
+    let queue: Promise<void> = Promise.resolve();
+    const run = (w: Workflow, cause?: string) => {
+      const at = new Date();
+      store.markRun(w.id, at);
+      changed();
+      const chat = `workflow-${w.id}-${at.getTime()}`;
+      const names = (id: string) => helpers.list().find((h) => h.id === id)?.name;
+      queue = queue.then(async () => {
+        try {
+          workflowCore.resume(chat, []);
+          await workflowCore.handle({ text: workflowPrompt(w, names, cause), source: "text" });
+          log.info("workflow.run", { workflow: w.id, steps: w.steps.length, ok: true });
+        } catch (error) {
+          log.warn("workflow.run", { workflow: w.id, ok: false, ...errorFields(error) });
+        }
+      });
+    };
+    const tickWorkflows = () => { try { for (const w of dueWorkflows(store.list(), new Date())) run(w, "on its schedule"); } catch (error) { log.warn("workflow.tick", errorFields(error)); } };
+    tickWorkflows();
+    setInterval(tickWorkflows, SCHEDULER_TICK_MS).unref();
+    helpers.onChange((change) => {
+      if (change.action !== "job" || (change.state !== "failed" && change.state !== "done")) return;
+      if (helpers.get(change.job)?.chatId?.startsWith("workflow-")) return;
+      const event: WorkflowEvent = change.state === "failed" ? "task.failed" : "task.done";
+      for (const w of eventWorkflows(store.list(), event)) {
+        if (Date.now() - (lastEventStart.get(w.id) ?? 0) < 5 * 60_000) continue;
+        lastEventStart.set(w.id, Date.now());
+        run(w, event === "task.failed" ? `task #${change.job} failed` : `task #${change.job} finished`);
+      }
+    });
+    workflows = {
+      list: () => store.list(),
+      save: (w) => { const list = store.save(w); changed(); return list; },
+      remove: (id) => { const list = store.remove(id); changed(); return list; },
+      run: (id) => { const w = store.list().find((x) => x.id === id); if (!w) return "That workflow is gone."; run(w, "run by hand"); return undefined; },
+      onChange: (listener) => { listeners.add(listener); return () => listeners.delete(listener); },
+    };
+  }
   // Daily brief (upgrades.md C3): the day gathered by code, written by one model run without tools, saved, and delivered as
   // the settings say. Off until the user turns it on. Logs counts only, never the lines.
   const briefStore = memory?.briefs;
@@ -1198,6 +1249,7 @@ export function createRuntime(
   // The helpers as the window lists them, for the search (agents, routines, skills).
   const searchHelpers = helpers ? islandHelpers(helpers, installedApps, planModels, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name))), undefined, codexWorkerModels) : undefined;
   return {
+    ...(workflows ? { workflows } : {}),
     config,
     log,
     chatTurns,

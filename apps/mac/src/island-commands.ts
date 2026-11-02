@@ -27,6 +27,10 @@ export type IslandCommand =
   | { type: "chat.access"; id: string; mode: ChatAccessMode; expected: ChatAccessMode }
   /** 2026-11-02: Settings → Defaults. A chat started in the ARK window gets this access and thinking level (empty: the model's default). */
   | { type: "chat.defaults"; access: ChatAccessMode; effort: string }
+  | { type: "workflows.list" }
+  | { type: "workflow.save"; workflow: Record<string, unknown> }
+  | { type: "workflow.delete"; id: string }
+  | { type: "workflow.run"; id: string }
   | { type: "chat.work.watch" }
   | { type: "chat.question.answer"; chat: string; turn: string; id: string; text?: string }
   | ChatControlRequest
@@ -187,6 +191,10 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "chat.reasoning",
   "chat.access",
   "chat.defaults",
+  "workflows.list",
+  "workflow.save",
+  "workflow.delete",
+  "workflow.run",
   "chat.model",
   "approval.answer",
   "memory.list",
@@ -384,6 +392,19 @@ export function parseCommand(line: string): ParsedLine {
     const v = value as Record<string, unknown>;
     if (Object.keys(v).some((k) => !["type", "id", "mode", "expected"].includes(k)) || typeof v.id !== "string" || !/^[\w-]{1,100}$/.test(v.id) || !isChatAccessMode(v.mode) || !isChatAccessMode(v.expected)) return { error: "Invalid chat access preference." };
     return { command: v as unknown as Extract<IslandCommand, { type: "chat.access" }> };
+  }
+  // 2026-11-02: workflows. The workflow itself is checked by workflows.ts (checkWorkflow); here only its shape and size.
+  if (type === "workflows.list") return Object.keys(value as object).length === 1 ? { command: { type } } : { error: "Invalid workflows request." };
+  if (type === "workflow.save") {
+    const v = value as Record<string, unknown>;
+    if (Object.keys(v).some((k) => !["type", "workflow"].includes(k)) || typeof v.workflow !== "object" || v.workflow === null || Array.isArray(v.workflow)
+        || JSON.stringify(v.workflow).length > 32_000) return { error: "Invalid workflow." };
+    return { command: { type, workflow: v.workflow as Record<string, unknown> } };
+  }
+  if (type === "workflow.delete" || type === "workflow.run") {
+    const v = value as Record<string, unknown>;
+    if (Object.keys(v).some((k) => !["type", "id"].includes(k)) || typeof v.id !== "string" || !/^[a-z0-9-]{1,40}$/.test(v.id)) return { error: "Invalid workflow id." };
+    return { command: { type, id: v.id } };
   }
   if (type === "chat.defaults") {
     const v = value as Record<string, unknown>;

@@ -391,6 +391,22 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "chat.defaults":
         newChatDefaults = { access: command.access, effort: command.effort };
         return;
+      case "workflows.list":
+        sendWorkflows();
+        return;
+      case "workflow.save":
+      case "workflow.delete":
+      case "workflow.run": {
+        const flows = options.workflows;
+        if (!flows) { send({ type: "workflows", workflows: [], problem: "Workflows need the helpers file." }); return; }
+        try {
+          const problem = command.type === "workflow.run" ? flows.run(command.id) : (command.type === "workflow.save" ? flows.save(command.workflow) : flows.remove(command.id), undefined);
+          sendWorkflows(problem);
+        } catch (error) {
+          sendWorkflows(error instanceof Error ? error.message.slice(0, 200) : "The workflow could not be saved.");
+        }
+        return;
+      }
       case "chat.new": {
         // ADR-107: a new chat, in a project when asked. The project is checked first, so a refusal resets nothing.
         if (command.projectId) {
@@ -1168,6 +1184,10 @@ export function runIsland(options: IslandOptions): IslandSession {
     send({ type: "brief", settings: state?.settings ?? DEFAULT_BRIEF, history: state?.history ?? [], running: state?.running ?? false,
       ...(state?.preparationBudget ? { preparationBudget: state.preparationBudget } : {}), ...(state?.preparationModel ? { preparationModel: state.preparationModel } : {}), ...(state?.notice ? { notice: state.notice } : {}) });
   }
+  function sendWorkflows(problem?: string) {
+    send({ type: "workflows", workflows: options.workflows?.list() ?? [], ...(problem ? { problem } : {}) });
+  }
+  const stopWorkflowUpdates = options.workflows?.onChange(() => sendWorkflows());
   const stopBriefUpdates = options.dailyBrief?.onChange(() => {
     if (briefWatched) sendBrief();
   });
@@ -1343,6 +1363,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     for (const controller of edits.values()) controller.abort();
     for (const controller of replyRuns.values()) controller.abort();
     stopBriefUpdates?.();
+    stopWorkflowUpdates?.();
     stopBrainUpdates?.();
     stopChatUpdates?.();
     stopChatWork?.();

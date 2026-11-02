@@ -46,6 +46,7 @@ function islandHarness(
     everything: IslandOptions["everything"];
     brain: IslandOptions["brain"];
     git: IslandOptions["git"];
+    workflows: IslandOptions["workflows"];
     clipMs: number;
     warmUp: () => Promise<void>;
     silenceWarnMs: number;
@@ -111,6 +112,7 @@ function islandHarness(
     taskActivity: over.taskActivity,
     ...(over.memory ? { memory: over.memory } : {}),
     ...(over.chats ? { chats: over.chats } : {}),
+    ...(over.workflows ? { workflows: over.workflows } : {}),
     ...(over.projects ? { projects: over.projects } : {}),
     ...(over.workspace ? { workspace: over.workspace } : {}),
     ...(over.attachments ? { attachments: over.attachments } : {}),
@@ -2458,4 +2460,29 @@ test("source cancellation is request-bound and quit aborts remaining work", asyn
   assert.equal(signal?.aborted, true); assert.deepEqual(h.types(), ["project.created"]);
   h.clear(); await h.send({ ...command, request: "44444444-4444-4444-8444-444444444444" });
   h.session.quit(); await tick(5); assert.equal(signal?.aborted, true); assert.equal(h.events().length, 0);
+});
+
+test("workflows: list, save, run and delete reach the store; a refusal comes back as `problem`; bad commands are refused (2026-11-02)", async () => {
+  let list: import("./workflows.ts").Workflow[] = [];
+  const runs: string[] = [];
+  const flow = { id: "w1", name: "Digest", enabled: false, trigger: { kind: "manual" as const }, steps: [{ helper: "sid", task: "Collect" }], createdAt: "2026-11-02T00:00:00.000Z" };
+  const h = islandHarness({ workflows: {
+    list: () => list,
+    save: (w) => { if ((w as { name?: string }).name === "") throw new Error("The name is empty."); list = [flow]; return list; },
+    remove: () => (list = []),
+    run: (id) => { runs.push(id); return id === "w1" ? undefined : "That workflow is gone."; },
+    onChange: () => () => {},
+  } });
+  try {
+    await h.send({ type: "workflow.save", workflow: { name: "Digest" } });
+    await h.send({ type: "workflow.save", workflow: { name: "" } });
+    await h.send({ type: "workflow.run", id: "w1" });
+    await h.send({ type: "workflow.run", id: "gone" });
+    await h.send({ type: "workflow.delete", id: "w1" });
+    await h.send({ type: "workflow.run", id: "../x" });
+    await h.send({ type: "workflow.save", workflow: "not an object" });
+    const events = h.events().filter((e) => e.type === "workflows") as { workflows: unknown[]; problem?: string }[];
+    assert.deepEqual(events.map((e) => [e.workflows.length, e.problem]), [[1, undefined], [1, "The name is empty."], [1, undefined], [1, "That workflow is gone."], [0, undefined]]);
+    assert.deepEqual(runs, ["w1", "gone"], "an unsafe id never reaches the store");
+  } finally { await h.send({ type: "quit" }); }
 });
