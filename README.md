@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/icon.png" width="128" alt="The ARK icon">
+  <img src="docs/images/ark-icon.png" width="128" alt="The ARK icon">
 </p>
 
 <h1 align="center">ARK</h1>
@@ -11,12 +11,19 @@
 ARK runs on your Mac. You talk or type. ARK answers, uses tools, and hands bigger work to its agents. Permissions, memory and approvals are ordinary code, not model decisions. Your data stays on your Mac.
 
 <p align="center">
-  <img src="docs/images/window.png" width="820" alt="The ARK window: the chat list and a chat">
+  <img src="docs/images/ark-chat-window.png" width="820" alt="The ARK window: the chat list and a chat">
+  <br><sub><b>Chat.</b> Your chats on the left, the conversation on the right. Pick the model, the thinking level and the access for each chat under the message field.</sub>
 </p>
+
 <p align="center">
-  <img src="docs/images/studio.png" width="410" alt="The Board's Studio as a navy blueprint with agents at desks">
-  <img src="docs/images/chat-chart.png" width="410" alt="A chat reply with a bar chart, a ring chart and an image">
-  <br><sub>The Studio (sample data) and a reply with charts and an image.</sub>
+  <img src="docs/images/ark-studio.png" width="820" alt="The Board's Studio as a navy blueprint with agents at desks">
+  <br><sub><b>Studio.</b> The Board shows your agents as a blueprint: working agents sit at a desk with their current step, idle agents wait in Recharge. The light bulb switches between a navy and a pale print.</sub>
+</p>
+
+<p align="center">
+  <img src="docs/images/ark-chat-chart.png" width="410" alt="A chat reply with a bar chart, a ring chart and an image">
+  <img src="docs/images/ark-chat-logo.png" width="410" alt="A chat reply with a logo drawn as SVG">
+  <br><sub><b>Charts, images and drawings.</b> Left: a reply with a bar chart, a ring chart and an image. Right: a logo that ARK drew, with Save SVG, Save PNG and Copy SVG.</sub>
 </p>
 
 ## Features
@@ -144,7 +151,7 @@ The Kokoro voice and the Parakeet dictation model download themselves on first u
 cp .env.example .env
 ```
 
-Set the `ARK_*` values you need in `.env`. All of them are optional. ARK still reads the old `ATOM_*` and `ZENO_*` names as a fallback.
+Set the `ARK_*` values you need in `.env`. All of them are optional.
 
 ### Build and open the app
 
@@ -249,7 +256,3 @@ Every part is described in [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md).
 ## Status
 
 ARK is a personal prototype. It is built and used on one Mac. The app is not packaged for other Macs. Many new features have tests but are not yet tried live. Read [STATUS.md](STATUS.md) for the current state.
-
-## Name and history
-
-ARK was called ZENO until 2026-10-13 and ATOM until 2026-11-01. Old entries in DECISIONS.md, TASK.md and STATUS.md keep the old names.
