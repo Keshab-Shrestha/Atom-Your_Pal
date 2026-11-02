@@ -13,7 +13,7 @@ import { TRASH_TOOL } from "./trash-tool.ts";
 import { currentBranch, pushBranch } from "./git-branches.ts";
 import { mcpCheck } from "./mcp-servers.ts";
 import { webFetchProblem } from "./web-guard.ts";
-import { grantedServers, kitTools, nativeMembers } from "./native-agents.ts";
+import { grantedServers, kitHas, kitTools, nativeMembers } from "./native-agents.ts";
 import type { BoardRecorder } from "./native-board.ts";
 import type { PlanBook } from "./native-plan.ts";
 import { git, prepareWorkdir, type Workdir } from "./worktree.ts";
@@ -244,7 +244,9 @@ export function nativeGate(scope: NativeScope): NativeGate {
         if (model) updated.model = model;
       }
       if (admissionSignal?.aborted) return cancelled();
-      const isolated = member.kit === "folders" && team.project && await isRepo(team.project.cwd);
+      // Full access gives every agent the file tools, so its project work is isolated like a folders agent's.
+      const filesKit = kitHas(member, "folders", scope.access?.fullAccess() === true);
+      const isolated = filesKit && team.project && await isRepo(team.project.cwd);
       // Model choice and repository detection may finish after Stop. Never create a late worker/Board row.
       if (admissionSignal?.aborted) return cancelled();
       const problem = planned && team.plans?.confirm?.(planned.plan, planned.n);
@@ -260,7 +262,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
           if (view?.id !== planned.plan || bound?.job !== job.id) throw new Error("The retry's saved plan binding changed before dispatch.");
         } else team.helpers.linkPlanJob(planned.plan, planned.n, job.id);
       }
-      if (planned && team.hostFileChecks && team.project && member.kit === "folders" && team.helpers.recordTaskVerification) {
+      if (planned && team.hostFileChecks && team.project && filesKit && team.helpers.recordTaskVerification) {
         const portion = team.helpers.latestPlan?.(team.chatId)?.portions.find((p) => p.job === job!.id);
         const checks = taskFileChecks(portion?.fileChecks), attempt = team.helpers.taskEvidence?.(job.id);
         if (checks?.length && attempt?.state === "running") fileReadbacks.set(job.id, { attempt: attempt.attempt, helper: member.id, checks,
@@ -335,16 +337,18 @@ export function nativeGate(scope: NativeScope): NativeGate {
     const approve: TeamScope["approve"] = (request) => taskApproval(job, (signal) => team.approve(request, signal), false);
     const project = Boolean(team.project);
     const say = (verdict: string) => log("agent.tool", { helper: member.id, ...(job !== undefined ? { job } : {}), tool: name.slice(0, 60), verdict });
+    // 2026-11-02: a Full access chat's agents have every kit's tools (kitHas).
+    const full = scope.access?.fullAccess(job !== undefined ? stopFor(job).signal : undefined) === true;
 
     if (name.startsWith(`mcp__${BROWSER_SERVER}__`)) {
-      if (member.kit === "think" || !member.browser) return say("refused"), deny(`${member.name} has no browser.`);
+      if (!kitHas(member, "any", full) || !member.browser) return say("refused"), deny(`${member.name} has no browser.`);
       if (team.hostBrowser && member.planFirst && !planApproved.has(agentId)) return say("refused"), deny("Approve this worker's plan with ExitPlanMode before using its browser.");
       return browserCall(member, job, name, input, agentId);
     }
     const trash = name === `mcp__${TOOL_SERVER}__${TRASH_TOOL}`;
     if (name.startsWith("mcp__") && !trash) {
       if (team.hostMcp && member.planFirst && !planApproved.has(agentId)) return say("refused"), deny("Approve this worker's plan with ExitPlanMode before calling an external MCP tool.");
-      const servers = member.kit === "think" ? [] : grantedServers(team.helpers.mcpServers(), member.id);
+      const servers = kitHas(member, "any", full) ? grantedServers(team.helpers.mcpServers(), member.id) : [];
       const preview = team.hostMcp ? redact(JSON.stringify(input)) : "";
       const problem = await mcpCheck({ servers, worker: member.name, approve: (request) => scope.access?.fullAccess(job !== undefined ? stopFor(job).signal : undefined) && active(job) && !isTainted(agentId) ? Promise.resolve(true) : approve(team.hostMcp ? { ...request, reasonMax: 600 } : request),
         ...(scope.access?.fullAccess() ? { forceApproval: isTainted(agentId) } : {}), ...(team.hostMcp ? {
@@ -355,10 +359,10 @@ export function nativeGate(scope: NativeScope): NativeGate {
     }
     if (name === "Bash" && !project) return say("refused"), deny("Commands run only in a project chat. Do the task with the file tools.");
     // Its MCP and browser tools are deferred (ENABLE_TOOL_SEARCH=force): an agent with them needs ToolSearch to load them.
-    const deferred = member.kit !== "think" && (member.browser || grantedServers(team.helpers.mcpServers(), member.id).length > 0);
+    const deferred = kitHas(member, "any", full) && (member.browser || grantedServers(team.helpers.mcpServers(), member.id).length > 0);
     // Skill for every kit, think too: a skill is instructions, not a tool (Keshab, 2026-10-14).
     const kit = new Set([
-      ...kitTools(member.kit, project),
+      ...kitTools(member.kit, project, full),
       ...(member.skills.length ? ["Skill"] : []),
       ...(member.planFirst ? ["ExitPlanMode"] : []),
       ...(deferred ? ["ToolSearch"] : []),

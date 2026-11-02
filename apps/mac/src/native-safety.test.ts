@@ -330,6 +330,27 @@ test("Full access never grants an unknown MCP server, bypasses plan-first or wai
   } finally { store.close(); rmSync(home, { recursive: true, force: true }); }
 });
 
+// 2026-11-02: a Full access chat's agents have every kit's tools; the gate follows the chat's access each call.
+test("in a Full access chat a research agent may write files and a folders agent may use the web; otherwise the kit decides", async () => {
+  const { chatAccessPolicy } = await import("./chat-access.ts");
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-full-kit-")));
+  const store = openHelperStore({ path: ":memory:", home });
+  let asks = 0;
+  const make = (mode: "full" | "checked") => nativeGate({ tools: ["Agent"], access: chatAccessPolicy(mode, () => mode), team: {
+    chatId: "cedar", helpers: store, board: boardRecorder(store, "cedar"), worktrees: join(home, "worktrees"), home,
+    approve: async () => { asks++; return false; },
+  } });
+  const gate = make("full");
+  try {
+    assert.equal((await pre(gate, sub("sid", "Write", { file_path: join(home, "notes.txt"), content: "x" }), "full-write")).decision, "allow");
+    assert.equal((await pre(gate, sub("kame", "WebSearch", { query: "q" }), "full-web")).decision, "allow");
+    assert.equal(asks, 0, "Full access asks nothing for an ordinary file");
+    // A changed access reopens the session, so a normal chat is its own gate.
+    const write = await pre(make("checked"), sub("sid", "Write", { file_path: join(home, "notes.txt"), content: "x" }), "checked-write");
+    assert.equal(write.decision, "deny"); assert.match(write.reason!, /not in Sid's kit/);
+  } finally { store.close(); rmSync(home, { recursive: true, force: true }); }
+});
+
 test("imported note data cannot turn an ordinary read into action approval, including in Full access", async () => {
   const { chatAccessPolicy } = await import("./chat-access.ts");
   const { SOURCE_DATA_MARKER } = await import("./brain-source-context.ts");

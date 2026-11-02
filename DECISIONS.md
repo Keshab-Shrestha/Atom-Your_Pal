@@ -4118,3 +4118,25 @@ With two displays, Keshab saw ARK's fingertip pointer on the main display and a 
 
 - During computer work only ARK's fingertip pointer shows.
 - A live click with the new session label is not yet checked on Keshab's apps. A harmless check confirmed that the driver accepts the session and switches its cursor off.
+
+## ADR-227 — Agents in a Full access chat have every kit's tools; new chats start in Full access (2026-11-02)
+
+### Context
+
+Keshab: "Allow full permission to the agents as well. Do not meet the agents with fixed permissions." He chose three changes: agents inherit the chat's Full access, a kit does not limit tools in Full access, and new chats start in Full access.
+
+### Decision
+
+- Inherit: a chat's access already reached its agents' checks on Claude and Codex through the same gate. Every path is checked, and nothing was missing.
+- No kit limits in Full access: `kitHas(member, kit, full)` is the single rule. In a Full access chat every agent has the web (WebSearch, WebFetch) and the files (Read, Glob, Grep, Write, Edit, Trash, and Bash in a project chat), whatever its kit. A think agent also gets its granted MCP servers and browser. The rule applies to:
+  - Claude's agent definitions, with a Full access contract in the prompt.
+  - The gate's kit check and project worktree isolation (now for every agent that writes files).
+  - The Codex worker tools, their live checks and their capability text.
+- The session already reopens when the chat's access changes, so an agent's tools always match the current access.
+- New chats start in Full access: Settings → Defaults → Access is set to Full access on Keshab's Mac. ADR-216 applies: only chats started in the ARK window get it. Telegram, routines, the API and forks keep Saved permissions.
+
+### Consequences
+
+- Without Full access the kit still decides, as before.
+- Full access still refuses deletes outside the Trash, remote changes and keychain reads. A tainted session (web text read) still asks for outside-sandbox commands, MCP calls and lasting changes. Plan-first agents still need their plan approved.
+- MCP servers and the browser stay per-agent grants. Full access does not add a server that an agent was not given.

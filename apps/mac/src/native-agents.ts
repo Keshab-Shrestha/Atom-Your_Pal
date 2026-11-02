@@ -31,6 +31,8 @@ export interface AgentScope {
   browser?(helper: string): Record<string, unknown>;
   /** The skills plugin of this session: a skill is named `<plugin>:<name>`. */
   skillsPlugin?: string;
+  /** The chat is in Full access: every agent has every kit's tools (kitHas). */
+  fullAccess?: boolean;
 }
 
 export const DESCRIPTION_CHARS = 120;
@@ -43,10 +45,21 @@ export const RESEARCH_PAGES = 2;
 // 2026-11-01: trash_file moves a file to the Trash after Keshab allows it (folderCheck's `Trash`).
 const FOLDER_TOOLS = ["Read", "Glob", "Grep", "Write", "Edit", `mcp__${TOOL_SERVER}__${TRASH_TOOL}`];
 
-/** The tools a kit gives, before MCP, the browser and skills. Bash only in a project chat. */
-export function kitTools(kit: Kit, project: boolean): string[] {
+/**
+ * 2026-11-02 (Keshab: "allow full permission to the agents as well. Do not meet the agents with fixed permissions"): in a Full access
+ * chat an agent has every kit's tools, whatever its own kit. "any" asks whether it has tools at all (a think agent has none otherwise).
+ */
+export function kitHas(member: { kit: Kit }, kit: "research" | "folders" | "any", full: boolean): boolean {
+  if (full) return true;
+  return kit === "any" ? member.kit !== "think" : member.kit === kit;
+}
+
+/** The tools a kit gives, before MCP, the browser and skills. Bash only in a project chat. Full access: every kit's tools. */
+export function kitTools(kit: Kit, project: boolean, full = false): string[] {
+  const folders = project ? [...FOLDER_TOOLS, "Bash"] : [...FOLDER_TOOLS];
+  if (full) return [...RESEARCH_TOOLS, ...folders];
   if (kit === "research") return [...RESEARCH_TOOLS];
-  if (kit === "folders") return project ? [...FOLDER_TOOLS, "Bash"] : [...FOLDER_TOOLS];
+  if (kit === "folders") return folders;
   return [];
 }
 
@@ -74,6 +87,13 @@ const KIT_CONTRACT: Readonly<Record<Kit, (project: boolean) => string>> = {
   think: () => ["You have no tools: answer from what you know, and say what you could not check.", REPORT].join("\n"),
 };
 
+/** A Full access chat's contract: the web and the files, whatever the agent's usual kit. */
+const FULL_CONTRACT = (project: boolean) => [
+  "This chat has Full access: you have the web (WebSearch, WebFetch) and the files, whatever your usual kit. Use only what the task needs.",
+  ...KIT_CONTRACT.research(project).split("\n").filter((line) => line !== REPORT),
+  ...KIT_CONTRACT.folders(project).split("\n"),
+].join("\n");
+
 /** The workers that become sub-agents: available ones, never Tinker (it only reviews). */
 export function nativeMembers(list: readonly HelperView[]): HelperView[] {
   return list.filter((h) => h.available && h.role !== "improver" && KITS.includes(h.kit));
@@ -86,16 +106,17 @@ export const grantedServers = (servers: readonly McpServer[], helper: string) =>
 export function agentDefinition(member: HelperView, scope: AgentScope, servers: readonly McpServer[] = []): NativeAgentDefinition {
   const project = Boolean(scope.project);
   const description = `${member.name}: ${member.role}`;
-  const mcp = member.kit === "think" ? [] : grantedServers(servers, member.id);
-  const browser = member.kit !== "think" && member.browser && scope.browser ? scope.browser(member.id) : undefined;
+  const full = scope.fullAccess === true;
+  const mcp = kitHas(member, "any", full) ? grantedServers(servers, member.id) : [];
+  const browser = kitHas(member, "any", full) && member.browser && scope.browser ? scope.browser(member.id) : undefined;
   const mcpServers = [...mcp.map((s) => ({ [s.name]: sdkConfig(s) as Record<string, unknown> })), ...(browser ? [{ [BROWSER_SERVER]: browser }] : [])];
   const skills = scope.skillsPlugin && member.skills.length ? member.skills.map((s) => `${scope.skillsPlugin}:${s}`) : [];
   return {
     description: description.length > DESCRIPTION_CHARS ? `${description.slice(0, DESCRIPTION_CHARS - 1)}…` : description,
-    prompt: `${instructionsFor(member.soul, member.role)}\n${KIT_CONTRACT[member.kit](project)}`,
+    prompt: `${instructionsFor(member.soul, member.role)}\n${full ? FULL_CONTRACT(project) : KIT_CONTRACT[member.kit](project)}`,
     // MCP servers by server-level name; the hooks check each call against the same grants. Their tools are deferred
     // (ENABLE_TOOL_SEARCH=force), so ToolSearch comes with them.
-    tools: [...kitTools(member.kit, project), ...mcpServers.map((s) => `mcp__${Object.keys(s)[0]}`), ...(mcpServers.length ? ["ToolSearch"] : [])],
+    tools: [...kitTools(member.kit, project, full), ...mcpServers.map((s) => `mcp__${Object.keys(s)[0]}`), ...(mcpServers.length ? ["ToolSearch"] : [])],
     model: member.pinnedModel ?? "inherit",
     ...(mcpServers.length ? { mcpServers } : {}),
     ...(skills.length ? { skills } : {}),

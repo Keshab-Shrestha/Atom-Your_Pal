@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MAX_AGENTS, RESERVED_AGENT_IDS, openHelperStore, type PlanModel } from "@ark/helpers";
 import { BROWSER_SERVER } from "./browser.ts";
-import { BUILT_IN_AGENTS, agentDefinitions, agentModel, createAgentTool, RESEARCH_PAGES, RESEARCH_SEARCHES } from "./native-agents.ts";
+import { BUILT_IN_AGENTS, agentDefinitions, agentModel, createAgentTool, kitHas, RESEARCH_PAGES, RESEARCH_SEARCHES } from "./native-agents.ts";
 
 const models: PlanModel[] = [
   { id: "claude-haiku-5", name: "Haiku", tier: "small" },
@@ -45,6 +45,22 @@ test("every available worker is a sub-agent: description, kit tools, prompt with
   const project = agentDefinitions(store, { project: { cwd: home } });
   assert.deepEqual(project.kame!.tools, ["Read", "Glob", "Grep", "Write", "Edit", "mcp__ark__trash_file", "Bash"], "Bash only in a project chat");
   assert.deepEqual(project.sid!.tools, ["WebSearch", "WebFetch"]);
+  done();
+});
+
+// 2026-11-02 (Keshab: "allow full permission to the agents as well"): a Full access chat's agents have every kit's tools.
+test("in a Full access chat every agent has every kit's tools and says so; otherwise the kit decides", () => {
+  const { store, home, done } = setup();
+  const full = agentDefinitions(store, { fullAccess: true });
+  assert.deepEqual(full.sid!.tools, ["WebSearch", "WebFetch", "Read", "Glob", "Grep", "Write", "Edit", "mcp__ark__trash_file"], "a researcher gets the files too");
+  assert.deepEqual(full.kame!.tools, full.sid!.tools, "a coder gets the web too");
+  assert.match(full.sid!.prompt, /This chat has Full access: you have the web/);
+  assert.match(full.sid!.prompt, /home folder and on external drives/, "the files contract comes with it");
+  assert.ok(agentDefinitions(store, { fullAccess: true, project: { cwd: home } }).sid!.tools.includes("Bash"), "Bash in a project chat");
+  assert.deepEqual(agentDefinitions(store, {}).sid!.tools, ["WebSearch", "WebFetch"], "without Full access the kit still decides");
+  assert.equal(kitHas({ kit: "think" }, "any", false), false);
+  assert.equal(kitHas({ kit: "think" }, "folders", true), true);
+  assert.equal(kitHas({ kit: "research" }, "folders", false), false);
   done();
 });
 

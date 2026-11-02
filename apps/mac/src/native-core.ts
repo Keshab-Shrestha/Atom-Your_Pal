@@ -401,7 +401,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
         : {}),
     });
     const skills = team?.skills?.(chat);
-    const agents = team ? agentDefinitions(team.helpers, { ...(project ? { project } : {}), ...(team.browser ? { browser: team.browser } : {}), ...(skills ? { skillsPlugin: skills.plugin } : {}) }) : undefined;
+    const agents = team ? agentDefinitions(team.helpers, { ...(project ? { project } : {}), ...(team.browser ? { browser: team.browser } : {}), ...(skills ? { skillsPlugin: skills.plugin } : {}), ...(access === "full" ? { fullAccess: true } : {}) }) : undefined;
     let handle: ChatSessionHandle;
     handle = await openChatSession({
       chatId: chat,

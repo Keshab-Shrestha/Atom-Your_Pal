@@ -9,7 +9,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import type { ModelRequest, ToolCall, ToolResult, ToolRunner, ToolSpec } from "@ark/contracts";
 import { createGateway, createCodexSessionAdapter, redact, runCodexProjectInspection, type CodexSessionOptions } from "@ark/llm-gateway";
 import { realish, type HelperView } from "@ark/helpers";
-import { nativeMembers, RESEARCH_PAGES } from "./native-agents.ts";
+import { kitHas, nativeMembers, RESEARCH_PAGES } from "./native-agents.ts";
 import { CODEX_SKILL_BUDGET, CODEX_SKILL_CHARS, codexWorkerCapabilities, codexWorkerPrompt, observeCodexWorker } from "./codex-worker.ts";
 import { boardRecorder } from "./native-board.ts";
 import { nativeGate, type NativeGate } from "./native-safety.ts";
@@ -69,8 +69,8 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
   const approvalSignal = new AsyncLocalStorage<AbortSignal | undefined>();
   const webAllowed = (req: ModelRequest): boolean => req.web === true && (!req.files || req.files.web === true) && options.webAllowed?.(req.context.sessionId) === true;
   const commandsAllowed = (req: ModelRequest): boolean => process.platform === "darwin" && req.project === true && Boolean(req.files) && options.projectCommandsAllowed?.(req.context.sessionId, req.files!.cwd) === true;
-  const browserConfig = (member: HelperView) => {
-    if (member.kit === "think" || !member.browser) return undefined;
+  const browserConfig = (member: HelperView, full: boolean) => {
+    if (!kitHas(member, "any", full) || !member.browser) return undefined;
     try { return options.team?.browser?.(member.id); } catch { return undefined; }
   };
 
@@ -235,7 +235,9 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
     team.helpers.setModel(job, workerModel, member.codexPinnedModel ? "Codex model pinned by Keshab for this worker." : "Uses this chat's Codex model; Claude pins are separate.");
     const worker = { id, type: member.id, cwd: req.files?.cwd ?? options.home ?? homedir() };
     // Native shell stays disabled; host commands use separate inspection/disposable-copy sandboxes.
-    const names = member.kit === "folders" ? FILE_NAMES : [];
+    // 2026-11-02: a Full access chat's agents have every kit's tools (kitHas), checked again before each use.
+    const full = () => entry.policy.fullAccess(controller.signal) === true;
+    const names = kitHas(member, "folders", full()) ? FILE_NAMES : [];
     const skillNames = member.skills.filter((name) => SKILL_NAME.test(name));
     let skillChars = 0;
     let pageReads = 0;
@@ -244,24 +246,24 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
     let reviewCalls = 0;
     const previews = new Map<string, { root: string; inputs: Map<string, string> }>();
     const previewHolds = new Set<string>();
-    const hasCommands = member.kit === "folders" && commandsAllowed(req);
+    const hasCommands = kitHas(member, "folders", full()) && commandsAllowed(req);
     const hasPreviewReview = hasCommands && typeof team.helpers.guardPreviewEdit === "function";
     const commandAllowed = () => {
       const current = nativeMembers(team.helpers.list()).find((m) => m.id === member.id);
-      return !controller.signal.aborted && team.helpers.get(job)?.state === "running" && current?.kit === "folders" && commandsAllowed(req);
+      return !controller.signal.aborted && team.helpers.get(job)?.state === "running" && current !== undefined && kitHas(current, "folders", full()) && commandsAllowed(req);
     };
-    const hasWeb = member.kit === "research" && webAllowed(req);
+    const hasWeb = kitHas(member, "research", full()) && webAllowed(req);
     const pageAllowed = () => {
       const current = nativeMembers(team.helpers.list()).find((m) => m.id === member.id);
-      return !controller.signal.aborted && team.helpers.get(job)?.state === "running" && current?.kit === "research" && webAllowed(req);
+      return !controller.signal.aborted && team.helpers.get(job)?.state === "running" && current !== undefined && kitHas(current, "research", full()) && webAllowed(req);
     };
-    const mcpServers = member.kit === "think" ? [] : codexMcpServers(team.helpers.mcpServers(), member.id);
+    const mcpServers = kitHas(member, "any", full()) ? codexMcpServers(team.helpers.mcpServers(), member.id) : [];
     const mcp = codexWorkerMcp({
       servers: mcpServers,
       signal: controller.signal,
       current: (server) => {
         const current = nativeMembers(team.helpers.list()).find((m) => m.id === member.id);
-        if (controller.signal.aborted || team.helpers.get(job)?.state !== "running" || !current || current.kit === "think") return undefined;
+        if (controller.signal.aborted || team.helpers.get(job)?.state !== "running" || !current || !kitHas(current, "any", full())) return undefined;
         return codexMcpServers(team.helpers.mcpServers(), member.id).find((s) => s.id === server.id);
       },
       authorize: async (name, input, activeSignal) => {
@@ -270,13 +272,13 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
       },
       read: () => entry.gate.mcpRead(worker.id),
     });
-    const config = browserConfig(member);
+    const config = browserConfig(member, full());
     const browser = codexWorkerBrowser({
       config, signal: controller.signal,
       current: () => {
         if (controller.signal.aborted || team.helpers.get(job)?.state !== "running") return undefined;
         const current = nativeMembers(team.helpers.list()).find((m) => m.id === member.id);
-        return current ? browserConfig(current) : undefined;
+        return current ? browserConfig(current, full()) : undefined;
       },
       authorize: async (name, input, activeSignal) => {
         const verdict = await approvalSignal.run(activeSignal, () => checked(entry.gate, { id: randomUUID(), name, input }, worker));
@@ -467,7 +469,7 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
       const verificationWorkspace = fileChecks?.length ? captureVerificationWorkspace(worker.cwd) : undefined;
       const verificationAttempt = fileChecks?.length ? team.helpers.taskEvidence?.(job) : undefined;
       const recordVerification = team.helpers.recordTaskVerification?.bind(team.helpers);
-      const system = codexWorkerPrompt(member, worker.cwd, Boolean(team.readAssignedSkill), hasWeb, hasCommands, mcpServers.map((s) => s.name), Boolean(config), advisory.specs.length > 0, hasPreviewReview);
+      const system = codexWorkerPrompt(member, worker.cwd, Boolean(team.readAssignedSkill), hasWeb, hasCommands, mcpServers.map((s) => s.name), Boolean(config), advisory.specs.length > 0, hasPreviewReview, full());
       const reply = await createGateway({ provider: adapter, timeoutMs: 300_000, maxRetries: 0 }).complete({ system, messages: [{ role: "user", content: String(verdict.updatedInput?.prompt ?? call.input.prompt) }], context: { ...req.context, sessionId: `${req.context.sessionId}:job:${job}` } }, controller.signal);
       await advisory.close(); // A parent cannot finish while an unawaited child still owns a provider session.
       if (controller.signal.aborted) throw new Error("The task was stopped before completion was recorded.");
@@ -513,7 +515,8 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
       const entry = state(req);
       const tools = withHistoryTools(withHistoryTools(entry.tools, req.historyTools), req.interactionTools);
       const members = options.team ? nativeMembers(options.team.helpers.list()) : [];
-      const specs = [...tools.specs().map(exposed), ...(req.files ? fileSpecs.filter((s) => READ_NAMES.includes(s.name)).map(exposed) : []), ...(members.length ? [{ name: "ark_delegate", description: `Run an ARK agent and return its actual report. Available capabilities: ${members.map((m) => `${m.id} (${m.name}: ${m.role}; ${codexWorkerCapabilities(m, Boolean(options.team?.readAssignedSkill), webAllowed(req), commandsAllowed(req), m.kit === "think" ? [] : codexMcpServers(options.team!.helpers.mcpServers(), m.id).map((s) => s.name), Boolean(browserConfig(m)), members.length > 1, commandsAllowed(req) && typeof options.team?.helpers.guardPreviewEdit === "function")})`).join(". ")}. Give the complete task in prompt.`, inputSchema: { type: "object" as const, properties: { subagent_type: property("Agent id"), description: property("Short task title"), prompt: property("Complete task, relevant context and end condition") }, required: ["subagent_type", "description", "prompt"] } }] : [])];
+      const full = entry.policy.fullAccess() === true;
+      const specs = [...tools.specs().map(exposed), ...(req.files ? fileSpecs.filter((s) => READ_NAMES.includes(s.name)).map(exposed) : []), ...(members.length ? [{ name: "ark_delegate", description: `Run an ARK agent and return its actual report. Available capabilities: ${members.map((m) => `${m.id} (${m.name}: ${m.role}; ${codexWorkerCapabilities(m, Boolean(options.team?.readAssignedSkill), webAllowed(req), commandsAllowed(req), kitHas(m, "any", full) ? codexMcpServers(options.team!.helpers.mcpServers(), m.id).map((s) => s.name) : [], Boolean(browserConfig(m, full)), members.length > 1, commandsAllowed(req) && typeof options.team?.helpers.guardPreviewEdit === "function", full)})`).join(". ")}. Give the complete task in prompt.`, inputSchema: { type: "object" as const, properties: { subagent_type: property("Agent id"), description: property("Short task title"), prompt: property("Complete task, relevant context and end condition") }, required: ["subagent_type", "description", "prompt"] } }] : [])];
       const runner: ToolRunner = {
         specs: () => specs,
         async run(call, signal) {
