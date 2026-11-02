@@ -11,7 +11,7 @@
 ARK runs on your Mac. You talk or type. ARK answers, uses tools, and hands bigger work to its agents. Permissions, memory and approvals are ordinary code, not model decisions. Your data stays on your Mac.
 
 <p align="center">
-  <img src="docs/images/window.png" width="820" alt="The ARK window with the chat list and the Board">
+  <img src="docs/images/window.png" width="820" alt="The ARK window: the chat list and a chat">
 </p>
 <p align="center">
   <img src="docs/images/studio.png" width="410" alt="The Board's Studio as a navy blueprint with agents at desks">
