@@ -73,6 +73,9 @@ struct HelpersView: View {
         .sheet(isPresented: Binding(get: { model.showsProjectSources }, set: { model.showsProjectSources = $0 })) {
             ProjectSourceSheet(model: model).themed(palette)
         }
+        .overlay(alignment: .trailing) {
+            if model.agentPanel != nil { AgentPanelView(model: model).themed(palette).padding(.vertical, 8).transition(.move(edge: .trailing)) }
+        }
         .overlay { if model.paletteShown { CommandPaletteView(model: model).themed(palette) } }
         .themed(palette)
         .environment(\.desktopDesign, true)

@@ -4157,3 +4157,22 @@ Keshab gave a design reference (an "Agent CRM workspace" with the taste-skill "E
 ### Consequences
 
 - Snapshots draw the palette's placeholder and first rows, because ImageRenderer draws neither text fields nor scroll views.
+
+## ADR-229 — Phase 2 of the reference: Home and the ⌘J agent panel (2026-11-02)
+
+### Context
+
+Phase 2 of ADR-228. The reference's Home opens with an "Editorial greeting": a greeting, today's one fact and an Ask box. Its ⌘J "Ask an agent" panel works from any page.
+
+### Decision
+
+- Home (the rail's Home, the Dashboard page) opens with `HomeHeader` and `HomeAskBox`, above the existing tiles, team and trends.
+  - `HomeBrief.greeting` says good morning, afternoon or evening, with the Mac user's first name. `HomeBrief.fact` names one fact, in this order: what needs Keshab, the agents at work, then the day's input and output tokens (the "Tokens today" tile's measure).
+  - In Paper & Teal and Ink & Sage the greeting is in Instrument Serif and the fact in italics, as in the reference.
+  - The Ask box starts a new chat (Settings → Defaults decides where) and sends the text there once that chat is current (`IslandModel.askFromHome`). Try chips fill the box.
+  - Snapshots use a fixed evening and the name "Keshab", so reference images do not change with the clock or the Mac.
+- ⌘J (Edit → Ask an Agent, or the palette) opens `AgentPanelView` at the window's right edge on any page. It shows an agent picker with the agent's state, its six latest tasks (a click opens the thread) and "Give <name> a task…", which sends the existing `jobAdd`. The task joins the Board as any task does.
+
+### Consequences
+
+- A task from the panel starts with the Board's task access, not a chat's access.

@@ -318,6 +318,10 @@ enum IslandGallery {
         tabled.paletteShown = true
         save(window("⌘K: the command palette", tabled), name: name + "-palette", to: directory)
         tabled.paletteShown = false
+        // 2026-11-02: the ⌘J agent panel, open on Sid.
+        tabled.agentPanel = "sid"
+        save(window("⌘J: ask an agent", tabled), name: name + "-agent-panel", to: directory)
+        tabled.agentPanel = nil
         let paged = model(theme)
         paged.windowPage = .settings
         paged.settingsPage = .model

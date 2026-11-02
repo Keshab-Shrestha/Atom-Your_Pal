@@ -201,6 +201,16 @@ final class IslandModel {
     var chatSelecting = false
     /// 2026-11-02: the ⌘K command palette is open.
     var paletteShown = false
+    /// 2026-11-02: the ⌘J agent panel shows this agent ("" for the first available); nil when closed.
+    var agentPanel: String?
+    /// 2026-11-02: Home's Ask box: the text waits until the new chat it started is the current one, then is sent there.
+    @ObservationIgnored private var pendingHomeAsk: (text: String, from: String?)?
+
+    func askFromHome(_ text: String) {
+        pendingHomeAsk = (text, chats?.current)
+        startNewChat()
+        windowPage = .chat
+    }
     var chatFindQuery = ""
     var chatFindSelection = 0
     var chatFindFocusTick = 0
@@ -994,6 +1004,11 @@ final class IslandModel {
             settings.projectFilter = ProjectSidebarScope.resolved(settings.projectFilter, projects: list.projects)
             inputRuntimeReady = true
             saveInput()
+            if let ask = pendingHomeAsk, !list.current.isEmpty, list.current != ask.from {
+                pendingHomeAsk = nil
+                composerText = ask.text
+                submitComposer(now: false)
+            }
             projectCommandPending = false
             projectError = nil
             syncChatModelName()

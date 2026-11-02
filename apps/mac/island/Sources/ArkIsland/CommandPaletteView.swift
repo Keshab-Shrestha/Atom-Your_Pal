@@ -115,6 +115,7 @@ extension CommandPaletteView {
     private static func addActions(_ model: IslandModel, _ add: (PaletteEntry, @escaping () -> Void) -> Void) {
         if model.canStartNewChat { add(.init(id: "new-chat", title: "New chat", detail: "⌘N", symbol: "square.and.pencil", group: "Actions"), model.startNewChat) }
         if model.canOpenProjectSources { add(.init(id: "new-project", title: "New project", detail: "⇧⌘N", symbol: "folder.badge.plus", group: "Actions"), model.openProjectSources) }
+        add(.init(id: "ask-agent", title: "Ask an agent", detail: "⌘J", symbol: "person.wave.2", group: "Actions", keywords: "task give"), { model.agentPanel = "" })
         add(.init(id: "new-agent", title: "New agent", symbol: "person.badge.plus", group: "Actions", keywords: "create make"), { model.navigate { model.helpers.openNewAgent() } })
         if !model.conversation.turns.isEmpty {
             add(.init(id: "select-text", title: "Select text in chat", detail: "⇧⌘A", symbol: "text.cursor", group: "Actions", keywords: "copy"), {

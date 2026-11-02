@@ -26,16 +26,14 @@ struct DashboardPane: View {
 
     private func overview(usage: TokenUsageSummary?, attention: BoardAttention, width: CGFloat, fitted: Bool) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Overview").appFont(.system(size: 20, weight: .medium)).foregroundStyle(theme.text.color)
-                    // Today's date under the title, as a calendar would show it.
-                    Text(Date().formatted(.dateTime.weekday(.wide).month(.wide).day())).appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color)
-                }
+            // 2026-11-02 (Keshab's reference): Home opens with a greeting, today's one fact and an Ask box.
+            HStack(alignment: .top) {
+                HomeHeader(model: model, attention: attention)
                 Spacer(minLength: 8)
                 updated
                 QuietButton(title: "Open Board", symbol: "rectangle.3.group") { openBoard(.floor) }
             }
+            HomeAskBox(model: model).padding(.top, 8).padding(.bottom, 8)
             ViewThatFits(in: .horizontal) {
                 summaryStrip(usage: usage, attention: attention, columns: 6).frame(minWidth: 900)
                 summaryStrip(usage: usage, attention: attention, columns: 3)
