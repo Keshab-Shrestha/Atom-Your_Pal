@@ -47,6 +47,7 @@ function islandHarness(
     brain: IslandOptions["brain"];
     git: IslandOptions["git"];
     workflows: IslandOptions["workflows"];
+    panels: IslandOptions["panels"];
     clipMs: number;
     warmUp: () => Promise<void>;
     silenceWarnMs: number;
@@ -113,6 +114,7 @@ function islandHarness(
     ...(over.memory ? { memory: over.memory } : {}),
     ...(over.chats ? { chats: over.chats } : {}),
     ...(over.workflows ? { workflows: over.workflows } : {}),
+    ...(over.panels ? { panels: over.panels } : {}),
     ...(over.projects ? { projects: over.projects } : {}),
     ...(over.workspace ? { workspace: over.workspace } : {}),
     ...(over.attachments ? { attachments: over.attachments } : {}),
@@ -2484,5 +2486,26 @@ test("workflows: list, save, run and delete reach the store; a refusal comes bac
     const events = h.events().filter((e) => e.type === "workflows") as { workflows: unknown[]; problem?: string }[];
     assert.deepEqual(events.map((e) => [e.workflows.length, e.problem]), [[1, undefined], [1, "The name is empty."], [1, undefined], [1, "That workflow is gone."], [0, undefined]]);
     assert.deepEqual(runs, ["w1", "gone"], "an unsafe id never reaches the store");
+  } finally { await h.send({ type: "quit" }); }
+});
+
+test("panels: list, save and delete reach the store; a refusal comes back as `problem`; bad commands are refused (2026-11-02)", async () => {
+  let list: import("./panels.ts").Panel[] = [];
+  const panel = { id: "p1", name: "Day", enabled: true, home: false, blocks: [{ kind: "text" as const, text: "Hi" }], createdAt: "2026-11-02T00:00:00.000Z", updatedAt: "2026-11-02T00:00:00.000Z" };
+  const h = islandHarness({ panels: {
+    list: () => list,
+    save: (p) => { if ((p as { name?: string }).name === "") throw new Error("The name is empty."); list = [panel]; return list; },
+    remove: () => (list = []),
+    onChange: () => () => {},
+  } });
+  try {
+    await h.send({ type: "panels.list" });
+    await h.send({ type: "panel.save", panel: { name: "Day" } });
+    await h.send({ type: "panel.save", panel: { name: "" } });
+    await h.send({ type: "panel.delete", id: "p1" });
+    await h.send({ type: "panel.delete", id: "../x" });
+    await h.send({ type: "panel.save", panel: "not an object" });
+    const events = h.events().filter((e) => e.type === "panels") as { panels: unknown[]; problem?: string }[];
+    assert.deepEqual(events.map((e) => [e.panels.length, e.problem]), [[0, undefined], [1, undefined], [1, "The name is empty."], [0, undefined]]);
   } finally { await h.send({ type: "quit" }); }
 });

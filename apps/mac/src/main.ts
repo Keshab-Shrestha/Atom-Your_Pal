@@ -131,6 +131,7 @@ function start(config: Config) {
     ...(runtime.api ? { api: runtime.api } : {}),
     settings: runtime.settings,
     ...(runtime.workflows ? { workflows: runtime.workflows } : {}),
+    ...(runtime.panels ? { panels: runtime.panels } : {}),
     computer: runtime.computer,
     taskActivity: runtime.taskActivity,
     chatWork: runtime.chatWork,

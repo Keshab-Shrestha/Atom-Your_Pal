@@ -14,6 +14,9 @@ public enum IslandCommand: Sendable, Equatable {
     case chatAccess(id: String, mode: ChatAccessMode, expected: ChatAccessMode)
     /// Settings → Defaults (2026-11-02): a new chat's access and thinking level (empty: the model's default).
     case chatDefaults(access: ChatAccessMode, effort: String)
+    case panelsList
+    case panelSave(Panel)
+    case panelDelete(id: String)
     case workflowsList
     case workflowSave(Workflow)
     case workflowDelete(id: String)
@@ -214,6 +217,9 @@ public enum IslandCommand: Sendable, Equatable {
         case .chatModel: "chat.model"
         case .chatAccess: "chat.access"
         case .chatDefaults: "chat.defaults"
+        case .panelsList: "panels.list"
+        case .panelSave: "panel.save"
+        case .panelDelete: "panel.delete"
         case .workflowsList: "workflows.list"
         case .workflowSave: "workflow.save"
         case .workflowDelete: "workflow.delete"
@@ -503,6 +509,10 @@ public enum IslandCommand: Sendable, Equatable {
         case .chatDefaults(let access, let effort):
             fields["access"] = access.rawValue
             fields["effort"] = effort
+        case .panelSave(let panel):
+            fields["panel"] = panel.jsonObject
+        case .panelDelete(let id):
+            fields["id"] = id
         case .workflowSave(let workflow):
             fields["workflow"] = workflow.jsonObject
         case .workflowDelete(let id), .workflowRun(let id):

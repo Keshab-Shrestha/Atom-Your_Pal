@@ -201,17 +201,58 @@ final class IslandModel {
     var chatSelecting = false
     /// 2026-11-02: the workflows the runtime keeps (workflows.ts), once asked for.
     var workflows: WorkflowList?
+    /// 2026-11-02: the panels the runtime keeps (panels.ts), once asked for.
+    var panels: PanelList?
     /// 2026-11-02: the ⌘K command palette is open.
     var paletteShown = false
     /// 2026-11-02: the ⌘J agent panel shows this agent ("" for the first available); nil when closed.
     var agentPanel: String?
     /// 2026-11-02: Home's Ask box: the text waits until the new chat it started is the current one, then is sent there.
-    @ObservationIgnored private var pendingHomeAsk: (text: String, from: String?)?
+    @ObservationIgnored private var pendingHomeAsk: (text: String, from: String?, send: Bool)?
 
-    func askFromHome(_ text: String) {
-        pendingHomeAsk = (text, chats?.current)
+    func askFromHome(_ text: String) { startChat(with: text, send: true) }
+
+    /// A new chat with `text` in the box, not sent: for a panel's button, which never sends a message by itself.
+    func startChat(with text: String, send: Bool) {
+        pendingHomeAsk = (text, chats?.current, send)
         startNewChat()
         windowPage = .chat
+    }
+
+    /// "New panel": a new chat that begins the request; the user finishes it and sends it.
+    func askForPanel() { startChat(with: "Make me a panel that ", send: false) }
+
+    /// ARK's own numbers for a panel's `{{live.name}}`.
+    var panelLive: [String: Int] {
+        let attention = BoardAttention(list: helpers.list, approvalPending: approval.pending != nil)
+        return ["needsYou": attention.total, "working": attention.running,
+                "agents": (helpers.list?.helpers ?? []).filter { $0.role != "improver" }.count, "chats": chats?.chats.count ?? 0,
+                "workflows": workflows?.workflows.count ?? 0, "tokensToday": helpers.list?.usage?.today.io ?? 0, "tokensWeek": helpers.list?.usage?.week.io ?? 0]
+    }
+
+    /// A panel button, clicked: ask (a new chat, not sent), open a page, or run a workflow.
+    func runPanelAction(_ action: Panel.Action?) {
+        guard let action else { return }
+        switch action.kind {
+        case "ask": if let prompt = action.prompt { startChat(with: prompt, send: false) }
+        case "workflow": if let id = action.id { send(.workflowRun(id: id)) }
+        case "open":
+            navigate {
+                switch action.page {
+                case "dashboard": self.windowPage = .dashboard
+                case "board": self.windowPage = .agents; self.helpers.selectBoard()
+                case "chat": self.windowPage = .chat
+                case "workflows": self.windowPage = .workflows
+                case "scheduled": self.windowPage = .scheduled
+                case "brain": self.windowPage = .brain
+                case "panels": self.windowPage = .panels
+                case "you": self.windowPage = .you
+                case "settings": self.openSettings(nil)
+                default: break
+                }
+            }
+        default: break
+        }
     }
     var chatFindQuery = ""
     var chatFindSelection = 0
@@ -1009,7 +1050,7 @@ final class IslandModel {
             if let ask = pendingHomeAsk, !list.current.isEmpty, list.current != ask.from {
                 pendingHomeAsk = nil
                 composerText = ask.text
-                submitComposer(now: false)
+                if ask.send { submitComposer(now: false) }
             }
             projectCommandPending = false
             projectError = nil
@@ -1056,6 +1097,8 @@ final class IslandModel {
             dailyBrief.apply(list)
         case .workflows(let list):
             workflows = list
+        case .panels(let list):
+            panels = list
         case .suggestions(let list):
             suggestionPending = false
             suggestions.apply(list)

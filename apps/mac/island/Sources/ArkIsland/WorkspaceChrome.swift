@@ -100,6 +100,7 @@ struct WorkspaceNavigationRail: View {
                         model.boardView = BoardAttention(list: model.helpers.list, approvalPending: model.approval.pending != nil).view(whenOpening: model.boardView)
                     case .scheduled: model.windowPage = .scheduled
                     case .workflows: model.windowPage = .workflows
+                    case .panels: model.windowPage = .panels
                     case .brain: model.windowPage = .brain
                     case .plugins: model.windowPage = .plugins
                     case .settings: model.windowPage = .settings
@@ -115,6 +116,7 @@ struct WorkspaceNavigationRail: View {
         case .board: ("Board", "rectangle.split.3x1", model.windowPage == .agents)
         case .scheduled: ("Scheduled", "calendar", model.windowPage == .scheduled)
         case .workflows: ("Workflows", "point.3.connected.trianglepath.dotted", model.windowPage == .workflows)
+        case .panels: ("Panels", "square.grid.2x2", model.windowPage == .panels)
         case .brain: ("Second brain", "brain.head.profile", model.windowPage == .brain)
         case .plugins: ("Plugins", "puzzlepiece.extension", model.windowPage == .plugins)
         case .settings: ("Settings", "gearshape", model.windowPage == .settings)

@@ -27,6 +27,9 @@ export type IslandCommand =
   | { type: "chat.access"; id: string; mode: ChatAccessMode; expected: ChatAccessMode }
   /** 2026-11-02: Settings → Defaults. A chat started in the ARK window gets this access and thinking level (empty: the model's default). */
   | { type: "chat.defaults"; access: ChatAccessMode; effort: string }
+  | { type: "panels.list" }
+  | { type: "panel.save"; panel: Record<string, unknown> }
+  | { type: "panel.delete"; id: string }
   | { type: "workflows.list" }
   | { type: "workflow.save"; workflow: Record<string, unknown> }
   | { type: "workflow.delete"; id: string }
@@ -191,6 +194,9 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "chat.reasoning",
   "chat.access",
   "chat.defaults",
+  "panels.list",
+  "panel.save",
+  "panel.delete",
   "workflows.list",
   "workflow.save",
   "workflow.delete",
@@ -394,6 +400,19 @@ export function parseCommand(line: string): ParsedLine {
     return { command: v as unknown as Extract<IslandCommand, { type: "chat.access" }> };
   }
   // 2026-11-02: workflows. The workflow itself is checked by workflows.ts (checkWorkflow); here only its shape and size.
+  // 2026-11-02: panels. The panel itself is checked by panels.ts (checkPanel); here only its shape and size.
+  if (type === "panels.list") return Object.keys(value as object).length === 1 ? { command: { type } } : { error: "Invalid panels request." };
+  if (type === "panel.save") {
+    const v = value as Record<string, unknown>;
+    if (Object.keys(v).some((k) => !["type", "panel"].includes(k)) || typeof v.panel !== "object" || v.panel === null || Array.isArray(v.panel)
+        || JSON.stringify(v.panel).length > 120_000) return { error: "Invalid panel." };
+    return { command: { type, panel: v.panel as Record<string, unknown> } };
+  }
+  if (type === "panel.delete") {
+    const v = value as Record<string, unknown>;
+    if (Object.keys(v).some((k) => !["type", "id"].includes(k)) || typeof v.id !== "string" || !/^[a-z0-9-]{1,40}$/.test(v.id)) return { error: "Invalid panel id." };
+    return { command: { type, id: v.id } };
+  }
   if (type === "workflows.list") return Object.keys(value as object).length === 1 ? { command: { type } } : { error: "Invalid workflows request." };
   if (type === "workflow.save") {
     const v = value as Record<string, unknown>;
