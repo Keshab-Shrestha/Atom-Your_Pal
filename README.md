@@ -87,7 +87,7 @@ ARK runs on your Mac. You talk or type. ARK answers, uses tools, and hands bigge
 - ARK looks at app windows and clicks, types and scrolls through the Cua driver. Your real pointer does not move.
 - A teal fingertip pointer shows where ARK acts, with a ring when it arrives.
 - Off until you turn it on in Settings → Computer.
-- ARK learns a button task after one checked run and replays it later through the same checks. It stops at the first mismatch.
+- ARK learns a button task after one checked run. Say the same words again and it replays the task with no model, through the same checks. It stops at the first mismatch.
 - "Watch this page and tell me when it says slots are open": ARK reads the page on a timer with no model, tells you once, and lists the watch on the Scheduled page.
 - ARK opens the chat's session when you click the box or open the mic, so the first reply starts sooner.
 - A routine can wake ARK when it is closed (Settings → General). ARK opens in the background a minute before the routine is due.

@@ -4353,3 +4353,21 @@ Smaller items (10):
 - The wake agent runs the user's own `open` command in the user's own session. It reads no data.
 - The updater runs git and the build in the user's ARK folder, only after a click.
 - Tidy adds up to 4 seconds when on, and costs a small model call.
+
+## ADR-237 — Learned shortcuts replay with no model (2026-11-04)
+
+### Context
+
+ADR-234 saves a checked button sequence as a learned shortcut, but the model still started each replay. Keshab asked for the replay with no model call.
+
+### Decision
+
+- The instant commands (ADR-071) now also match a sentence that equals the goal of one saved shortcut, after the same clean-up (case, punctuation, "please", "ARK"). They run in code before any model, only in a chat with checked access.
+- A goal must have two words and eight letters or more, and must belong to one app. Otherwise the sentence goes to the model.
+- A hit runs the computer tool's `shortcut` action through the tool engine, so the same checks apply. The reply is "Done: <goal>." A refused replay goes to the model. A replay that stopped is reported as it is; the model is not asked to finish it, because some clicks already happened.
+- The log gets the name `learned` and the time, never the sentence. `ARK_SHORTCUTS=0` turns it off with the other instant commands.
+
+### Consequences
+
+- A repeat of a saved task costs no tokens and no model wait.
+- A user who types a sentence equal to a saved goal gets the replay, not a chat answer. The goal names stay short and specific, so this is rare.

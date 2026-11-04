@@ -1,4 +1,5 @@
 import type { ToolCall, ToolRunner } from "@ark/contracts";
+import type { Shortcut } from "./computer/learned-shortcuts.ts";
 
 /** A sentence claimed by a shortcut: its name (for the log) and the tool call it stands for. */
 export interface ShortcutMatch {
@@ -21,6 +22,19 @@ function normalize(text: string): string {
     s = s.replace(LEAD, "").replace(TAIL, "");
   }
   return s;
+}
+
+/**
+ * Learned shortcuts (2026-11-04): the sentence is exactly the goal of one saved computer shortcut (after the same clean-up as the
+ * fixed commands). The goal must be two words and eight letters or more, so a short goal like "ok" never claims an ordinary
+ * message, and it must belong to one app only. Pure.
+ */
+export function matchLearned(all: readonly Shortcut[], spoken: string): { app: string; goal: string } | undefined {
+  const s = normalize(spoken);
+  if (s.length < 8 || !s.includes(" ")) return undefined;
+  const found = all.filter((w) => normalize(w.goal) === s);
+  const apps = new Set(found.map((w) => w.app.toLowerCase()));
+  return found.length > 0 && apps.size === 1 ? { app: found[0]!.app, goal: found[0]!.goal } : undefined;
 }
 
 const key = (s: string) => s.replace(/[^a-z0-9]/g, "");
@@ -76,6 +90,8 @@ export interface ShortcutOptions {
   tools: ToolRunner;
   /** Installed app names. A failure leaves "open <app>" to the model. */
   apps: () => Promise<string[]>;
+  /** Learned computer shortcuts, if any: a sentence equal to a saved goal replays it, with no model. */
+  learned?: () => readonly Shortcut[];
   /** For the log: the shortcut's name, never the sentence. */
   onHit?: (event: { name: string; ms: number }) => void;
   onFallback?: (event: { name: string; reason: string }) => void;
@@ -98,14 +114,18 @@ export function createShortcuts(options: ShortcutOptions): (text: string, signal
       // no app list: "open <app>" cannot match; the other shortcuts still can
     }
     const match = matchShortcut(text, { apps });
-    if (!match) return undefined;
-    const call: ToolCall = { id: `shortcut-${match.name}`, ...match.call };
+    const learned = match ? undefined : matchLearned(options.learned?.() ?? [], text);
+    if (!match && !learned) return undefined;
+    const name = match?.name ?? "learned";
+    const call: ToolCall = match ? { id: `shortcut-${match.name}`, ...match.call } : { id: "shortcut-learned", name: "computer", input: { action: "shortcut", app: learned!.app, goal: learned!.goal } };
     const result = await tools.run(call, signal);
     if (result.isError) {
-      options.onFallback?.({ name: match.name, reason: "tool_error" });
+      options.onFallback?.({ name, reason: "tool_error" });
       return undefined;
     }
-    options.onHit?.({ name: match.name, ms: now() - started });
-    return result.content;
+    options.onHit?.({ name, ms: now() - started });
+    // A replay that stopped is told as it is: the model is not asked to finish it, because some clicks already happened.
+    if (learned && /\bstopped\b/.test(result.content)) return `I ran your saved shortcut “${learned.goal}”, but it stopped partway because the screen was not as expected. Nothing more was clicked. Tell me how to continue.`;
+    return learned ? `Done: ${learned.goal}.` : result.content;
   };
 }
