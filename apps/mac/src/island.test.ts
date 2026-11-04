@@ -48,6 +48,7 @@ function islandHarness(
     git: IslandOptions["git"];
     workflows: IslandOptions["workflows"];
     panels: IslandOptions["panels"];
+    apps: IslandOptions["apps"];
     clipMs: number;
     warmUp: () => Promise<void>;
     silenceWarnMs: number;
@@ -115,6 +116,7 @@ function islandHarness(
     ...(over.chats ? { chats: over.chats } : {}),
     ...(over.workflows ? { workflows: over.workflows } : {}),
     ...(over.panels ? { panels: over.panels } : {}),
+    ...(over.apps ? { apps: over.apps } : {}),
     ...(over.projects ? { projects: over.projects } : {}),
     ...(over.workspace ? { workspace: over.workspace } : {}),
     ...(over.attachments ? { attachments: over.attachments } : {}),
@@ -2507,5 +2509,37 @@ test("panels: list, save and delete reach the store; a refusal comes back as `pr
     await h.send({ type: "panel.save", panel: "not an object" });
     const events = h.events().filter((e) => e.type === "panels") as { panels: unknown[]; problem?: string }[];
     assert.deepEqual(events.map((e) => [e.panels.length, e.problem]), [[0, undefined], [1, undefined], [1, "The name is empty."], [0, undefined]]);
+  } finally { await h.send({ type: "quit" }); }
+});
+
+test("apps: list, open, remove and the bridge reach the store; a refused call comes back as an error; bad commands are refused (2026-11-05)", async () => {
+  const { createAppStore, createBridge, checkAppInput } = await import("./ark-apps.ts");
+  const store = createAppStore();
+  const m = store.save(checkAppInput({ name: "Counter", description: "Counts", html: "<p>hi</p>", ask: false }));
+  const bridge = createBridge({ store, ask: async () => "answer" });
+  const h = islandHarness({ apps: {
+    list: () => store.list(), get: (id) => store.get(id), remove: (id) => store.remove(id),
+    call: (app, op, args, signal) => bridge(app, op, args, signal), onChange: () => () => {},
+  } });
+  try {
+    await h.send({ type: "apps.list" });
+    await h.send({ type: "app.open", id: m.id });
+    await h.send({ type: "app.open", id: "nope" });
+    await h.send({ type: "app.call", app: m.id, req: "r1", op: "storage.set", key: "k", value: "v" });
+    await h.send({ type: "app.call", app: m.id, req: "r2", op: "storage.get", key: "k" });
+    await h.send({ type: "app.call", app: m.id, req: "r3", op: "ask", prompt: "hi" });
+    await h.send({ type: "app.call", app: "../x", req: "r4", op: "storage.get" });
+    await h.send({ type: "app.call", app: m.id, req: "r5", op: "storage.get", extra: 1 });
+    await tick(20);
+    await h.send({ type: "app.remove", id: m.id });
+    const events = h.events();
+    const listed = events.filter((e) => e.type === "apps") as { apps: { id: string; name: string }[] }[];
+    assert.deepEqual(listed.map((e) => e.apps.map((a) => a.name)), [["Counter"], []]);
+    const opened = events.filter((e) => e.type === "appOpened") as { id: string; html: string; problem?: string }[];
+    assert.equal(opened[0]!.html, "<p>hi</p>");
+    assert.equal(opened[1]!.problem, "This app was removed.");
+    const replies = events.filter((e) => e.type === "appReply") as { req: string; ok: boolean; value?: unknown; error?: string }[];
+    assert.deepEqual(replies.map((r) => [r.req, r.ok, r.ok ? r.value : r.error]), [["r1", true, null], ["r2", true, "v"], ["r3", false, "This app is not allowed to ask ARK. Ask the user to allow it."]]);
+    assert.equal(events.filter((e) => e.type === "error").length >= 2, true, "a bad app id and an unknown field are refused");
   } finally { await h.send({ type: "quit" }); }
 });

@@ -38,6 +38,15 @@ export interface IslandPanels {
   onChange(listener: () => void): () => void;
 }
 
+/** 2026-11-05: apps that run in the window's sandbox (ark-apps.ts). `call` is the bridge: it throws a sentence the page shows. */
+export interface IslandApps {
+  list(): import("./ark-apps.ts").AppManifest[];
+  get(id: string): import("./ark-apps.ts").ArkApp | undefined;
+  remove(id: string): boolean;
+  call(app: string, op: string, args: { key?: unknown; value?: unknown; prompt?: unknown }, signal?: AbortSignal): Promise<unknown>;
+  onChange(listener: () => void): () => void;
+}
+
 /** 2026-11-04: pages ARK watches for the user (watches.ts). */
 export interface IslandWatches {
   list(): import("./watches.ts").Watch[];
@@ -48,6 +57,7 @@ export interface IslandWatches {
 }
 
 export interface IslandOptions {
+  apps?: IslandApps;
   watches?: IslandWatches;
   workflows?: IslandWorkflows;
   panels?: IslandPanels;

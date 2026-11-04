@@ -30,6 +30,11 @@ export type IslandCommand =
   | { type: "panels.list" }
   /** 2026-11-04: pages ARK watches: the list (and its changes from then on), and stop watching one. */
   | { type: "watches.get" }
+  /** 2026-11-05: apps. List them; open one (its page comes back as `appOpened`); remove one; and the bridge: one call from a running app. */
+  | { type: "apps.list" }
+  | { type: "app.open"; id: string }
+  | { type: "app.remove"; id: string }
+  | { type: "app.call"; app: string; req: string; op: string; key?: string; value?: string; prompt?: string }
   | { type: "watch.remove"; id: string }
   | { type: "panel.save"; panel: Record<string, unknown> }
   | { type: "panel.delete"; id: string }
@@ -203,6 +208,10 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "chat.defaults",
   "panels.list",
   "watches.get",
+  "apps.list",
+  "app.open",
+  "app.remove",
+  "app.call",
   "watch.remove",
   "panel.save",
   "panel.delete",
@@ -418,6 +427,21 @@ export function parseCommand(line: string): ParsedLine {
     if (Object.keys(v).some((k) => !["type", "panel"].includes(k)) || typeof v.panel !== "object" || v.panel === null || Array.isArray(v.panel)
         || JSON.stringify(v.panel).length > 120_000) return { error: "Invalid panel." };
     return { command: { type, panel: v.panel as Record<string, unknown> } };
+  }
+  if (type === "apps.list") return Object.keys(value as object).length === 1 ? { command: { type } } : { error: "Invalid apps request." };
+  if (type === "app.open" || type === "app.remove") {
+    const v = value as Record<string, unknown>;
+    if (Object.keys(v).some((k) => !["type", "id"].includes(k)) || typeof v.id !== "string" || !/^[a-z0-9][a-z0-9-]{0,39}$/.test(v.id)) return { error: "Invalid app id." };
+    return { command: { type, id: v.id } };
+  }
+  if (type === "app.call") {
+    const v = value as Record<string, unknown>;
+    if (Object.keys(v).some((k) => !["type", "app", "req", "op", "key", "value", "prompt"].includes(k))) return { error: "Invalid app call." };
+    if (typeof v.app !== "string" || !/^[a-z0-9][a-z0-9-]{0,39}$/.test(v.app) || typeof v.req !== "string" || !/^[A-Za-z0-9_-]{1,40}$/.test(v.req) || typeof v.op !== "string" || v.op.length > 30) return { error: "Invalid app call." };
+    for (const [k, max] of [["key", 100], ["value", 16_000], ["prompt", 2_000]] as const) {
+      if (v[k] !== undefined && (typeof v[k] !== "string" || (v[k] as string).length > max * 3)) return { error: `Invalid app call: ${k}.` };
+    }
+    return { command: { type, app: v.app, req: v.req, op: v.op, ...(v.key !== undefined ? { key: v.key as string } : {}), ...(v.value !== undefined ? { value: v.value as string } : {}), ...(v.prompt !== undefined ? { prompt: v.prompt as string } : {}) } };
   }
   if (type === "watches.get") return Object.keys(value as object).length === 1 ? { command: { type } } : { error: "Invalid watches request." };
   if (type === "watch.remove") {

@@ -391,6 +391,31 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "chat.defaults":
         newChatDefaults = { access: command.access, effort: command.effort };
         return;
+      case "apps.list":
+        sendApps();
+        return;
+      case "app.open": {
+        const app = options.apps?.get(command.id);
+        send(app
+          ? { type: "appOpened", id: app.manifest.id, name: app.manifest.name, html: app.html, ask: app.manifest.permissions.ask }
+          : { type: "appOpened", id: command.id, name: "", html: "", ask: false, problem: "This app was removed." });
+        return;
+      }
+      case "app.remove":
+        options.apps?.remove(command.id);
+        options.log?.info("app.removed", { app: command.id, by: "window" });
+        sendApps();
+        return;
+      case "app.call": {
+        const apps = options.apps;
+        const reply = (ok: boolean, rest: { value?: unknown; error?: string }) => send({ type: "appReply", app: command.app, req: command.req, ok, ...rest });
+        if (!apps) { reply(false, { error: "Apps are not available." }); return; }
+        void apps.call(command.app, command.op, { key: command.key, value: command.value, prompt: command.prompt }).then(
+          (value) => reply(true, { value: value ?? null }),
+          (error: unknown) => reply(false, { error: error instanceof Error ? error.message.slice(0, 300) : "The call failed." }),
+        );
+        return;
+      }
       case "watches.get":
         sendWatches();
         return;
@@ -1222,6 +1247,10 @@ export function runIsland(options: IslandOptions): IslandSession {
     send({ type: "watches", watches: (options.watches?.list() ?? []).map((w) => ({ id: w.id, url: w.url, mode: w.mode, ...(w.text ? { text: w.text } : {}), everyMinutes: w.everyMinutes, state: w.state, ...(w.message ? { message: w.message } : {}), ...(w.lastCheckAt ? { lastCheckAt: w.lastCheckAt } : {}) })) });
   }
   const stopWatchUpdates = options.watches?.onChange(() => sendWatches());
+  function sendApps() {
+    send({ type: "apps", apps: (options.apps?.list() ?? []).map((m) => ({ id: m.id, name: m.name, description: m.description, ask: m.permissions.ask, version: m.version, updatedAt: m.updatedAt })) });
+  }
+  const stopAppUpdates = options.apps?.onChange(() => sendApps());
   const stopWatchFires = options.watches?.onFire((event) => send({ type: "watchFired", ...event }));
   function sendWorkflows(problem?: string) {
     send({ type: "workflows", workflows: options.workflows?.list() ?? [], ...(problem ? { problem } : {}) });
@@ -1405,6 +1434,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     stopWorkflowUpdates?.();
     stopPanelUpdates?.();
     stopWatchUpdates?.();
+    stopAppUpdates?.();
     stopWatchFires?.();
     stopBrainUpdates?.();
     stopChatUpdates?.();

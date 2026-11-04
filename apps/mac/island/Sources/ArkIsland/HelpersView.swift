@@ -127,6 +127,7 @@ struct HelpersView: View {
         case .workflows: WorkflowsPane(model: model)
         case .you: YouPane(model: model)
         case .panels: PanelsPane(model: model)
+        case .apps: AppsPane(model: model)
         case .plugins: PluginsPane(model: model)
         case .brain: BrainPane(model: model)
         case .chat: EmptyView() // ChatWorkspaceLayout keeps the composer mounted through pane resizing.
@@ -158,6 +159,7 @@ extension HelpersView {
         case .workflows: return ("Workflows", "point.3.connected.trianglepath.dotted")
         case .you: return ("You", "person.crop.circle")
         case .panels: return ("Panels", "square.grid.2x2")
+        case .apps: return (model.openApp?.name ?? "Apps", "app.dashed")
         case .plugins: return ("Plugins", "puzzlepiece.extension")
         case .brain: return ("Second brain", "brain.head.profile")
         case .settings: return (model.settingsPage?.rawValue ?? "Settings", "gearshape")

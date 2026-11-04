@@ -204,12 +204,21 @@ final class IslandModel {
     /// 2026-11-02: the panels the runtime keeps (panels.ts), once asked for.
     var panels: PanelList?
     var watches: [WatchItem] = []
+    /// 2026-11-05: the apps the runtime keeps (ark-apps.ts), once asked for; the one that is open; and where a bridge answer goes.
+    var apps: [AppItem]?
+    var openApp: AppOpened?
+    @ObservationIgnored var appReplyHandler: ((AppReply) -> Void)?
     /// 2026-11-02: the ⌘K command palette is open.
     var paletteShown = false
     /// 2026-11-02: the ⌘J agent panel shows this agent ("" for the first available); nil when closed.
     var agentPanel: String?
     /// 2026-11-02: Home's Ask box: the text waits until the new chat it started is the current one, then is sent there.
     @ObservationIgnored private var pendingHomeAsk: (text: String, from: String?, send: Bool)?
+
+    /// Apps: open one (its page arrives as `appOpened`), go back to the list, or start a chat that asks ARK to make one.
+    func openAppPage(_ id: String) { openApp = nil; send(.appOpen(id: id)) }
+    func closeAppPage() { openApp = nil; appReplyHandler = nil }
+    func askForApp() { startChat(with: "Make me an app that ", send: false) }
 
     func askFromHome(_ text: String) { startChat(with: text, send: true) }
 
@@ -247,6 +256,7 @@ final class IslandModel {
                 case "scheduled": self.windowPage = .scheduled
                 case "brain": self.windowPage = .brain
                 case "panels": self.windowPage = .panels
+                case "apps": self.windowPage = .apps
                 case "you": self.windowPage = .you
                 case "settings": self.openSettings(nil)
                 default: break
@@ -1130,6 +1140,13 @@ final class IslandModel {
             panels = list
         case .watches(let list):
             watches = list
+        case .apps(let list):
+            apps = list
+            if let open = openApp, open.problem == nil, !list.contains(where: { $0.id == open.id }) { openApp = nil } // removed elsewhere
+        case .appOpened(let page):
+            openApp = page
+        case .appReply(let reply):
+            appReplyHandler?(reply)
         case .suggestions(let list):
             suggestionPending = false
             suggestions.apply(list)

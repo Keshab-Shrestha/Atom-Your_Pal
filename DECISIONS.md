@@ -4371,3 +4371,29 @@ ADR-234 saves a checked button sequence as a learned shortcut, but the model sti
 
 - A repeat of a saved task costs no tokens and no model wait.
 - A user who types a sentence equal to a saved goal gets the replay, not a chat answer. The goal names stay short and specific, so this is rare.
+
+## ADR-238 — Apps: small apps that run inside ARK (2026-11-05)
+
+### Context
+
+Keshab asked for "everything is a plugin, where I can create and run new apps within ARK", after reading DeepSeek Harness. Its plugins are Node modules that run in the host process. That is too much trust for code a model writes on a personal Mac.
+
+### Decision
+
+- An app is one HTML file with inline CSS and JavaScript, written by the agent with the `app` tool (list, read, create, update, remove). The user approves every create, update and remove on a card that shows what the app may do. `app` joins `TAINT_REFUSED_TOOLS`: a web page cannot ask for one.
+- The code never runs in the runtime. The window runs it in a `WKWebView` made for that app alone: a non-persistent data store, no pop-ups, no downloads, and four layers that block the outside:
+  1. the page starts with a policy (`AppBridge.policy`): `default-src 'none'`, no `connect-src`, frames, forms or `<base>`;
+  2. a content rule blocks every `http(s)` and `ws(s)` load, in case the policy is ever removed;
+  3. the navigation delegate cancels every navigation after the first load;
+  4. `checkAppInput` refuses a page that names an outside address, `fetch`, a form action or a redirect, so the model learns to inline everything.
+  A throwaway check (a page that tries fetch, XHR, WebSocket, an image, a script, a form, a link, a pop-up and `location`) reached a local server zero times, with the policy and also with the policy removed.
+- The page talks to ARK only through `window.ark`, frozen: `storage.get/set/remove/list` (its own notes: 64 keys, 16 KB a value, 256 KB in all) and, if the user allowed it on the card, `ask(question)`, one small model call with no tools, at most 6 a minute, the question treated as data.
+- Every call crosses the island line as `app.call`. The window checks its shape (`AppBridge.parse`) and the runtime checks it again (`createBridge`): the app id comes from the window, never from the page, so one app cannot read another's notes.
+- Files: `data/apps/<id>/{manifest.json,index.html,storage.json}`, mode 0600. At most 30 apps, 200 KB of code each.
+- The Apps page lists them (Open, Remove); an open app shows under a bar with Back. ⌘K has "Apps".
+
+### Consequences
+
+- An app cannot reach the network, a file, a tool, another app or the runtime. It can only keep notes and, with permission, ask a question. Phase 1 is the safe floor.
+- Later phases each need their own card and ADR: allowed network hosts (through the host's public-page reader), tools an app may call, a notice from an app, an app pinned to Home, import and export.
+- The agent edits an app by reading it and sending the whole page again; there is no diff view yet.
