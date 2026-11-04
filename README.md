@@ -90,6 +90,10 @@ ARK runs on your Mac. You talk or type. ARK answers, uses tools, and hands bigge
 - ARK learns a button task after one checked run and replays it later through the same checks. It stops at the first mismatch.
 - "Watch this page and tell me when it says slots are open": ARK reads the page on a timer with no model, tells you once, and lists the watch on the Scheduled page.
 - ARK opens the chat's session when you click the box or open the mic, so the first reply starts sooner.
+- A routine can wake ARK when it is closed (Settings → General). ARK opens in the background a minute before the routine is due.
+- Dictation can tidy punctuation and capitals with ARK (Settings → Dictation). ARK keeps your words as spoken unless the tidy text keeps every number and name.
+- A copy built from source updates itself from Settings → General, after you click Update.
+- ARK can lower the Mac's sound while you speak.
 
 ### Memory and everyday tools
 - ARK remembers facts you ask it to keep, and keeps lasting facts you state in a chat by itself, with no question. A "Remembered" row with Undo shows for 10 minutes. See, edit or forget each one in Second brain. Settings → Privacy has the switch.

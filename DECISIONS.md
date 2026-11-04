@@ -4320,3 +4320,36 @@ Pre-warm:
 - A `change` watch on a page that rewrites itself looks changed. The tool description tells the model to use a phrase.
 - A watch cannot read a page that needs a login or JavaScript.
 - A warm session that nobody uses costs one idle process, not tokens.
+
+## ADR-236 — Routines while closed, dictation tidy, scenario evals, updates, quiet, report (2026-11-04)
+
+### Context
+
+Keshab asked to build the next ideas from atticus-mac: items 6, 7 and 8, then 9 and 10.
+
+### Decision
+
+Routines while ARK is closed (6):
+- Settings → General has the switch "Run routines while ARK is closed" (off by default). On: the app writes one LaunchAgent, `~/Library/LaunchAgents/dev.ark.wake.plist`, that runs `open -g` on ARK.app once, a minute before the next unpaused routine is due. ARK's own clock then starts the routine. Each routine change rewrites the file. Off: the agent is removed.
+- Only an installed ARK.app does this. A development build does nothing. ARK stays open after the wake. Workflows with a schedule do not wake ARK yet.
+
+Dictation tidy (7):
+- Settings → Dictation has "Tidy with ARK" (off by default). After the speech model writes the words (six words or more), ARK asks the small edit model to fix punctuation and capitals. It waits at most 4 seconds.
+- `DictationTidy.accepts` checks the answer with plain code: the same numbers, at least 85% of the spoken words, a new word only when it is a close spelling of a spoken word that went, no new link or handle, similar length. Any other answer is dropped and the words go in as spoken.
+
+Scenario evals (8):
+- `fake-mac.ts` is a fake Mac (a Calculator and a Mail window) behind the same `CuaTransport` the real driver uses. `scenarios.test.ts` runs scripts of tool calls and checks what the driver was asked, what the user was asked and what the tool refused.
+
+Updates (9):
+- Settings → General shows "ARK updates" for a copy built from source (`<root>/apps/mac/island/build/ARK.app`). Check: `git fetch origin main`, then count and list the new changes. Update: `git pull --ff-only`, then `scripts/setup.sh`, which rebuilds and reopens ARK. It refuses when the copy is on another branch or has changes of its own.
+
+Smaller items (10):
+- "Quiet the Mac while I speak" (Settings → Dictation, off by default) lowers the output volume to a quarter while ARK listens and restores it, unless the user changed it meanwhile.
+- "Report a problem" (Settings → General) opens a GitHub issue with only the ARK and macOS versions filled in.
+- Not built: live mini-screen of the agent's window, draw on screen, meeting copilot, per-task "always allow". Each is a task of its own.
+
+### Consequences
+
+- The wake agent runs the user's own `open` command in the user's own session. It reads no data.
+- The updater runs git and the build in the user's ARK folder, only after a click.
+- Tidy adds up to 4 seconds when on, and costs a small model call.

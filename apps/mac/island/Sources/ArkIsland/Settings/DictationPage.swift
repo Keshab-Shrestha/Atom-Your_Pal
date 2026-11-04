@@ -17,6 +17,14 @@ struct DictationSection: View {
             Row(title: "Remove “um” and “uh”", detail: "Leaves out hesitation sounds in the typed text") {
                 ThemedSwitch(isOn: settings.removeFillers, set: { settings.removeFillers = $0 }, label: "Remove um and uh")
             }
+            RowDivider()
+            Row(title: "Quiet the Mac while I speak", detail: "Lowers the sound from other apps while ARK listens, then puts it back") {
+                ThemedSwitch(isOn: settings.quietWhileListening, set: { settings.quietWhileListening = $0 }, label: "Quiet the Mac while I speak")
+            }
+            RowDivider()
+            Row(title: "Tidy with ARK", detail: "Fixes punctuation and capitals with a short model call. ARK keeps your words as spoken unless the tidy text keeps every number and name. Adds about a second.") {
+                ThemedSwitch(isOn: settings.dictationTidy, set: { settings.dictationTidy = $0 }, label: "Tidy with ARK")
+            }
         }
         ResetPageCard(footer: "Start and stop, live preview and “um” removal go back to their defaults.") { settings.resetDictation() }
     }

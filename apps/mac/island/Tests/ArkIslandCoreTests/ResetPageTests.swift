@@ -8,7 +8,7 @@ import Testing
 @MainActor
 struct ResetPageTests {
     static let appearanceKeys: Set = [IslandSettings.themeKey, IslandSettings.textSizeKey, IslandSettings.typefaceKey]
-    static let dictationKeys: Set = [IslandSettings.dictationModeKey, IslandSettings.livePreviewKey, IslandSettings.removeFillersKey]
+    static let dictationKeys: Set = [IslandSettings.dictationModeKey, IslandSettings.livePreviewKey, IslandSettings.removeFillersKey, IslandSettings.tidyKey, IslandSettings.quietKey]
     static let palKeys: Set = [
         IslandSettings.palSizeKey, IslandSettings.palWanderKey, IslandSettings.palNapKey,
         IslandSettings.palReactsKey, IslandSettings.palHomeDisplayKey,
@@ -64,7 +64,7 @@ struct ResetPageTests {
     @Test func dictationResetTouchesOnlyDictation() {
         let (s, fresh, changed) = run { $0.resetDictation() }
         #expect(changed == Self.dictationKeys)
-        #expect(s.dictationMode == fresh.dictationMode && s.livePreview == fresh.livePreview && s.removeFillers == fresh.removeFillers)
+        #expect(s.dictationMode == fresh.dictationMode && s.livePreview == fresh.livePreview && s.removeFillers == fresh.removeFillers && s.dictationTidy == fresh.dictationTidy)
         #expect(s.theme != fresh.theme)
     }
 

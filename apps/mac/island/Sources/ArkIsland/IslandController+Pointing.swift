@@ -97,8 +97,14 @@ extension IslandController {
     // MARK: - Dictation
 
     /// Shows a dictation's progress, and keeps the status out while one is in progress.
+    /// Lowers the Mac's sound while ARK listens, when the setting is on; puts it back when listening ends.
+    func quiet(listening: Bool) {
+        if listening && model.settings.quietWhileListening { ducker.begin() } else { ducker.end() }
+    }
+
     func dictationPhase(_ phase: DictationPhase) {
         model.status.apply(phase)
+        quiet(listening: phase == .listening || phase == .listeningHandsFree)
         switch phase {
         case .loading, .listening, .listeningHandsFree, .transcribing:
             if !dictating { model.work.dismiss() } // a new request: the last Mac work is out of the way

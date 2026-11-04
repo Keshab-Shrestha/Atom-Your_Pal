@@ -20,6 +20,8 @@ final class DictationController {
     var conversationBusy: () -> Bool = { false }
     /// The dictation settings, read at the start of each dictation (so a change applies at once).
     var options: () -> DictationOptions = { DictationOptions() }
+    /// Asks ARK to tidy the words (nil: no answer in time, or ARK is not running). The caller checks the answer with `DictationTidy.accepts`.
+    var tidy: (String) async -> String? = { _ in nil }
     /// The words heard so far, cleaned up, while listening (the live preview).
     var onPreview: (String) -> Void = { _ in }
 
@@ -465,7 +467,13 @@ final class DictationController {
                 self.onPhase(.transcribing)
             }
             do {
-                let text = await self.clean(try await self.model.transcribe(samples), removeFillers: options.removeFillers)
+                var text = await self.clean(try await self.model.transcribe(samples), removeFillers: options.removeFillers)
+                var tidied = false
+                if options.tidy, !Task.isCancelled, text.split(whereSeparator: \.isWhitespace).count >= DictationTidy.minimumWords,
+                   let better = await self.tidy(text), DictationTidy.accepts(raw: text, tidy: better) {
+                    text = better.trimmingCharacters(in: .whitespacesAndNewlines)
+                    tidied = true
+                }
                 let transcribeMs = Int((ProcessInfo.processInfo.systemUptime - started) * 1000)
                 if Task.isCancelled { return }
                 guard !text.isEmpty else { self.end(.noSpeech, ["seconds": seconds, "reason": "empty transcript"]); return }
@@ -475,7 +483,7 @@ final class DictationController {
                 let words = text.split { $0.isWhitespace }.count
                 var fields: [String: Any] = ["seconds": (seconds * 10).rounded() / 10, "words": words, "transcribeMs": transcribeMs,
                                              "totalMs": Int((ProcessInfo.processInfo.systemUptime - started) * 1000),
-                                             "app": target.name, "clipped": clipped]
+                                             "app": target.name, "clipped": clipped, "tidied": tidied]
                 switch result {
                 case .typed:
                     self.end(.typed(words: words), fields)

@@ -325,10 +325,14 @@ final class IslandModel {
     let recorder: ShortcutRecorder
     /// Open ARK at login (General). Read from macOS, never saved by ARK.
     let loginItem = LoginItem()
+    /// Update ARK from Settings → General (2026-11-04).
+    let updater = AppUpdater()
     /// The permissions checklist (ADR-075). Read from macOS, never saved by ARK.
     let permissions = PermissionChecker()
     /// Shows or hides Pal. Set by the controller.
     @ObservationIgnored var petChanged: (Bool) -> Void = { _ in }
+    /// The wake switch changed (General): the controller rewrites the LaunchAgent.
+    @ObservationIgnored var wakeChanged: () -> Void = {}
 
     /// Turns the pet on or off: saves the setting and shows or hides Pal at once.
     func setPet(_ enabled: Bool) {
@@ -716,6 +720,22 @@ final class IslandModel {
     func cancelAskArk(id: String) {
         editAnswers[id] = nil
         send(.textEditCancel(id: id))
+    }
+    /// Dictation "Tidy with ARK": one edit request for the whole text; the answer, or nil after `DictationTidy.waitSeconds`.
+    func tidyDictation(_ text: String) async -> String? {
+        guard let request = try? EditRequest(text: text, instruction: DictationTidy.instruction) else { return nil }
+        let id = "tidy-" + UUID().uuidString
+        askArk(id: id, request: request)
+        let deadline = Date().addingTimeInterval(DictationTidy.waitSeconds)
+        while Date() < deadline, !Task.isCancelled {
+            if let answer = takeEditAnswer(id) {
+                if case .answer(let tidy, _) = answer { return tidy }
+                return nil
+            }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+        cancelAskArk(id: id)
+        return nil
     }
     func takeEditAnswer(_ id: String) -> EditAnswer? { editAnswers.removeValue(forKey: id) }
     func findReplyContext(id: String, query: String) {
