@@ -19,6 +19,11 @@ public enum IslandCommand: Sendable, Equatable {
     case watchesGet
     /// Apps: the list, one app's page, remove one, and one call from a running app (already checked by `AppBridge.parse`).
     case appsList
+    /// ARK notices: the notes (and their changes from then on), look again now, the switch, and dismiss one.
+    case improvementsGet
+    case improvementsRun
+    case improvementsSet(enabled: Bool)
+    case improvementDismiss(id: String)
     case appOpen(id: String)
     case appRemove(id: String)
     case appCall(app: String, call: AppCall)
@@ -232,6 +237,10 @@ public enum IslandCommand: Sendable, Equatable {
         case .panelsList: "panels.list"
         case .watchesGet: "watches.get"
         case .appsList: "apps.list"
+        case .improvementsGet: "improvements.get"
+        case .improvementsRun: "improvements.run"
+        case .improvementsSet: "improvements.set"
+        case .improvementDismiss: "improvement.dismiss"
         case .appOpen: "app.open"
         case .appRemove: "app.remove"
         case .appCall: "app.call"
@@ -531,7 +540,9 @@ public enum IslandCommand: Sendable, Equatable {
             fields["effort"] = effort
         case .panelSave(let panel):
             fields["panel"] = panel.jsonObject
-        case .panelDelete(let id), .watchRemove(let id), .appOpen(let id), .appRemove(let id):
+        case .improvementsSet(let enabled):
+            fields["enabled"] = enabled // a real JSON boolean
+        case .panelDelete(let id), .watchRemove(let id), .appOpen(let id), .appRemove(let id), .improvementDismiss(let id):
             fields["id"] = id
         case .appCall(let app, let call):
             fields["app"] = app

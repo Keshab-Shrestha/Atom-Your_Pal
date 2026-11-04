@@ -49,6 +49,7 @@ function islandHarness(
     workflows: IslandOptions["workflows"];
     panels: IslandOptions["panels"];
     apps: IslandOptions["apps"];
+    improvements: IslandOptions["improvements"];
     clipMs: number;
     warmUp: () => Promise<void>;
     silenceWarnMs: number;
@@ -117,6 +118,7 @@ function islandHarness(
     ...(over.workflows ? { workflows: over.workflows } : {}),
     ...(over.panels ? { panels: over.panels } : {}),
     ...(over.apps ? { apps: over.apps } : {}),
+    ...(over.improvements ? { improvements: over.improvements } : {}),
     ...(over.projects ? { projects: over.projects } : {}),
     ...(over.workspace ? { workspace: over.workspace } : {}),
     ...(over.attachments ? { attachments: over.attachments } : {}),
@@ -2541,5 +2543,30 @@ test("apps: list, open, remove and the bridge reach the store; a refused call co
     const replies = events.filter((e) => e.type === "appReply") as { req: string; ok: boolean; value?: unknown; error?: string }[];
     assert.deepEqual(replies.map((r) => [r.req, r.ok, r.ok ? r.value : r.error]), [["r1", true, null], ["r2", true, "v"], ["r3", false, "This app is not allowed to ask ARK. Ask the user to allow it."]]);
     assert.equal(events.filter((e) => e.type === "error").length >= 2, true, "a bad app id and an unknown field are refused");
+  } finally { await h.send({ type: "quit" }); }
+});
+
+test("improvements: get, run, switch and dismiss reach the store; bad commands are refused (2026-11-05)", async () => {
+  const calls: string[] = [];
+  let enabled = true;
+  const note = { id: "crash:137", kind: "crash" as const, title: "ARK's runtime stopped by itself", evidence: "8 times in a week.", severity: 3 as const, why: "It loses work.", change: "Find why.", createdAt: "2026-11-05T10:00:00.000Z" };
+  const h = islandHarness({ improvements: {
+    state: () => ({ enabled, running: false, lastRunAt: "2026-11-05T10:00:00.000Z", notes: [note] }),
+    run: () => void calls.push("run"), dismiss: (id) => void calls.push(`dismiss:${id}`), setEnabled: (on) => { enabled = on; calls.push(`set:${on}`); }, onChange: () => () => {},
+  } });
+  try {
+    await h.send({ type: "improvements.get" });
+    await h.send({ type: "improvements.run" });
+    await h.send({ type: "improvements.set", enabled: false });
+    await h.send({ type: "improvement.dismiss", id: "crash:137" });
+    await h.send({ type: "improvement.dismiss", id: "../x" });
+    await h.send({ type: "improvements.set", enabled: "yes" });
+    const events = h.events();
+    const sent = events.filter((e) => e.type === "improvements") as { enabled: boolean; notes: { id: string; why: string }[] }[];
+    assert.equal(sent.length, 4);
+    assert.deepEqual(sent[0]!.notes.map((n) => [n.id, n.why]), [["crash:137", "It loses work."]]);
+    assert.equal(sent[2]!.enabled, false);
+    assert.deepEqual(calls, ["run", "set:false", "dismiss:crash:137"]);
+    assert.equal(events.filter((e) => e.type === "error").length >= 2, true);
   } finally { await h.send({ type: "quit" }); }
 });

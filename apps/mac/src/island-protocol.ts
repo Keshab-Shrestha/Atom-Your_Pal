@@ -81,6 +81,8 @@ export type IslandEvent =
   | { type: "workflows"; workflows: import("./workflows.ts").Workflow[]; problem?: string }
   /** 2026-11-02: the panels, after `panels.list` and each change; `problem` is why a save or delete was refused. */
   | { type: "panels"; panels: import("./panels.ts").Panel[]; problem?: string }
+  /** 2026-11-05: ARK notices: the notes about what goes wrong in ARK (counts and short reasons, never chat text), after `improvements.get` and each change. */
+  | { type: "improvements"; enabled: boolean; running: boolean; lastRunAt?: string; notes: { id: string; title: string; evidence: string; severity: number; why: string; change: string }[] }
   /** 2026-11-05: the apps (never their code), after `apps.list` and each change. */
   | { type: "apps"; apps: { id: string; name: string; description: string; ask: boolean; version: number; updatedAt: string }[] }
   /** 2026-11-05: an app's page, for the sandboxed web view; `html` is empty with a `problem` when the app is gone. */

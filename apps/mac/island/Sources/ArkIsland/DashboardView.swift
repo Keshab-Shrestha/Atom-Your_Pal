@@ -21,7 +21,7 @@ struct DashboardPane: View {
                     Scrollable { overview(usage: usage, attention: attention, width: viewport.size.width, fitted: false) }
                 }
             }
-        }.onAppear { if !snapshot { model.loadBrief(); model.send(.panelsList) } }
+        }.onAppear { if !snapshot { model.loadBrief(); model.send(.panelsList); model.loadImprovements() } }
     }
 
     private func overview(usage: TokenUsageSummary?, attention: BoardAttention, width: CGFloat, fitted: Bool) -> some View {
@@ -39,6 +39,7 @@ struct DashboardPane: View {
                 summaryStrip(usage: usage, attention: attention, columns: 3)
             }
             HomePanels(model: model)
+            HomeNotices(model: model)
             if let list = model.helpers.list, case let hints = TeamHygiene.suggestions(list), !hints.isEmpty {
                 SuggestionsCard(hints: hints) { id in model.navigate { model.windowPage = .agents; model.helpers.selectHelper(id) } }
             }

@@ -20,6 +20,13 @@ struct PrivacySection: View {
             }
         }
             .onAppear { model.loadSuggestions() }
+        // ARK notices (2026-11-05): counts its own log once a day and notes what goes wrong. Counts and short reasons only; no chats.
+        Card("ARK notices", footer: "Once a day ARK counts what went wrong in its own log (failed tools, crashes, slow answers) and writes up to three notes on Home. The log's counts and short reasons go to a small model, never chats or files. ARK changes nothing by itself.") {
+            Row(title: "Notice problems", detail: "Notes on Home about what to fix in ARK") {
+                ThemedSwitch(isOn: model.improvements?.enabled ?? true, set: { model.setImprovementsEnabled($0) }, label: "Notice problems")
+            }
+        }
+            .onAppear { model.loadImprovements() }
         Card(footer: "Facts, conversation notes and kept chats stay on this Mac.") {
             Row(title: "What ARK remembers", detail: "Facts, conversation notes and kept chats") {
                 PillButton(title: "Open Second brain") { model.navigate { model.windowPage = .brain } }

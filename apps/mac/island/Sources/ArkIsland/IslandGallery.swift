@@ -301,6 +301,11 @@ enum IslandGallery {
         // ADR-091: the Dashboard on its own, tall enough for tokens and git.
         save(DashboardPane(model: dashing).environment(\.islandSnapshot, true).environment(\.theme, theme.palette).themed(theme.palette)
             .frame(width: 700, height: 1650).background(theme.palette.surfaceSolid.color), name: name + "-dashboard", to: directory)
+        // 2026-11-05: ARK notices on their own: three notes, worst first.
+        let noticed = model(theme)
+        if let event = try? decodeEvent(#"{"type":"improvements","enabled":true,"running":false,"notes":[{"id":"tool:weather","title":"The weather tool fails often","evidence":"4 of 12 calls failed.","severity":2,"why":"Forecast questions get no answer.","change":"Retry once and say when the service is down."},{"id":"crash:137","title":"ARK's runtime stopped by itself","evidence":"8 times in a week, with exit code 137.","severity":3,"why":"It loses work in progress.","change":"Find why macOS ends the runtime and save the chat before it does."},{"id":"slow:turns","title":"Some answers are slow","evidence":"9 in 10 answers took under 16 seconds of model time.","severity":1,"why":"Waiting makes ARK feel stuck.","change":"Open the session when the box gets focus."}]}"#) { noticed.apply(event) }
+        save(HomeNotices(model: noticed).environment(\.islandSnapshot, true).environment(\.theme, theme.palette).themed(theme.palette)
+            .frame(width: 700).padding(16).background(theme.palette.surfaceSolid.color), name: name + "-notices", to: directory)
         // ADR-090: the office floor on its own, at the Board's width.
         save(OfficeFloor(model: boarded).environment(\.islandSnapshot, true).environment(\.theme, theme.palette).frame(width: 660)
             .padding(16).background(Color.black), name: name + "-floor", to: directory)
