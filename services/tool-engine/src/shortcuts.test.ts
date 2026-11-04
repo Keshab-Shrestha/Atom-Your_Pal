@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ToolCall, ToolResult } from "@ark/contracts";
-import { createShortcuts, matchShortcut } from "./shortcuts.ts";
+import { createShortcuts, matchLearned, matchShortcut } from "./shortcuts.ts";
+import type { Shortcut } from "./computer/learned-shortcuts.ts";
 
 const APPS = ["Brave Browser", "Finder", "Notes", "Journal", "Safari", "Terminal", "System Settings", "Music"];
 const match = (text: string) => matchShortcut(text, { apps: APPS });
@@ -99,4 +100,39 @@ test("no match runs nothing; a broken app list still allows the other shortcuts"
   assert.equal(await run("what's the weather"), undefined);
   assert.equal(r.calls.length, 0);
   assert.equal(await run("pause"), "Done.");
+});
+
+// 2026-11-04: a sentence equal to the goal of a learned computer shortcut replays it with no model.
+const learnedOf = (app: string, goal: string): Shortcut => ({ id: goal, app, goal, steps: [], uses: 0, failures: 0, savedAt: "2026-11-04T10:00:00.000Z" });
+
+test("learned: the sentence must equal one saved goal; a short or shared goal never claims it", () => {
+  const all = [learnedOf("Calculator", "add 2 and 3"), learnedOf("Calculator", "ok"), learnedOf("Notes", "make a list"), learnedOf("Reminders", "make a list")];
+  assert.deepEqual(matchLearned(all, "Please, add 2 and 3."), { app: "Calculator", goal: "add 2 and 3" });
+  assert.equal(matchLearned(all, "add 2 and 4"), undefined);
+  assert.equal(matchLearned(all, "ok"), undefined, "a goal that short is not matched");
+  assert.equal(matchLearned(all, "make a list"), undefined, "the same goal in two apps is left to the model");
+  assert.equal(matchLearned([], "add 2 and 3"), undefined);
+});
+
+test("learned: a hit runs the computer shortcut action and says it is done; a fixed command wins over a learned goal", async () => {
+  const r = runner({ content: "Saved shortcut \"add 2 and 3\" ran; every step passed its check." });
+  const hits: unknown[] = [];
+  const run = createShortcuts({ tools: r.tools, apps: async () => APPS, learned: () => [learnedOf("Calculator", "add 2 and 3"), learnedOf("Finder", "open notes")], onHit: (e) => hits.push(e), now: () => 5 });
+  assert.equal(await run("add 2 and 3"), "Done: add 2 and 3.");
+  assert.deepEqual(r.calls.map((c) => [c.name, c.input]), [["computer", { action: "shortcut", app: "Calculator", goal: "add 2 and 3" }]]);
+  assert.deepEqual(hits, [{ name: "learned", ms: 0 }]);
+  await run("open notes");
+  assert.deepEqual(r.calls[1]!.name, "open_app", "the fixed command is not replaced");
+});
+
+test("learned: a replay that stopped is told as it is, and a refused one goes to the model", async () => {
+  const stopped = runner({ content: 'Saved shortcut "add 2 and 3" stopped. Do not replay it; look and finish by hand.' });
+  const learned = () => [learnedOf("Calculator", "add 2 and 3")];
+  const reply = await createShortcuts({ tools: stopped.tools, apps: async () => APPS, learned })("add 2 and 3");
+  assert.match(reply!, /stopped partway/);
+  assert.match(reply!, /Nothing more was clicked/);
+  const refused = runner({ isError: true, content: "Computer control is off." });
+  const fallbacks: unknown[] = [];
+  assert.equal(await createShortcuts({ tools: refused.tools, apps: async () => APPS, learned, onFallback: (e) => fallbacks.push(e) })("add 2 and 3"), undefined);
+  assert.deepEqual(fallbacks, [{ name: "learned", reason: "tool_error" }]);
 });

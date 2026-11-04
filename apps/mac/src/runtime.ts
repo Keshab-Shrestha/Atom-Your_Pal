@@ -748,6 +748,7 @@ export function createRuntime(
       : createShortcuts({
           tools: toolEngine,
           apps: installedApps,
+          learned: () => learnedShortcuts.all(),
           onHit: (e) => log.info("shortcut.hit", e),
           onFallback: (e) => log.info("shortcut.fallback", e),
         });
