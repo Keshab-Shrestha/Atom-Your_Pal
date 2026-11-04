@@ -222,6 +222,9 @@ public final class IslandSettings {
     static let dictationModeKey = "ark.dictation.mode"
     static let livePreviewKey = "ark.dictation.livePreview"
     static let removeFillersKey = "ark.dictation.removeFillers"
+    static let tidyKey = "ark.dictation.tidy"
+    static let wakeKey = "ark.wake.routines"
+    static let quietKey = "ark.dictation.quiet"
 
     /// How dictation starts and stops (ADR-050). Default: hold to talk, or tap to start and tap to finish.
     public var dictationMode: DictationMode {
@@ -238,9 +241,24 @@ public final class IslandSettings {
         didSet { save(removeFillers, Self.removeFillersKey) }
     }
 
+    /// Lower the Mac's sound while ARK listens (dictation and voice). Default off.
+    public var quietWhileListening: Bool {
+        didSet { save(quietWhileListening, Self.quietKey) }
+    }
+
+    /// Open ARK in the background before a routine is due, when it is closed (a LaunchAgent). Default off.
+    public var wakeForRoutines: Bool {
+        didSet { save(wakeForRoutines, Self.wakeKey) }
+    }
+
+    /// Tidy dictated text with ARK (punctuation, capitals), checked by plain code. Default off: it adds a short wait.
+    public var dictationTidy: Bool {
+        didSet { save(dictationTidy, Self.tidyKey) }
+    }
+
     /// The dictation settings as one value.
     public var dictationOptions: DictationOptions {
-        DictationOptions(mode: dictationMode, livePreview: livePreview, removeFillers: removeFillers)
+        DictationOptions(mode: dictationMode, livePreview: livePreview, removeFillers: removeFillers, tidy: dictationTidy)
     }
 
     /// ADR-093: Pal is always the 2D pixel character, so there is no style, glow, lean or tucking away to choose.
@@ -287,6 +305,9 @@ public final class IslandSettings {
         dictationMode = (defaults.string(forKey: Self.dictationModeKey)).flatMap(DictationMode.init(rawValue:)) ?? .automatic
         livePreview = defaults.object(forKey: Self.livePreviewKey) as? Bool ?? true
         removeFillers = defaults.object(forKey: Self.removeFillersKey) as? Bool ?? true
+        dictationTidy = defaults.object(forKey: Self.tidyKey) as? Bool ?? false
+        wakeForRoutines = defaults.object(forKey: Self.wakeKey) as? Bool ?? false
+        quietWhileListening = defaults.object(forKey: Self.quietKey) as? Bool ?? false
         petSpot = Self.loadSpot(defaults)
         for action in ShortcutAction.allCases {
             switch Self.load(defaults, action) {
@@ -380,7 +401,7 @@ public final class IslandSettings {
 
     /// Dictation: how it starts and stops, the live preview and filler removal.
     public func resetDictation() {
-        dictationMode = .automatic; livePreview = true; removeFillers = true
+        dictationMode = .automatic; livePreview = true; removeFillers = true; dictationTidy = false; quietWhileListening = false
     }
 
     /// Pal, its speech bubble and the panel. "Show Pal" stays as it is: turning Pal on or off is the

@@ -38,11 +38,14 @@ public struct DictationOptions: Sendable, Equatable {
     public var livePreview: Bool
     /// Drop "um", "uh" and the like from the text.
     public var removeFillers: Bool
+    /// Ask ARK to tidy punctuation and capitals; used only when `DictationTidy.accepts` says the meaning is kept. Off by default.
+    public var tidy: Bool
 
-    public init(mode: DictationMode = .automatic, livePreview: Bool = true, removeFillers: Bool = true) {
+    public init(mode: DictationMode = .automatic, livePreview: Bool = true, removeFillers: Bool = true, tidy: Bool = false) {
         self.mode = mode
         self.livePreview = livePreview
         self.removeFillers = removeFillers
+        self.tidy = tidy
     }
 }
 

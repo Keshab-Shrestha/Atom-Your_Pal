@@ -121,10 +121,12 @@ final class IslandController {
         }
         dictation.playSound = { [weak self] sound in self?.playTone(sound) }
         dictation.options = { [weak self] in self?.model.settings.dictationOptions ?? DictationOptions() }
+        dictation.tidy = { [weak self] text in await self?.model.tidyDictation(text) }
         dictation.onPreview = { [weak self] text in self?.model.status.setPreview(text) }
         dictation.onTalk = { [weak self] phase in self?.talkPhase(phase) }
         dictation.conversationBusy = { [weak self] in self.map { $0.talking || $0.model.status.isBusy && !$0.dictating } ?? false }
         shortcuts.trace = trace
+        model.wakeChanged = { [weak self] in self?.refreshWake() }
         model.petChanged = { [weak self] enabled in
             guard let self else { return }
             self.pet.setEnabled(enabled)
@@ -280,13 +282,24 @@ final class IslandController {
         apply(.error(error))
     }
 
+    let ducker = AudioDucker()
+    private lazy var wake = WakeInstaller(log: { [weak self] event, fields in self?.log(event, fields) })
+
+    /// Routines while ARK is closed: rewrite the LaunchAgent for the next routine (or remove it).
+    private func refreshWake() {
+        let times = (model.helpers.list?.helpers ?? []).flatMap { $0.routines }.filter { !$0.paused }.compactMap(\.nextAt)
+        wake.update(enabled: model.settings.wakeForRoutines, routineTimes: times)
+    }
+
     func apply(_ event: IslandEvent) {
         if localListening, case .state(.idle) = event { return } // the turn we interrupted, ending
         let helperRefusal = model.helpers.claims(event) // shown in the ARK window, not as ARK's status
         if case .micLevel = event {} else { model.apply(event) }
         // ADR-091: what is new in the team, and an OK asked for, become notifications.
         switch event {
-        case .helpers, .planUsage: notifier.update(model.helpers.list, plan: model.planUsage)
+        case .helpers, .planUsage:
+            notifier.update(model.helpers.list, plan: model.planUsage)
+            refreshWake()
         case .approvalRequest(let request): notifier.approval(request)
         case .watchFired(let notice): notifier.watch(notice)
         case .brief:
@@ -299,8 +312,11 @@ final class IslandController {
             if model.status.showsLevel { model.meter.add(peak) }
             return
         case .state(.listening):
+            quiet(listening: true)
             model.meter.reset()
             model.warmChat() // the mic is open: pre-warm the chat's session while the user speaks
+        case .state:
+            quiet(listening: false)
         default:
             break
         }
