@@ -215,6 +215,7 @@ final class IslandModel {
     /// 2026-11-02: the ⌘J agent panel shows this agent ("" for the first available); nil when closed.
     var agentPanel: String?
     /// 2026-11-02: Home's Ask box: the text waits until the new chat it started is the current one, then is sent there.
+    @ObservationIgnored private var pendingFix: ImprovementNote?
     @ObservationIgnored private var pendingHomeAsk: (text: String, from: String?, send: Bool)?
 
     /// Apps: open one (its page arrives as `appOpened`), go back to the list, or start a chat that asks ARK to make one.
@@ -225,6 +226,22 @@ final class IslandModel {
     func lookForImprovements() { send(.improvementsRun) }
     func setImprovementsEnabled(_ on: Bool) { send(.improvementsSet(enabled: on)) }
     func dismissImprovement(_ id: String) { send(.improvementDismiss(id: id)) }
+    /// "Fix it": a project chat in ARK's own source folder, with the fix prompt in the box (not sent). Adds the folder as a project first when it is not one.
+    func fixThis(_ note: ImprovementNote) {
+        guard let root = AppUpdate.sourceRoot(bundle: Bundle.main.bundleURL) else { return }
+        if let project = sourceProject(root) { startFix(note, in: project.id); return }
+        pendingFix = note
+        send(.projectAdd(name: "ARK source", path: root.path))
+    }
+    var canFixItself: Bool { AppUpdate.sourceRoot(bundle: Bundle.main.bundleURL) != nil }
+    private func sourceProject(_ root: URL) -> ProjectInfo? {
+        (chats?.projects ?? []).first { !$0.archived && !$0.missing && URL(fileURLWithPath: $0.folderPath).standardizedFileURL.path == root.standardizedFileURL.path }
+    }
+    private func startFix(_ note: ImprovementNote, in projectId: String) {
+        pendingHomeAsk = (FixPrompt.text(for: note), chats?.current, false)
+        newChat(inProject: projectId)
+        windowPage = .chat
+    }
     func talkThrough(_ note: ImprovementNote) { startChat(with: note.chatPrompt, send: false) }
     func askForApp() { startChat(with: "Make me an app that ", send: false) }
 
@@ -1092,6 +1109,7 @@ final class IslandModel {
             }
             chats = list
             settings.projectFilter = ProjectSidebarScope.resolved(settings.projectFilter, projects: list.projects)
+            if let note = pendingFix, let root = AppUpdate.sourceRoot(bundle: Bundle.main.bundleURL), let project = sourceProject(root) { pendingFix = nil; startFix(note, in: project.id) }
             inputRuntimeReady = true
             saveInput()
             if let ask = pendingHomeAsk, !list.current.isEmpty, list.current != ask.from {

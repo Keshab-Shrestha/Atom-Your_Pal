@@ -113,3 +113,20 @@ test("branch review never executes configured diff/textconv drivers and remote e
     assert.equal(cleanRemote("\u001b[31mhttps://user:token@host/x\n\u001b[0m"), "https://host/x");
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+// ADR-240: a branch that changes what ARK may do, how it updates or what it depends on is never pushed from the window.
+test("a task branch that changes a sensitive file is not pushed; one that changes only ordinary files still is", async () => {
+  const { root, repo, remote } = setup();
+  try {
+    sh(repo, "branch", "ark/task-8");
+    sh(repo, "checkout", "ark/task-8");
+    writeFileSync(join(repo, "SECURITY.md"), "weaker\n");
+    sh(repo, "add", "-A");
+    sh(repo, "commit", "-m", "ARK task 8: tweak");
+    sh(repo, "checkout", "main");
+    await assert.rejects(pushBranch(repo, "ark/task-8"), /SECURITY\.md.*does not push it from here/s);
+    assert.equal(sh(repo, "ls-remote", remote, "refs/heads/ark/task-8"), "", "nothing reached the remote");
+    await pushBranch(repo, "ark/task-7");
+    assert.match(sh(repo, "ls-remote", remote, "refs/heads/ark/task-7"), /ark\/task-7/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

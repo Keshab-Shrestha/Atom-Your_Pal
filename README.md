@@ -88,7 +88,7 @@ ARK runs on your Mac. You talk or type. ARK answers, uses tools, and hands bigge
 - A teal fingertip pointer shows where ARK acts, with a ring when it arrives.
 - Off until you turn it on in Settings → Computer.
 - ARK learns a button task after one checked run. Say the same words again and it replays the task with no model, through the same checks. It stops at the first mismatch.
-- ARK counts what goes wrong in its own log once a day and shows up to three notes on Home ("ARK noticed"): a tool that keeps failing, a crash, a slow answer. It changes nothing by itself. Turn it off in Settings → Privacy.
+- ARK counts what goes wrong in its own log once a day and shows up to three notes on Home ("ARK noticed"): a tool that keeps failing, a crash, a slow answer. Press "Fix it" and a coding agent works on a branch of ARK's own source; you review the diff and push it. ARK never merges, and never pushes a branch that changes permission, approval, update or dependency files. Turn it off in Settings → Privacy.
 - "Make me a habit tracker app": ARK writes a small app, you approve it, and it runs inside ARK on the Apps page, in a sandbox with no network. It keeps its own notes, and can ask ARK a question if you allow it.
 - "Watch this page and tell me when it says slots are open": ARK reads the page on a timer with no model, tells you once, and lists the watch on the Scheduled page.
 - ARK opens the chat's session when you click the box or open the mic, so the first reply starts sooner.

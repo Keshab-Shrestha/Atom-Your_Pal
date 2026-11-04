@@ -4422,3 +4422,22 @@ A fix. Phase 2 would turn an approved note into a Board task on ARK's own source
 - The first notes from this Mac's real log: the computer tool fails 6 of 17 calls, and a Cua session "has ended" 5 times.
 - The log is the only input. A problem that is not logged is invisible to it.
 - The model's suggestion can be wrong; it is shown as "Suggested", next to the counts that are not the model's.
+
+## ADR-240 — ARK notices phase 2: "Fix it" opens a task on ARK's own source (2026-11-05)
+
+### Context
+
+Phase 1 (ADR-239) notes what goes wrong in ARK. Keshab asked for the next phase: a note becomes a fix. ARK already runs coding tasks in a git worktree on a branch `ark/task-N`, shows the diff, and pushes a branch only when the user clicks (ADR-091).
+
+### Decision
+
+- A note has a "Fix it" button, shown only in a copy built from source (`AppUpdate.sourceRoot`). It adds ARK's own source folder as the project "ARK source" (once, through the same `project.add` the sidebar uses), starts a new chat in it, and puts the fix prompt in the box. The user reads it and sends it. Nothing is sent by itself.
+- The prompt (`FixPrompt`) gives the evidence and asks for: read the code and find the cause, hand the change to a coding agent so it lands on its own branch, the smallest change plus a test that fails without it, then `pnpm typecheck` and `pnpm test`, no push, no merge, and a report of the branch and the change.
+- **A plain-code guard decides what may be pushed.** `sensitive-paths.ts` lists the paths that decide what ARK may do (names with safety, policy, guard, permission, approval, credential, secret, token, sandbox, entitlement), how it updates (scripts, CI, signing, Package.swift), what it depends on (package and lock files), and the code of this loop, the Apps sandbox, the Watch reader and the Git push itself. `pushBranch` refuses a branch that changes any of them: "ARK does not push it from here. Read the diff, then push it yourself from a terminal." The agent may still make such a branch; the user reads it and pushes by hand.
+- ARK never merges, never pushes on its own, and the agent's sandbox keeps no network.
+
+### Consequences
+
+- The loop closes: log, note, task, branch, the user's review, the user's push, a pull request, the user's merge, then the Update button.
+- The prompt is advice to a model. The guard is what holds: it works on the files in the diff, whatever the agent was told.
+- The list is a floor. A new guarding file whose name has none of the words must be added to it.
