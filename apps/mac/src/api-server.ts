@@ -73,6 +73,7 @@ export interface ApiServerOptions {
   memories?: Pick<MemoryStore, "recent">;
   brain?: Pick<MemoryStore["brain"], "graph" | "get">;
   brainSources?: Pick<NonNullable<MemoryStore["brainSources"]>, "note">;
+  chats?: Pick<MemoryStore["chats"], "list" | "messages" | "metadata">;
   approvals: Pick<TelegramBotOptions["approvals"], "pending" | "answer">;
   describe(error: unknown): string;
   /**
@@ -298,7 +299,37 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
         }
         // "api-goal-<id>" is a native goal's chat: a /v1/chat chatId never reaches it.
         if (typeof chatId === "string" && GOAL_CHAT_ID.test(chatId)) throw new ApiError(400, '"chatId" must not start with "goal-": goals have those chats.');
+        if (typeof chatId === "string" && options.chats?.metadata(`api-${chatId}`)?.archived) throw new ApiError(409, "This chat is archived in ARK. Unarchive it there before continuing.");
         return turn(async (signal) => ({ answer: await ark(said, chatId as string | undefined, signal) }));
+      },
+    },
+    // Noah's shared chat list: the newest non-archived chats, both the ones created
+    // through this API ("api-noah-…", shown with their Noah id and origin "noah")
+    // and the chats started in the ARK window itself (their own id, origin "ark").
+    // Goal chats ("api-goal-…") stay private to ARK.
+    {
+      method: "GET",
+      pattern: "/v1/noah/chats",
+      match: /^\/v1\/noah\/chats$/,
+      run: () => {
+        if (!options.chats) throw new ApiError(503, "ARK chat history is unavailable.");
+        return { chats: options.chats.list({ limit: 500 }).filter((chat) => !chat.archived && !/^api-goal-/i.test(chat.id)).map((chat) => chat.id.startsWith("api-")
+          ? { id: chat.id.slice(4), title: chat.title, updatedAt: chat.updatedAt.toISOString(), origin: "noah" as const }
+          : { id: chat.id, title: chat.title, updatedAt: chat.updatedAt.toISOString(), origin: "ark" as const }) };
+      },
+    },
+    {
+      method: "GET",
+      pattern: "/v1/noah/chats/:id",
+      match: /^\/v1\/noah\/chats\/([A-Za-z0-9_-]{1,40})$/,
+      run: ([id]) => {
+        if (!options.chats) throw new ApiError(503, "ARK chat history is unavailable.");
+        if (/^goal-/i.test(id)) throw new ApiError(404, "This chat is unavailable or archived in ARK.");
+        const stored = id.startsWith("noah-") ? `api-${id}` : id;
+        const metadata = options.chats.metadata(stored);
+        if (!metadata || metadata.archived) throw new ApiError(404, "This chat is unavailable or archived in ARK.");
+        const origin = id.startsWith("noah-") ? "noah" as const : "ark" as const;
+        return { origin, messages: options.chats.messages(stored).slice(-60).map(({ role, content }) => ({ role, content })) };
       },
     },
     {

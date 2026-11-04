@@ -687,3 +687,31 @@ test("Second Brain previews need authentication and omit mirrored facts and ghos
     assert.equal(result.json.data.notes[0].path, undefined);
   } finally { api.stop(); }
 });
+
+test("Noah shared chats use ARK storage and exclude archived and goal chats, showing both Noah and ARK-window chats", async () => {
+  const now = new Date("2026-01-01T00:00:00Z");
+  const chats: NonNullable<ApiServerOptions["chats"]> = {
+    list: () => [
+      { id: "api-noah-one", title: "Shared", updatedAt: now, messages: 2 },
+      { id: "window-private", title: "Window chat", updatedAt: now, messages: 1 },
+      { id: "api-noah-archived", title: "Archived", updatedAt: now, messages: 1, archived: true as const },
+      { id: "api-goal-7", title: "Goal transcript", updatedAt: now, messages: 1 },
+    ],
+    messages: () => [{ role: "user", content: "Hello" }, { role: "assistant", content: "Hi" }],
+    metadata: (id) => id === "api-noah-one" ? { pinned: false, archived: false, version: 1 } : id === "window-private" ? { pinned: false, archived: false, version: 1 } : id === "api-noah-archived" ? { pinned: false, archived: true, version: 1 } : undefined,
+  };
+  const { api, port, token } = await boot({ chats });
+  try {
+    assert.equal((await call(port, "GET", "/v1/noah/chats")).status, 401);
+    const list = await call(port, "GET", "/v1/noah/chats", { token });
+    assert.deepEqual(list.json.data.chats, [
+      { id: "noah-one", title: "Shared", updatedAt: "2026-01-01T00:00:00.000Z", origin: "noah" },
+      { id: "window-private", title: "Window chat", updatedAt: "2026-01-01T00:00:00.000Z", origin: "ark" },
+    ]);
+    assert.deepEqual((await call(port, "GET", "/v1/noah/chats/noah-one", { token })).json.data, { origin: "noah", messages: [{ role: "user", content: "Hello" }, { role: "assistant", content: "Hi" }] });
+    assert.deepEqual((await call(port, "GET", "/v1/noah/chats/window-private", { token })).json.data.origin, "ark");
+    assert.equal((await call(port, "GET", "/v1/noah/chats/noah-archived", { token })).status, 404);
+    assert.equal((await call(port, "GET", "/v1/noah/chats/goal-7", { token })).status, 404);
+    assert.equal((await call(port, "POST", "/v1/chat", { token, body: JSON.stringify({ text: "hello", chatId: "noah-archived" }) })).status, 409);
+  } finally { api.stop(); }
+});

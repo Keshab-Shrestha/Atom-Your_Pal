@@ -686,11 +686,17 @@ export function createRuntime(
     smallModel: () => modelForTier(planModels(), "small"),
     onUsage: reportUsage,
     onTokens: (tokens, model, meta) => recordChatUsage(tokens, model, meta),
-    // Remembering by itself (upgrades.md C2): the same run may notice lasting facts; they wait for Accept. Logs the count only.
+    // Remembering by itself (upgrades.md C2): the same run may notice lasting facts. 2026-11-04: they are kept at once, with no
+    // question (the Memory page lists, edits and forgets them); one that fails a check waits as a suggestion. Logs the count only.
     ...(memory
       ? {
           wantsFacts: () => memory.suggestions.enabled(),
-          onFacts: (chatId: string, facts: string[]) => log.info("suggestion.added", { count: memory.suggestions.suggest(facts, chatId).length }),
+          onFacts: (chatId: string, facts: string[]) => {
+            const kept = memory.suggestions.remember(facts, chatId);
+            log.info("suggestion.added", { count: facts.length - kept.length });
+            for (const fact of kept) log.info("memory.change", { action: "remember", id: fact.id, count: memory.count(), by: "auto" });
+            if (kept.length) for (const listener of memoryListeners) listener();
+          },
         }
       : {}),
   });
@@ -1093,7 +1099,7 @@ export function createRuntime(
           host: readEnv(process.env, "ARK_API_HOST"),
           ask: apiAsk,
           ...(helpers ? { helpers } : {}),
-          ...(memory ? { memories: memory, brain: memory.brain, ...(memory.brainSources ? { brainSources: memory.brainSources } : {}) } : {}),
+          ...(memory ? { memories: memory, brain: memory.brain, chats: memory.chats, ...(memory.brainSources ? { brainSources: memory.brainSources } : {}) } : {}),
           approvals: computer,
           describe,
           // ADR-110 (N3): a goal is a turn in its own chat "api-goal-<id>"; its status reads that chat's Board rows.

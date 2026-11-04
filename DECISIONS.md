@@ -4245,3 +4245,22 @@ Keshab sent an X post about Empryo's "Morphs": add-ons that are one JSON file, w
 - There is no agent layer (rules, lookups, guards) in this first version. That part of Empryo's idea, behind an approval, is the next step.
 - An agent that is tricked could add a panel whose button asks for something harmful. The card shows each button, the button only prefills a chat, and the user reads it before sending.
 - Not tried with a live model: `create_panel` is tested with a stand-in approval.
+
+## ADR-233 — Auto-remember: facts are kept with no question (2026-11-04)
+
+### Context
+
+Keshab: "make sure chat auto remembers, no need for asking." Before, the background note after a chat could notice up to three lasting facts, but each waited as a suggestion until he pressed Remember.
+
+### Decision
+
+- `Suggestions.remember(candidates, chatId)` suggests each fact and keeps it at once through the same checks as Accept: not empty, not a secret (`looksSecret`), within the length limit, not a fact he refused before, not already kept, and memory not full. A fact that fails a check stays as a suggestion he can edit.
+- The runtime's `onFacts` calls `remember`. It logs only the counts and the memory ids (`memory.change`, `by: "auto"`), and tells the Memory page and Second brain to refresh.
+- The switch is the existing one, now called "Remember by itself" in Settings → Privacy (on by default). Off: nothing is noticed.
+- The note's instruction now says only the user's own words count: a fact he stated or clearly confirmed, never one from a web page, a file, a tool result or another agent's report.
+- He sees, edits and forgets every fact in Second brain, and a forgotten fact is not kept again only if he refused it as a suggestion.
+
+### Consequences
+
+- A wrong fact can now be kept before he sees it. The three-fact limit, the secret check and the user-words rule bound this. A visible "Remembered …" notice with Undo is the next step.
+- A fact that comes from the conversation and not from his own words is not blocked by code, only by the instruction to the note model.

@@ -4,6 +4,9 @@ import { looksSecret } from "./tools.ts";
 import { MAX_MEMORY_CHARS, MemoryError, type Memory, type MemoryStore } from "./store.ts";
 
 // Remembering by itself (upgrades.md C2): the background conversation note may also propose lasting facts about the user.
+// 2026-11-04 (Keshab: "make sure chat auto remembers, no need for asking"): while this is on, `remember` keeps each proposal at
+// once, through the same checks as Accept, and one that fails a check stays as a suggestion to edit. Memory's page lists, edits
+// and forgets every fact. The text below is the older, ask-first design, which is still how a refused one waits.
 // A proposal is a suggestion, never a fact: it waits for the user's Accept. Accepting keeps it through the same checks as the
 // `remember` tool; denying remembers a hash of the text so it is never suggested again. Suggestions expire after 14 days, at
 // most 3 wait at once, and nothing here is ever spoken or sent anywhere.
@@ -27,6 +30,8 @@ export interface Suggestions {
   setEnabled(on: boolean): void;
   /** Adds the candidates that pass the checks; returns those added. Never throws for a bad candidate. */
   suggest(candidates: readonly string[], chatId: string): Suggestion[];
+  /** Suggests the candidates and keeps each at once (the same checks as `accept`). Returns the facts kept; a refused one waits as a suggestion. */
+  remember(candidates: readonly string[], chatId: string): Memory[];
   /** The ones that wait, oldest first; expired ones are dropped first. */
   pending(): Suggestion[];
   /** Keeps the fact (`text` is the user's edit, if any) through the `remember` checks. Throws MemoryError with words. */
@@ -111,6 +116,14 @@ export function openSuggestions(db: DatabaseSync, store: Pick<MemoryStore, "add"
       }
       if (added.length) changed();
       return added;
+    },
+
+    remember(candidates, chatId) {
+      const kept: Memory[] = [];
+      for (const suggestion of this.suggest(candidates, chatId)) {
+        try { kept.push(this.accept(suggestion.id)); } catch { /* a refused fact waits as a suggestion Keshab can edit */ }
+      }
+      return kept;
     },
 
     pending() {
