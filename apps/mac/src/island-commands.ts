@@ -91,6 +91,8 @@ export type IslandCommand =
   | { type: "suggestions.get" }
   | { type: "suggestions.accept"; id: number; text?: string }
   | { type: "suggestions.deny"; id: number }
+  /** Undo a fact ARK kept by itself (the memory id from `kept`): forget it and never keep it again. */
+  | { type: "suggestions.undo"; id: number }
   | { type: "suggestions.set"; enabled: boolean }
   /** Daily brief (upgrades.md C3): the settings and briefs (and their changes from then on), make one now, change settings (only the given fields). */
   /** Ask ARK (upgrades.md B3): rewrite some text as asked. `id` ties the answer (`text.edit.result`) to the request; a new request with the same `id`, or `text.edit.cancel`, stops the old one. */
@@ -242,6 +244,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "suggestions.get",
   "suggestions.accept",
   "suggestions.deny",
+  "suggestions.undo",
   "suggestions.set",
   "text.edit",
   "reply.context", "reply.draft", "reply.cancel",
@@ -771,10 +774,10 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof text !== "string") return { error: 'skill.save needs "text", a string.' };
     return { command: { type, name, text } };
   }
-  if (type === "suggestions.accept" || type === "suggestions.deny") {
+  if (type === "suggestions.accept" || type === "suggestions.deny" || type === "suggestions.undo") {
     const { id, text } = value as { id?: unknown; text?: unknown };
     if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: `${type} needs an "id" that is a whole number.` };
-    if (type === "suggestions.deny") return { command: { type, id } };
+    if (type === "suggestions.deny" || type === "suggestions.undo") return { command: { type, id } };
     if (text !== undefined && (typeof text !== "string")) return { error: 'suggestions.accept: "text" is a string.' };
     return { command: { type, id, ...(typeof text === "string" ? { text } : {}) } };
   }

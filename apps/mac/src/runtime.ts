@@ -21,6 +21,7 @@ import {
   capabilityItems,
   createCalendarTools,
   createComputerTool,
+  createShortcutStore,
   createCuaTransport,
   createLookAtScreenTool,
   createTimers,
@@ -229,6 +230,8 @@ export function createRuntime(
   const generatedImages = memoryFile === ":memory:" ? undefined : join(dirname(resolve(memoryFile)), "images");
   // 2026-11-02: panels (panels.ts), kept next to the memory file; the window and the create_panel tool share this store.
   const panelStore = generatedImages ? createPanelStore(join(dirname(generatedImages), "panels.json")) : undefined;
+  // 2026-11-04: learned computer shortcuts (services/tool-engine computer/learned-shortcuts.ts), kept next to the panels. Button labels and expected text only.
+  const learnedShortcuts = createShortcutStore(generatedImages ? { path: join(dirname(generatedImages), "shortcuts-learned.json") } : {});
   const panelListeners = new Set<() => void>();
   let foregroundReady = Boolean(memory);
   try { memory?.foreground.recover(); }
@@ -281,7 +284,12 @@ export function createRuntime(
   const islandMemory: IslandMemory | undefined = memory && {
     list: () => memory.recent(DEFAULT_MAX_MEMORIES).map((m) => ({ id: m.id, text: m.text, createdAt: m.createdAt.toISOString(), source: m.source })),
     count: () => memory.count(),
-    forget: (id) => memory.remove(id),
+    forget: (id) => {
+      const fact = memory.get(id);
+      const gone = memory.remove(id);
+      if (gone && fact) memory.suggestions.block(fact.text); // forgotten means not noticed again
+      return gone;
+    },
     clear: () => memory.clear(),
     episodes: () => memory.episodes(DEFAULT_MAX_EPISODES).map((e) => ({ id: e.id, summary: e.summary, endedAt: e.endedAt.toISOString(), exchanges: e.exchanges })),
     forgetEpisode: (id) => memory.removeEpisode(id),
@@ -568,6 +576,7 @@ export function createRuntime(
       ? [
           createComputerTool({
             cua,
+            shortcuts: learnedShortcuts,
             approve: (request, signal) => {
               log.info("computer.approval_asked");
               return computer.approve(request, signal);
@@ -686,11 +695,17 @@ export function createRuntime(
     smallModel: () => modelForTier(planModels(), "small"),
     onUsage: reportUsage,
     onTokens: (tokens, model, meta) => recordChatUsage(tokens, model, meta),
-    // Remembering by itself (upgrades.md C2): the same run may notice lasting facts; they wait for Accept. Logs the count only.
+    // Remembering by itself (upgrades.md C2): the same run may notice lasting facts. 2026-11-04: they are kept at once, with no
+    // question (the Memory page lists, edits and forgets them); one that fails a check waits as a suggestion. Logs the count only.
     ...(memory
       ? {
           wantsFacts: () => memory.suggestions.enabled(),
-          onFacts: (chatId: string, facts: string[]) => log.info("suggestion.added", { count: memory.suggestions.suggest(facts, chatId).length }),
+          onFacts: (chatId: string, facts: string[]) => {
+            const kept = memory.suggestions.remember(facts, chatId);
+            log.info("suggestion.added", { count: facts.length - kept.length });
+            for (const fact of kept) log.info("memory.change", { action: "remember", id: fact.id, count: memory.count(), by: "auto" });
+            if (kept.length) for (const listener of memoryListeners) listener();
+          },
         }
       : {}),
   });
@@ -1093,7 +1108,7 @@ export function createRuntime(
           host: readEnv(process.env, "ARK_API_HOST"),
           ask: apiAsk,
           ...(helpers ? { helpers } : {}),
-          ...(memory ? { memories: memory, brain: memory.brain, ...(memory.brainSources ? { brainSources: memory.brainSources } : {}) } : {}),
+          ...(memory ? { memories: memory, brain: memory.brain, chats: memory.chats, ...(memory.brainSources ? { brainSources: memory.brainSources } : {}) } : {}),
           approvals: computer,
           describe,
           // ADR-110 (N3): a goal is a turn in its own chat "api-goal-<id>"; its status reads that chat's Board rows.
@@ -1375,6 +1390,12 @@ export function createRuntime(
               for (const listener of memoryListeners) listener(); // Memory page and the Second brain follow
             },
             deny: (id: number) => memory.suggestions.deny(id),
+            kept: () => memory.suggestions.kept(),
+            undo: (id: number) => {
+              const done = memory.suggestions.undo(id);
+              if (done) { log.info("memory.change", { action: "forget", id, count: memory.count(), by: "undo" }); for (const listener of memoryListeners) listener(); }
+              return done;
+            },
             onChange: (listener: () => void) => memory.suggestions.onChange(listener),
           },
         }

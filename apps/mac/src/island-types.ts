@@ -167,6 +167,10 @@ export interface IslandSuggestions {
   /** Keeps the fact (with the user's edit, if any). Throws, with words for the user, when it cannot be kept. */
   accept(id: number, text?: string): void;
   deny(id: number): boolean;
+  /** Facts kept by itself in the last 10 minutes (memory id and text). */
+  kept(): { id: number; text: string }[];
+  /** Undoes a kept fact: forgets it and blocks it. False when it has no recent receipt. */
+  undo(id: number): boolean;
   onChange(listener: () => void): () => void;
 }
 

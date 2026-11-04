@@ -32,6 +32,8 @@ public enum IslandCommand: Sendable, Equatable {
     case suggestionsGet
     case suggestionsAccept(id: Int, text: String?)
     case suggestionsDeny(id: Int)
+    /// Undo a fact ARK kept by itself (its memory id): forget it and never keep it again.
+    case suggestionsUndo(id: Int)
     case suggestionsSet(enabled: Bool)
     /// Daily brief (upgrades.md C3): the settings and briefs (and their changes from then on), make one now, change settings.
     /// Ask ARK (upgrades.md B3): rewrite some text as asked. `id` ties the answer to the request; cancel stops it.
@@ -232,6 +234,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .suggestionsGet: "suggestions.get"
         case .suggestionsAccept: "suggestions.accept"
         case .suggestionsDeny: "suggestions.deny"
+        case .suggestionsUndo: "suggestions.undo"
         case .suggestionsSet: "suggestions.set"
         case .textEdit: "text.edit"
         case .textEditCancel: "text.edit.cancel"
@@ -397,7 +400,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .suggestionsAccept(let id, let text):
             fields["id"] = id
             if let text { fields["text"] = text }
-        case .suggestionsDeny(let id):
+        case .suggestionsDeny(let id), .suggestionsUndo(let id):
             fields["id"] = id
         case .suggestionsSet(let enabled):
             fields["enabled"] = enabled // a real JSON boolean

@@ -20,16 +20,20 @@ public struct FactSuggestion: Sendable, Equatable, Identifiable {
 public struct SuggestionsList: Sendable, Equatable {
     public var enabled: Bool
     public var items: [FactSuggestion]
+    /// Facts ARK kept by itself in the last 10 minutes (the memory id and the words): the "Remembered" rows.
+    public var kept: [FactSuggestion]
 
-    public init(enabled: Bool, items: [FactSuggestion] = []) {
+    public init(enabled: Bool, items: [FactSuggestion] = [], kept: [FactSuggestion] = []) {
         self.enabled = enabled
         self.items = items
+        self.kept = kept
     }
 }
 
 public struct SuggestionsState: Sendable, Equatable {
     public private(set) var enabled = true
     public private(set) var items: [FactSuggestion] = []
+    public private(set) var kept: [FactSuggestion] = []
     /// The suggestion being edited, and its words so far.
     public private(set) var editingId: Int?
     public var draft = ""
@@ -50,6 +54,7 @@ public struct SuggestionsState: Sendable, Equatable {
     public mutating func apply(_ list: SuggestionsList) {
         enabled = list.enabled
         items = list.items
+        kept = list.kept
         error = nil
         // A suggestion that was answered elsewhere ends its edit.
         if let id = editingId, !list.items.contains(where: { $0.id == id }) { stopEditing() }
@@ -70,6 +75,11 @@ public struct SuggestionsState: Sendable, Equatable {
         if editingId == id { stopEditing() }
         error = nil
         return .suggestionsDeny(id: id)
+    }
+
+    /// Takes back a fact ARK kept by itself.
+    public func undo(_ id: Int) -> IslandCommand? {
+        kept.contains(where: { $0.id == id }) ? .suggestionsUndo(id: id) : nil
     }
 
     public mutating func startEditing(_ id: Int) {

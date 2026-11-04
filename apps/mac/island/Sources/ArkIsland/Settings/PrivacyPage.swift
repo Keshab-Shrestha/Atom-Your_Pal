@@ -13,10 +13,10 @@ struct PrivacySection: View {
             .onDisappear { model.permissions.stopPolling() }
             // The window is closed and opened again without the page disappearing and appearing: start again when it comes back.
             .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in model.permissions.startPolling() }
-        // Remembering by itself (upgrades.md C2): nothing is kept without a press of Remember.
-        Card("Memory", footer: "After a chat, ARK may notice a lasting fact about you, such as \"prefers window seats\". It shows it above the chat box. It keeps the fact only when you press Remember, and never asks again for one you refuse.") {
-            Row(title: "Suggest things to remember", detail: "Quiet rows above the chat box. Never spoken") {
-                ThemedSwitch(isOn: model.suggestions.enabled, set: { model.setSuggestionsEnabled($0) }, label: "Suggest things to remember")
+        // Remembering by itself (upgrades.md C2). 2026-11-04 (Keshab): it keeps what it notices at once, with no question.
+        Card("Memory", footer: "After a chat, ARK keeps a lasting fact you stated, such as \"prefers window seats\", with no question. It never keeps passwords or other secrets, or facts from web pages and files. See, edit or forget every fact in Second brain.") {
+            Row(title: "Remember by itself", detail: "Saved quietly after a chat. Never spoken") {
+                ThemedSwitch(isOn: model.suggestions.enabled, set: { model.setSuggestionsEnabled($0) }, label: "Remember by itself")
             }
         }
             .onAppear { model.loadSuggestions() }

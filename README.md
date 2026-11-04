@@ -87,9 +87,11 @@ ARK runs on your Mac. You talk or type. ARK answers, uses tools, and hands bigge
 - ARK looks at app windows and clicks, types and scrolls through the Cua driver. Your real pointer does not move.
 - A teal fingertip pointer shows where ARK acts, with a ring when it arrives.
 - Off until you turn it on in Settings → Computer.
+- ARK learns a button task after one checked run and replays it later through the same checks. It stops at the first mismatch.
 
 ### Memory and everyday tools
-- ARK remembers facts you ask it to keep and recovers earlier parts of a chat.
+- ARK remembers facts you ask it to keep, and keeps lasting facts you state in a chat by itself, with no question. A "Remembered" row with Undo shows for 10 minutes. See, edit or forget each one in Second brain. Settings → Privacy has the switch.
+- ARK recovers earlier parts of a chat.
 - Brain: notes, links and source folders that ARK can read.
 - Calendar, reminders, timers, weather, notes, music, opening apps, and "what is this page?" for the browser in front.
 
@@ -230,7 +232,7 @@ Turn on Settings → General → Local API. Then add the MCP server to Claude Co
 claude mcp add ark -- node /path/to/ark/apps/mac/src/mcp-serve.ts
 ```
 
-The tools are `ark_give_goal`, `ark_goal_status`, `ark_chat`, `ark_list_tasks`, `ark_task_report`, `ark_needs_you` and `ark_answer_need`. The local API listens on `http://127.0.0.1:4790`. Change the port with `ARK_API_PORT`. Each request needs the bearer token from `data/api-token`. The token can read your live saved memory facts and Second Brain note previews, approve or reject plans, and retry tasks; it cannot answer risky-action cards, skill installs or soul changes (those are answered in the ARK window or on Telegram). Turn the API off when you do not use it. Settings → General has "Regenerate" to replace the token.
+The tools are `ark_give_goal`, `ark_goal_status`, `ark_chat`, `ark_list_tasks`, `ark_task_report`, `ark_needs_you` and `ark_answer_need`. The local API listens on `http://127.0.0.1:4790`. Change the port with `ARK_API_PORT`. Each request needs the bearer token from `data/api-token`. The token can read your live saved memory facts, Second Brain note previews, and Noah-originated shared chat history, approve or reject plans, and retry tasks; it cannot answer risky-action cards, skill installs or soul changes (those are answered in the ARK window or on Telegram). Turn the API off when you do not use it. Settings → General has "Regenerate" to replace the token.
 
 ## Architecture
 

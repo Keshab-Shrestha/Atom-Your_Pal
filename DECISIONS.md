@@ -4245,3 +4245,47 @@ Keshab sent an X post about Empryo's "Morphs": add-ons that are one JSON file, w
 - There is no agent layer (rules, lookups, guards) in this first version. That part of Empryo's idea, behind an approval, is the next step.
 - An agent that is tricked could add a panel whose button asks for something harmful. The card shows each button, the button only prefills a chat, and the user reads it before sending.
 - Not tried with a live model: `create_panel` is tested with a stand-in approval.
+
+## ADR-233 — Auto-remember: facts are kept with no question (2026-11-04)
+
+### Context
+
+Keshab: "make sure chat auto remembers, no need for asking." Before, the background note after a chat could notice up to three lasting facts, but each waited as a suggestion until he pressed Remember.
+
+### Decision
+
+- `Suggestions.remember(candidates, chatId)` suggests each fact and keeps it at once through the same checks as Accept: not empty, not a secret (`looksSecret`), within the length limit, not a fact he refused before, not already kept, and memory not full. A fact that fails a check stays as a suggestion he can edit.
+- The runtime's `onFacts` calls `remember`. It logs only the counts and the memory ids (`memory.change`, `by: "auto"`), and tells the Memory page and Second brain to refresh.
+- The switch is the existing one, now called "Remember by itself" in Settings → Privacy (on by default). Off: nothing is noticed.
+- The note's instruction now says only the user's own words count: a fact he stated or clearly confirmed, never one from a web page, a file, a tool result or another agent's report.
+- He sees, edits and forgets every fact in Second brain, and a forgotten fact is not kept again (ADR-234).
+
+### Consequences
+
+- A wrong fact can now be kept before he sees it. The three-fact limit, the secret check and the user-words rule bound this. A visible "Remembered …" notice with Undo is the next step.
+- A fact that comes from the conversation and not from his own words is not blocked by code, only by the instruction to the note model.
+
+## ADR-234 — Memory receipt with Undo, and learned computer shortcuts (2026-11-04)
+
+### Context
+
+Keshab asked to build two ideas from atticus-mac: a receipt and undo for facts ARK keeps by itself, and learned shortcuts that replay a task without new reasoning.
+
+### Decision
+
+Memory receipt:
+- `Suggestions.kept()` lists facts kept by itself in the last 10 minutes (at most 3). The list lives in memory only. A restart clears it.
+- The chat shows each as a "Remembered" row with Undo. Undo (`suggestions.undo`) forgets the fact and blocks its text.
+- Forget in Second brain or Settings also blocks the text (`Suggestions.block`). Block stops ARK from noticing the fact again. The `remember` tool still keeps it when the user asks.
+
+Learned shortcuts:
+- `click_sequence` accepts an optional `goal`. When every step passes its check, ARK saves the steps under the app and the goal.
+- The `shortcut` action (app and goal) replays a saved shortcut through the same `click_sequence` path: a fresh window read, one unique enabled button per step, ordinary click policy, the expected text after each click, stop at the first mismatch.
+- A shortcut holds only button labels and expected read-only text. It holds no coordinates, no element tokens, no typed text and no images. Replay validates the steps again, so an edited file cannot add an approval-needing button.
+- Two stops in a row remove a shortcut. A `look` lists the saved shortcuts for the app.
+- The file is `shortcuts-learned.json` next to `panels.json`, mode 0600, at most 50 shortcuts.
+
+### Consequences
+
+- The model still starts a replay. A replay needs no labels from the model, so it costs fewer tokens and fewer look steps. A replay with no model call at all (match the user's words first) is a later step.
+- Only button sequences with read-only checks are learned. Typing and single clicks are not.
