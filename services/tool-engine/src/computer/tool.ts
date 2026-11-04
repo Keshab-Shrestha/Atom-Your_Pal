@@ -1,6 +1,7 @@
 import type { Tool, ToolOutput } from "../engine.ts";
 import type { ToolImage } from "@ark/contracts";
 import type { CuaTransport } from "./cua-client.ts";
+import { MAX_GOAL_CHARS, type ShortcutStore } from "./learned-shortcuts.ts";
 import { appBlock, deleteDenial, deleteKeyDenial, isSearchField, keyApproval, labelApproval, secretField, typeApproval } from "./policy.ts";
 
 export interface ApprovalRequest {
@@ -43,6 +44,8 @@ export interface ComputerToolOptions {
   decisionProvider?: () => "off" | "jev" | "laya";
   choosePlan?: (state: { state: string; criteria: Record<string, string> }, signal?: AbortSignal) => Promise<{ index?: number; source: "jev" | "laya"; reason?: "uncertain" | "unavailable" } | undefined>;
   maxElements?: number;
+  /** Learned shortcuts: a click_sequence given a `goal` that finishes with every step checked is saved, and the `shortcut` action replays it through the same checks. Absent: off. */
+  shortcuts?: ShortcutStore;
 }
 
 /** Background acts without fronting the app, so the user keeps working. Foreground briefly fronts the window, acts, then gives focus back. */
@@ -93,7 +96,7 @@ function withoutMenuBar(elements: Element[]): Element[] {
   return kept;
 }
 
-const ACTIONS = ["status", "list_apps", "windows", "look", "open", "click", "click_sequence", "choose_sequence", "type", "key", "scroll", "set_value", "point"] as const;
+const ACTIONS = ["status", "list_apps", "windows", "look", "open", "click", "click_sequence", "choose_sequence", "shortcut", "type", "key", "scroll", "set_value", "point"] as const;
 
 /** Actions that change something in an app, so `look_after` makes sense for them. */
 const INPUT_ACTIONS = new Set(["click", "type", "key", "scroll", "set_value"]);
@@ -404,7 +407,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
     const appName = typeof input.app === "string" ? input.app : target?.app;
     try {
       // Reject malformed delivery modes before approvals or cursor/step side effects.
-      if (["click", "click_sequence", "choose_sequence", "type", "key", "scroll"].includes(action)) modeOf(input);
+      if (["click", "click_sequence", "choose_sequence", "shortcut", "type", "key", "scroll"].includes(action)) modeOf(input);
       if (action === "click_sequence") buttonSteps(input.steps);
       if (action === "choose_sequence") preparedPlans(input);
       onStep?.({ action, ...(appName ? { app: appName } : {}) });
@@ -486,8 +489,12 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
       }
       case "look":
         if (input.window_id !== undefined && (!Number.isSafeInteger(input.window_id) || Number(input.window_id) <= 0)) throw new Refused("window_id must identify a window returned by windows.");
-        return look(String(input.app ?? target?.app ?? ""), signal, input.window_id as number | undefined,
+      {
+        const seen = await look(String(input.app ?? target?.app ?? ""), signal, input.window_id as number | undefined,
           typeof input.query === "string" ? input.query.trim().slice(0, 120) : undefined);
+        const known = target && options.shortcuts ? options.shortcuts.forApp(target.app).slice(0, 8) : [];
+        return known.length ? `${seen}\nSaved shortcuts for ${target!.app} (use action "shortcut" with app and goal; each replays checked clicks): ${known.map((k) => JSON.stringify(k.goal)).join("; ")}.` : seen;
+      }
       case "choose_sequence": {
         const plans = preparedPlans(input);
         if (!options.choosePlan) throw new Refused("Fast computer decisions are unavailable. Use the ordinary model path.");
@@ -511,8 +518,31 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
         const result = await perform("click_sequence", { steps: plans[selected.index]!.steps, mode }, signal);
         return typeof result === "string" ? result : { ...result, text: `Prepared plan ${selected.index + 1} selected by ${selected.source}; this is not permission or success verification.\n${result.text}` };
       }
+      case "shortcut": {
+        if (!options.shortcuts) throw new Refused("Learned shortcuts are off. Use click_sequence.");
+        const app = String(input.app ?? target?.app ?? "");
+        const goal = typeof input.goal === "string" ? input.goal : "";
+        const found = app && goal ? options.shortcuts.find(app, goal) : undefined;
+        if (!found) throw new Refused(`No saved shortcut for ${JSON.stringify(goal)} in ${app || "that app"}. Do the task with click_sequence or single actions. Pass goal to a click_sequence to save it.`);
+        let steps: ButtonStep[];
+        try { steps = buttonSteps(found.steps); } catch { options.shortcuts.remove(found.id); throw new Refused("That saved shortcut is no longer allowed and was removed. Nothing was clicked."); }
+        const mode = modeOf(input);
+        let result: Awaited<ReturnType<typeof perform>>;
+        try {
+          await look(found.app, signal); // a fresh read of the app window; the sequence re-resolves every button from it
+          result = await perform("click_sequence", { steps, mode }, signal);
+        } catch (error) {
+          if (!signal?.aborted) options.shortcuts.record(found.id, false);
+          throw error;
+        }
+        const stopped = typeof result !== "string" && result.stopped === true;
+        const kept = options.shortcuts.record(found.id, !stopped);
+        const note = stopped ? `Saved shortcut ${JSON.stringify(found.goal)} stopped${kept ? "" : " twice in a row and is removed"}. Do not replay it; look and finish by hand.` : `Saved shortcut ${JSON.stringify(found.goal)} ran; every step passed its check.`;
+        return typeof result === "string" ? `${note}\n${result}` : { ...result, text: `${note}\n${result.text}` };
+      }
       case "click_sequence": {
         const steps = buttonSteps(input.steps);
+        const goal = typeof input.goal === "string" ? input.goal.replace(/\s+/g, " ").trim() : "";
         const pinned = need();
         const mode = modeOf(input); // pin the requested delivery mode for the complete sequence
         let completed = 0;
@@ -555,7 +585,9 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
           completed += 1;
           if (effect !== "confirmed") unconfirmed += 1;
         }
-        return { text: `Sequence completed: ${completed}/${steps.length} clicks passed exact labelled-value checks in the same window. ${unconfirmed} clicks were driver-unconfirmed; their expected value transitions were freshly observed, not driver-confirmed. Only the final complete window observation is attached.\n\n${seen}`, uncertain: false };
+        const learned = goal && goal.length <= MAX_GOAL_CHARS && options.shortcuts && completed === steps.length ? options.shortcuts.save(pinned.app, goal, steps) : undefined;
+        const savedNote = learned ? ` Saved as shortcut ${JSON.stringify(learned.goal)}: next time use action "shortcut" with app and that goal.` : "";
+        return { text: `Sequence completed: ${completed}/${steps.length} clicks passed exact labelled-value checks in the same window. ${unconfirmed} clicks were driver-unconfirmed; their expected value transitions were freshly observed, not driver-confirmed.${savedNote} Only the final complete window observation is attached.\n\n${seen}`, uncertain: false };
       }
       case "open": {
         const app = await findApp(String(input.app ?? ""), signal);
@@ -667,6 +699,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
         "Use `set_value` to set a slider, stepper or choice to a value in one step (text holds the value), instead of clicking toward it. " +
         "Add `look_after: true` to a click, type, key, scroll or set_value to get the new screen in the same reply. " +
         "For a known short button task prefer click_sequence with 1–8 steps {button, expect:{label,value}}: exact unique AXButton labels from the observed window, and an exact labelled AXStaticText value expected after EACH click. The host re-resolves each button from a fresh same-window snapshot, applies ordinary click policy, observes the complete window after every click, and stops at any mismatch, ambiguity, failure or cancellation. Approval-requiring buttons are excluded. For unconfirmed input the expected value must newly appear/change; unchanged values cannot verify it. Only the final observation reaches the model. Never invent labels, batch unknown UI transitions, or replay a stopped sequence. Use individual actions where these checks are unavailable. " +
+        "Pass `goal` (a short name for the task, e.g. \"add 2 and 3\") to a click_sequence and, when every step passes its check, ARK saves it as a shortcut. A `look` lists the saved shortcuts for the app; `shortcut` with app and goal replays one through the same checks (it needs no labels from you, and stops at the first mismatch). " +
         "Only when the latest look reports a fast decision provider enabled and a genuine choice between prepared button sequences is needed, use choose_sequence with goal and plans:[{description,steps:[{button,expect:{label,value}}]}] (2–4 plans, each 1–8 steps). The Settings-selected Jev/Laya decider chooses one or returns review; off/low confidence/failure sends no input. The main model still prepares the plans and reviews outcomes. Do not use this for a single deterministic path or retry uncertain decisions. It shares bounded goal, button/read-only labels and prepared plans only, never images or editable-field values. " +
         "Unconfirmed input includes a fresh observation of the same window when available; inspect it before taking another step. A changed screen alone does not prove the intended outcome. Never replay uncertain input automatically. " +
         "Use `point` with an element number (and a short label) to show the user where something is: ARK flies to it. " +
@@ -682,7 +715,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
           window_id: { type: "number", description: "For look: a window_id from windows, including windows on secondary displays" },
           query: { type: "string", description: "For look: optional text filter for long element trees; the image still shows the whole window" },
           element: { type: "number", description: "Element number from the last look" },
-          goal: { type: "string", description: "For choose_sequence: the current computer goal, 1–500 characters" },
+          goal: { type: "string", description: "For choose_sequence: the current computer goal, 1–500 characters. For click_sequence: a short name (up to 120 characters) to save a fully checked sequence as a shortcut. For shortcut: the saved shortcut's goal." },
           plans: { type: "array", description: "For choose_sequence: 2–4 objects {description: short plan purpose (1–300 characters), steps: 1–8 checked button steps}. No extra fields; each step has {button,expect:{label,value}}." },
           steps: { type: "array", description: 'For click_sequence: 1–8 objects {button: "exact AXButton label", expect: {label: "exact read-only AXStaticText label", value: "exact expected text"}}. All strings 1–120 characters; no extra fields. Checked by the host before any click.' },
           text: { type: "string", description: "Text to type, or the value for set_value" },

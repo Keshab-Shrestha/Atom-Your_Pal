@@ -24,6 +24,15 @@ export interface Suggestion {
   createdAt: Date;
 }
 
+/** A fact kept by itself, shown as a receipt for a short while. */
+export interface KeptFact {
+  /** The memory id. */
+  id: number;
+  text: string;
+}
+export const KEPT_MINUTES = 10;
+const MAX_KEPT = 3;
+
 export interface Suggestions {
   /** Whether new suggestions are made at all (default on). Existing ones stay until answered. */
   enabled(): boolean;
@@ -34,6 +43,12 @@ export interface Suggestions {
   remember(candidates: readonly string[], chatId: string): Memory[];
   /** The ones that wait, oldest first; expired ones are dropped first. */
   pending(): Suggestion[];
+  /** Facts `remember` kept in the last 10 minutes, newest last: the receipt the chat shows with Undo. Not stored; a restart clears it. */
+  kept(): KeptFact[];
+  /** Undoes a kept fact: forgets it and never suggests or keeps that text by itself again. False when it is not a recent receipt. */
+  undo(memoryId: number): boolean;
+  /** Never suggests or keeps this text by itself again (the user forgot it). */
+  block(text: string): void;
   /** Keeps the fact (`text` is the user's edit, if any) through the `remember` checks. Throws MemoryError with words. */
   accept(id: number, text?: string): Memory;
   /** Drops it for good and never suggests that text again. Returns false when it does not wait. */
@@ -55,7 +70,7 @@ export function parseCandidates(value: unknown): string[] {
 type Row = { id: number; text: string; chat_id: string; created_at: string };
 const toSuggestion = (r: Row): Suggestion => ({ id: r.id, text: r.text, chatId: r.chat_id, createdAt: new Date(r.created_at) });
 
-export function openSuggestions(db: DatabaseSync, store: Pick<MemoryStore, "add" | "recent" | "count">, now: () => Date): Suggestions {
+export function openSuggestions(db: DatabaseSync, store: Pick<MemoryStore, "add" | "recent" | "count" | "get" | "remove">, now: () => Date): Suggestions {
   db.exec(`
     CREATE TABLE IF NOT EXISTS fact_suggestions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -93,6 +108,11 @@ export function openSuggestions(db: DatabaseSync, store: Pick<MemoryStore, "add"
     const cutoff = new Date(now().getTime() - SUGGESTION_DAYS * 86_400_000).toISOString();
     return Number(expire.run(cutoff).changes) > 0;
   };
+  const receipts: { id: number; text: string; at: number }[] = [];
+  const liveReceipts = () => {
+    const cutoff = now().getTime() - KEPT_MINUTES * 60_000;
+    return receipts.filter((r) => r.at >= cutoff && store.get(r.id)).slice(-MAX_KEPT);
+  };
   const known = (hash: string) => store.recent(store.count()).some((m) => hashOf(m.text) === hash);
 
   return {
@@ -121,14 +141,34 @@ export function openSuggestions(db: DatabaseSync, store: Pick<MemoryStore, "add"
     remember(candidates, chatId) {
       const kept: Memory[] = [];
       for (const suggestion of this.suggest(candidates, chatId)) {
-        try { kept.push(this.accept(suggestion.id)); } catch { /* a refused fact waits as a suggestion Keshab can edit */ }
+        try {
+          const memory = this.accept(suggestion.id);
+          kept.push(memory);
+          receipts.push({ id: memory.id, text: memory.text, at: now().getTime() });
+        } catch { /* a refused fact waits as a suggestion Keshab can edit */ }
       }
+      if (kept.length) changed();
       return kept;
     },
 
     pending() {
       if (sweep()) changed();
       return (all.all() as unknown as Row[]).map(toSuggestion);
+    },
+
+    kept: () => liveReceipts().map((r) => ({ id: r.id, text: r.text })),
+
+    undo(memoryId) {
+      const receipt = liveReceipts().find((r) => r.id === memoryId);
+      if (!receipt || !store.remove(memoryId)) return false;
+      deny.run(hashOf(receipt.text));
+      receipts.splice(receipts.indexOf(receipt), 1);
+      changed();
+      return true;
+    },
+
+    block(text) {
+      deny.run(hashOf(text));
     },
 
     accept(id, edited) {

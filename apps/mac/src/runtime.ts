@@ -21,6 +21,7 @@ import {
   capabilityItems,
   createCalendarTools,
   createComputerTool,
+  createShortcutStore,
   createCuaTransport,
   createLookAtScreenTool,
   createTimers,
@@ -229,6 +230,8 @@ export function createRuntime(
   const generatedImages = memoryFile === ":memory:" ? undefined : join(dirname(resolve(memoryFile)), "images");
   // 2026-11-02: panels (panels.ts), kept next to the memory file; the window and the create_panel tool share this store.
   const panelStore = generatedImages ? createPanelStore(join(dirname(generatedImages), "panels.json")) : undefined;
+  // 2026-11-04: learned computer shortcuts (services/tool-engine computer/learned-shortcuts.ts), kept next to the panels. Button labels and expected text only.
+  const learnedShortcuts = createShortcutStore(generatedImages ? { path: join(dirname(generatedImages), "shortcuts-learned.json") } : {});
   const panelListeners = new Set<() => void>();
   let foregroundReady = Boolean(memory);
   try { memory?.foreground.recover(); }
@@ -281,7 +284,12 @@ export function createRuntime(
   const islandMemory: IslandMemory | undefined = memory && {
     list: () => memory.recent(DEFAULT_MAX_MEMORIES).map((m) => ({ id: m.id, text: m.text, createdAt: m.createdAt.toISOString(), source: m.source })),
     count: () => memory.count(),
-    forget: (id) => memory.remove(id),
+    forget: (id) => {
+      const fact = memory.get(id);
+      const gone = memory.remove(id);
+      if (gone && fact) memory.suggestions.block(fact.text); // forgotten means not noticed again
+      return gone;
+    },
     clear: () => memory.clear(),
     episodes: () => memory.episodes(DEFAULT_MAX_EPISODES).map((e) => ({ id: e.id, summary: e.summary, endedAt: e.endedAt.toISOString(), exchanges: e.exchanges })),
     forgetEpisode: (id) => memory.removeEpisode(id),
@@ -568,6 +576,7 @@ export function createRuntime(
       ? [
           createComputerTool({
             cua,
+            shortcuts: learnedShortcuts,
             approve: (request, signal) => {
               log.info("computer.approval_asked");
               return computer.approve(request, signal);
@@ -1381,6 +1390,12 @@ export function createRuntime(
               for (const listener of memoryListeners) listener(); // Memory page and the Second brain follow
             },
             deny: (id: number) => memory.suggestions.deny(id),
+            kept: () => memory.suggestions.kept(),
+            undo: (id: number) => {
+              const done = memory.suggestions.undo(id);
+              if (done) { log.info("memory.change", { action: "forget", id, count: memory.count(), by: "undo" }); for (const listener of memoryListeners) listener(); }
+              return done;
+            },
             onChange: (listener: () => void) => memory.suggestions.onChange(listener),
           },
         }

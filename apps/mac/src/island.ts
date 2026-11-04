@@ -798,6 +798,10 @@ export function runIsland(options: IslandOptions): IslandSession {
         if (options.suggestions?.deny(command.id)) options.log?.info("suggestion.denied", { id: command.id });
         sendSuggestions();
         return;
+      case "suggestions.undo":
+        if (options.suggestions?.undo(command.id)) options.log?.info("suggestion.undone", { id: command.id });
+        sendSuggestions();
+        return;
       case "suggestions.set":
         options.suggestions?.setEnabled(command.enabled);
         options.log?.info("suggestion.switch", { enabled: command.enabled });
@@ -1212,7 +1216,7 @@ export function runIsland(options: IslandOptions): IslandSession {
   });
   function sendSuggestions() {
     const s = options.suggestions;
-    send({ type: "suggestions", enabled: s?.enabled() ?? false, items: s?.list() ?? [] });
+    send({ type: "suggestions", enabled: s?.enabled() ?? false, items: s?.list() ?? [], kept: s?.kept() ?? [] });
   }
   const stopSuggestionUpdates = options.suggestions?.onChange(() => {
     if (suggestionsWatched) sendSuggestions();

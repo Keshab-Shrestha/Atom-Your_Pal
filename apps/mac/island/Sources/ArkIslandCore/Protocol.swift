@@ -272,7 +272,7 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
     case "workflows":
         return .workflows(WorkflowList(workflows: Workflow.list(from: f.values["workflows"]), problem: f.values["problem"] as? String))
     case "suggestions":
-        return .suggestions(SuggestionsList(enabled: f.optionalBool("enabled") ?? false, items: Fields.suggestions(f.values["items"])))
+        return .suggestions(SuggestionsList(enabled: f.optionalBool("enabled") ?? false, items: Fields.suggestions(f.values["items"]), kept: Fields.suggestions(f.values["kept"])))
     case "brief":
         return .brief(Fields.briefList(f.values))
     case "text.edit.result":

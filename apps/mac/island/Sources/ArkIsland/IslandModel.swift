@@ -758,6 +758,7 @@ final class IslandModel {
     func loadSuggestions() { if let command = suggestions.open() { send(command) } }
     func acceptSuggestion(_ id: Int) { suggestionCommand(suggestions.accept(id)) }
     func denySuggestion(_ id: Int) { suggestionCommand(suggestions.deny(id)) }
+    func undoRemembered(_ id: Int) { suggestionCommand(suggestions.undo(id)) }
     func acceptSuggestionEdit() { suggestionCommand(suggestions.acceptEdit()) }
     func setSuggestionsEnabled(_ on: Bool) { send(suggestions.setEnabled(on)) }
     private func suggestionCommand(_ command: IslandCommand?) {
