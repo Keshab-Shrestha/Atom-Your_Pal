@@ -10,6 +10,7 @@ import { readTaskBranchBase } from "./task-branch-base.ts";
 import { join } from "node:path";
 import { lstatSync } from "node:fs";
 import { worktreeIntact } from "./worktree.ts";
+import { sensitiveFiles, sensitiveRefusal } from "./sensitive-paths.ts";
 import { workingCopyDirty, workingCopyDiff } from "./git-review.ts";
 
 const run = promisify(execFile);
@@ -178,6 +179,10 @@ export async function pushBranch(repo: string, branch: string): Promise<void> {
   await git(repo, "remote", "get-url", "origin").catch(() => {
     throw new Error("This repository has no remote named origin to push to.");
   });
+  // ADR-240: a branch that changes what ARK may do, how it updates or what it depends on is read and pushed by the user, not from here.
+  const changed = (await arkBranches(repo)).find((b) => b.branch === branch);
+  const risky = sensitiveFiles((changed?.files ?? []).map((f) => f.path));
+  if (risky.length) throw new Error(sensitiveRefusal(risky));
   try {
     await run("git", ["-C", repo, "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "push", "--no-verify", "origin", `refs/heads/${branch}:refs/heads/${branch}`], {
       timeout: PUSH_TIMEOUT_MS,

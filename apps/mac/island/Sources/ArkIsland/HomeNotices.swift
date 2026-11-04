@@ -25,6 +25,7 @@ private struct NoticeRow: View {
     let model: IslandModel
     let note: ImprovementNote
     @Environment(\.theme) private var theme
+    @Environment(\.islandSnapshot) private var snapshot
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
@@ -38,6 +39,10 @@ private struct NoticeRow: View {
             if !note.change.isEmpty { Text("Suggested: \(note.change)").appFont(.system(size: 12)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true) }
             HStack(spacing: 8) {
                 QuietButton(title: "Talk it through", symbol: "bubble.left") { model.talkThrough(note) }
+                if snapshot || model.canFixItself { // snapshots do not depend on where the app sits
+                    QuietButton(title: "Fix it", symbol: "wrench.and.screwdriver") { model.fixThis(note) }
+                        .help("Opens a chat in ARK's own source. A coding agent works on its own branch; you review and push it.")
+                }
                 QuietButton(title: "Dismiss", symbol: "xmark") { model.dismissImprovement(note.id) }.help("Hide this for 30 days")
                 Spacer()
             }

@@ -35,4 +35,10 @@ struct ImprovementsTests {
         #expect(IslandCommand.improvementsSet(enabled: false).line.contains(#""enabled":false"#))
         #expect(IslandCommand.improvementDismiss(id: "crash:137").line.contains(#""id":"crash:137""#))
     }
+
+    @Test("the fix prompt carries the note, works on its own branch, runs the tests and names what is off limits")
+    func fixPrompt() {
+        let text = FixPrompt.text(for: ImprovementNote(id: "a", title: "Tool fails", evidence: "4 of 12 calls failed.", severity: 2, why: "Users wait.", change: "Retry once."))
+        for part in ["Tool fails", "4 of 12 calls failed.", "Users wait.", "Retry once.", "its own branch", "pnpm typecheck", "Do not push or merge", "security, permission, approval"] { #expect(text.contains(part)) }
+    }
 }
