@@ -35,6 +35,7 @@ export type IslandCommand =
   | { type: "improvements.run" }
   | { type: "improvements.set"; enabled: boolean }
   | { type: "improvement.dismiss"; id: string }
+  | { type: "improvement.fixing"; id: string }
   | { type: "apps.list" }
   | { type: "app.open"; id: string }
   | { type: "app.remove"; id: string }
@@ -216,6 +217,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "improvements.run",
   "improvements.set",
   "improvement.dismiss",
+  "improvement.fixing",
   "apps.list",
   "app.open",
   "app.remove",
@@ -441,7 +443,7 @@ export function parseCommand(line: string): ParsedLine {
     const v = value as Record<string, unknown>;
     return Object.keys(v).length === 2 && typeof v.enabled === "boolean" ? { command: { type, enabled: v.enabled } } : { error: 'improvements.set needs "enabled" to be true or false.' };
   }
-  if (type === "improvement.dismiss") {
+  if (type === "improvement.dismiss" || type === "improvement.fixing") {
     const v = value as Record<string, unknown>;
     if (Object.keys(v).length !== 2 || typeof v.id !== "string" || !/^[a-z0-9:-]{1,100}$/.test(v.id)) return { error: "Invalid note id." };
     return { command: { type, id: v.id } };

@@ -24,6 +24,8 @@ public enum IslandCommand: Sendable, Equatable {
     case improvementsRun
     case improvementsSet(enabled: Bool)
     case improvementDismiss(id: String)
+    /// The user pressed Fix it: the runtime judges this note by the log after now.
+    case improvementFixing(id: String)
     case appOpen(id: String)
     case appRemove(id: String)
     case appCall(app: String, call: AppCall)
@@ -241,6 +243,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .improvementsRun: "improvements.run"
         case .improvementsSet: "improvements.set"
         case .improvementDismiss: "improvement.dismiss"
+        case .improvementFixing: "improvement.fixing"
         case .appOpen: "app.open"
         case .appRemove: "app.remove"
         case .appCall: "app.call"
@@ -542,7 +545,7 @@ public enum IslandCommand: Sendable, Equatable {
             fields["panel"] = panel.jsonObject
         case .improvementsSet(let enabled):
             fields["enabled"] = enabled // a real JSON boolean
-        case .panelDelete(let id), .watchRemove(let id), .appOpen(let id), .appRemove(let id), .improvementDismiss(let id):
+        case .panelDelete(let id), .watchRemove(let id), .appOpen(let id), .appRemove(let id), .improvementDismiss(let id), .improvementFixing(let id):
             fields["id"] = id
         case .appCall(let app, let call):
             fields["app"] = app

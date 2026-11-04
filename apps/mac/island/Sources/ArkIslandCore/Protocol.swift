@@ -289,7 +289,7 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
             let fractional = ISO8601DateFormatter(); fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
             return fractional.date(from: s) ?? ISO8601DateFormatter().date(from: s)
         }
-        return .improvements(ImprovementsState(enabled: f.optionalBool("enabled") ?? true, running: f.optionalBool("running") ?? false, lastRunAt: ran, notes: ImprovementNote.list(from: f.values["notes"])))
+        return .improvements(ImprovementsState(enabled: f.optionalBool("enabled") ?? true, running: f.optionalBool("running") ?? false, lastRunAt: ran, notes: ImprovementNote.list(from: f.values["notes"]), resolved: ResolvedNote.list(from: f.values["resolved"])))
     case "apps":
         return .apps(AppItem.list(from: f.values["apps"]))
     case "appOpened":

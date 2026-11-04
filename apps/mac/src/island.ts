@@ -402,6 +402,10 @@ export function runIsland(options: IslandOptions): IslandSession {
         options.improvements?.setEnabled(command.enabled);
         sendImprovements();
         return;
+      case "improvement.fixing":
+        options.improvements?.markFixing(command.id);
+        sendImprovements();
+        return;
       case "improvement.dismiss":
         options.improvements?.dismiss(command.id);
         sendImprovements();
@@ -1264,7 +1268,7 @@ export function runIsland(options: IslandOptions): IslandSession {
   const stopWatchUpdates = options.watches?.onChange(() => sendWatches());
   function sendImprovements() {
     const s = options.improvements?.state();
-    send({ type: "improvements", enabled: s?.enabled ?? false, running: s?.running ?? false, ...(s?.lastRunAt ? { lastRunAt: s.lastRunAt } : {}), notes: (s?.notes ?? []).map((n) => ({ id: n.id, title: n.title, evidence: n.evidence, severity: n.severity, why: n.why, change: n.change })) });
+    send({ type: "improvements", enabled: s?.enabled ?? false, running: s?.running ?? false, ...(s?.lastRunAt ? { lastRunAt: s.lastRunAt } : {}), notes: (s?.notes ?? []).map((n) => ({ id: n.id, title: n.title, evidence: n.evidence, severity: n.severity, why: n.why, change: n.change, fixing: Boolean(n.fixStartedAt), cameBack: n.cameBack === true })), resolved: (s?.resolved ?? []).map((r) => ({ id: r.id, title: r.title, how: r.how, resolvedAt: r.resolvedAt })) });
   }
   const stopImprovementUpdates = options.improvements?.onChange(() => sendImprovements());
   function sendApps() {
