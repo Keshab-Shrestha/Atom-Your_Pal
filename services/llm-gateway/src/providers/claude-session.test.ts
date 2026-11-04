@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ToolRunner } from "@ark/contracts";
-import { modelTotalsOf, openChatSession, prefixHash, type ChatSessionOptions, type SessionSdk } from "./claude-session.ts";
+import { modelTotalsOf, openChatSession, prefixHash, PREFIX_BUDGET_BYTES, TURN_COST_BUDGET_USD, type ChatSessionOptions, type SessionSdk } from "./claude-session.ts";
 import { ProviderError } from "../gateway.ts";
 
 import { sdkVersion } from "./plan-support.ts";
@@ -357,4 +357,27 @@ test("a session that closes mid-turn after a tool ran is not 'unavailable' (so i
   await new Promise((r) => setTimeout(r, 20));
   s.close();
   assert.equal(await sending, "unknown");
+});
+
+// 2026-11-04 (atticus-mac idea): the fixed prefix and the cost of a turn have budgets; going over is logged, never refused.
+test("a session whose prompt or tools are over the prefix budget logs it; one within budget does not", async () => {
+  const events: string[] = [];
+  const log = (event: string) => void events.push(event);
+  const small = await openChatSession(options(fakeSdk().sdk, { log }));
+  small.close();
+  assert.deepEqual(events.filter((e) => e === "session.over_budget"), []);
+  const big = await openChatSession(options(fakeSdk().sdk, { log, systemPrompt: "x".repeat(PREFIX_BUDGET_BYTES.system + 1) }));
+  big.close();
+  assert.deepEqual(events.filter((e) => e === "session.over_budget"), ["session.over_budget"]);
+});
+
+test("a turn that costs more than the turn budget is logged with the number", async () => {
+  const events: Array<[string, Record<string, unknown>]> = [];
+  const { sdk } = fakeSdk((t) => [done(t, { usage: usage(2, 0, 100), total_cost_usd: t === "cheap" ? 0.01 : 0.01 + TURN_COST_BUDGET_USD + 0.5 })]);
+  const s = await openChatSession(options(sdk, { log: (event, fields) => void events.push([event, fields]) }));
+  await s.send("cheap");
+  assert.equal(events.some(([e]) => e === "turn.over_budget"), false);
+  await s.send("dear");
+  assert.deepEqual(events.find(([e]) => e === "turn.over_budget")?.[1], { chatId: "c1", costUsd: 1.5, budgetUsd: TURN_COST_BUDGET_USD });
+  s.close();
 });

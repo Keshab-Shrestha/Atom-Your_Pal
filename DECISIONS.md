@@ -4289,3 +4289,34 @@ Learned shortcuts:
 
 - The model still starts a replay. A replay needs no labels from the model, so it costs fewer tokens and fewer look steps. A replay with no model call at all (match the user's words first) is a later step.
 - Only button sequences with read-only checks are learned. Typing and single clicks are not.
+
+## ADR-235 — Budget log, Watch for me, session pre-warm (2026-11-04)
+
+### Context
+
+Keshab asked to build three more ideas from atticus-mac: a cost and latency gate, a free page watch, and a session pre-warm.
+
+### Decision
+
+Budget:
+- `PREFIX_BUDGET_BYTES` (system prompt 5,000 bytes, ARK tool definitions 40,000 bytes) and `TURN_COST_BUDGET_USD` (1.00) live in `claude-session.ts`.
+- A session that opens over a prefix budget logs `session.over_budget`. A turn that costs more than the turn budget logs `turn.over_budget`. Neither refuses anything.
+- A test fails when a shipped system prompt grows past the budget. Shorten the prompt before you raise the budget.
+
+Watch for me:
+- The `watch` tool (create, list, remove) saves a watch: a public https page, a mode (`change`, `contains`, `missing`), a phrase and 5 to 1440 minutes. The user approves each new watch on the approval card.
+- `createWatchRunner` reads each due page on the 30 s clock with `readPublicPage`. That reader allows only public https on port 443 and blocks private addresses. No model runs and no tokens are spent.
+- A watch fires once, then stops. Five failed reads in a row stop it. The notice names the host and the user's own phrase. Page text goes to no model and no log. A `change` watch keeps only a hash.
+- `watch` joins `TAINT_REFUSED_TOOLS`: a page cannot ask for a watch.
+- The Scheduled page lists the watches with Remove. The island posts a macOS notice when a watch fires or stops. The file is `watches.json` next to `panels.json`, mode 0600, at most 10 watching.
+
+Pre-warm:
+- The island sends `chat.warm` when the composer gets focus and when the mic opens, at most once in 45 seconds.
+- `NativeCore.warm()` opens the open chat's Claude session with the same prompt, tools and settings a turn would use (`sessionShape`). It sends nothing to the model. A session nobody uses closes at the idle time.
+- The first turn treats a warm session as new: it adds the opening context once and continues the saved session when there is one. A changed setting closes the warm session at that turn.
+
+### Consequences
+
+- A `change` watch on a page that rewrites itself looks changed. The tool description tells the model to use a phrase.
+- A watch cannot read a page that needs a login or JavaScript.
+- A warm session that nobody uses costs one idle process, not tokens.

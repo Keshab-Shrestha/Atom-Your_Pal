@@ -57,6 +57,11 @@ struct ScheduledPane: View {
                         }
                     }
                 }
+                if !model.watches.isEmpty {
+                    Text("Watching").appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text2.color).padding(.top, 8)
+                        .accessibilityAddTraits(.isHeader)
+                    ForEach(model.watches) { watch in WatchCard(model: model, watch: watch) }
+                }
             }
             // A readable measure, as on the Settings pages.
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -64,6 +69,7 @@ struct ScheduledPane: View {
             .padding(.top, 28)
             .padding(.bottom, Spacing.panel)
         }
+        .onAppear { model.send(.watchesGet) }
     }
 }
 
@@ -264,3 +270,38 @@ private struct ScheduleFormCard: View {
     }
 }
 
+/// A page ARK watches for the user (2026-11-04): where, until what, how often, and Stop. ARK reads it with no model.
+private struct WatchCard: View {
+    let model: IslandModel
+    let watch: WatchItem
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+        let color = watch.isWatching ? theme.success.color : watch.state == "fired" ? theme.accent.color : theme.attention.color
+        HStack(alignment: .center, spacing: 16) {
+            Glyph(systemName: "eye").appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text2.color)
+                .frame(width: 36, height: 36)
+                .background(theme.fill3.color, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            VStack(alignment: .leading, spacing: 4) {
+                Text(watch.host).appFont(.system(size: 13.5, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(1)
+                Text(watch.isWatching ? "\(watch.condition), \(watch.interval)" : (watch.message ?? watch.state.capitalized))
+                    .appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(2)
+                Text("ARK reads this page itself, with no model.").appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
+            }
+            Spacer(minLength: 8)
+            HStack(spacing: 4) {
+                StatusDot(color: color, size: 6)
+                Text(watch.isWatching ? "Watching" : watch.state == "fired" ? "Found" : "Stopped").appFont(.system(size: 11, weight: .medium)).foregroundStyle(color)
+            }
+            .padding(.horizontal, 8).frame(height: 22)
+            .background(Capsule().fill(color.opacity(0.1)))
+            IconButton(symbol: "trash", label: "Remove the watch on \(watch.host)", diameter: ControlMetrics.buttonHeight) { model.send(.watchRemove(id: watch.id)) }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.fill1.a > 0 ? theme.fill1.color : theme.fill2.color.opacity(0.5), in: shape)
+        .overlay(shape.strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
+        .accessibilityElement(children: .contain)
+    }
+}

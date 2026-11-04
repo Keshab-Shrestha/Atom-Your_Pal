@@ -99,6 +99,9 @@ import { createBrainWiring, type BrainWiring } from "./brain-wiring.ts";
 import { createImproveSkillTool, createProposeSkillTool, createSearchChatsTool } from "./reach-tools.ts";
 import { nativeSteering, nativeRetryStarter, retrySourceChat, routeWake, routineStarter, taskStarter } from "./native-entry.ts";
 import { createPanelStore, createPanelTool } from "./panels.ts";
+import { createWatchRunner, createWatchStore, createWatchTool } from "./watches.ts";
+import { readPublicPage } from "./public-page.ts";
+import { webFetchProblem } from "./web-guard.ts";
 import { createWorkflowStore, dueWorkflows, eventWorkflows, workflowPrompt, type Workflow, type WorkflowEvent } from "./workflows.ts";
 import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
 import { testMcpServer } from "./mcp-servers.ts";
@@ -126,6 +129,8 @@ export interface Runtime {
   workflows?: import("./island-types.ts").IslandWorkflows;
   /** 2026-11-02: panels (panels.ts). */
   panels?: import("./island-types.ts").IslandPanels;
+  /** 2026-11-04: pages ARK watches (watches.ts). */
+  watches?: import("./island-types.ts").IslandWatches;
   islandLocalBackup?: IslandOptions["localBackup"];
   islandSourceAnalysis?: IslandOptions["sourceAnalysis"];
   config: Config;
@@ -233,6 +238,22 @@ export function createRuntime(
   // 2026-11-04: learned computer shortcuts (services/tool-engine computer/learned-shortcuts.ts), kept next to the panels. Button labels and expected text only.
   const learnedShortcuts = createShortcutStore(generatedImages ? { path: join(dirname(generatedImages), "shortcuts-learned.json") } : {});
   const panelListeners = new Set<() => void>();
+  // 2026-11-04: watch for me (watches.ts), kept next to the panels. The runner reads due pages with plain code on the 30 s clock: no model, no tokens.
+  const watchStore = generatedImages ? createWatchStore(join(dirname(generatedImages), "watches.json")) : undefined;
+  const watchChanged = new Set<() => void>();
+  const watchFired = new Set<(event: { id: string; kind: "fired" | "stopped"; message: string }) => void>();
+  const watchRunner = watchStore && createWatchRunner({
+    store: watchStore,
+    read: async (url, signal) => (await readPublicPage(url, { ...(signal ? { signal } : {}), allowed: () => true, check: async (u) => webFetchProblem(u), seen: () => {} })).text,
+    notify: (event) => { log.info("watch.notify", { id: event.id, kind: event.kind }); watchFired.forEach((listener) => listener(event)); },
+    changed: () => watchChanged.forEach((listener) => listener()),
+    log: (event, fields) => log.info(event, fields as never),
+  });
+  if (watchRunner) {
+    const tickWatches = () => { watchRunner.tick().catch((error) => log.warn("watch.tick", { ...errorFields(error) })); };
+    setTimeout(tickWatches, 10_000).unref();
+    setInterval(tickWatches, SCHEDULER_TICK_MS).unref();
+  }
   let foregroundReady = Boolean(memory);
   try { memory?.foreground.recover(); }
   catch { foregroundReady = false; log.error("foreground.unavailable", {}); }
@@ -657,6 +678,16 @@ export function createRuntime(
               approve: (request, signal) => computer.approve(request, signal),
               restartWhenIdle: () => nativeCores.forEach((c) => c.restartWhenIdle()),
               onCreated: (e) => log.info("agent.created", e),
+            }),
+          ]
+        : []),
+      ...(watchStore
+        ? [
+            createWatchTool({
+              store: watchStore,
+              approve: (request, signal) => computer.approve(request, signal),
+              changed: () => watchChanged.forEach((listener) => listener()),
+              onCreated: (e) => log.info("watch.created", e),
             }),
           ]
         : []),
@@ -1285,8 +1316,15 @@ export function createRuntime(
     remove: (id) => { const list = panelStore.remove(id); panelListeners.forEach((listener) => listener()); return list; },
     onChange: (listener) => { panelListeners.add(listener); return () => panelListeners.delete(listener); },
   };
+  const watches: import("./island-types.ts").IslandWatches | undefined = watchStore && {
+    list: () => watchStore.list(),
+    remove: (id) => { watchStore.remove(id); watchChanged.forEach((listener) => listener()); },
+    onChange: (listener) => { watchChanged.add(listener); return () => watchChanged.delete(listener); },
+    onFire: (listener) => { watchFired.add(listener); return () => watchFired.delete(listener); },
+  };
   return {
     ...(panels ? { panels } : {}),
+    ...(watches ? { watches } : {}),
     ...(workflows ? { workflows } : {}),
     config,
     log,

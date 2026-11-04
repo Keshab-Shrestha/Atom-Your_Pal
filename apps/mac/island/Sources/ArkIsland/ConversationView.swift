@@ -146,7 +146,10 @@ struct Composer: View {
         }
         .onChange(of: model.chats?.current) { _, _ in recall.wrappedValue = MessageRecall(sent: []) }
         .task(id: projectMentionKey) { await searchProjectMentions() }
-        .onChange(of: focused) { _, now in paste.wrappedValue.focused = now }
+        .onChange(of: focused) { _, now in
+            paste.wrappedValue.focused = now
+            if now { model.warmChat() } // pre-warm the chat's session while the user starts to type
+        }
         // The "/" and "@" menus rise in and settle rather than pop.
         .animation(Motion.arrive(reduceMotion), value: openRows == 0)
         .onChange(of: model.composerFocusTick) { _, _ in

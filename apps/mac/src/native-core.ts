@@ -173,6 +173,13 @@ export interface NativeCore extends Core {
   stopJob(job: number): Promise<boolean>;
   /** Keshab's note to a native job: a message to the main agent of its chat. False when that cannot happen now. */
   steer(job: number, text: string): boolean;
+  /**
+   * 2026-11-04 (idea from atticus-mac "pre-warm"): opens the open chat's Claude session before the first message, so the process
+   * start is not part of the first reply. Sends nothing to the model and costs no tokens; an unused session closes by itself at the
+   * idle time. Does nothing while a turn runs, when a session is live, or when the chat's model is not a Claude one.
+   * Returns true when it opened a session.
+   */
+  warm(): Promise<boolean>;
 }
 
 /** Selection provenance stays host-side; the context compiler only renders text. */
@@ -268,6 +275,8 @@ interface Live {
   /** Exchanges another provider answered while this session stayed open (a background agent held it): sent with the next turn. */
   missed?: Message[];
   unconfirmed?: boolean;
+  /** Opened by `warm` and not used by a turn yet; `resume` is the session id it continued. */
+  warmed?: { resume: string | undefined };
 }
 
 /** True when Claude Code could read the text as a file mention or a slash command. */
@@ -523,6 +532,21 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
     return member ? `The user spoke to ${member.name} directly: delegate this request to ${member.name} as it is, with the Agent tool (subagent_type "${member.id}").` : undefined;
   }
 
+  /** What fixes a chat's Claude session: the system prompt, the tools, the folder, the thinking and the access. `answer` and `warm` must agree on it. */
+  async function sessionShape(chat: string, reasoning: string | undefined, access: ChatAccessMode) {
+    const chatOnly = access === "chat-only";
+    const project = chatOnly ? undefined : await quiet(() => deps.project?.(chat));
+    // Attached files give read access to their own folder only: no sandbox, no worktrees, no Bash (those are for a project).
+    const attached = project || chatOnly ? undefined : await quiet(() => deps.attachments?.turn(chat));
+    const files = project?.files ?? attached?.files;
+    const base = chatOnly ? CHAT_ONLY_SYSTEM_PROMPT : deps.team ? NATIVE_TEAM_PROMPT : NATIVE_SYSTEM_PROMPT;
+    const prompt = project ? `${base}\n\n${project.note}` : attached ? `${base}\n\n${attached.note}` : base;
+    const web = !chatOnly && Boolean(deps.web) && (!files || files.web === true); // as the plan adapter: ADR-069, ADR-107
+    const tools = [...(files ? READ_TOOLS : []), ...(web ? WEB_TOOLS : []), ...(!chatOnly && deps.team ? ["Agent"] : [])];
+    const key = JSON.stringify([prompt, tools, files?.cwd, reasoning, access]);
+    return { project, files, prompt, web, tools, key, readOnly: !project && Boolean(attached) };
+  }
+
   async function answer(chat: string, text: string, model: string, context: RequestContext, input: ArkInput, signal: AbortSignal, hooks?: HandleHooks, reasoning?: string, access: ChatAccessMode = "checked"): Promise<string> {
     const chatOnly = access === "chat-only";
     const skill = chatOnly ? undefined : deps.skills?.use(text);
@@ -533,17 +557,8 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
       ...requiredPart("user.skill", skill?.block), ...requiredPart("user.chat-brief", briefContext(chat)),
       ...requiredPart("policy.permissions", chatOnly ? CHAT_ONLY_NOTICE : permissionContext(chat)),
       ...requiredPart("policy.access", access === "ask-changes" ? ASK_CHANGES_NOTICE : access === "full" ? FULL_ACCESS_NOTICE : undefined)];
-    const project = chatOnly ? undefined : await quiet(() => deps.project?.(chat));
-    // Attached files give read access to their own folder only: no sandbox, no worktrees, no Bash (those are for a project).
-    const attached = project || chatOnly ? undefined : await quiet(() => deps.attachments?.turn(chat));
-    const files = project?.files ?? attached?.files;
-    const base = chatOnly ? CHAT_ONLY_SYSTEM_PROMPT : deps.team ? NATIVE_TEAM_PROMPT : NATIVE_SYSTEM_PROMPT;
-    const prompt = project ? `${base}\n\n${project.note}` : attached ? `${base}\n\n${attached.note}` : base;
-    const web = !chatOnly && Boolean(deps.web) && (!files || files.web === true); // as the plan adapter: ADR-069, ADR-107
+    const { project, files, prompt, web, tools, key, readOnly } = await sessionShape(chat, reasoning, access);
     extra.push(...workflowParts(text, context, Boolean(project?.files), web, chatOnly || Boolean(skill)));
-    const tools = [...(files ? READ_TOOLS : []), ...(web ? WEB_TOOLS : []), ...(!chatOnly && deps.team ? ["Agent"] : [])];
-    const key = JSON.stringify([prompt, tools, files?.cwd, reasoning, access]);
-    const readOnly = !project && Boolean(attached);
     let streamed = false;
     const onText = hooks?.onText ? (d: string) => ((streamed = true), hooks.onText!(d)) : undefined;
     let lastAttempt: Live | undefined;
@@ -559,8 +574,10 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
         entry.handle.close(fresh ? "resume_failed" : restart ? "agents_changed" : switched ? "model_changed" : "prefix_changed");
         entry = undefined;
       }
-      const opened = !entry;
-      const resume = opened && !fresh ? savedSession(chat) : undefined;
+      const warmed = entry?.warmed; // opened by `warm`: this turn is its first, so it counts as a new session
+      if (entry) entry.warmed = undefined;
+      const opened = !entry || Boolean(warmed);
+      const resume = warmed ? warmed.resume : opened && !fresh ? savedSession(chat) : undefined;
       if (!entry) entry = await open(chat, model, prompt, tools, files, key, resume, readOnly, reasoning, access, signal);
       else if (entry.handle.model !== model) await entry.handle.setModel(model); // ADR-097: background tasks still run, so switch live
       entry.signal = signal;
@@ -770,6 +787,24 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
         signal?.removeEventListener("abort", stop);
         busy = false;
       }
+    },
+
+    async warm() {
+      if (busy) return false;
+      const chat = sessionId;
+      const existing = live.get(chat);
+      if (existing && !existing.handle.closed) return false;
+      const model = deps.modelFor(chat, "text");
+      if (!model || deps.toolModel?.(chat, "text")) return false; // another provider answers this chat
+      const access = deps.accessFor?.(chat) ?? "checked";
+      const reasoning = deps.reasoningFor?.(chat, "text");
+      const shape = await sessionShape(chat, reasoning, access);
+      if (busy || live.has(chat)) return false; // a turn started while the shape was read
+      const resume = savedSession(chat);
+      const entry = await open(chat, model, shape.prompt, shape.tools, shape.files, shape.key, resume, shape.readOnly, reasoning, access, new AbortController().signal);
+      entry.warmed = { resume };
+      deps.log?.("session.warm", { chatId: chat, resume: Boolean(resume) });
+      return true;
     },
 
     history() {

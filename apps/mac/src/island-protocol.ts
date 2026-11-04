@@ -81,6 +81,10 @@ export type IslandEvent =
   | { type: "workflows"; workflows: import("./workflows.ts").Workflow[]; problem?: string }
   /** 2026-11-02: the panels, after `panels.list` and each change; `problem` is why a save or delete was refused. */
   | { type: "panels"; panels: import("./panels.ts").Panel[]; problem?: string }
+  /** 2026-11-04: the pages ARK watches (never page text), after `watches.get` and each change. */
+  | { type: "watches"; watches: { id: string; url: string; mode: string; text?: string; everyMinutes: number; state: string; message?: string; lastCheckAt?: string }[] }
+  /** 2026-11-04: a watch fired or stopped: the island shows a macOS notice. */
+  | { type: "watchFired"; id: string; kind: "fired" | "stopped"; message: string }
   /** Daily brief: the settings, the newest briefs (newest first, at most 14) and whether one is being made. Sent after `brief.get` and after each change. */
   /** Ask ARK: the answer to `text.edit`. `answer` replaces the selection (or the whole text); `changed` is false when it is the same. Or `error`, in words for the user. Never logged. */
   | { type: "text.edit.result"; id: string; answer?: string; changed?: boolean; error?: string }
