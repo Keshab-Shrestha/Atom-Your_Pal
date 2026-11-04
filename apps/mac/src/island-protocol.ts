@@ -81,6 +81,12 @@ export type IslandEvent =
   | { type: "workflows"; workflows: import("./workflows.ts").Workflow[]; problem?: string }
   /** 2026-11-02: the panels, after `panels.list` and each change; `problem` is why a save or delete was refused. */
   | { type: "panels"; panels: import("./panels.ts").Panel[]; problem?: string }
+  /** 2026-11-05: the apps (never their code), after `apps.list` and each change. */
+  | { type: "apps"; apps: { id: string; name: string; description: string; ask: boolean; version: number; updatedAt: string }[] }
+  /** 2026-11-05: an app's page, for the sandboxed web view; `html` is empty with a `problem` when the app is gone. */
+  | { type: "appOpened"; id: string; name: string; html: string; ask: boolean; problem?: string }
+  /** 2026-11-05: the answer to one bridge call (`req` is the page's own id for it). */
+  | { type: "appReply"; app: string; req: string; ok: boolean; value?: unknown; error?: string }
   /** 2026-11-04: the pages ARK watches (never page text), after `watches.get` and each change. */
   | { type: "watches"; watches: { id: string; url: string; mode: string; text?: string; everyMinutes: number; state: string; message?: string; lastCheckAt?: string }[] }
   /** 2026-11-04: a watch fired or stopped: the island shows a macOS notice. */

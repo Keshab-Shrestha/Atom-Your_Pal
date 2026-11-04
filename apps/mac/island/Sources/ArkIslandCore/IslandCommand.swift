@@ -17,6 +17,11 @@ public enum IslandCommand: Sendable, Equatable {
     case panelsList
     /// The pages ARK watches (and their changes from then on); stop watching one.
     case watchesGet
+    /// Apps: the list, one app's page, remove one, and one call from a running app (already checked by `AppBridge.parse`).
+    case appsList
+    case appOpen(id: String)
+    case appRemove(id: String)
+    case appCall(app: String, call: AppCall)
     case watchRemove(id: String)
     case panelSave(Panel)
     case panelDelete(id: String)
@@ -226,6 +231,10 @@ public enum IslandCommand: Sendable, Equatable {
         case .chatDefaults: "chat.defaults"
         case .panelsList: "panels.list"
         case .watchesGet: "watches.get"
+        case .appsList: "apps.list"
+        case .appOpen: "app.open"
+        case .appRemove: "app.remove"
+        case .appCall: "app.call"
         case .watchRemove: "watch.remove"
         case .panelSave: "panel.save"
         case .panelDelete: "panel.delete"
@@ -522,8 +531,15 @@ public enum IslandCommand: Sendable, Equatable {
             fields["effort"] = effort
         case .panelSave(let panel):
             fields["panel"] = panel.jsonObject
-        case .panelDelete(let id), .watchRemove(let id):
+        case .panelDelete(let id), .watchRemove(let id), .appOpen(let id), .appRemove(let id):
             fields["id"] = id
+        case .appCall(let app, let call):
+            fields["app"] = app
+            fields["req"] = call.req
+            fields["op"] = call.op
+            if let key = call.key { fields["key"] = key }
+            if let value = call.value { fields["value"] = value }
+            if let prompt = call.prompt { fields["prompt"] = prompt }
         case .workflowSave(let workflow):
             fields["workflow"] = workflow.jsonObject
         case .workflowDelete(let id), .workflowRun(let id):

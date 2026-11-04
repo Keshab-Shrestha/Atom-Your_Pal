@@ -334,6 +334,12 @@ enum IslandGallery {
         }
         tabled.windowPage = .panels
         save(window("Panels", tabled), name: name + "-panels", to: directory)
+        // 2026-11-05: apps: two on the Apps page.
+        if let event = try? decodeEvent(#"{"type":"apps","apps":[{"id":"habit-tracker","name":"Habit tracker","description":"Tick a habit each day and see your streak.","ask":false,"version":2,"updatedAt":"2026-11-05T10:00:00.000Z"},{"id":"recipe-helper","name":"Recipe helper","description":"Scale a recipe and ask ARK for a swap when an ingredient is missing.","ask":true,"version":1,"updatedAt":"2026-11-05T09:00:00.000Z"}]}"#) {
+            tabled.apply(event)
+        }
+        tabled.windowPage = .apps
+        save(window("Apps", tabled), name: name + "-apps", to: directory)
         // 2026-11-02: the You page.
         tabled.windowPage = .you
         save(window("You", tabled), name: name + "-you", to: directory)

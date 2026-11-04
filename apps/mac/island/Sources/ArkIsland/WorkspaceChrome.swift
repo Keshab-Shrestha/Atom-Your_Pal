@@ -101,6 +101,7 @@ struct WorkspaceNavigationRail: View {
                     case .scheduled: model.windowPage = .scheduled
                     case .workflows: model.windowPage = .workflows
                     case .panels: model.windowPage = .panels
+                    case .apps: model.windowPage = .apps; model.closeAppPage()
                     case .brain: model.windowPage = .brain
                     case .plugins: model.windowPage = .plugins
                     case .settings: model.windowPage = .settings
@@ -117,6 +118,7 @@ struct WorkspaceNavigationRail: View {
         case .scheduled: ("Scheduled", "calendar", model.windowPage == .scheduled)
         case .workflows: ("Workflows", "point.3.connected.trianglepath.dotted", model.windowPage == .workflows)
         case .panels: ("Panels", "square.grid.2x2", model.windowPage == .panels)
+        case .apps: ("Apps", "app.dashed", model.windowPage == .apps)
         case .brain: ("Second brain", "brain.head.profile", model.windowPage == .brain)
         case .plugins: ("Plugins", "puzzlepiece.extension", model.windowPage == .plugins)
         case .settings: ("Settings", "gearshape", model.windowPage == .settings)

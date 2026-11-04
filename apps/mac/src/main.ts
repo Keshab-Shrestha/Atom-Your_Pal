@@ -133,6 +133,7 @@ function start(config: Config) {
     ...(runtime.workflows ? { workflows: runtime.workflows } : {}),
     ...(runtime.panels ? { panels: runtime.panels } : {}),
     ...(runtime.watches ? { watches: runtime.watches } : {}),
+    ...(runtime.apps ? { apps: runtime.apps } : {}),
     computer: runtime.computer,
     taskActivity: runtime.taskActivity,
     chatWork: runtime.chatWork,

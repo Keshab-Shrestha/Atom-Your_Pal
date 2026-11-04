@@ -47,6 +47,10 @@ public enum IslandEvent: Sendable, Equatable {
     case panels(PanelList)
     /// 2026-11-04: the pages ARK watches (after `watches.get`, and after each change), and a notice when one fires or stops.
     case watches([WatchItem])
+    /// 2026-11-05: the apps (after `apps.list`, and after each change), an app's page after `app.open`, and the answer to a bridge call.
+    case apps([AppItem])
+    case appOpened(AppOpened)
+    case appReply(AppReply)
     case watchFired(WatchNotice)
     /// Daily brief: the settings, the newest briefs and whether one is being made (after `brief.get`, and after each change).
     case brief(BriefList)
@@ -130,6 +134,9 @@ public enum IslandEvent: Sendable, Equatable {
         case .workflows: "workflows"
         case .panels: "panels"
         case .watches: "watches"
+        case .apps: "apps"
+        case .appOpened: "appOpened"
+        case .appReply: "appReply"
         case .watchFired: "watchFired"
         case .brief: "brief"
         case .textEditResult: "text.edit.result"
@@ -274,6 +281,14 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .memory(MemoryList(enabled: try f.bool("enabled"), count: try f.int("count"), memories: try f.memories(), episodes: try f.episodes(), chats: try f.memoryChats()))
     case "panels":
         return .panels(PanelList(panels: Panel.list(from: f.values["panels"]), problem: f.values["problem"] as? String))
+    case "apps":
+        return .apps(AppItem.list(from: f.values["apps"]))
+    case "appOpened":
+        return .appOpened(AppOpened(id: try f.string("id"), name: (try? f.string("name")) ?? "", html: (try? f.string("html")) ?? "", ask: f.optionalBool("ask") ?? false, problem: f.optionalString("problem")))
+    case "appReply":
+        let value = f.values["value"]
+        let json = value.flatMap { $0 is NSNull ? "null" : (try? JSONSerialization.data(withJSONObject: $0, options: [.fragmentsAllowed])).flatMap { String(data: $0, encoding: .utf8) } } ?? "null"
+        return .appReply(AppReply(app: try f.string("app"), req: try f.string("req"), ok: try f.bool("ok"), valueJSON: json, error: f.optionalString("error")))
     case "watches":
         return .watches(WatchItem.list(from: f.values["watches"]))
     case "watchFired":
