@@ -15,6 +15,9 @@ public enum IslandCommand: Sendable, Equatable {
     /// Settings → Defaults (2026-11-02): a new chat's access and thinking level (empty: the model's default).
     case chatDefaults(access: ChatAccessMode, effort: String)
     case panelsList
+    /// The pages ARK watches (and their changes from then on); stop watching one.
+    case watchesGet
+    case watchRemove(id: String)
     case panelSave(Panel)
     case panelDelete(id: String)
     case workflowsList
@@ -93,6 +96,8 @@ public enum IslandCommand: Sendable, Equatable {
     case apiRegenerate
     /// ADR-093: look for the AI tools on this Mac again.
     case toolsScan
+    /// The user is about to speak or type: the runtime opens the chat's session now (pre-warm). No model call.
+    case chatWarm
     /// ADR-091: Keshab's chats: list them, continue one, delete one.
     case chatsList
     case chatControl(ChatControlRequest)
@@ -220,6 +225,8 @@ public enum IslandCommand: Sendable, Equatable {
         case .chatAccess: "chat.access"
         case .chatDefaults: "chat.defaults"
         case .panelsList: "panels.list"
+        case .watchesGet: "watches.get"
+        case .watchRemove: "watch.remove"
         case .panelSave: "panel.save"
         case .panelDelete: "panel.delete"
         case .workflowsList: "workflows.list"
@@ -273,6 +280,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .computerMode: "computer.mode"
         case .apiRegenerate: "api.regenerate"
         case .toolsScan: "tools.scan"
+        case .chatWarm: "chat.warm"
         case .chatsList: "chats.list"
         case .chatControl: "chat.control"
         case .chatQuestionAnswer: "chat.question.answer"
@@ -514,7 +522,7 @@ public enum IslandCommand: Sendable, Equatable {
             fields["effort"] = effort
         case .panelSave(let panel):
             fields["panel"] = panel.jsonObject
-        case .panelDelete(let id):
+        case .panelDelete(let id), .watchRemove(let id):
             fields["id"] = id
         case .workflowSave(let workflow):
             fields["workflow"] = workflow.jsonObject

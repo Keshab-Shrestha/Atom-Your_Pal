@@ -65,6 +65,15 @@ export const TOOL_SERVER = "ark";
 export const TOOL_SEARCH = "ToolSearch";
 /** One hour, as long as the 1 h prompt cache lasts: a chat kept longer than the cache would pay the memory for no saving. */
 export const DEFAULT_SESSION_IDLE_MS = 60 * 60_000;
+
+/**
+ * Budgets (2026-11-04, idea from atticus-mac "cost gate"). The system prompt and ARK's tool definitions are sent with every session, so
+ * their size is a cost on every chat (R3, ADR-118: about 2.3k tokens of prefix is why ARK costs a third of Claude Code). A session
+ * that opens over a budget, or a turn that costs more than the turn budget, is logged as a warning (names and numbers only) so
+ * the log shows it. Tests fail when the shipped prompts grow past these.
+ */
+export const PREFIX_BUDGET_BYTES = { system: 5_000, arkTools: 40_000 } as const;
+export const TURN_COST_BUDGET_USD = 1;
 /** After Stop, how long the session waits for Claude Code to end the turn before it closes the process. */
 const INTERRUPT_GRACE_MS = 3000;
 const DEFAULT_MAX_TURNS = 12;
@@ -288,6 +297,11 @@ export async function openChatSession(o: ChatSessionOptions): Promise<ChatSessio
   // Sizes only, never content, to attribute the fixed prefix (R3). Claude Code's own built-in tool schemas are not counted here.
   log("session.open", { sdk: sdkVersion(), prefix, model, resume: Boolean(o.resume), tools: toolNames.length,
     systemBytes: Buffer.byteLength(o.systemPrompt), arkToolBytes: Buffer.byteLength(JSON.stringify(specs)) });
+  const systemBytes = Buffer.byteLength(o.systemPrompt);
+  const arkToolBytes = Buffer.byteLength(JSON.stringify(specs));
+  if (systemBytes > PREFIX_BUDGET_BYTES.system || arkToolBytes > PREFIX_BUDGET_BYTES.arkTools) {
+    log("session.over_budget", { systemBytes, arkToolBytes, systemBudget: PREFIX_BUDGET_BYTES.system, arkToolBudget: PREFIX_BUDGET_BYTES.arkTools });
+  }
   const q = sdk.query({ prompt: input.messages, options });
 
   const end = (t: Turn, outcome: { text: string; sessionId?: string } | { error: unknown }) => {
@@ -333,6 +347,7 @@ export async function openChatSession(o: ChatSessionOptions): Promise<ChatSessio
     // logged as the whole earlier session, R3 2026-10-22). Its priced dollars still come from the tokens.
     const cost = total !== undefined && !(o.resume && resultsSeen === 1) ? total - costSoFar : undefined;
     if (total !== undefined) costSoFar = total;
+    if (cost !== undefined && cost > TURN_COST_BUDGET_USD) log("turn.over_budget", { costUsd: Math.round(cost * 100) / 100, budgetUsd: TURN_COST_BUDGET_USD });
     if (tokens) {
       const { costUsd: _, ...rest } = tokens;
       try {

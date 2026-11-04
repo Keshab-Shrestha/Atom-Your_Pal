@@ -38,7 +38,17 @@ export interface IslandPanels {
   onChange(listener: () => void): () => void;
 }
 
+/** 2026-11-04: pages ARK watches for the user (watches.ts). */
+export interface IslandWatches {
+  list(): import("./watches.ts").Watch[];
+  remove(id: string): void;
+  onChange(listener: () => void): () => void;
+  /** A watch fired, or stopped on its own. */
+  onFire(listener: (event: { id: string; kind: "fired" | "stopped"; message: string }) => void): () => void;
+}
+
 export interface IslandOptions {
+  watches?: IslandWatches;
   workflows?: IslandWorkflows;
   panels?: IslandPanels;
   localBackup?: ReturnType<typeof import("./local-backup.ts").createLocalBackup>;
@@ -50,7 +60,7 @@ export interface IslandOptions {
   record: VoiceLoopOptions["record"];
   stt: SpeechToText;
   /** ADR-091: a Core that can resume a saved chat names its session (the chat voice and typing go to). */
-  core: CoreLike & { reset(): void; resume?(id: string, turns: readonly Message[]): void; readonly sessionId?: string; readonly busy?: boolean };
+  core: CoreLike & { reset(): void; resume?(id: string, turns: readonly Message[]): void; warm?(): Promise<boolean>; readonly sessionId?: string; readonly busy?: boolean };
   tts: TextToSpeech;
   /** Reported in the `ready` event. ADR-098: `telegram` is true when ARK's Telegram bot is set up in .env. */
   info: { provider: string; model: string; microphone: string; telegram?: boolean; computer?: boolean };

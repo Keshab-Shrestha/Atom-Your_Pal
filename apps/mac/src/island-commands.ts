@@ -28,6 +28,9 @@ export type IslandCommand =
   /** 2026-11-02: Settings → Defaults. A chat started in the ARK window gets this access and thinking level (empty: the model's default). */
   | { type: "chat.defaults"; access: ChatAccessMode; effort: string }
   | { type: "panels.list" }
+  /** 2026-11-04: pages ARK watches: the list (and its changes from then on), and stop watching one. */
+  | { type: "watches.get" }
+  | { type: "watch.remove"; id: string }
   | { type: "panel.save"; panel: Record<string, unknown> }
   | { type: "panel.delete"; id: string }
   | { type: "workflows.list" }
@@ -116,6 +119,8 @@ export type IslandCommand =
   /** 2026-10-15: Settings' "Regenerate" next to "Copy token". The runtime answers with an `api` event. */
   | { type: "api.regenerate" }
   | { type: "tools.scan" }
+  /** 2026-11-04: the user is about to speak or type: open the chat's session now (pre-warm). No model call. */
+  | { type: "chat.warm" }
   | { type: "helper.set"; helper: string; app: string }
   | { type: "job.add"; helper: string; task: string; blockedBy?: number[]; planFirst?: boolean }
   | { type: "plan.approve"; id: number }
@@ -197,6 +202,8 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "chat.access",
   "chat.defaults",
   "panels.list",
+  "watches.get",
+  "watch.remove",
   "panel.save",
   "panel.delete",
   "workflows.list",
@@ -263,6 +270,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "api.set",
   "api.regenerate",
   "tools.scan",
+  "chat.warm",
   "helper.set",
   "job.add",
   "plan.approve",
@@ -410,6 +418,12 @@ export function parseCommand(line: string): ParsedLine {
     if (Object.keys(v).some((k) => !["type", "panel"].includes(k)) || typeof v.panel !== "object" || v.panel === null || Array.isArray(v.panel)
         || JSON.stringify(v.panel).length > 120_000) return { error: "Invalid panel." };
     return { command: { type, panel: v.panel as Record<string, unknown> } };
+  }
+  if (type === "watches.get") return Object.keys(value as object).length === 1 ? { command: { type } } : { error: "Invalid watches request." };
+  if (type === "watch.remove") {
+    const v = value as Record<string, unknown>;
+    if (Object.keys(v).some((k) => !["type", "id"].includes(k)) || typeof v.id !== "string" || !/^[a-f0-9-]{1,40}$/.test(v.id)) return { error: "Invalid watch id." };
+    return { command: { type, id: v.id } };
   }
   if (type === "panel.delete") {
     const v = value as Record<string, unknown>;

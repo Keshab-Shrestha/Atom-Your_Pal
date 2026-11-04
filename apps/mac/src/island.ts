@@ -391,6 +391,13 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "chat.defaults":
         newChatDefaults = { access: command.access, effort: command.effort };
         return;
+      case "watches.get":
+        sendWatches();
+        return;
+      case "watch.remove":
+        options.watches?.remove(command.id);
+        sendWatches();
+        return;
       case "panels.list":
         sendPanels();
         return;
@@ -835,6 +842,10 @@ export function runIsland(options: IslandOptions): IslandSession {
         sendMemory();
         return;
       }
+      case "chat.warm":
+        // Pre-warm: only while nothing runs. The Core opens the chat's session; a failure is only logged, the turn opens its own.
+        if (!core.busy && loop.state === "idle") void core.warm?.().catch((error: unknown) => options.log?.warn("session.warm_failed", { message: describe(error) }));
+        return;
       case "tools.scan":
         // ADR-093: look for the AI tools on this Mac again, then send the choices.
         void options.settings?.scanTools?.().then(sendInfo, (error: unknown) => options.log?.warn("tools.scan_failed", { message: describe(error) }));
@@ -1207,6 +1218,11 @@ export function runIsland(options: IslandOptions): IslandSession {
     send({ type: "panels", panels: options.panels?.list() ?? [], ...(problem ? { problem } : {}) });
   }
   const stopPanelUpdates = options.panels?.onChange(() => sendPanels());
+  function sendWatches() {
+    send({ type: "watches", watches: (options.watches?.list() ?? []).map((w) => ({ id: w.id, url: w.url, mode: w.mode, ...(w.text ? { text: w.text } : {}), everyMinutes: w.everyMinutes, state: w.state, ...(w.message ? { message: w.message } : {}), ...(w.lastCheckAt ? { lastCheckAt: w.lastCheckAt } : {}) })) });
+  }
+  const stopWatchUpdates = options.watches?.onChange(() => sendWatches());
+  const stopWatchFires = options.watches?.onFire((event) => send({ type: "watchFired", ...event }));
   function sendWorkflows(problem?: string) {
     send({ type: "workflows", workflows: options.workflows?.list() ?? [], ...(problem ? { problem } : {}) });
   }
@@ -1388,6 +1404,8 @@ export function runIsland(options: IslandOptions): IslandSession {
     stopBriefUpdates?.();
     stopWorkflowUpdates?.();
     stopPanelUpdates?.();
+    stopWatchUpdates?.();
+    stopWatchFires?.();
     stopBrainUpdates?.();
     stopChatUpdates?.();
     stopChatWork?.();

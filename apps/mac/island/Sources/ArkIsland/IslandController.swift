@@ -288,6 +288,7 @@ final class IslandController {
         switch event {
         case .helpers, .planUsage: notifier.update(model.helpers.list, plan: model.planUsage)
         case .approvalRequest(let request): notifier.approval(request)
+        case .watchFired(let notice): notifier.watch(notice)
         case .brief:
             if let entry = model.dailyBrief.takeFresh(), model.dailyBrief.settings.notify { notifier.brief(entry) }
         default: break
@@ -299,6 +300,7 @@ final class IslandController {
             return
         case .state(.listening):
             model.meter.reset()
+            model.warmChat() // the mic is open: pre-warm the chat's session while the user speaks
         default:
             break
         }

@@ -203,6 +203,7 @@ final class IslandModel {
     var workflows: WorkflowList?
     /// 2026-11-02: the panels the runtime keeps (panels.ts), once asked for.
     var panels: PanelList?
+    var watches: [WatchItem] = []
     /// 2026-11-02: the ⌘K command palette is open.
     var paletteShown = false
     /// 2026-11-02: the ⌘J agent panel shows this agent ("" for the first available); nil when closed.
@@ -758,6 +759,13 @@ final class IslandModel {
     func loadSuggestions() { if let command = suggestions.open() { send(command) } }
     func acceptSuggestion(_ id: Int) { suggestionCommand(suggestions.accept(id)) }
     func denySuggestion(_ id: Int) { suggestionCommand(suggestions.deny(id)) }
+    /// Pre-warm (2026-11-04): the composer got focus or the mic opened. The runtime opens the chat's session; at most once in 45 seconds.
+    func warmChat() {
+        guard Date().timeIntervalSince(lastWarm) > 45 else { return }
+        lastWarm = Date()
+        send(.chatWarm)
+    }
+    @ObservationIgnored private var lastWarm = Date.distantPast
     func undoRemembered(_ id: Int) { suggestionCommand(suggestions.undo(id)) }
     func acceptSuggestionEdit() { suggestionCommand(suggestions.acceptEdit()) }
     func setSuggestionsEnabled(_ on: Bool) { send(suggestions.setEnabled(on)) }
@@ -1100,6 +1108,8 @@ final class IslandModel {
             workflows = list
         case .panels(let list):
             panels = list
+        case .watches(let list):
+            watches = list
         case .suggestions(let list):
             suggestionPending = false
             suggestions.apply(list)

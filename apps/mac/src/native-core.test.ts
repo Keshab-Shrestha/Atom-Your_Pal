@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Message, ProjectFiles, ToolRunner } from "@ark/contracts";
-import { answerTail, MAX_PROJECT_FILE_CALLS, type ChatSession, type SessionSdk } from "@ark/llm-gateway";
+import { answerTail, MAX_PROJECT_FILE_CALLS, PREFIX_BUDGET_BYTES, type ChatSession, type SessionSdk } from "@ark/llm-gateway";
 import { openHelperStore } from "@ark/helpers";
 import { openMemoryStore } from "@ark/memory";
-import { CODEX_SYSTEM_PROMPT, CONTEXT_LABEL, PLAIN_SYSTEM_PROMPT, createNativeCore, NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT, TYPED_NOTE, type NativeCoreDeps } from "./native-core.ts";
+import { CHAT_ONLY_SYSTEM_PROMPT, CODEX_SYSTEM_PROMPT, CONTEXT_LABEL, PLAIN_SYSTEM_PROMPT, createNativeCore, NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT, TYPED_NOTE, type NativeCoreDeps } from "./native-core.ts";
 import { nativeGate } from "./native-safety.ts";
 import { createComputerBridge } from "./computer-bridge.ts";
 
@@ -792,4 +792,47 @@ test("strict Claude approval uses the current turn's cancellation signal in a re
     assert.notEqual(signals[0], signals[1]); assert.equal(signals[1]!.aborted, true);
     assert.deepEqual(verdicts, ["allow", "deny"]);
   } finally { core.reset(); }
+});
+
+// 2026-11-04 (atticus-mac idea): warm opens the session before the first message and sends nothing to the model.
+test("warm opens the session with no message; the first turn uses it as a new session (opening context, no second process)", async () => {
+  const { sdk, queries } = fakeSdk();
+  const core = make(sdk, { opening: () => "Your team: Sid." });
+  assert.equal(await core.warm(), true);
+  assert.equal(queries.length, 1);
+  assert.equal(queries[0]!.sent.length, 0, "nothing was sent to the model");
+  assert.equal(await core.warm(), false, "a live session is not opened twice");
+  await core.handle({ text: "hi", source: "text" });
+  assert.equal(queries.length, 1, "the turn used the warm session");
+  assert.match(queries[0]!.sent[0]!.message.content, /Your team: Sid\./, "a warm session still gets the opening context once");
+  await core.handle({ text: "again", source: "text" });
+  assert.doesNotMatch(queries[0]!.sent[1]!.message.content, /Your team: Sid\./);
+});
+
+test("warm continues a saved session, and a warm session whose settings changed is replaced at the turn", async () => {
+  const { sdk, queries } = fakeSdk();
+  const { map, store } = sessions();
+  map.set("chat-1", { id: "sess-0", model: "claude-sonnet-5-5", tail: answerTail("done") });
+  let access: "checked" | "chat-only" = "checked";
+  const core = make(sdk, { chatSessions: store, accessFor: () => access });
+  core.resume("chat-1", [{ role: "user", content: "q" }, { role: "assistant", content: "done" }]);
+  await core.warm();
+  assert.equal(queries[0]!.options.resume, "sess-0");
+  access = "chat-only"; // the setting changed between the warm and the turn
+  await core.handle({ text: "now", source: "text" });
+  assert.equal(queries.length, 2, "the old warm session was closed and a new one opened");
+});
+
+test("warm does nothing for a chat on another provider", async () => {
+  const { sdk, queries } = fakeSdk();
+  const core = make(sdk, { modelFor: () => undefined });
+  assert.equal(await core.warm(), false);
+  assert.equal(queries.length, 0);
+});
+
+// 2026-11-04: the system prompts go with every session, so they have a ceiling (PREFIX_BUDGET_BYTES). Shorten before raising it.
+test("the shipped system prompts stay inside the prefix budget", () => {
+  for (const [name, prompt] of Object.entries({ NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT, CHAT_ONLY_SYSTEM_PROMPT })) {
+    assert.ok(Buffer.byteLength(prompt) <= PREFIX_BUDGET_BYTES.system, `${name} is ${Buffer.byteLength(prompt)} bytes; the budget is ${PREFIX_BUDGET_BYTES.system}`);
+  }
 });

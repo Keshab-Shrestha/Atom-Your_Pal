@@ -88,6 +88,8 @@ ARK runs on your Mac. You talk or type. ARK answers, uses tools, and hands bigge
 - A teal fingertip pointer shows where ARK acts, with a ring when it arrives.
 - Off until you turn it on in Settings → Computer.
 - ARK learns a button task after one checked run and replays it later through the same checks. It stops at the first mismatch.
+- "Watch this page and tell me when it says slots are open": ARK reads the page on a timer with no model, tells you once, and lists the watch on the Scheduled page.
+- ARK opens the chat's session when you click the box or open the mic, so the first reply starts sooner.
 
 ### Memory and everyday tools
 - ARK remembers facts you ask it to keep, and keeps lasting facts you state in a chat by itself, with no question. A "Remembered" row with Undo shows for 10 minutes. See, edit or forget each one in Second brain. Settings → Privacy has the switch.

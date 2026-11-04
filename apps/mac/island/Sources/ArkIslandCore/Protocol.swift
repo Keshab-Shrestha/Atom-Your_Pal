@@ -45,6 +45,9 @@ public enum IslandEvent: Sendable, Equatable {
     case workflows(WorkflowList)
     /// 2026-11-02: the panels, and why a save or delete was refused.
     case panels(PanelList)
+    /// 2026-11-04: the pages ARK watches (after `watches.get`, and after each change), and a notice when one fires or stops.
+    case watches([WatchItem])
+    case watchFired(WatchNotice)
     /// Daily brief: the settings, the newest briefs and whether one is being made (after `brief.get`, and after each change).
     case brief(BriefList)
     /// Ask ARK: the answer to a `text.edit`, by its id.
@@ -126,6 +129,8 @@ public enum IslandEvent: Sendable, Equatable {
         case .suggestions: "suggestions"
         case .workflows: "workflows"
         case .panels: "panels"
+        case .watches: "watches"
+        case .watchFired: "watchFired"
         case .brief: "brief"
         case .textEditResult: "text.edit.result"
         case .replyContext: "reply.context"
@@ -269,6 +274,10 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .memory(MemoryList(enabled: try f.bool("enabled"), count: try f.int("count"), memories: try f.memories(), episodes: try f.episodes(), chats: try f.memoryChats()))
     case "panels":
         return .panels(PanelList(panels: Panel.list(from: f.values["panels"]), problem: f.values["problem"] as? String))
+    case "watches":
+        return .watches(WatchItem.list(from: f.values["watches"]))
+    case "watchFired":
+        return .watchFired(WatchNotice(id: try f.string("id"), stopped: (try? f.string("kind")) == "stopped", message: try f.string("message")))
     case "workflows":
         return .workflows(WorkflowList(workflows: Workflow.list(from: f.values["workflows"]), problem: f.values["problem"] as? String))
     case "suggestions":

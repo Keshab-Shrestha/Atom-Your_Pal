@@ -38,6 +38,12 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         post(AppNotice(kind: .brief, title: "Your daily brief", body: NoticeWatcher.short(entry.lines.first ?? "It is ready."), key: "brief-\(entry.id)"))
     }
 
+    /// A watch fired, or stopped on its own. Told even while ARK is in front: the user asked for it.
+    func watch(_ notice: WatchNotice) {
+        guard settings.notifies(.needsYou) else { return }
+        post(AppNotice(kind: .needsYou, title: notice.stopped ? "ARK stopped a watch" : "ARK found what you were watching for", body: NoticeWatcher.short(notice.message), key: "watch-\(notice.id)"))
+    }
+
     private func post(_ notice: AppNotice) {
         guard let center else { return }
         let content = UNMutableNotificationContent()
