@@ -4397,3 +4397,28 @@ Keshab asked for "everything is a plugin, where I can create and run new apps wi
 - An app cannot reach the network, a file, a tool, another app or the runtime. It can only keep notes and, with permission, ask a question. Phase 1 is the safe floor.
 - Later phases each need their own card and ADR: allowed network hosts (through the host's public-page reader), tools an app may call, a notice from an app, an app pinned to Home, import and export.
 - The agent edits an app by reading it and sending the whole page again; there is no diff view yet.
+
+## ADR-239 — ARK notices: phase 1 of ARK improving itself (2026-11-05)
+
+### Context
+
+Keshab asked whether ARK improves the whole app, not only skills. Tinker improves souls and skills (ADR-094), but nothing looks at how ARK itself behaves. ARK's own log already records the signals: failed tools, failed computer actions, runtime exits, a client with a wrong token, slow or over-budget turns, repeated warnings.
+
+### Decision
+
+Phase 1 of a loop that improves the app. It reads, counts and tells; it changes nothing.
+
+- **Counts, not a model, decide.** `improve.ts` reads the last 12 MB of `logs/ark.log` and counts the last 7 days (`summarize`). Fixed rules (`findingsFrom`) turn counts into findings: runtime stopped by itself 3 times or more; a tool failing 10% of at least 10 calls and 3 or more times; a computer failure repeated 3 times; 50 or more refused local API calls; a warning 20 times; slow answers (ninth decile of 15 seconds or more); 3 or more over-budget events. A requested quit is not a crash.
+- **One small model call, no tools.** For the findings that are new, the text editor's small model gets only each finding's id, title, evidence, severity (counts and reasons flattened by `normalizeReason`: no digits, paths or quoted names) and writes a one-line why and one concrete change. The answer is parsed and only ids that were given are kept (`parseSuggestions`). If the call fails, the note keeps a plain text.
+- **Three notes at most, worst first.** They sit in `improvements.json` next to the panels (mode 0600), shown on Home under "ARK noticed" with the evidence and the suggested change. Dismiss hides a note for 30 days. "Talk it through" opens a new chat with the note in the box; nothing is sent by itself. "Look again" runs it now.
+- **When.** 45 seconds after start, then every 6 hours, but only when the last run is 20 hours old. The switch is Settings → Privacy → ARK notices (on by default).
+
+### Not in phase 1
+
+A fix. Phase 2 would turn an approved note into a Board task on ARK's own source in a git worktree, which opens a pull request. It would never merge, never touch security, permission or approval code without its own request, and never change this loop. Each of those needs its own ADR.
+
+### Consequences
+
+- The first notes from this Mac's real log: the computer tool fails 6 of 17 calls, and a Cua session "has ended" 5 times.
+- The log is the only input. A problem that is not logged is invisible to it.
+- The model's suggestion can be wrong; it is shown as "Suggested", next to the counts that are not the model's.

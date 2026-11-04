@@ -134,6 +134,7 @@ function start(config: Config) {
     ...(runtime.panels ? { panels: runtime.panels } : {}),
     ...(runtime.watches ? { watches: runtime.watches } : {}),
     ...(runtime.apps ? { apps: runtime.apps } : {}),
+    ...(runtime.improvements ? { improvements: runtime.improvements } : {}),
     computer: runtime.computer,
     taskActivity: runtime.taskActivity,
     chatWork: runtime.chatWork,

@@ -391,6 +391,21 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "chat.defaults":
         newChatDefaults = { access: command.access, effort: command.effort };
         return;
+      case "improvements.get":
+        sendImprovements();
+        return;
+      case "improvements.run":
+        options.improvements?.run();
+        sendImprovements();
+        return;
+      case "improvements.set":
+        options.improvements?.setEnabled(command.enabled);
+        sendImprovements();
+        return;
+      case "improvement.dismiss":
+        options.improvements?.dismiss(command.id);
+        sendImprovements();
+        return;
       case "apps.list":
         sendApps();
         return;
@@ -1247,6 +1262,11 @@ export function runIsland(options: IslandOptions): IslandSession {
     send({ type: "watches", watches: (options.watches?.list() ?? []).map((w) => ({ id: w.id, url: w.url, mode: w.mode, ...(w.text ? { text: w.text } : {}), everyMinutes: w.everyMinutes, state: w.state, ...(w.message ? { message: w.message } : {}), ...(w.lastCheckAt ? { lastCheckAt: w.lastCheckAt } : {}) })) });
   }
   const stopWatchUpdates = options.watches?.onChange(() => sendWatches());
+  function sendImprovements() {
+    const s = options.improvements?.state();
+    send({ type: "improvements", enabled: s?.enabled ?? false, running: s?.running ?? false, ...(s?.lastRunAt ? { lastRunAt: s.lastRunAt } : {}), notes: (s?.notes ?? []).map((n) => ({ id: n.id, title: n.title, evidence: n.evidence, severity: n.severity, why: n.why, change: n.change })) });
+  }
+  const stopImprovementUpdates = options.improvements?.onChange(() => sendImprovements());
   function sendApps() {
     send({ type: "apps", apps: (options.apps?.list() ?? []).map((m) => ({ id: m.id, name: m.name, description: m.description, ask: m.permissions.ask, version: m.version, updatedAt: m.updatedAt })) });
   }
@@ -1435,6 +1455,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     stopPanelUpdates?.();
     stopWatchUpdates?.();
     stopAppUpdates?.();
+    stopImprovementUpdates?.();
     stopWatchFires?.();
     stopBrainUpdates?.();
     stopChatUpdates?.();

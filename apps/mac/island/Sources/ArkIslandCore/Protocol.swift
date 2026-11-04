@@ -49,6 +49,8 @@ public enum IslandEvent: Sendable, Equatable {
     case watches([WatchItem])
     /// 2026-11-05: the apps (after `apps.list`, and after each change), an app's page after `app.open`, and the answer to a bridge call.
     case apps([AppItem])
+    /// 2026-11-05: ARK notices (after `improvements.get`, and after each change).
+    case improvements(ImprovementsState)
     case appOpened(AppOpened)
     case appReply(AppReply)
     case watchFired(WatchNotice)
@@ -135,6 +137,7 @@ public enum IslandEvent: Sendable, Equatable {
         case .panels: "panels"
         case .watches: "watches"
         case .apps: "apps"
+        case .improvements: "improvements"
         case .appOpened: "appOpened"
         case .appReply: "appReply"
         case .watchFired: "watchFired"
@@ -281,6 +284,12 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .memory(MemoryList(enabled: try f.bool("enabled"), count: try f.int("count"), memories: try f.memories(), episodes: try f.episodes(), chats: try f.memoryChats()))
     case "panels":
         return .panels(PanelList(panels: Panel.list(from: f.values["panels"]), problem: f.values["problem"] as? String))
+    case "improvements":
+        let ran = (f.values["lastRunAt"] as? String).flatMap { s -> Date? in
+            let fractional = ISO8601DateFormatter(); fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            return fractional.date(from: s) ?? ISO8601DateFormatter().date(from: s)
+        }
+        return .improvements(ImprovementsState(enabled: f.optionalBool("enabled") ?? true, running: f.optionalBool("running") ?? false, lastRunAt: ran, notes: ImprovementNote.list(from: f.values["notes"])))
     case "apps":
         return .apps(AppItem.list(from: f.values["apps"]))
     case "appOpened":

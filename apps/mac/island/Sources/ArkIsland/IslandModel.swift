@@ -206,6 +206,8 @@ final class IslandModel {
     var watches: [WatchItem] = []
     /// 2026-11-05: the apps the runtime keeps (ark-apps.ts), once asked for; the one that is open; and where a bridge answer goes.
     var apps: [AppItem]?
+    /// 2026-11-05: ARK notices (improve.ts), once asked for.
+    var improvements: ImprovementsState?
     var openApp: AppOpened?
     @ObservationIgnored var appReplyHandler: ((AppReply) -> Void)?
     /// 2026-11-02: the ⌘K command palette is open.
@@ -218,6 +220,12 @@ final class IslandModel {
     /// Apps: open one (its page arrives as `appOpened`), go back to the list, or start a chat that asks ARK to make one.
     func openAppPage(_ id: String) { openApp = nil; send(.appOpen(id: id)) }
     func closeAppPage() { openApp = nil; appReplyHandler = nil }
+    /// ARK notices: ask once; the runtime then sends its changes. Look again now; the switch; dismiss; or talk a note through in a new chat.
+    func loadImprovements() { send(.improvementsGet) }
+    func lookForImprovements() { send(.improvementsRun) }
+    func setImprovementsEnabled(_ on: Bool) { send(.improvementsSet(enabled: on)) }
+    func dismissImprovement(_ id: String) { send(.improvementDismiss(id: id)) }
+    func talkThrough(_ note: ImprovementNote) { startChat(with: note.chatPrompt, send: false) }
     func askForApp() { startChat(with: "Make me an app that ", send: false) }
 
     func askFromHome(_ text: String) { startChat(with: text, send: true) }
@@ -1140,6 +1148,8 @@ final class IslandModel {
             panels = list
         case .watches(let list):
             watches = list
+        case .improvements(let state):
+            improvements = state
         case .apps(let list):
             apps = list
             if let open = openApp, open.problem == nil, !list.contains(where: { $0.id == open.id }) { openApp = nil } // removed elsewhere

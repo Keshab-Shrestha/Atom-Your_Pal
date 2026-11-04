@@ -99,6 +99,7 @@ import { createBrainWiring, type BrainWiring } from "./brain-wiring.ts";
 import { createImproveSkillTool, createProposeSkillTool, createSearchChatsTool } from "./reach-tools.ts";
 import { nativeSteering, nativeRetryStarter, retrySourceChat, routeWake, routineStarter, taskStarter } from "./native-entry.ts";
 import { createPanelStore, createPanelTool } from "./panels.ts";
+import { SUGGEST_INSTRUCTION, createImproveStore, createImprover } from "./improve.ts";
 import { createAppStore, createAppTool, createBridge } from "./ark-apps.ts";
 import { createWatchRunner, createWatchStore, createWatchTool } from "./watches.ts";
 import { readPublicPage } from "./public-page.ts";
@@ -130,6 +131,8 @@ export interface Runtime {
   workflows?: import("./island-types.ts").IslandWorkflows;
   /** 2026-11-02: panels (panels.ts). */
   panels?: import("./island-types.ts").IslandPanels;
+  /** 2026-11-05: ARK notices (improve.ts). */
+  improvements?: import("./island-types.ts").IslandImprovements;
   /** 2026-11-05: apps that run in the window's sandbox (ark-apps.ts). */
   apps?: import("./island-types.ts").IslandApps;
   /** 2026-11-04: pages ARK watches (watches.ts). */
@@ -246,6 +249,9 @@ export function createRuntime(
   // 2026-11-05: apps (ark-apps.ts), kept in an apps folder next to the panels. The code runs only in the window's sandboxed web view.
   const appStore = generatedImages ? createAppStore(join(dirname(generatedImages), "apps")) : undefined;
   const appChanged = new Set<() => void>();
+  // 2026-11-05: ARK notices (improve.ts), kept next to the panels. Reads this log; the model call sees counts only.
+  const improveStore = generatedImages ? createImproveStore(join(dirname(generatedImages), "improvements.json")) : undefined;
+  const improveChanged = new Set<() => void>();
   const watchChanged = new Set<() => void>();
   const watchFired = new Set<(event: { id: string; kind: "fired" | "stopped"; message: string }) => void>();
   const watchRunner = watchStore && createWatchRunner({
@@ -1374,6 +1380,33 @@ export function createRuntime(
       onChange: (listener) => { appChanged.add(listener); return () => appChanged.delete(listener); },
     };
   })();
+  let improving = false;
+  const improver = improveStore && config.log.file ? createImprover({
+    store: improveStore,
+    logPath: config.log.file,
+    suggest: async (findings, signal) => {
+      const out = await textEditor.edit({ text: JSON.stringify(findings.map((f) => ({ id: f.id, title: f.title, evidence: f.evidence, severity: f.severity }))), instruction: SUGGEST_INSTRUCTION }, signal ?? new AbortController().signal);
+      return out.answer;
+    },
+    changed: () => improveChanged.forEach((listener) => listener()),
+    log: (event, fields) => log.info(event, fields as never),
+  }) : undefined;
+  if (improver) {
+    const check = () => { improving = true; improveChanged.forEach((l) => l()); improver.maybeRun().catch((error) => log.warn("improve.failed", { ...errorFields(error) })).finally(() => { improving = false; improveChanged.forEach((l) => l()); }); };
+    setTimeout(check, 45_000).unref();
+    setInterval(check, 6 * 3_600_000).unref();
+  }
+  const improvements: import("./island-types.ts").IslandImprovements | undefined = improveStore && improver && {
+    state: () => ({ ...improveStore.read(), running: improving }),
+    run: () => {
+      if (improving) return;
+      improving = true; improveChanged.forEach((l) => l());
+      improver.run({ force: true }).catch((error) => log.warn("improve.failed", { ...errorFields(error) })).finally(() => { improving = false; improveChanged.forEach((l) => l()); });
+    },
+    dismiss: (id) => { const s = improveStore.read(); improveStore.write({ ...s, notes: s.notes.filter((n) => n.id !== id), dismissed: { ...s.dismissed, [id]: new Date().toISOString() } }); improveChanged.forEach((l) => l()); },
+    setEnabled: (on) => { improveStore.write({ ...improveStore.read(), enabled: on }); improveChanged.forEach((l) => l()); },
+    onChange: (listener) => { improveChanged.add(listener); return () => improveChanged.delete(listener); },
+  };
   const watches: import("./island-types.ts").IslandWatches | undefined = watchStore && {
     list: () => watchStore.list(),
     remove: (id) => { watchStore.remove(id); watchChanged.forEach((listener) => listener()); },
@@ -1384,6 +1417,7 @@ export function createRuntime(
     ...(panels ? { panels } : {}),
     ...(watches ? { watches } : {}),
     ...(apps ? { apps } : {}),
+    ...(improvements ? { improvements } : {}),
     ...(workflows ? { workflows } : {}),
     config,
     log,

@@ -31,6 +31,10 @@ export type IslandCommand =
   /** 2026-11-04: pages ARK watches: the list (and its changes from then on), and stop watching one. */
   | { type: "watches.get" }
   /** 2026-11-05: apps. List them; open one (its page comes back as `appOpened`); remove one; and the bridge: one call from a running app. */
+  | { type: "improvements.get" }
+  | { type: "improvements.run" }
+  | { type: "improvements.set"; enabled: boolean }
+  | { type: "improvement.dismiss"; id: string }
   | { type: "apps.list" }
   | { type: "app.open"; id: string }
   | { type: "app.remove"; id: string }
@@ -208,6 +212,10 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "chat.defaults",
   "panels.list",
   "watches.get",
+  "improvements.get",
+  "improvements.run",
+  "improvements.set",
+  "improvement.dismiss",
   "apps.list",
   "app.open",
   "app.remove",
@@ -427,6 +435,16 @@ export function parseCommand(line: string): ParsedLine {
     if (Object.keys(v).some((k) => !["type", "panel"].includes(k)) || typeof v.panel !== "object" || v.panel === null || Array.isArray(v.panel)
         || JSON.stringify(v.panel).length > 120_000) return { error: "Invalid panel." };
     return { command: { type, panel: v.panel as Record<string, unknown> } };
+  }
+  if (type === "improvements.get" || type === "improvements.run") return Object.keys(value as object).length === 1 ? { command: { type } } : { error: `Invalid ${type} request.` };
+  if (type === "improvements.set") {
+    const v = value as Record<string, unknown>;
+    return Object.keys(v).length === 2 && typeof v.enabled === "boolean" ? { command: { type, enabled: v.enabled } } : { error: 'improvements.set needs "enabled" to be true or false.' };
+  }
+  if (type === "improvement.dismiss") {
+    const v = value as Record<string, unknown>;
+    if (Object.keys(v).length !== 2 || typeof v.id !== "string" || !/^[a-z0-9:-]{1,100}$/.test(v.id)) return { error: "Invalid note id." };
+    return { command: { type, id: v.id } };
   }
   if (type === "apps.list") return Object.keys(value as object).length === 1 ? { command: { type } } : { error: "Invalid apps request." };
   if (type === "app.open" || type === "app.remove") {

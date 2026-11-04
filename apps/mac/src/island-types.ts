@@ -38,6 +38,15 @@ export interface IslandPanels {
   onChange(listener: () => void): () => void;
 }
 
+/** 2026-11-05: ARK notices (improve.ts): notes about what goes wrong in ARK, from its own log. */
+export interface IslandImprovements {
+  state(): { enabled: boolean; running: boolean; lastRunAt?: string; notes: import("./improve.ts").Note[] };
+  run(): void;
+  dismiss(id: string): void;
+  setEnabled(on: boolean): void;
+  onChange(listener: () => void): () => void;
+}
+
 /** 2026-11-05: apps that run in the window's sandbox (ark-apps.ts). `call` is the bridge: it throws a sentence the page shows. */
 export interface IslandApps {
   list(): import("./ark-apps.ts").AppManifest[];
@@ -57,6 +66,7 @@ export interface IslandWatches {
 }
 
 export interface IslandOptions {
+  improvements?: IslandImprovements;
   apps?: IslandApps;
   watches?: IslandWatches;
   workflows?: IslandWorkflows;
