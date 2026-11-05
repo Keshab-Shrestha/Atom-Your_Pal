@@ -4871,3 +4871,41 @@ Keshab asked for an infinite board for the Team and for Workflows, with n8n's ed
 
 - The Team and a workflow fit any size, and Keshab sees all of each.
 - A saved layout is in `data/workflows.json`. An older runtime drops the field and the nodes go back to a row.
+
+## ADR-263 — Thinking pill and tool call rows, after affectUI (2026-11-05)
+
+### Context
+
+Keshab pointed to affectUI (github.com/flohoeller/affectui, MIT, React 19). ARK's window is native SwiftUI and has no React, so its code cannot be used. Keshab chose to port two designs: the Thinking Loader and the Tool Call Card.
+
+### Decision
+
+- ARK rewrites both in SwiftUI (`ThinkingPill.swift`). It copies the look and the motion, not the code. The source and the MIT notice are named in the file.
+- Thinking pill: an eight-ray spinner in the accent colour and a quiet label with a sweeping band. The label rolls when it changes, and the pill glides to its new width. The label comes from the turn's real state: the newest running call ("Reading a file"), else "Thinking". ARK shows no made-up phases on a timer. It replaces the three dots.
+- Tool call rows: the work log's calls sit in one quiet card. Each row has a tile with a glyph for its kind, the plain words, and the tool's name in mono. Its state is at the right: a spinner with a live timer while it runs, a check with its time, "Failed", or "Unknown". The live timer counts from when the window first saw the call, because the runtime sends a call's time only when it ends.
+- ARK does not port affectUI's fold-open arguments and results. ARK's work log has no arguments or results by design, and this change adds none.
+- Reduce Motion stops the spinner and the sweep, and the label fades instead of rolling.
+
+### Consequences
+
+- The chat says what ARK does now, in one glance, and each tool call reads as one line.
+- `ThinkingDots` is removed.
+
+## ADR-264 — Trace, team cards, flow cards and handoffs, after affectUI's looks (2026-11-05)
+
+### Context
+
+Keshab gave four more affectUI showcase images (Agent Tree, Trace Waterfall, Agent Inbox and Agent Handoff) and asked ARK to use them as reference. These four are affectUI Pro items. Their code is not public. ARK uses only the look, with its own SwiftUI code and only data that ARK already has.
+
+### Decision
+
+- Trace waterfall (`TraceWaterfall.swift`, `HelpersTimelineView.swift`): a task's tool calls are drawn as bars on one time axis. Each call is grouped under the sub-agent that made it. The view shows totals (duration, tool calls, errors, sub-agents) and "Live" while a call runs. The slowest call is marked. A row opens to show its input and result. The data is the thread's existing records (start time and duration). ARK has no cost per call, so the view shows no cost.
+- Team cards (Agent Tree look): each card shows a status pill (Running with a spinner, Paused or Idle), the current task or "Ready for a task", and the level with "manages N". Lines have ports where they meet a card. The board's header gives the counts of agents, running agents and managers.
+- Flow cards (Agent Inbox look): a footer line under each card shows a spinner and a live clock while the task runs, "Waiting for you", "Took 4m 12s" once done, or "Failed". The clock counts from when the task was given, because ARK keeps no separate start time.
+- Handoffs (Agent Handoff look): a plan card shows one small card per dependency, for example "Sid → Quill". It shows the earlier task's report summary as what went along, and the state: handed over, waiting, or not handed over. ARK has no review verdict for a handoff, so it shows none.
+- A short time now reads in days past 24 hours, for example "9d 15h".
+
+### Consequences
+
+- A task's run, the team, the Flow and a plan each read at a glance, with no new runtime data.
+- No cost figures are shown, because ARK records cost per run, not per call or per agent card.

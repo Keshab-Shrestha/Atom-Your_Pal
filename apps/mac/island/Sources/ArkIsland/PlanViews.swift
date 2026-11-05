@@ -49,6 +49,7 @@ struct PlanCard: View {
                 PlanDots(plan: plan)
             }
             .padding(.horizontal, 16).padding(.vertical, 12)
+            PlanHandoffStrip(model: model, plan: plan)
             if plan.needsRecoveryReview {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(plan.recoveryTitle).appFont(.system(size: 12, weight: .semibold)).foregroundStyle(theme.problem.color)
@@ -104,5 +105,56 @@ private struct PlanPortionRow: View {
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 8)
+    }
+}
+
+/// What passed between the plan's agents (after affectUI's Agent Handoff look): one small card per handoff, "Sid → Quill", with the
+/// report that went along and whether it was handed over. Shown only for a plan whose portions wait for each other.
+private struct PlanHandoffStrip: View {
+    let model: IslandModel
+    let plan: WorkPlanItem
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let jobs = Dictionary((model.helpers.list?.helpers ?? []).flatMap(\.jobs).map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let items = PlanHandoff.items(plan) { jobs[$0]?.summary }
+        if !items.isEmpty {
+            FlowLayout(spacing: 8) {
+                ForEach(items) { item in card(item) }
+            }
+            .padding(.horizontal, 16).padding(.bottom, 12)
+        }
+    }
+
+    private func card(_ item: PlanHandoff) -> some View {
+        let shape = RoundedRectangle(cornerRadius: theme.radiusCard - 2, style: .continuous)
+        let (text, color): (String, Color) = switch item.state {
+        case .handedOver: ("Handed over", theme.success.color)
+        case .waiting: ("Waiting", theme.text3.color)
+        case .notHandedOver: ("Not handed over", theme.problem.color)
+        }
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 5) {
+                Text(item.from.name).foregroundStyle(theme.text2.color)
+                Glyph(systemName: "arrow.right").appFont(.system(size: 9, weight: .semibold)).foregroundStyle(theme.text3.color)
+                Text(item.to.name).foregroundStyle(theme.text2.color)
+                Spacer(minLength: 4)
+                Text("P\(item.from.n)→P\(item.to.n)").appFont(theme.appIdentifierFont(.system(size: 10), size: 9.5)).foregroundStyle(theme.text3.color)
+            }
+            .appFont(.system(size: 11, weight: .medium)).lineLimit(1)
+            Text(item.carried ?? (item.state == .waiting ? "Nothing passed yet." : "No report to pass on."))
+                .appFont(.system(size: 11.5)).foregroundStyle(item.carried == nil ? theme.text3.color : theme.text.color)
+                .lineLimit(2).frame(maxWidth: .infinity, alignment: .topLeading)
+            HStack(spacing: 5) {
+                Circle().fill(color).frame(width: 6, height: 6)
+                Text(text).appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+            }
+        }
+        .padding(10)
+        .frame(width: 240, alignment: .topLeading)
+        .background(shape.fill(theme.fill2.color))
+        .overlay(shape.strokeBorder(theme.separator.color, lineWidth: 0.6))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(item.from.name) to \(item.to.name), \(text)\(item.carried.map { ": \($0)" } ?? "")")
     }
 }

@@ -511,6 +511,11 @@ final class IslandModel {
             case .none, .backToBox: break // persisted entries are held automatically when absent from the live queue
             case .send(let message): sendQueued(message)
             }
+        case .reply:
+            switch queue.replyDone(chat: chats?.current) {
+            case .none, .backToBox: break
+            case .send(let message): sendQueued(message)
+            }
         case .error(let error) where error.stage != "settings" || queue.awaitingStart:
             dispatchedInputIDs = []
             queue.failed()

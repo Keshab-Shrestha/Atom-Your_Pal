@@ -4,6 +4,7 @@ import ArkIslandCore
 
 extension IslandGallery {
     static func writeChatDesign(to directory: URL) {
+        writeChatWork(to: directory)
         for (name, theme, width, empty) in [
             ("31-chat-t3-dark", AppTheme.void, 1080.0, false),
             ("31-chat-t3-light", AppTheme.daylight, 1080.0, false),
@@ -55,6 +56,25 @@ extension IslandGallery {
                      name: theme == .void ? "32-shell-settings-defaults-dark" : "32-shell-settings-defaults-light", to: directory)
             }
 
+        }
+    }
+
+    /// 2026-11-05: the thinking pill and the tool call rows (after affectUI, MIT), with every call state, in dark and light.
+    static func writeChatWork(to directory: URL) {
+        let id = { UUID().uuidString }
+        let json = #"{"chat":"cedar","turn":"\#(id())","startedAt":"","elapsedMs":42000,"state":"working","omitted":0,"questions":[],"calls":["#
+            + #"{"id":"\#(id())","tool":"Read","state":"ok","ms":1200},{"id":"\#(id())","tool":"WebSearch","state":"ok","ms":3400},"#
+            + #"{"id":"\#(id())","tool":"Bash","state":"error","ms":800},{"id":"\#(id())","tool":"mcp__ark__plan_work","state":"unknown"},"#
+            + #"{"id":"\#(id())","tool":"Edit","state":"started"}]}"#
+        guard let work = try? JSONDecoder().decode(ChatWorkSnapshot.self, from: Data(json.utf8)) else { return }
+        for (name, theme) in [("32-chat-work-dark", AppTheme.void), ("32-chat-work-light", AppTheme.daylight)] {
+            let palette = theme.palette
+            save(VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 12) { ThinkingPill(label: "Thinking"); ThinkingPill(label: ChatWorkText.phase(work)) }
+                ChatWorkView(work: work)
+            }
+            .padding(24).frame(width: 720, height: 360, alignment: .topLeading)
+            .background(palette.surfaceSolid.color).themed(palette).environment(\.islandSnapshot, true), name: name, to: directory)
         }
     }
 }

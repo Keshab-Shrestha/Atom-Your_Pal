@@ -151,3 +151,33 @@ extension HelpersList {
     /// The plan that goes on now, newest first; nil when none does.
     public var activePlan: WorkPlanItem? { plans.first { $0.isActive } }
 }
+
+/// A plan's handoffs (2026-11-05, after affectUI's Agent Handoff look): each portion that waits for another receives that portion's
+/// report. One handoff per dependency, in plan order: who passed to whom, what went along (the earlier task's summary), and whether
+/// it was handed over, still waits, or was not handed over because the earlier portion did not finish. Pure.
+public struct PlanHandoff: Sendable, Equatable, Identifiable {
+    public enum State: Sendable, Equatable { case handedOver, waiting, notHandedOver }
+    public var from: PlanPortion
+    public var to: PlanPortion
+    /// The earlier portion's report summary; nil until it has one.
+    public var carried: String?
+    public var state: State
+    public var id: String { "\(from.n)>\(to.n)" }
+
+    public static func items(_ plan: WorkPlanItem, summary: (Int) -> String?) -> [PlanHandoff] {
+        plan.portions.flatMap { to in
+            // Each dependency once, never a portion handing to itself (code review, 2026-11-05).
+            Array(Set(to.after)).sorted().compactMap { n -> PlanHandoff? in
+                guard n != to.n, let from = plan.portions.first(where: { $0.n == n }) else { return nil }
+                // Only a finished portion's report went along; a running or failed one's summary may be partial.
+                let carried = from.state == .done ? (from.resultJob ?? from.job).flatMap(summary) : nil
+                let state: State = switch from.state {
+                case .done: .handedOver
+                case .failed, .stopped, .blocked: .notHandedOver
+                case .waiting, .running: .waiting
+                }
+                return PlanHandoff(from: from, to: to, carried: carried, state: state)
+            }
+        }
+    }
+}

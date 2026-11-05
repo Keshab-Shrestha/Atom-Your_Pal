@@ -25,7 +25,7 @@ struct ChatControlsState {
 
 extension IslandModel {
     var savedChat: ChatInfo? { chats?.chats.first { $0.id == chats?.current } }
-    var chatBranchAvailable: Bool { chatControls.mutation == nil && !queue.running && !queue.awaitingStart }
+    var chatBranchAvailable: Bool { chatControls.mutation == nil && !queue.running && !queue.awaitingStart && !status.isBusy } // the runtime refuses a fork while ARK still speaks
 
     func inspectSavedChat() {
         guard let chat = savedChat else { chatControls.snapshot = nil; return }

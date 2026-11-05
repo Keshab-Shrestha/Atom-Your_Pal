@@ -63,6 +63,29 @@ extension IslandGallery {
             model.showsAllAgents = true
             capture("44-agents-" + name, width: 1000)
             model.showsAllAgents = false
+            // 2026-11-05 (after affectUI's Trace Waterfall and Agent Handoff looks): a task's trace and a plan's handoffs.
+            let t0 = Date(timeIntervalSince1970: 1_793_900_000)
+            let traceCalls = [
+                HelperToolCall(id: "1", tool: "Read", input: "launch-notes.md", state: .ok, at: t0, durationMs: 1200),
+                HelperToolCall(id: "2", agent: "searcher", tool: "WebSearch", input: "Cedar pricing 2026", state: .ok, at: t0.addingTimeInterval(1.5), durationMs: 5400),
+                HelperToolCall(id: "3", agent: "searcher", tool: "WebFetch", input: "cedar.example/pricing", state: .error, result: "The page did not load.", at: t0.addingTimeInterval(7), durationMs: 2100),
+                HelperToolCall(id: "4", agent: "reader", tool: "Read", input: "brand-voice.md", state: .ok, at: t0.addingTimeInterval(3), durationMs: 2400),
+                HelperToolCall(id: "5", tool: "Edit", input: "draft.md", state: .ok, at: t0.addingTimeInterval(10), durationMs: 3100),
+            ]
+            let plan = WorkPlanItem(id: 7, goal: "Cedar launch notes", portions: [
+                PlanPortion(n: 1, agent: "sid", name: "Sid", task: "Collect the sources", job: 71, state: .done),
+                PlanPortion(n: 2, agent: "quill", name: "Quill", task: "Write the notes", after: [1], state: .running),
+                PlanPortion(n: 3, agent: "kame", name: "Kame", task: "Check the links", after: [2], state: .waiting),
+            ])
+            save(VStack(alignment: .leading, spacing: 24) {
+                TraceWaterfallView(trace: TraceWaterfall(calls: traceCalls, now: t0.addingTimeInterval(20)), opened: .constant(nil))
+                PlanCard(model: model, plan: plan)
+            }
+            .padding(24).frame(width: 980, height: 760, alignment: .topLeading)
+            .background(model.settings.theme.palette.surfaceSolid.color).themed(model.settings.theme.palette).environment(\.islandSnapshot, true),
+                 name: "47-trace-handoff-" + name, to: directory)
+            model.windowPage = .agents; model.helpers.selectBoard(); model.boardView = .columns
+            capture("47-flow-" + name, width: 1440, height: 900)
             model.windowPage = .workflows
             capture("46-workflows-" + name)
             if let flow = model.workflows?.workflows.first {

@@ -189,7 +189,8 @@ struct Composer: View {
     }
 
     @ViewBuilder private var sendControls: some View {
-        if answering { StopReplyButton { model.stopReply() } }
+        // While ARK only reads a finished reply aloud, the button stops the speech; typing and sending work meanwhile (2026-11-06).
+        if answering { StopReplyButton(title: model.status.kind == .speaking && !model.queue.running ? "Stop speaking" : "Stop the answer") { model.stopReply() } }
         if !answering || !empty {
             ComposerButton(empty: empty, listening: model.status.kind == .listening, hint: talkHint, queueing: model.queue.running, action: send)
         }
@@ -562,6 +563,7 @@ private struct QueuedRow: View {
 
 /// The composer's stop button: a filled square in a circle, in the place of the microphone while ARK answers.
 private struct StopReplyButton: View {
+    var title = "Stop the answer"
     let action: () -> Void
     @Environment(\.theme) private var theme
 
@@ -581,8 +583,8 @@ private struct StopReplyButton: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .help("Stop the answer")
-        .accessibilityLabel("Stop the answer")
+        .help(title)
+        .accessibilityLabel(title)
     }
 }
 
@@ -852,11 +854,9 @@ struct TurnView: View {
                 }
                 switch turn.outcome {
                 case .inProgress where turn.reply == nil:
-                    HStack(spacing: 8) {
-                        ThinkingDots()
-                        Text("Thinking").appFont(.system(size: 12)).foregroundStyle(theme.text3.color)
-                    }
-                    .padding(.vertical, 4)
+                    // 2026-11-05 (after affectUI's Thinking Loader, MIT): a pill that says what ARK does now.
+                    ThinkingPill(label: ChatWorkText.phase(turn.work))
+                        .padding(.vertical, 2)
                 case .notice(let message):
                     outcomeLine(message, symbol: "hand.raised.fill", color: theme.attention.color)
                 case .failed(let message):
@@ -1014,25 +1014,6 @@ private struct Breathing: ViewModifier {
         } else {
             content
         }
-    }
-}
-
-struct ThinkingDots: View {
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 15)) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
-            HStack(spacing: 4) {
-                ForEach(0..<3) { i in
-                    Circle()
-                        .fill(theme.statusDots ? theme.idColor(theme.text2) : theme.text2.color) // Void: thinking is violet
-                        .frame(width: 5, height: 5)
-                        .opacity(0.3 + 0.7 * max(0, sin((t * 4) - Double(i) * 0.7)))
-                }
-            }
-        }
-        .accessibilityLabel("Thinking")
     }
 }
 

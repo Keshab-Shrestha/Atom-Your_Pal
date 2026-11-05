@@ -28,7 +28,17 @@ struct ChatWorkView: View {
                     if working, work.calls.count > calls.count {
                         Text("\(work.calls.count - calls.count) earlier steps").foregroundStyle(theme.text3.color)
                     }
-                    ForEach(calls) { call in callRow(call) }
+                    // 2026-11-05 (after affectUI's Tool Call Card, MIT): the calls as one quiet card, a row each.
+                    if !calls.isEmpty {
+                        VStack(spacing: 0) {
+                            ForEach(Array(calls.enumerated()), id: \.element.id) { index, call in
+                                if index > 0 { Rectangle().fill(theme.separator.color).frame(height: 0.6).padding(.leading, 40) }
+                                callRow(call)
+                            }
+                        }
+                        .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).fill(theme.fill1.color))
+                        .overlay(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).strokeBorder(theme.separator.color, lineWidth: 0.6))
+                    }
                     // While it works with no tool yet, the turn's own "Thinking" line below says so (2026-11-02: it showed twice).
                     if work.calls.isEmpty, !working { Text("No tools used").foregroundStyle(theme.text3.color) }
                     if work.omitted > 0 { Text("\(work.omitted) more steps not shown").foregroundStyle(theme.text3.color) }
@@ -40,29 +50,61 @@ struct ChatWorkView: View {
                     }
                 }
                 .appFont(.system(size: 12))
-                .padding(.leading, 12)
-                .overlay(alignment: .leading) { Rectangle().fill(theme.separator.color).frame(width: 1).padding(.leading, 4) }
             }
         }
+        .onAppear { noteRunning() }
+        .onChange(of: work.calls) { _, _ in noteRunning() }
     }
 
+    private func noteRunning() {
+        for call in work.calls where call.state == "started" { ToolCallClock.note(call.id) }
+    }
+
+    /// One call: its tile, what it does in plain words, the tool's own name in mono, and its state at the right: a spinner with a live
+    /// timer while it runs, a check with its time, "Failed", or "Unknown".
     private func callRow(_ call: ChatWorkSnapshot.Call) -> some View {
         let running = call.state == "started"
-        return HStack(spacing: 8) {
-            Group {
-                if running { WorkingGlyph() }
-                else { Glyph(systemName: symbol(call.state)).appFont(.system(size: 10, weight: .semibold)) }
-            }
-            .frame(width: 12).foregroundStyle(call.state == "error" ? theme.problem.color : theme.text3.color)
+        let failed = call.state == "error"
+        return HStack(spacing: 10) {
+            Glyph(systemName: ChatWorkText.symbol(tool: call.tool)).appFont(.system(size: 11, weight: .medium))
+                .foregroundStyle(failed ? theme.problem.color : theme.text2.color)
+                .frame(width: 22, height: 22)
+                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(theme.fill2.color))
+                .accessibilityHidden(true) // decoration: the words carry the meaning
             Text(ChatWorkText.label(tool: call.tool, running: running))
-                .foregroundStyle(running ? theme.text.color : theme.text2.color)
-                .help(call.tool)
-            if call.state == "error" { Text("reported an error").foregroundStyle(theme.problem.color) }
-            if call.state == "unknown" { Text("outcome unknown").foregroundStyle(theme.text3.color) }
+                .foregroundStyle(running ? theme.text.color : theme.text2.color).lineLimit(1)
+            Text(call.tool).appFont(.system(size: 10.5, design: .monospaced)).foregroundStyle(theme.text3.color).lineLimit(1).truncationMode(.middle)
             Spacer(minLength: 8)
-            if let ms = call.ms { Text(duration(ms)).monospacedDigit().foregroundStyle(theme.text3.color) }
+            status(call)
         }
+        .padding(.horizontal, 8).padding(.vertical, 6)
         .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private func status(_ call: ChatWorkSnapshot.Call) -> some View {
+        switch call.state {
+        case "started":
+            HStack(spacing: 6) {
+                RaySpinner(size: 10, color: theme.accent.color)
+                if snapshot { Text("0s") } else {
+                    TimelineView(.periodic(from: .now, by: 1)) { _ in
+                        Text(ChatWorkText.duration(ms: ToolCallClock.running(call.id) * 1000))
+                    }
+                }
+            }
+            .monospacedDigit().foregroundStyle(theme.text2.color)
+        case "ok":
+            HStack(spacing: 4) {
+                Glyph(systemName: "checkmark").appFont(.system(size: 9.5, weight: .bold)).foregroundStyle(theme.accent.color)
+                if let ms = call.ms { Text(ChatWorkText.duration(ms: ms)).monospacedDigit() }
+            }
+            .foregroundStyle(theme.text3.color)
+        case "error":
+            Label("Failed", systemImage: "exclamationmark.circle.fill").labelStyle(.titleAndIcon).foregroundStyle(theme.problem.color)
+        default:
+            Text("Unknown").foregroundStyle(theme.text3.color).help("The outcome is unknown: the turn ended before this call reported.")
+        }
     }
 
     private var toggle: some View {
@@ -79,13 +121,8 @@ struct ChatWorkView: View {
     }
     private var label: String {
         let prefix = work.state == "working" ? "Working for" : work.state == "completed" ? "Worked for" : work.state == "failed" ? "Failed after" : work.state == "interrupted" ? "Interrupted after" : "Stopped after"
-        return "\(prefix) \(duration(work.elapsed()))"
+        return "\(prefix) \(ChatWorkText.duration(ms: work.elapsed()))"
     }
-    private func duration(_ ms: Double) -> String {
-        let seconds = Int(ms / 1000)
-        return seconds >= 60 ? "\(seconds / 60)m \(seconds % 60)s" : "\(seconds)s"
-    }
-    private func symbol(_ state: String) -> String { state == "ok" ? "checkmark" : state == "error" ? "exclamationmark" : "questionmark" }
 }
 
 struct ChatQuestionCard: View {
@@ -142,5 +179,27 @@ struct ChatAccessContent: View {
             Text("To inspect exact file grants, send ‘Show file permissions for this chat’. To revoke them, send ‘Forget file permissions for this chat’.")
             Button("Refresh", action: model.inspectSavedChat)
         }.appFont(.system(size: 12)).foregroundStyle(theme.text2.color).padding(16).frame(width: 340)
+    }
+}
+
+/// When the window first saw each running call, for its live timer. The runtime sends a call's time only once it ends, and a row's
+/// view is rebuilt when it scrolls back or the chat reopens; kept here, the timer keeps counting instead of starting again at 0s.
+/// Bounded: the oldest stamps go past 200.
+@MainActor
+enum ToolCallClock {
+    private static var seen: [String: Double] = [:]
+    private static var order: [String] = []
+    private static let limit = 200
+
+    static func note(_ id: String) {
+        guard seen[id] == nil else { return }
+        seen[id] = ProcessInfo.processInfo.systemUptime
+        order.append(id)
+        if order.count > limit { seen[order.removeFirst()] = nil }
+    }
+
+    /// Seconds since the call was first seen; 0 if never.
+    static func running(_ id: String) -> Double {
+        seen[id].map { max(0, ProcessInfo.processInfo.systemUptime - $0) } ?? 0
     }
 }

@@ -1,5 +1,20 @@
 # ARK Project Status
 
+## Trace, team cards, flow cards and handoffs — 5 November 2026
+
+- ADR-264, after the looks of four affectUI Pro items, with ARK's own code and data. A task's tool calls are a waterfall with totals and the slowest call marked. Team cards have a status pill and the current task. Flow cards have a live clock footer. Plan cards show what passed between agents.
+- Verified: `pnpm island:test` (967 pass), and fixture renders of the trace, the handoffs, the Team and the Flow. Not checked by hand.
+
+## Chat free while ARK reads aloud — 6 November 2026
+
+- Fix: a typed reply kept the chat busy for 10 to 55 s while ARK read it aloud, so the next message waited and Stop stayed. The bug started on 2 November. Now the chat is free as soon as the reply text is in. ARK keeps reading. A new message stops the reading and starts the next turn. During the reading the Stop button says "Stop speaking". Fork and draft restore still wait for the reading to end, because the runtime refuses them until then.
+- Verified: `pnpm island:test` (962 pass, with a new MessageQueue test). Independent review: no blocking bug.
+
+## Thinking pill and tool call rows — 5 November 2026
+
+- ADR-263: the chat's "Thinking" dots are now a pill with a spinner. Its label says what ARK does now ("Reading a file"). The work log's tool calls sit in one card, a row each, with a glyph, the plain words, the tool name, and a live timer, a check with the time, "Failed" or "Unknown". Ported from affectUI (MIT) as SwiftUI.
+- Verified: `pnpm island:test` and fixture renders in dark and light. Not checked by hand in a live chat.
+
 ## Hand check fixes, team levels and endless boards — 5 November 2026
 
 - Hand check fixes: the Home logo has a caption, and the page is called Home. The Board's top bar says Board only. A plan portion's title "P1" shows its task too. Activity's Today shows the tokens and says when Claude has not reported the plan's use.
