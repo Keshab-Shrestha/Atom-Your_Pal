@@ -98,6 +98,7 @@ struct SettingsTab: View {
         case .notifications:
             let on = AppNotice.Kind.allCases.filter { s.notifies($0) }.count
             return on == AppNotice.Kind.allCases.count ? "All on" : on == 0 ? "Off" : "\(on) of \(AppNotice.Kind.allCases.count) on"
+        case .stats: return model.stats.map { $0.isEmpty ? "" : "\($0.totalCalls) calls" } ?? ""
         case .connections: return s.localApi ? "Local API on" : "Local API off"
         case .privacy:
             let waiting = model.permissions.visibleRows.filter { model.permissions.states[$0] != .granted }.count
@@ -121,6 +122,7 @@ struct SettingsTab: View {
         case .notifications: NotificationsSection(model: model)
         case .connections: ConnectionsSection(model: model)
         case .privacy: PrivacySection(model: model)
+        case .stats: StatsSection(model: model)
         }
     }
 }

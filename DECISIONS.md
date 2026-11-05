@@ -4479,3 +4479,21 @@ ARK's own log showed the computer tool failing with "session 'ark' has ended; to
 
 - A long idle gap no longer breaks the computer tool until restart.
 - If the driver changes the wording of the rejection, the retry does not fire. The test pins the current wording.
+
+## ADR-245 — A Stats page: tool and turn numbers from ARK's own log (2026-11-05)
+
+### Context
+
+ARK already shows token use on Home. It shows nothing about its tools: which ones run, which fail, how long they take, or how long the model takes to answer. The ARK notices (ADR-239) read the same log, but only to find problems. The deepseek-harness project has a stats tab for this.
+
+### Decision
+
+- `stats.ts` counts the last 7 days of `logs/ark.log` with plain code: per tool, the calls, the failures, the average time and the repeats (ADR-243); and the answers, their average model time and the slow ones (15 s or more). It keeps the 12 busiest tools. The totals count every tool.
+- The window asks with `stats.get`. The runtime answers with one `stats` event. Without a log file there is no answer, and the page says "Nothing to show yet".
+- A new Settings page "Stats" sits under Help. The log holds names, counts and times only, so the page shows no chat text.
+- Reading the log costs about 0.1 s for a 12 MB log. The page reads it once each time it opens.
+
+### Consequences
+
+- The user can see which tool fails most. Before, only the notices said so.
+- The numbers are a week of a log that rotates by size. A busy week may show fewer days than it says.

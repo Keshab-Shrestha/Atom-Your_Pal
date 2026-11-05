@@ -31,6 +31,7 @@ export type IslandCommand =
   /** 2026-11-04: pages ARK watches: the list (and its changes from then on), and stop watching one. */
   | { type: "watches.get" }
   /** 2026-11-05: apps. List them; open one (its page comes back as `appOpened`); remove one; and the bridge: one call from a running app. */
+  | { type: "stats.get" }
   | { type: "improvements.get" }
   | { type: "improvements.run" }
   | { type: "improvements.set"; enabled: boolean }
@@ -213,6 +214,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "chat.defaults",
   "panels.list",
   "watches.get",
+  "stats.get",
   "improvements.get",
   "improvements.run",
   "improvements.set",
@@ -438,7 +440,7 @@ export function parseCommand(line: string): ParsedLine {
         || JSON.stringify(v.panel).length > 120_000) return { error: "Invalid panel." };
     return { command: { type, panel: v.panel as Record<string, unknown> } };
   }
-  if (type === "improvements.get" || type === "improvements.run") return Object.keys(value as object).length === 1 ? { command: { type } } : { error: `Invalid ${type} request.` };
+  if (type === "stats.get" || type === "improvements.get" || type === "improvements.run") return Object.keys(value as object).length === 1 ? { command: { type } } : { error: `Invalid ${type} request.` };
   if (type === "improvements.set") {
     const v = value as Record<string, unknown>;
     return Object.keys(v).length === 2 && typeof v.enabled === "boolean" ? { command: { type, enabled: v.enabled } } : { error: 'improvements.set needs "enabled" to be true or false.' };

@@ -50,6 +50,7 @@ function islandHarness(
     panels: IslandOptions["panels"];
     apps: IslandOptions["apps"];
     improvements: IslandOptions["improvements"];
+    stats: IslandOptions["stats"];
     clipMs: number;
     warmUp: () => Promise<void>;
     silenceWarnMs: number;
@@ -119,6 +120,7 @@ function islandHarness(
     ...(over.panels ? { panels: over.panels } : {}),
     ...(over.apps ? { apps: over.apps } : {}),
     ...(over.improvements ? { improvements: over.improvements } : {}),
+    ...(over.stats ? { stats: over.stats } : {}),
     ...(over.projects ? { projects: over.projects } : {}),
     ...(over.workspace ? { workspace: over.workspace } : {}),
     ...(over.attachments ? { attachments: over.attachments } : {}),
@@ -2573,4 +2575,20 @@ test("improvements: get, run, switch and dismiss reach the store; bad commands a
     assert.deepEqual(calls, ["run", "set:false", "fixing:crash:137", "dismiss:crash:137"]);
     assert.equal(events.filter((e) => e.type === "error").length >= 2, true);
   } finally { await h.send({ type: "quit" }); }
+});
+
+test("stats.get sends the tool and turn numbers once, and nothing when there is no log (2026-11-05)", async () => {
+  const stats = { days: 7, turns: 2, avgTurnMs: 1500, slowTurns: 0, totalCalls: 3, totalFailed: 1, tools: [{ name: "computer", calls: 3, failed: 1, avgMs: 120, repeats: 0 }] };
+  const h = islandHarness({ stats: { get: () => stats } });
+  try {
+    await h.send({ type: "stats.get" });
+    const sent = h.events().filter((e) => e.type === "stats");
+    assert.equal(sent.length, 1);
+    assert.deepEqual({ ...(sent[0] as object), type: undefined }, { ...stats, type: undefined });
+  } finally { await h.send({ type: "quit" }); }
+  const none = islandHarness({});
+  try {
+    await none.send({ type: "stats.get" });
+    assert.equal(none.events().filter((e) => e.type === "stats").length, 0);
+  } finally { await none.send({ type: "quit" }); }
 });

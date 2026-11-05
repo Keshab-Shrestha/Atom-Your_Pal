@@ -20,6 +20,8 @@ public enum IslandCommand: Sendable, Equatable {
     /// Apps: the list, one app's page, remove one, and one call from a running app (already checked by `AppBridge.parse`).
     case appsList
     /// ARK notices: the notes (and their changes from then on), look again now, the switch, and dismiss one.
+    /// 2026-11-05: ask for the Stats page's numbers.
+    case statsGet
     case improvementsGet
     case improvementsRun
     case improvementsSet(enabled: Bool)
@@ -239,6 +241,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .panelsList: "panels.list"
         case .watchesGet: "watches.get"
         case .appsList: "apps.list"
+        case .statsGet: "stats.get"
         case .improvementsGet: "improvements.get"
         case .improvementsRun: "improvements.run"
         case .improvementsSet: "improvements.set"

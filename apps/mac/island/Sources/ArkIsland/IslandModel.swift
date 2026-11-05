@@ -208,6 +208,8 @@ final class IslandModel {
     var apps: [AppItem]?
     /// 2026-11-05: ARK notices (improve.ts), once asked for.
     var improvements: ImprovementsState?
+    /// 2026-11-05: the Stats page's numbers; nil until the runtime answers.
+    var stats: ToolStats?
     var openApp: AppOpened?
     @ObservationIgnored var appReplyHandler: ((AppReply) -> Void)?
     /// 2026-11-02: the ⌘K command palette is open.
@@ -223,6 +225,7 @@ final class IslandModel {
     func closeAppPage() { openApp = nil; appReplyHandler = nil }
     /// ARK notices: ask once; the runtime then sends its changes. Look again now; the switch; dismiss; or talk a note through in a new chat.
     func loadImprovements() { send(.improvementsGet) }
+    func loadStats() { send(.statsGet) }
     func lookForImprovements() { send(.improvementsRun) }
     func setImprovementsEnabled(_ on: Bool) { send(.improvementsSet(enabled: on)) }
     func dismissImprovement(_ id: String) { send(.improvementDismiss(id: id)) }
@@ -1167,6 +1170,8 @@ final class IslandModel {
             panels = list
         case .watches(let list):
             watches = list
+        case .stats(let value):
+            stats = value
         case .improvements(let state):
             improvements = state
         case .apps(let list):
