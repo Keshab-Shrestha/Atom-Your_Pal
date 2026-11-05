@@ -1052,3 +1052,14 @@ test("confirmed input does not add an unrequested post-action read", async () =>
   await s.run({ action: "click", element: 2 });
   assert.equal(s.calls.filter((c) => c.name === "get_window_state").length, 1);
 });
+
+test("the Return key and a line break may be allowed for the task; Quit, Delete and clicks may not", async () => {
+  const s = setup({ approve: () => true });
+  await sees(s);
+  await s.run({ action: "key", keys: ["return"] });
+  await s.run({ action: "key", keys: ["cmd", "q"] });
+  await s.run({ action: "type", element: 5, text: "a\nb" });
+  assert.match(s.asked[0]!.taskKey!, /^key:.+:return$/, "Return can be allowed for the task");
+  assert.equal(s.asked[1]!.taskKey, undefined, "Quit always asks");
+  assert.match(s.asked[2]!.taskKey!, /^linebreak:/, "a line break can be allowed for the task");
+});

@@ -9,7 +9,7 @@ import { nativeGate, type NativeGate } from "./native-safety.ts";
 
 type Decision = { decision: string; reason?: string; input?: Record<string, any> };
 
-function setup(options: { project?: boolean; approve?: boolean } = {}) {
+function setup(options: { project?: boolean; approve?: boolean; onTaint?: () => void } = {}) {
   const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-safety-")));
   const work = join(home, "work");
   mkdirSync(work);
@@ -20,6 +20,7 @@ function setup(options: { project?: boolean; approve?: boolean } = {}) {
   const tools = [...(options.project ? ["Read", "Glob", "Grep"] : ["WebSearch", "WebFetch"]), "Agent"];
   const gate = nativeGate({
     tools,
+    ...(options.onTaint ? { onTaint: options.onTaint } : {}),
     team: {
       chatId: "chat-1",
       helpers: store,
@@ -370,4 +371,13 @@ test("imported note data cannot turn an ordinary read into action approval, incl
     full.knowledgeRead("");
     assert.equal((await full.canUseTool("mcp__ark__create_agent", {}, { toolUseID: "full-tainted" })).behavior, "deny");
   } finally { store.close(); rmSync(home, { recursive: true, force: true }); }
+});
+
+test("taint: reading the web tells the runtime, so every \"allow for this task\" is forgotten", async () => {
+  let told = 0;
+  const { gate, done } = setup({ onTaint: () => { told += 1; } });
+  assert.equal(told, 0);
+  await post(gate, { tool_name: "WebFetch", tool_input: { url: "https://example.com/page" } });
+  assert.ok(told >= 1);
+  done();
 });

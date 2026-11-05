@@ -385,7 +385,7 @@ export function runIsland(options: IslandOptions): IslandSession {
         return;
       }
       case "approval.answer":
-        options.computer?.answer(command.id, command.approved, command.rememberFile, command.reviewToken);
+        options.computer?.answer(command.id, command.approved, command.rememberFile, command.reviewToken, command.rememberTask);
         return;
       case "conversation.reset":
         return newChat(undefined);
