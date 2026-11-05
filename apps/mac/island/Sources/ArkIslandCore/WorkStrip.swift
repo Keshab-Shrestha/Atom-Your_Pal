@@ -35,7 +35,7 @@ public struct WorkStripState: Sendable, Equatable {
 
     public mutating func apply(_ event: IslandEvent, now: Double) {
         switch event {
-        case .computerStep(let text):
+        case .computerStep(let text, _):
             begin()
             step = IslandStatus.short(text)
         case .computerPoint(let target):

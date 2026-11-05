@@ -4636,3 +4636,20 @@ ARK's agent pointer was a pointing hand ("more stylish like fingertips", 2026-11
 - Two gallery goldens changed (`49-agent-cursor`, `50-agent-cursor-lanes`).
 - Checked live with two lanes: the coral "a" arrow showed in TextEdit while a ring marked a link in Brave.
 - During the live check a second TextEdit window was open, and the driver reported 0 of 18 characters typed although the text arrived. That is the driver's check with two windows of one app, not the pointer.
+## ADR-251 — A lane's step starts no pointer by itself (2026-11-05)
+
+### Context
+
+Live test of the cursor lanes (ADR-249): lane a typed in TextEdit while lane b pointed at a link in Brave. Pal flew to the link. A teal pointer then stood where Pal usually stands, and later a violet one. The user asked if that was commanded. It was not: it was a side effect. Every computer step started the main pointer at Pal's home. When the work ran in a lane, the main pointer never moved. Then a lane step also started its own pointer, and a step that only looks or points never moves it. The pointer sat idle at Pal's home, beside an empty spot, like a stray pointer in place of ARK.
+
+### Decision
+
+- A step in a lane carries its lane name (`computer.step.lane`). The window starts no pointer for it.
+- A lane's pointer appears when it first moves (a click, type, key or scroll), and glides home when the work ends.
+- A main-lane step starts the main pointer as before.
+
+### Consequences
+
+- Looking or pointing in a lane shows only the work, not a stray pointer.
+- Checked live: lane a showed its coral pointer in TextEdit, Pal and the ring were at the link, and nothing stood at Pal's home.
+- A lane's `point` step does not move that lane's pointer. Not built: moving the lane's pointer to the pointed place.

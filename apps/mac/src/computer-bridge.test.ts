@@ -405,3 +405,12 @@ test("a lane's cursor move carries the lane name, a bad name is dropped, and the
   const moves = events.filter((e) => e.type === "computer.cursor") as Array<{ x: number; lane?: string }>;
   assert.deepEqual(moves.map((m) => m.lane), ["a", undefined, undefined]);
 });
+
+test("a lane's step event carries the lane name, a bad name is dropped, and a main-lane step has none", () => {
+  const { bridge, events } = setup();
+  bridge.step({ action: "look", app: "Notes", lane: "a" });
+  bridge.step({ action: "look", app: "Notes" });
+  bridge.step({ action: "look", app: "Notes", lane: "Bad Name!" });
+  const steps = events.filter((e) => e.type === "computer.step") as Array<{ lane?: string }>;
+  assert.deepEqual(steps.map((s) => s.lane), ["a", undefined, undefined]);
+});

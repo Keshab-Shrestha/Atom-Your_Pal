@@ -1166,3 +1166,13 @@ test("the cursor events name the lane, and the main lane has no name", async () 
   assert.equal(moves[0]!.lane, "a");
   assert.equal("lane" in moves[1]!, false);
 });
+
+test("a step in a lane names the lane, and a main-lane step does not", async () => {
+  const steps: Array<{ action: string; lane?: string }> = [];
+  const { cua } = fakeCua(laneHandlers());
+  const tool = createComputerTool({ cua, approve: async () => true, onStep: (s) => steps.push(s) });
+  await tool.run({ action: "look", app: "TextEdit", lane: "a" });
+  await tool.run({ action: "look", app: "Notes" });
+  assert.equal(steps[0]!.lane, "a");
+  assert.equal("lane" in steps[1]!, false);
+});
