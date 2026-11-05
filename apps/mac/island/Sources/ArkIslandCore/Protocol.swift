@@ -26,7 +26,8 @@ public enum IslandEvent: Sendable, Equatable {
     /// ARK is about to do something on the Mac, in plain words (ADR-054).
     case computerDecision(ComputerDecisionRequest)
     case computerDecisionCancel(String)
-    case computerStep(String)
+    /// `lane` names a lane other than the main one (ADR-249): its own cursor starts, not the main one.
+    case computerStep(String, lane: String? = nil)
     /// `lane` names a lane other than the main one (ADR-249): its own cursor moves.
     case computerCursor(x: Double, y: Double, lane: String? = nil)
     /// ADR-054: no step for a while and no approval waits: the computer work is over (any turn, not only the voice loop's).
@@ -257,7 +258,7 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
     case "computer.decision.cancel":
         return .computerDecisionCancel(try f.string("id"))
     case "computer.step":
-        return .computerStep(try f.string("text"))
+        return .computerStep(try f.string("text"), lane: f.optionalString("lane"))
     case "computer.cursor":
         let x = try f.double("x"), y = try f.double("y")
         guard x.isFinite, y.isFinite, abs(x) <= 100_000, abs(y) <= 100_000 else { throw ProtocolError.invalidValue(event: "computer.cursor", field: "position") }

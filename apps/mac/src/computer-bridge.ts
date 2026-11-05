@@ -33,7 +33,7 @@ export interface ComputerBridge {
   /** Task 2.x: the island presses the Mac's play/pause key. False if there is no island. */
   playPause(): boolean;
   /** Passed to the computer tool as `onStep`. */
-  step(step: { action: string; app?: string; current?: number; total?: number }): void;
+  step(step: { action: string; app?: string; current?: number; total?: number; lane?: string }): void;
   decisionOptions(): { provider: "off" | "jev" | "laya"; backup: boolean; revision: number };
   setDecisions(provider: "off" | "jev" | "laya", backup: boolean): void;
   decide(request: ComputerDecisionState, signal?: AbortSignal): Promise<ComputerDecisionAnswer | undefined>;
@@ -235,7 +235,7 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
       return foreground ? "foreground" : "background";
     },
     step(step) {
-      sendEvent?.({ type: "computer.step", text: stepText(step) });
+      sendEvent?.({ type: "computer.step", text: stepText(step), ...(step.lane && /^[a-z][a-z0-9-]{0,11}$/.test(step.lane) ? { lane: step.lane } : {}) });
       // The status probe measures cold initialization itself; cursor setup must not prewarm the helper first.
       if (step.action !== "status") begin();
       scheduleEnd();

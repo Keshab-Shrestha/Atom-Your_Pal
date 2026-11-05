@@ -4617,3 +4617,21 @@ The computer tool had one session, one target window and one pointer. The swarm-
 - Sub-agents still cannot use the computer. Not built.
 - Not tried live end to end: no second controllable app window was open. Checked live: the main lane, a lane session, the idle reconnect, and the driver's parallel reads. The cursor drawing is shown in a gallery shot, not yet watched on screen.
 - ADR-242's start-again step stays. It helps only if a session ends while its connection is alive.
+
+## ADR-251 — A lane's step starts no pointer by itself (2026-11-05)
+
+### Context
+
+Live test of the cursor lanes (ADR-249): lane a typed in TextEdit while lane b pointed at a link in Brave. Pal flew to the link. A teal pointer then stood where Pal usually stands, and later a violet one. The user asked if that was commanded. It was not: it was a side effect. Every computer step started the main pointer at Pal's home. When the work ran in a lane, the main pointer never moved. Then a lane step also started its own pointer, and a step that only looks or points never moves it. The pointer sat idle at Pal's home, beside an empty spot, like a stray pointer in place of ARK.
+
+### Decision
+
+- A step in a lane carries its lane name (`computer.step.lane`). The window starts no pointer for it.
+- A lane's pointer appears when it first moves (a click, type, key or scroll), and glides home when the work ends.
+- A main-lane step starts the main pointer as before.
+
+### Consequences
+
+- Looking or pointing in a lane shows only the work, not a stray pointer.
+- Checked live: lane a showed its coral pointer in TextEdit, Pal and the ring were at the link, and nothing stood at Pal's home.
+- A lane's `point` step does not move that lane's pointer. Not built: moving the lane's pointer to the pointed place.

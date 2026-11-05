@@ -46,7 +46,7 @@ export type IslandEvent =
   | { type: "conversation.reset"; projectId?: string }
   /** The answer to `chats.export` or `chats.clear`: how many chats, the folder written, or why not. */
   | { type: "chats.history"; action: "export" | "clear"; ok: boolean; count: number; folder?: string; error?: string }
-  | { type: "computer.step"; text: string }
+  | { type: "computer.step"; text: string; lane?: string }
   | { type: "computer.decision"; id: string; state: string; criteria: Record<string, string> }
   | { type: "computer.decision.cancel"; id: string }
   | { type: "computer.cursor"; x: number; y: number; lane?: string }

@@ -335,7 +335,11 @@ final class IslandController {
         }
         if case .contextReady(_, let ok, _) = event { contextReady(ok: ok) } // before the status: it opens the microphone
         model.work.apply(event, now: Self.now)
-        if case .computerStep(let step) = event, step != "Checking computer readiness" { agentCursor.begin() }
+        if case .computerStep(let step, let lane) = event, step != "Checking computer readiness" {
+            // A lane step starts no pointer: the lane's own pointer appears when it first moves. A pointer started here would sit idle at
+            // Pal's home (a step that only looks or points never moves it), looking like a stray pointer where Pal was.
+            if lane == nil { agentCursor.begin() }
+        }
         if case .computerCursor(let x, let y, let lane) = event {
             if let lane { agentCursor.lane(lane)?.move(x: x, y: y) } else { agentCursor.move(x: x, y: y) }
         }

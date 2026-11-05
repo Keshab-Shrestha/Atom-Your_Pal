@@ -36,7 +36,8 @@ export interface ComputerToolOptions {
    */
   onPoint?: (target: { x: number; y: number; w: number; h: number; label: string; shape?: DrawShape }) => boolean | void;
   /** Called as an action begins, so the user can see what ARK is doing. Carries the action and app only. */
-  onStep?: (step: { action: string; app?: string }) => void;
+  /** `lane` is set for a lane other than the main one (ADR-249): the window then starts that lane's cursor, not the main one. */
+  onStep?: (step: { action: string; app?: string; lane?: string }) => void;
   /** Progress within one action; does not begin another action or extend its authority. */
   onProgress?: (step: { action: string; app: string; current: number; total: number }) => void;
   /** Visual overlay only; observed global screen points, never a real-pointer input. */
@@ -448,7 +449,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
       if (["click", "click_sequence", "choose_sequence", "shortcut", "type", "key", "scroll"].includes(action)) modeOf(input);
       if (action === "click_sequence") buttonSteps(input.steps);
       if (action === "choose_sequence") preparedPlans(input);
-      onStep?.({ action, ...(appName ? { app: appName } : {}) });
+      onStep?.({ action, ...(appName ? { app: appName } : {}), ...(lane().name === "main" ? {} : { lane: lane().name }) });
       const result = await perform(action, input, signal);
       let out = typeof result === "string" ? result : result.text;
       const uncertain = typeof result !== "string" && result.uncertain;
