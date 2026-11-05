@@ -4,14 +4,19 @@ import Testing
 struct BoardViewTests {
     @Test func overviewComesBeforeFloor() {
         #expect(BoardView.allCases == [.needsYou, .overview, .floor, .columns, .team], "what waits for Keshab comes first")
-        #expect(BoardView.allCases.map(\.title) == ["Needs you", "Activity", "Studio", "Tasks", "Team"])
+        #expect(BoardView.allCases.map(\.title) == ["Needs you", "Activity", "Studio", "Flow", "Team"])
+    }
+
+    /// ADR-256: Needs you and Tasks are one view, the Flow.
+    @Test func needsYouAndTasksAreTheFlow() {
+        #expect(BoardView.allCases.filter(\.isFlow) == [.needsYou, .columns])
     }
 
     @Test func aStoredOverviewPageIsTheBoardsOverview() {
         #expect(BoardView(storedPage: "overview") == .overview)
         // 2026-10-15: Needs you and Issues moved into the Board; their old page names open those views.
         #expect(BoardView(storedPage: "inbox") == .needsYou && BoardView(storedPage: "issues") == .needsYou, "failed tasks are part of Needs you")
-        #expect(BoardView.needsYou.title == "Needs you" && BoardView.columns.title == "Tasks")
+        #expect(BoardView.needsYou.title == "Needs you" && BoardView.columns.title == "Flow")
         #expect(BoardView(storedPage: "dashboard") == nil)
         #expect(BoardView(storedPage: "floor") == nil)
     }

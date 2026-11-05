@@ -7,6 +7,8 @@ struct NeedsYouPane: View {
     let model: IslandModel
     /// Inside the Board (the Board's header already names the page): no big title and less room above.
     var embedded = false
+    /// In a lane of the Board's Flow (ADR-256): the lane names it, so no intro and no filter chips, and a lane's narrow margins.
+    var lane = false
     @Environment(\.theme) private var theme
     /// Chooses what shows. It never answers anything or changes what waits (the HTML preview's chips).
     @State private var filter = NeedsYouFilter.all
@@ -22,12 +24,12 @@ struct NeedsYouPane: View {
         let counts = NeedsYouFilter.counts(items: waiting, failed: everyFailed.count, hasApproval: model.approval.pending != nil)
         Scrollable {
             VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 2) {
+                if !lane { VStack(alignment: .leading, spacing: 2) {
                     if !embedded { Text("Needs you").appFont(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color) }
                     Text("What waits for your answer, and tasks that failed. Nothing here is done without you.").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
-                }
+                } }
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
-                if !nothingWaits {
+                if !nothingWaits, !lane {
                     FlowLayout(spacing: 8) {
                         ForEach(NeedsYouFilter.allCases, id: \.self) { option in
                             NeedsYouChip(title: option.title, count: counts[option] ?? 0, selected: filter == option) { filter = option }
@@ -76,9 +78,10 @@ struct NeedsYouPane: View {
             }
             // A readable measure, as on the Settings pages.
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, Spacing.panel)
-            .padding(.top, embedded ? 4 : 28)
-            .padding(.bottom, Spacing.panel)
+            .environment(\.needsYouCompact, lane)
+            .padding(.horizontal, lane ? 8 : Spacing.panel)
+            .padding(.top, lane ? 0 : embedded ? 4 : 28)
+            .padding(.bottom, lane ? 8 : Spacing.panel)
         }
     }
 
@@ -148,7 +151,7 @@ struct NeedsYouPane: View {
                 Text(title).appFont(.system(size: 13.5, weight: .medium)).foregroundStyle(theme.text.color).fixedSize(horizontal: false, vertical: true).lineLimit(3)
                 Text(detail).appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true).lineLimit(8) // 8: an approval can carry a whole soul (create_agent)
                 if let tests { tests.padding(.top, 2) }
-                HStack(spacing: 8) { actions() }.padding(.top, 8)
+                FlowLayout(spacing: 8) { actions() }.padding(.top, 8)
             }
         }
         .needsYouCard()
@@ -178,7 +181,7 @@ struct FailedTaskCard: View {
             if item.job.recoveryNeeded { Text("Interrupted · outcome unconfirmed").appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color) }
             if let error = item.job.error { ProblemLine(text: error, dot: false) }
             if item.job.recoveryNeeded, let step = item.job.step { Text("Last recorded step: \(step)").appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color) }
-            HStack(spacing: 8) {
+            FlowLayout(spacing: 8) {
                 if !item.job.recoveryNeeded { QuietButton(title: "Retry", symbol: "arrow.clockwise") { model.sendHelpers(model.helpers.retry(item.id)) } }
                 QuietButton(title: item.job.recoveryNeeded ? "Review attempt" : "Open") { model.navigate { model.windowPage = .agents; model.sendHelpers(model.helpers.openThread(item.id)) } }
             }
@@ -211,7 +214,12 @@ private struct NeedsYouTile: View {
     let symbol: String
     let tint: Color
     @Environment(\.theme) private var theme
+    @Environment(\.needsYouCompact) private var compact
     var body: some View {
+        // In a Flow lane (ADR-256) the badge names the kind and the room goes to the words and the buttons.
+        if !compact { tile }
+    }
+    private var tile: some View {
         // The glyph in the text colour on a neutral step; the kind's colour lives only in its badge (unslop).
         Glyph(systemName: symbol).appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text2.color)
             .frame(width: 36, height: 36)
@@ -236,12 +244,22 @@ extension View {
     fileprivate func needsYouCard() -> some View { modifier(NeedsYouCardModifier()) }
 }
 
+private struct NeedsYouCompactKey: EnvironmentKey { static let defaultValue = false }
+extension EnvironmentValues {
+    /// Needs you cards in a narrow Flow lane (ADR-256): no kind tile, tighter padding, buttons that wrap.
+    var needsYouCompact: Bool {
+        get { self[NeedsYouCompactKey.self] }
+        set { self[NeedsYouCompactKey.self] = newValue }
+    }
+}
+
 private struct NeedsYouCardModifier: ViewModifier {
     @Environment(\.theme) private var theme
+    @Environment(\.needsYouCompact) private var compact
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
         content
-            .padding(16)
+            .padding(compact ? 12 : 16)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(theme.fill1.a > 0 ? theme.fill1.color : theme.fill2.color.opacity(0.5), in: shape)
             .overlay(shape.strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))

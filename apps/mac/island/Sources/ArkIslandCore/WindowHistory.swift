@@ -16,11 +16,15 @@ public enum BoardView: String, CaseIterable, Sendable {
         switch self {
         case .needsYou: "Needs you"
         case .floor: "Studio"
-        case .columns: "Tasks"
+        case .columns: "Flow"
         case .overview: "Activity"
         case .team: "Team"
         }
     }
+
+    /// ADR-256: Needs you and Tasks are one view, the Flow: four lanes on a wide pane. `needsYou` stays a case so a saved place and
+    /// "open what needs me" still land there.
+    public var isFlow: Bool { self == .needsYou || self == .columns }
 
     /// Reads a stored page name: the old "overview", "inbox" (Needs you) and "issues" (also Needs you) pages are Board views. Other names
     /// are not Board views.

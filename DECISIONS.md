@@ -4744,3 +4744,24 @@ Keshab asked for "Ambient UI and Glassmorphism on our whole app". Until now ever
 - Not done: glass that shows the desktop behind the window. The backdrop is ARK's own light, so contrast stays under ARK's control.
 - **The drift runs in Core Animation** (`AmbientLayerView`): the window server animates the layers. Measured with the window open, ARK used about 26% CPU with a SwiftUI drift, about 14% with no drift, and about 16% with the layer drift. A 15 fps `TimelineView` was worse, about 18%. Snapshots draw the same lights still, in SwiftUI.
 - Not checked live: GPU and WindowServer cost over a long session, and the island panel's material over a real desktop.
+
+## ADR-256 — The Board's Flow: one view, four lanes (2026-11-05)
+
+### Context
+
+Keshab asked for a makeover of the app outside the glass, and to rethink the Board's workflow. The Board had five tabs: Studio, Needs you, Tasks, Team and Activity. The same work showed in several places. Needs you was a tab, and also a group at the top of Tasks. A grid of ten agent cards pushed the tasks down. The page header repeated the top bar ("Board", then "Tasks").
+
+### Decision
+
+- **The Flow** (`BoardFlow.swift`) replaces the Needs you and Tasks tabs. On a pane 1000 pt or wider, four frosted lanes sit side by side and read left to right as work moves: Needs you, Running, To do, Done. Each lane has its name, a symbol in its status colour and a count, and it scrolls by itself.
+- **Decisions are answered in the lane.** The Needs you lane is the Needs you pane in a compact form (`lane: true`): the kind tile is gone, padding is tighter and the buttons wrap. Approve, Reject, Retry and Open work as before.
+- **A card opens its inspector.** The inspector floats over the right of the lanes as a frosted panel. A second click, ✕ or Escape closes it.
+- **The team is one row of pills** (`TeamStrip`): avatar, name and a live dot for agents at work. This replaces the grid of cards.
+- **Four tabs:** Flow (with the count of what needs you), Studio, Team and Activity. `BoardView.needsYou` stays, so "open what needs me" and saved places still land on the Flow (`BoardView.isFlow`).
+- On a narrow pane the stacked list (Tasks) and the full Needs you pane are kept.
+
+### Consequences
+
+- What needs you, what runs and what comes next are on one screen. The first answer is one click away.
+- Seven goldens changed (Board and Studio shots). One Core test was updated for the new tab name.
+- Not done: a way to give the team a task from the Board itself. Today a task starts in chat or the agent panel.
