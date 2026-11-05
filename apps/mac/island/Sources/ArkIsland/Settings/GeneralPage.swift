@@ -23,8 +23,8 @@ struct GeneralSection: View {
                 }
             }
             RowDivider()
-            Row(title: "Run routines while ARK is closed", detail: "A macOS login item opens ARK in the background a minute before a routine is due. ARK then stays open.") {
-                ThemedSwitch(isOn: settings.wakeForRoutines, set: { settings.wakeForRoutines = $0; model.wakeChanged() }, label: "Run routines while ARK is closed")
+            Row(title: "Run routines and workflows while ARK is closed", detail: "A macOS login item opens ARK in the background a minute before a routine or a scheduled workflow is due. ARK then stays open.") {
+                ThemedSwitch(isOn: settings.wakeForRoutines, set: { settings.wakeForRoutines = $0; model.wakeChanged() }, label: "Run routines and workflows while ARK is closed")
                     .disabled(Bundle.main.bundleURL.pathExtension != "app")
             }
             RowDivider()

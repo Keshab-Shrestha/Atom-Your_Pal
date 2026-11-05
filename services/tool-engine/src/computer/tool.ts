@@ -9,6 +9,8 @@ export interface ApprovalRequest {
   summary: string;
   /** Why it is asking. */
   reason: string;
+  /** Set for a request the user may allow for the rest of this task (2026-11-05): the same key in the same task is not asked again. */
+  taskKey?: string;
 }
 
 export interface ComputerAction {
@@ -332,10 +334,10 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
     return el;
   }
 
-  async function ask(summary: string, reason: string, signal?: AbortSignal) {
+  async function ask(summary: string, reason: string, signal?: AbortSignal, taskKey?: string) {
     if (signal?.aborted) throw new Refused("Cancelled.");
     const aborted = new Promise<boolean>((resolve) => signal?.addEventListener("abort", () => resolve(false), { once: true }));
-    const yes = await Promise.race([approve({ summary, reason }, signal), aborted]);
+    const yes = await Promise.race([approve({ summary, reason, ...(taskKey ? { taskKey } : {}) }, signal), aborted]);
     if (!yes) throw new Refused(`The user did not approve: ${summary}. Do not try again or find another way; tell the user it was not done.`);
   }
 
@@ -623,7 +625,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
         if (secret) throw new Refused(`ARK never types into ${secret}. Ask the user to type it themselves.`);
         if (typeof input.text !== "string" || !input.text) throw new Refused('"text" is required.');
         const lineBreak = typeApproval(input.text);
-        if (lineBreak) await ask(`Type text with a line break into ${t.app}`, `it has ${lineBreak}`, signal);
+        if (lineBreak) await ask(`Type text with a line break into ${t.app}`, `it has ${lineBreak}`, signal, `linebreak:${t.app}`);
         moveVisualCursor(t, el);
         const r = await cua.call("type_text", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, text: input.text, delivery_mode: modeOf(input) }, signal, t.generation);
         checkResult(r, "Typing", t.app);
@@ -637,7 +639,8 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
         const deleting = deleteKeyDenial(keys);
         if (deleting) throw new Refused(deleting);
         const why = keyApproval(keys, t.justTyped);
-        if (why) await ask(`Press ${keys.join("+")} in ${t.app}`, `it uses ${why}`, signal);
+        // Return and chords that confirm may be allowed for the task. Delete, Quit, Spotlight and Force Quit always ask.
+        if (why) await ask(`Press ${keys.join("+")} in ${t.app}`, `it uses ${why}`, signal, /\b(Delete|Quit|Spotlight|Force Quit)\b/.test(why) ? undefined : `key:${t.app}:${keys.join("+").toLowerCase()}`);
         const key = keys[keys.length - 1];
         const mods = keys.slice(0, -1);
         const delivery_mode = modeOf(input);

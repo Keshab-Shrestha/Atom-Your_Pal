@@ -31,6 +31,7 @@ export type IslandCommand =
   /** 2026-11-04: pages ARK watches: the list (and its changes from then on), and stop watching one. */
   | { type: "watches.get" }
   /** 2026-11-05: apps. List them; open one (its page comes back as `appOpened`); remove one; and the bridge: one call from a running app. */
+  | { type: "stats.get" }
   | { type: "improvements.get" }
   | { type: "improvements.run" }
   | { type: "improvements.set"; enabled: boolean }
@@ -60,7 +61,7 @@ export type IslandCommand =
   /** ADR-097: a chat's own model ("" for the chat in use; provider and model "" for the default again). */
   | { type: "chat.reasoning"; id: string; provider: string; model: string; effort: string }
   | { type: "chat.model"; id: string; provider: string; model: string }
-  | { type: "approval.answer"; id: string; approved: boolean; rememberFile?: boolean; reviewToken?: string }
+  | { type: "approval.answer"; id: string; approved: boolean; rememberFile?: boolean; rememberTask?: boolean; reviewToken?: string }
   | { type: "memory.list" }
   /** The second brain: the graph (and, from then on, again after each change), one note, a save (new, or a rename with `id`), a delete, a search. */
   | { type: "brain.get" }
@@ -213,6 +214,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "chat.defaults",
   "panels.list",
   "watches.get",
+  "stats.get",
   "improvements.get",
   "improvements.run",
   "improvements.set",
@@ -438,7 +440,7 @@ export function parseCommand(line: string): ParsedLine {
         || JSON.stringify(v.panel).length > 120_000) return { error: "Invalid panel." };
     return { command: { type, panel: v.panel as Record<string, unknown> } };
   }
-  if (type === "improvements.get" || type === "improvements.run") return Object.keys(value as object).length === 1 ? { command: { type } } : { error: `Invalid ${type} request.` };
+  if (type === "stats.get" || type === "improvements.get" || type === "improvements.run") return Object.keys(value as object).length === 1 ? { command: { type } } : { error: `Invalid ${type} request.` };
   if (type === "improvements.set") {
     const v = value as Record<string, unknown>;
     return Object.keys(v).length === 2 && typeof v.enabled === "boolean" ? { command: { type, enabled: v.enabled } } : { error: 'improvements.set needs "enabled" to be true or false.' };
@@ -508,12 +510,13 @@ export function parseCommand(line: string): ParsedLine {
     return { command: { type, id, provider, model } };
   }
   if (type === "approval.answer") {
-    const { id, approved, rememberFile, reviewToken } = value as { id?: unknown; approved?: unknown; rememberFile?: unknown; reviewToken?: unknown };
+    const { id, approved, rememberFile, rememberTask, reviewToken } = value as { id?: unknown; approved?: unknown; rememberFile?: unknown; rememberTask?: unknown; reviewToken?: unknown };
     if (typeof id !== "string" || id === "") return { error: 'approval.answer needs an "id" string.' };
     if (typeof approved !== "boolean") return { error: 'approval.answer needs "approved" to be true or false.' };
     if (rememberFile !== undefined && typeof rememberFile !== "boolean") return { error: 'approval.answer: "rememberFile" must be true or false.' };
+    if (rememberTask !== undefined && typeof rememberTask !== "boolean") return { error: 'approval.answer: "rememberTask" must be true or false.' };
     if (reviewToken !== undefined && (typeof reviewToken !== "string" || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(reviewToken))) return { error: 'approval.answer: invalid file review token.' };
-    return { command: { type, id, approved, ...(rememberFile === undefined ? {} : { rememberFile }), ...(reviewToken === undefined ? {} : { reviewToken }) } };
+    return { command: { type, id, approved, ...(rememberFile === undefined ? {} : { rememberFile }), ...(rememberTask === undefined ? {} : { rememberTask }), ...(reviewToken === undefined ? {} : { reviewToken }) } };
   }
   if (type === "text.send") {
     const delivery = value as Record<string, unknown>;

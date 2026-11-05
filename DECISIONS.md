@@ -4480,6 +4480,82 @@ ARK's own log showed the computer tool failing with "session 'ark' has ended; to
 - A long idle gap no longer breaks the computer tool until restart.
 - If the driver changes the wording of the rejection, the retry does not fire. The test pins the current wording.
 
+## ADR-243 — Remind the model when it repeats a call (2026-11-05)
+
+### Context
+
+A model can call the same tool with the same input again and again, hoping for a new result. Each call costs time and tokens and changes nothing. The deepseek-harness project warns its model in this case. ARK's own log showed the computer tool failing in this way.
+
+### Decision
+
+- The tool engine counts identical calls (same tool name, same input, key order ignored) in one turn. One turn is one abort signal. A call with no signal is not counted.
+- From the third identical call, the result ends with a short reminder: the same input gives the same result unless something changed, so try a different step or tell the user what blocks. The reminder is on failing calls too.
+- The call still runs. The reminder is advice. It blocks nothing.
+- The `tool.call` log line gains `repeat` (the count) from the third call. The ARK notices can use it later.
+- The engine keeps at most 200 distinct calls per turn.
+
+### Consequences
+
+- A loop shows up to the model, and in the log.
+- A legitimate repeat, such as scrolling the same step three times, gets a reminder it can ignore.
+- The model is the only reader. Code does not stop a loop.
+
+## ADR-244 — Allow a repeated step for the rest of the task (2026-11-05)
+
+### Context
+
+One task can ask the same question many times: press Return in Mail five times, type text with a line break again. The user must answer each card. The atticus-mac project lets the user allow a kind of step for the task.
+
+### Decision
+
+- A card can show a quiet button "Allow for this task". The runtime sets `allowTask` on the card only when the caller names a `taskKey` and the call has a task signal.
+- Only two kinds of step name a key: a Return key or a chord that can send or confirm (`key:<app>:<keys>`), and typing text with a line break (`linebreak:<app>`). Clicks, Delete, Quit, Spotlight and Force Quit always ask.
+- The user's answer travels as `approval.answer.rememberTask`. Code in `computer-bridge.ts` stores the key against the task's abort signal. The next ask with the same key and the same signal returns yes with no card.
+- A new task (a new signal) asks again. A stopped task allows nothing. A decline with the box set remembers nothing.
+- Taint forgets all of it. When a session reads web text, a browser page, imported notes or outside data, `native-safety.ts` calls `onTaint`, and the runtime calls `revokeTaskAllows()`. This is blunt on purpose: it fails safe.
+- Telegram's card has no such button. The model cannot set the answer.
+
+### Consequences
+
+- Fewer cards for a loop of the same safe step. A step in another app or with another key still asks.
+- The user trusts the app at the click. The taint rule keeps web text from riding on that trust.
+- A single-line Return after typing already needed no card (ADR-054). That is unchanged.
+## ADR-245 — A Stats page: tool and turn numbers from ARK's own log (2026-11-05)
+
+### Context
+
+ARK already shows token use on Home. It shows nothing about its tools: which ones run, which fail, how long they take, or how long the model takes to answer. The ARK notices (ADR-239) read the same log, but only to find problems. The deepseek-harness project has a stats tab for this.
+
+### Decision
+
+- `stats.ts` counts the last 7 days of `logs/ark.log` with plain code: per tool, the calls, the failures, the average time and the repeats (ADR-243); and the answers, their average model time and the slow ones (15 s or more). It keeps the 12 busiest tools. The totals count every tool.
+- The window asks with `stats.get`. The runtime answers with one `stats` event. Without a log file there is no answer, and the page says "Nothing to show yet".
+- A new Settings page "Stats" sits under Help. The log holds names, counts and times only, so the page shows no chat text.
+- Reading the log costs about 0.1 s for a 12 MB log. The page reads it once each time it opens.
+
+### Consequences
+
+- The user can see which tool fails most. Before, only the notices said so.
+- The numbers are a week of a log that rotates by size. A busy week may show fewer days than it says.
+## ADR-246 — Wake the Mac for a scheduled workflow (2026-11-05)
+
+### Context
+
+ADR-236 added a macOS LaunchAgent that opens ARK a minute before the next routine. A published workflow with a schedule trigger (ADR-217 era Workflows page) runs only while ARK runs, the same as a routine did. The atticus-mac project wakes the Mac for its workflows.
+
+### Decision
+
+- The runtime adds `nextAt` to each published schedule workflow in the `workflows` event. `workflowNextAt` (workflows.ts) computes it with the same `nextDue` the routines use. A draft, a manual workflow and an event workflow have none.
+- The window keeps `nextAt` on the workflow but does not save it back (it is not in the saved fields).
+- `refreshWake` gives the LaunchAgent the routine times and the workflow times together. The agent still holds one calendar time: the earliest.
+- The window asks for the workflows once at start, without opening their page, when the switch is on. The workflows event also refreshes the wake time.
+- The switch keeps its setting key. Its label now says "routines and workflows".
+
+### Consequences
+
+- A scheduled workflow starts on time with ARK closed, as a routine does. ARK's own clock still starts the run.
+- A workflow that is overdue when ARK opens runs once, as before.
+- Not tried live: the file is written, but a real wake needs the app run from a signed `.app` and time to pass.
 ## ADR-247 — Draw on the screen (2026-11-05)
 
 ### Context

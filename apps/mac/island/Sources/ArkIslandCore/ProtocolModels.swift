@@ -241,9 +241,12 @@ public struct ApprovalRequest: Sendable, Equatable {
     public var rememberFile: Bool
     public var fileReview: FileEditReview?
     public var accessChange: Bool
+    /// The user may allow this kind of step for the rest of the task (2026-11-05).
+    public var allowTask: Bool
 
-    public init(id: String, summary: String, reason: String, rememberFile: Bool = false, fileReview: FileEditReview? = nil, accessChange: Bool = false) {
+    public init(id: String, summary: String, reason: String, rememberFile: Bool = false, fileReview: FileEditReview? = nil, accessChange: Bool = false, allowTask: Bool = false) {
         self.accessChange = accessChange
+        self.allowTask = allowTask
         self.id = id
         self.summary = summary
         self.reason = reason

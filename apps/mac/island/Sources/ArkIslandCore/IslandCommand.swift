@@ -20,6 +20,8 @@ public enum IslandCommand: Sendable, Equatable {
     /// Apps: the list, one app's page, remove one, and one call from a running app (already checked by `AppBridge.parse`).
     case appsList
     /// ARK notices: the notes (and their changes from then on), look again now, the switch, and dismiss one.
+    /// 2026-11-05: ask for the Stats page's numbers.
+    case statsGet
     case improvementsGet
     case improvementsRun
     case improvementsSet(enabled: Bool)
@@ -38,7 +40,7 @@ public enum IslandCommand: Sendable, Equatable {
     case workflowRun(id: String)
     case chatReasoning(id: String, provider: String, model: String, effort: String)
     /// The user's answer to an `approval.request` (ADR-054).
-    case approvalAnswer(id: String, approved: Bool, rememberFile: Bool = false, reviewToken: String? = nil)
+    case approvalAnswer(id: String, approved: Bool, rememberFile: Bool = false, reviewToken: String? = nil, rememberTask: Bool = false)
     /// Memory (ADR-058): ask for the list (and its changes from then on), forget one, or forget everything.
     case memoryList, memoryClear
     case memoryForget(id: Int)
@@ -239,6 +241,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .panelsList: "panels.list"
         case .watchesGet: "watches.get"
         case .appsList: "apps.list"
+        case .statsGet: "stats.get"
         case .improvementsGet: "improvements.get"
         case .improvementsRun: "improvements.run"
         case .improvementsSet: "improvements.set"
@@ -413,10 +416,11 @@ public enum IslandCommand: Sendable, Equatable {
             fields["provider"] = provider
             fields["model"] = model
         }
-        if case .approvalAnswer(let id, let approved, let rememberFile, let reviewToken) = self {
+        if case .approvalAnswer(let id, let approved, let rememberFile, let reviewToken, let rememberTask) = self {
             fields["id"] = id
             fields["approved"] = approved // a real JSON boolean: the runtime refuses the strings "true" and "yes"
             if rememberFile { fields["rememberFile"] = true }
+            if rememberTask { fields["rememberTask"] = true }
             if let reviewToken { fields["reviewToken"] = reviewToken }
         }
         if case .memoryForget(let id) = self {

@@ -49,6 +49,8 @@ public enum IslandEvent: Sendable, Equatable {
     case watches([WatchItem])
     /// 2026-11-05: the apps (after `apps.list`, and after each change), an app's page after `app.open`, and the answer to a bridge call.
     case apps([AppItem])
+    /// 2026-11-05: the Stats page (after `stats.get`).
+    case stats(ToolStats)
     /// 2026-11-05: ARK notices (after `improvements.get`, and after each change).
     case improvements(ImprovementsState)
     case appOpened(AppOpened)
@@ -137,6 +139,7 @@ public enum IslandEvent: Sendable, Equatable {
         case .panels: "panels"
         case .watches: "watches"
         case .apps: "apps"
+        case .stats: "stats"
         case .improvements: "improvements"
         case .appOpened: "appOpened"
         case .appReply: "appReply"
@@ -265,7 +268,7 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         guard w > 0, h > 0 else { throw ProtocolError.invalidValue(event: "computer.point", field: w > 0 ? "h" : "w") }
         return .computerPoint(PointTarget(x: try f.double("x"), y: try f.double("y"), w: w, h: h, label: try f.string("label"), shape: f.optionalString("shape").flatMap(DrawShape.init(rawValue:))))
     case "approval.request":
-        return .approvalRequest(ApprovalRequest(id: try f.string("id"), summary: try f.string("summary"), reason: try f.string("reason"), rememberFile: f.optionalBool("rememberFile") ?? false, fileReview: try f.fileReview(), accessChange: f.optionalBool("accessChange") ?? false))
+        return .approvalRequest(ApprovalRequest(id: try f.string("id"), summary: try f.string("summary"), reason: try f.string("reason"), rememberFile: f.optionalBool("rememberFile") ?? false, fileReview: try f.fileReview(), accessChange: f.optionalBool("accessChange") ?? false, allowTask: f.optionalBool("allowTask") ?? false))
     case "approval.closed":
         return .approvalClosed(id: try f.string("id"))
     case "info":
@@ -284,6 +287,8 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .memory(MemoryList(enabled: try f.bool("enabled"), count: try f.int("count"), memories: try f.memories(), episodes: try f.episodes(), chats: try f.memoryChats()))
     case "panels":
         return .panels(PanelList(panels: Panel.list(from: f.values["panels"]), problem: f.values["problem"] as? String))
+    case "stats":
+        return .stats(ToolStats.from(f.values))
     case "improvements":
         let ran = (f.values["lastRunAt"] as? String).flatMap { s -> Date? in
             let fractional = ISO8601DateFormatter(); fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]

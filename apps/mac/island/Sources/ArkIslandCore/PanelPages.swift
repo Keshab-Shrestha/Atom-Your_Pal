@@ -26,6 +26,8 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Sendable {
     case notifications = "Notifications"
     case connections = "Connections"
     case privacy = "Privacy"
+    /// 2026-11-05: ARK's tool and turn numbers for the last week.
+    case stats = "Stats"
     public var id: String { rawValue }
 
     /// One line under the page's title: what the page is for (2026-10-31 page headers).
@@ -45,6 +47,7 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Sendable {
         case .notifications: "Which events tell you, and how"
         case .connections: "The local API and other apps that connect to ARK"
         case .privacy: "What ARK keeps, and what it forgets"
+        case .stats: "Which tools ARK used this week, how often they failed and how long they took"
         }
     }
 
@@ -65,6 +68,7 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Sendable {
         case .notifications: "bell"
         case .connections: "link"
         case .privacy: "lock.shield"
+        case .stats: "chart.bar"
         }
     }
 }
@@ -73,7 +77,7 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Sendable {
 /// "Change model" opens it, next to the model it names.
 public enum SettingsHome {
     public static let groups: [[SettingsPage]] = [
-        [.examples, .shortcuts, .dictation, .notifications],
+        [.examples, .stats, .shortcuts, .dictation, .notifications],
         [.appearance, .pal, .sounds, .general, .defaults, .computer, .connections, .privacy], // Developer-only design previews stay in the gallery.
     ]
     /// The window's Settings sidebar: every page once, grouped by purpose. Design previews stay in the gallery.
@@ -81,7 +85,7 @@ public enum SettingsHome {
         ("Preferences", [.general, .defaults, .appearance, .model, .computer, .notifications, .shortcuts]),
         ("Companion", [.dictation, .sounds, .pal]),
         ("Access", [.connections, .privacy]),
-        ("Help", [.examples]),
+        ("Help", [.examples, .stats]),
     ]
     /// The sidebar group a page sits in, for the page header. Overview (nil) and the hidden design page say "Preferences".
     public static func groupTitle(of page: SettingsPage?) -> String {

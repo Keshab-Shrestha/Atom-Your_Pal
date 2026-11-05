@@ -108,6 +108,11 @@ test("model.set without a provider or model string is a protocol error", () => {
   }
 });
 
+test("approval.answer may carry rememberTask, and only as a boolean", () => {
+  assert.deepEqual(parseCommand('{"type":"approval.answer","id":"a1","approved":true,"rememberTask":true}'), { command: { type: "approval.answer", id: "a1", approved: true, rememberTask: true } });
+  assert.ok("error" in parseCommand('{"type":"approval.answer","id":"a1","approved":true,"rememberTask":"yes"}'));
+});
+
 test("approval.answer needs an id and a real boolean", () => {
   assert.deepEqual(parseCommand('{"type":"approval.answer","id":"a1","approved":true}'), { command: { type: "approval.answer", id: "a1", approved: true } });
   assert.deepEqual(parseCommand('{"type":"approval.answer","id":"a1","approved":false}'), { command: { type: "approval.answer", id: "a1", approved: false } });
@@ -420,4 +425,9 @@ test("computer decision settings/results accept only closed metadata, never cred
     { type: "computer.decision.result", id, answer: { ...answer, probability: 2 } },
     { type: "computer.decision.result", id, answer: { ...answer, choice: "run_shell" } },
   ]) assert.ok("error" in parseCommand(JSON.stringify(command)));
+});
+
+test("stats.get takes no fields", () => {
+  assert.deepEqual(parseCommand('{"type":"stats.get"}'), { command: { type: "stats.get" } });
+  assert.ok("error" in parseCommand('{"type":"stats.get","x":1}'));
 });

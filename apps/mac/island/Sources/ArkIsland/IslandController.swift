@@ -290,8 +290,9 @@ final class IslandController {
 
     /// Routines while ARK is closed: rewrite the LaunchAgent for the next routine (or remove it).
     private func refreshWake() {
-        let times = (model.helpers.list?.helpers ?? []).flatMap { $0.routines }.filter { !$0.paused }.compactMap(\.nextAt)
-        wake.update(enabled: model.settings.wakeForRoutines, routineTimes: times)
+        let routines = (model.helpers.list?.helpers ?? []).flatMap { $0.routines }.filter { !$0.paused }.compactMap(\.nextAt)
+        let workflows = (model.workflows?.workflows ?? []).filter { $0.enabled }.compactMap(\.nextAt)
+        wake.update(enabled: model.settings.wakeForRoutines, routineTimes: routines + workflows)
     }
 
     func apply(_ event: IslandEvent) {
@@ -302,6 +303,10 @@ final class IslandController {
         switch event {
         case .helpers, .planUsage:
             notifier.update(model.helpers.list, plan: model.planUsage)
+            refreshWake()
+            // The wake time also follows the published schedule workflows, so the window asks for them once, without opening their page.
+            if model.workflows == nil, model.settings.wakeForRoutines { model.send(.workflowsList) }
+        case .workflows:
             refreshWake()
         case .approvalRequest(let request): notifier.approval(request)
         case .watchFired(let notice): notifier.watch(notice)
