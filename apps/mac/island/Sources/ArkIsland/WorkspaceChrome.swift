@@ -13,7 +13,26 @@ struct WorkspaceNavigationRail: View {
         Binding(get: { model.settings.sidebar }, set: { model.settings.sidebar = $0 })
     }
 
+    /// ADR-259: the height one captioned rail item takes (glyph, caption and gap), and what the rail needs besides its items.
+    private static let captionedItem: CGFloat = 60
+    /// The logo, the account avatar, the drop strips, the gaps and the padding (measured 2026-11-05: a 130 pt guess clipped a caption).
+    private static let railChrome: CGFloat = 200
+
+    /// Captions only when every item fits with them; a short window gets the glyphs alone, with names on hover.
+    private func captionsFit(_ height: CGFloat) -> Bool {
+        let items = 1 + model.settings.sidebar.top.filter { $0 != .dashboard }.count + min(model.apps?.count ?? 0, Self.appsShown) + 1
+            + model.settings.sidebar.bottom.filter { $0 != .dashboard }.count
+        return height >= Self.railChrome + CGFloat(items) * Self.captionedItem
+    }
+
     var body: some View {
+        GeometryReader { proxy in
+            rail.environment(\.railCaptions, captionsFit(proxy.size.height))
+        }
+        .frame(width: 64)
+    }
+
+    private var rail: some View {
         VStack(spacing: 12) {
             WorkspaceRailButton(title: "Home", symbol: "house", selected: model.windowPage == .dashboard,
                                 badge: 0, appIcon: true) {
@@ -39,7 +58,7 @@ struct WorkspaceNavigationRail: View {
                 .buttonStyle(.plain).help("You").accessibilityLabel("You").padding(.top, 4)
             }
         }
-        .padding(.vertical, 12).frame(width: 51)
+        .padding(.vertical, 12).frame(width: 64)
         .workspaceLane(color: model.settings.lanes.rail)
         // 2026-10-31: the rail shows glyphs only; the hovered button's name floats out to its right, over the next pane.
         .overlayPreferenceValue(RailHoverKey.self) { hovered in
@@ -200,8 +219,31 @@ private struct WorkspaceRailButton: View {
         }
     }
 
+    /// ADR-259: pages carry a small caption under the glyph, so the rail reads without hovering. The logo and app tiles do not
+    /// (an app's name floats out on hover, as before).
+    private var showsCaption: Bool { !appIcon && letter == nil && railCaptions }
+    @Environment(\.railCaptions) private var railCaptions
+
     var body: some View {
         Button(action: action) {
+            VStack(spacing: 3) {
+                glyph
+                if showsCaption {
+                    Text(caption).appFont(.system(size: 9.5, weight: selected ? .semibold : .medium))
+                        .foregroundStyle(selected ? theme.text.color : theme.text2.color)
+                        .lineLimit(1).fixedSize()
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(WorkspacePressStyle())
+        .onHover { hovering = $0 }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: hovering)
+        .anchorPreference(key: RailHoverKey.self, value: .bounds) { hovering && !showsCaption ? RailHover(title: appIcon ? "Home" : title, anchor: $0) : nil }.accessibilityLabel(badge > 0 ? "\(title), \(badge) need attention" : title)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private var glyph: some View {
             Group {
                 if appIcon {
                     homeIcon.frame(width: Self.homeIconSize, height: Self.homeIconSize).accessibilityHidden(true)
@@ -227,12 +269,6 @@ private struct WorkspaceRailButton: View {
                 }
             }
             .contentShape(RoundedRectangle(cornerRadius: Radius.card))
-        }
-        .buttonStyle(WorkspacePressStyle())
-        .onHover { hovering = $0 }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: hovering)
-        .anchorPreference(key: RailHoverKey.self, value: .bounds) { hovering ? RailHover(title: appIcon ? "Home" : title, anchor: $0) : nil }.accessibilityLabel(badge > 0 ? "\(title), \(badge) need attention" : title)
-        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     @ViewBuilder private var homeIcon: some View {
@@ -262,6 +298,15 @@ struct WorkspacePressStyle: ButtonStyle {
 private struct WorkspaceLane: ViewModifier {
     let color: RGBA
     func body(content: Content) -> some View { content.background(color.color) }
+}
+
+private struct RailCaptionsKey: EnvironmentKey { static let defaultValue = true }
+extension EnvironmentValues {
+    /// ADR-259: the rail's pages show captions (false in a window too short for them).
+    var railCaptions: Bool {
+        get { self[RailCaptionsKey.self] }
+        set { self[RailCaptionsKey.self] = newValue }
+    }
 }
 
 extension View {

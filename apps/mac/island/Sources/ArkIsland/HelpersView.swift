@@ -113,9 +113,11 @@ struct HelpersView: View {
             || (!model.helpers.showsBoard && model.helpers.selectedHelper != nil && model.helpers.isSoulOpen))
         let settingsBack: (() -> Void)? = model.windowPage == .settings && model.settingsPage != nil
             ? { withAnimation(Motion.workspace(reduceMotion)) { model.settingsPage = nil } } : nil
-        return WindowTopBar(title: page.title, symbol: page.symbol, compact: true,
+        // ADR-260: a page that draws its own title gets a slim bar (Back and actions), so its name is not said twice.
+        let ownsTitle = Self.pagesWithTitle.contains(model.windowPage) && !(model.windowPage == .apps && model.openApp != nil)
+        return WindowTopBar(title: ownsTitle ? "" : page.title, symbol: page.symbol, compact: true,
             centeredTitle: model.windowPage == .dashboard,
-            context: model.windowPage == .chat ? chatMetaLine : model.windowPage == .settings ? SettingsHome.groupTitle(of: model.settingsPage) : (model.windowPage == .agents || model.windowPage == .dashboard) ? nil : "Workspace",
+            context: ownsTitle ? nil : model.windowPage == .chat ? chatMetaLine : model.windowPage == .settings ? SettingsHome.groupTitle(of: model.settingsPage) : (model.windowPage == .agents || model.windowPage == .dashboard) ? nil : "Workspace",
             showSidebar: model.settings.sidebarHidden && (model.windowPage == .chat || model.windowPage == .settings) ? { model.toggleSidebar() } : nil,
             back: model.windowPage == .dashboard ? nil : settingsBack ?? (model.history.canGoBack && !ownBack ? { model.goBack() } : nil)) {
                 if model.windowPage == .chat {
@@ -160,6 +162,9 @@ struct HelpersView: View {
 
 extension HelpersView {
     /// The open page's name and symbol, for the top bar.
+    /// ADR-260: pages whose content starts with their own large title.
+    static let pagesWithTitle: [WindowPage] = [.scheduled, .workflows, .panels, .apps, .plugins, .brain, .you]
+
     static func page(_ model: IslandModel) -> (title: String, symbol: String) {
         switch model.windowPage {
         case .dashboard: return ("Dashboard", "chart.bar.xaxis")

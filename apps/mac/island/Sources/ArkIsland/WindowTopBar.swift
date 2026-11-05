@@ -38,20 +38,23 @@ struct WindowTopBar<Trailing: View>: View {
         }
         .padding(.leading, 16)
         .padding(.trailing, 16)
-        .frame(height: compact ? 52 : HelpersView.titleBarRoom)
+        .frame(height: bare ? 40 : compact ? 52 : HelpersView.titleBarRoom)
         .overlay { if centeredTitle { titleLabel.allowsHitTesting(false) } }
         // 2026-10-15: room above the bar, so the back arrow and the page's name sit level with the app name in the
         // sidebar and not up beside the window's buttons. It is part of the bar: it still moves the window.
         .padding(.top, compact ? 0 : HelpersView.topBarGap)
         .background {
-            if compact && !reduceTransparency { Rectangle().fill(.ultraThinMaterial).opacity(0.35) }
+            if compact && !reduceTransparency && !bare { Rectangle().fill(.ultraThinMaterial).opacity(0.35) }
         }
         // Snapshots cannot draw an AppKit view; the window can.
         .background { if !snapshot { WindowDragArea() } }
         .overlay(alignment: .bottom) {
-            LinearGradient(colors: [.clear, theme.separator.color.opacity(0.4)], startPoint: .top, endPoint: .bottom).frame(height: 5)
+            if !bare { LinearGradient(colors: [.clear, theme.separator.color.opacity(0.4)], startPoint: .top, endPoint: .bottom).frame(height: 5) }
         }
     }
+
+    /// ADR-260: no title (the page draws its own): a low bar with no tint and no edge, so it reads as part of the page.
+    private var bare: Bool { title.isEmpty }
     private var titleLabel: some View {
         VStack(alignment: .leading, spacing: 4) {
                 if compact, let context {

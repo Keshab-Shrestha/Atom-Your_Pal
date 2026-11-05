@@ -30,14 +30,15 @@ struct AgentAvailabilityMenu: View {
         .help("Pause prevents new task starts; running tasks remain under their existing controls.")
     }
     private var title: String { helper.paused ? "Paused" : helper.available ? "Ready" : "Not ready" }
+    /// ADR-257 (calm Board): Ready is the usual state, so it is a quiet word with no colour and no box. Only Paused stands out.
     private var label: some View {
-        HStack(spacing: 4) {
-            Glyph(systemName: helper.paused ? "pause.circle" : "circle.fill").appFont(.system(size: helper.paused ? 11 : 6))
-                .foregroundStyle(helper.paused ? theme.text3.color : helper.available ? theme.success.color : theme.text3.color)
-            Text(title).appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text2.color)
+        let quiet = !helper.paused
+        return HStack(spacing: 4) {
+            if helper.paused { Glyph(systemName: "pause.circle").appFont(.system(size: 11)).foregroundStyle(theme.text2.color) }
+            Text(title).appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(quiet ? theme.text3.color : theme.text2.color)
             Glyph(systemName: "chevron.down").appFont(.system(size: 8)).foregroundStyle(theme.text3.color)
         }.padding(.horizontal, 8).frame(height: 28)
-            .background(theme.fill2.color, in: RoundedRectangle(cornerRadius: Radius.card))
+            .background(quiet ? Color.clear : theme.fill2.color, in: RoundedRectangle(cornerRadius: Radius.card))
     }
 }
 
@@ -64,9 +65,12 @@ struct AgentManagementRow: View {
                 }.contentShape(Rectangle())
             }.buttonStyle(.pressable).accessibilityLabel("Configure \(helper.name)")
             AgentAvailabilityMenu(model: model, helper: helper)
-            Button("Edit") { open(edit: true) }
-                .buttonStyle(SnapshotBorderlessButtonStyle()).appFont(.system(size: 12)).disabled(helper.soul == nil)
-                .accessibilityLabel("Edit \(helper.name)")
+            Button { open(edit: true) } label: {
+                Glyph(systemName: "slider.horizontal.3").appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+                    .frame(width: 28, height: 28).contentShape(Rectangle()).hoverRow(radius: Radius.card)
+            }
+                .buttonStyle(.pressable).disabled(helper.soul == nil)
+                .help("Edit \(helper.name)").accessibilityLabel("Edit \(helper.name)")
         }.padding(.vertical, 12).frame(minHeight: 54)
             .padding(.horizontal, 8).hoverRow(radius: 10).padding(.horizontal, -6)
     }

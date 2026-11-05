@@ -59,3 +59,15 @@ public enum TeamRoster {
         h.jobs.compactMap { $0.endedAt ?? $0.createdAt }.max()
     }
 }
+
+public extension TeamRoster {
+    /// ADR-257: agents that take a task from the Board's composer: available, and not the reviewer (Tinker only reviews).
+    static func takers(_ list: HelpersList?) -> [Helper] {
+        (list?.helpers ?? []).filter { $0.available && $0.role != "improver" }
+    }
+
+    /// The agent a new task goes to: the one chosen, else the first that is not working, else the first.
+    static func taskTarget(_ takers: [Helper], chosen: String?) -> Helper? {
+        takers.first { $0.id == chosen } ?? takers.first { !isWorking($0) } ?? takers.first
+    }
+}

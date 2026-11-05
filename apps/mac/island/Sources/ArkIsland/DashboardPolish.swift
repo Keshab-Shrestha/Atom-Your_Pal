@@ -41,7 +41,9 @@ struct TrendChart: View {
             let progress: CGFloat = drawn || snapshot || reduceMotion ? 1 : 0
             ZStack(alignment: .topLeading) {
                 Self.area(points, height: proxy.size.height)
-                    .fill(LinearGradient(colors: [color.opacity(0.22), color.opacity(0)], startPoint: .top, endPoint: .bottom))
+                    // ADR-258: a flat theme takes no gradient (DESIGN.md); glass keeps the soft fade.
+                    .fill(theme.isFlat ? AnyShapeStyle(color.opacity(0.08))
+                          : AnyShapeStyle(LinearGradient(colors: [color.opacity(0.22), color.opacity(0)], startPoint: .top, endPoint: .bottom)))
                     .opacity(progress)
                 Self.curve(points)
                     .trim(from: 0, to: progress)

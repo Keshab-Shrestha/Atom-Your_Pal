@@ -73,9 +73,9 @@ struct BoardPane: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(model.boardView == .floor ? "Your team" : model.boardView.title)
+                    Text(model.boardView == .floor ? "Your team" : model.boardView.isFlow ? "Flow" : model.boardView.title)
                         .appFont(theme.pageTitleFont()).foregroundStyle(theme.text.color)
-                    Text(model.boardView == .floor ? "Manage your agents and keep work moving." : model.boardView == .team ? "Who works for whom, live." : "Tasks, decisions and results from your team.")
+                    Text(model.boardView == .floor ? "Manage your agents and keep work moving." : model.boardView == .team ? "Who works for whom, live." : model.boardView.isFlow ? "What needs you, what runs, and what comes next." : "Tasks, decisions and results from your team.")
                         .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }
                 Spacer(minLength: 10)
@@ -94,95 +94,29 @@ struct BoardPane: View {
                     boardTabs(waiting: waiting, compact: true)
                 }
                 Spacer(minLength: 0)
-                if model.boardView == .columns { BoardLabelMenu(model: model) }
+                if model.boardView.isFlow { BoardLabelMenu(model: model) }
             }
         }
         .padding(.horizontal, Spacing.panel)
         .padding(.top, 16)
         .padding(.bottom, 12)
-        if model.boardView == .overview {
-            OverviewPane(model: model)
-        } else if model.boardView == .team {
-            BoardTeamView(model: model)
-        } else if model.boardView == .needsYou {
-            NeedsYouPane(model: model, embedded: true)
-        } else {
-        GeometryReader { viewport in
-        Scrollable {
-            VStack(alignment: .leading, spacing: 16) {
-                // ADR-091: the team lives here now (the sidebar lists chats): each opens its page.
-                if model.boardView != .floor { TeamChips(model: model) }
-                // ADR-111: the work plans: a goal, its portions and how far each is.
-                if model.boardView != .floor, let plans = model.helpers.list?.plans, !plans.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Plans").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
-                        ForEach(plans.prefix(3)) { plan in PlanCard(model: model, plan: plan) }
+        if model.boardView.isFlow, model.helpers.list != nil {
+            // ADR-256: the Flow when the pane is wide enough for four lanes; the stacked list (or Needs you) when it is not.
+            ViewThatFits(in: .horizontal) {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .center, spacing: 16) {
+                        BoardComposer(model: model).frame(maxWidth: 560)
+                        Spacer(minLength: 0)
                     }
+                    TeamStrip(model: model)
+                    BoardFlow(model: model, board: board)
                 }
-                // ADR-093: an agent whose soul.md is broken is missing from the team; say which and why.
-                if let problems = model.helpers.list?.agentProblems, !problems.isEmpty {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Not loaded (data/agents/<folder>/soul.md)").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
-                        ForEach(problems, id: \.line) { ProblemLine(text: $0.line) }
-                    }
-                }
-                // ADR-091: the floor keeps its shape and fits the Board's width and the window's height.
-                if model.boardView == .floor {
-                    studioStatus
-                    if viewport.size.width >= 840 {
-                        HStack(alignment: .top, spacing: 28) {
-                            studioFloor(height: max(320, viewport.size.height - 100)).frame(maxWidth: .infinity)
-                            AgentManagementPanel(model: model).frame(width: 330)
-                        }
-                    } else {
-                        studioFloor(height: max(320, viewport.size.width * CGFloat(OfficeMap.height) / CGFloat(OfficeMap.width)))
-                        AgentManagementPanel(model: model)
-                    }
-                }
-                if model.helpers.list == nil {
-                    LoadingStateView(text: "Loading the Board…", retry: { model.send(.helpersList) })
-                } else if board.isEmpty, label != nil, model.boardView == .columns {
-                    Text("No task on the Board has this label.").appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color)
-                } else if board.isEmpty, model.boardView == .columns {
-                    EmptyStateView(title: "No tasks yet",
-                                   detail: "Choose a worker and give it a task, or ask ARK in chat to delegate one. Tasks show here by status, with a count for each.")
-                }
-                if let tasks = model.helpers.list?.paperclip { PaperclipSection(tasks: tasks) }
-                if model.boardView == .columns, viewport.size.width >= 1100, !board.isEmpty {
-                    // 2026-11-02 (the Linear reference): on a wide window, one list grouped by status and an inspector for the chosen task.
-                    let items = board.flatMap(\.items)
-                    let chosen = items.first { $0.id == inspected } ?? items.first
-                    HStack(alignment: .top, spacing: 24) {
-                        VStack(alignment: .leading, spacing: 16) {
-                            ForEach(board, id: \.column) { group in
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("\(group.column.title) · \(group.items.count)")
-                                        .appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
-                                    BoardWell(model: model, items: group.items, selected: chosen?.id) { inspected = $0 }
-                                }
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        if let chosen { TaskInspector(model: model, item: chosen).frame(width: 340) }
-                    }
-                } else {
-                // Bento columns: status groups sit side by side when the Board is wide, stacked when it is narrow.
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 16, alignment: .top)], alignment: .leading, spacing: 16) {
-                    ForEach(model.boardView == .floor ? [] : board, id: \.column) { group in
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("\(group.column.title) · \(group.items.count)")
-                                .appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
-                            BoardWell(model: model, items: group.items)
-                        }
-                    }
-                }
-                }
+                .padding(.horizontal, Spacing.panel).padding(.top, 4).padding(.bottom, Spacing.panel)
+                .frame(minWidth: Self.flowWidth, maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                boardContent(board: board, label: label)
             }
-            .padding(.horizontal, Spacing.panel)
-            .padding(.top, 8)
-            .padding(.bottom, Spacing.panel)
-        }
-        }
+        } else {
+            boardContent(board: board, label: label)
         }
         }
         // ADR-094: "All agents", over the Board, from its chip or a "+N" sign on the floor.
@@ -226,7 +160,7 @@ struct BoardWell: View {
     }
 }
 
-private struct BoardCard: View {
+struct BoardCard: View {
     let model: IslandModel
     let item: BoardItem
     @Environment(\.theme) private var theme
@@ -862,6 +796,100 @@ private struct AllAgentsList: View {
     }
 }
 
+
+extension BoardPane {
+    /// The narrowest pane that shows the Flow's four lanes (ADR-256).
+    static let flowWidth: CGFloat = 1000
+
+    /// The Board's other views, and the Tasks list stacked by status on a narrow pane.
+    @ViewBuilder func boardContent(board: [(column: BoardColumn, items: [BoardItem])], label: String?) -> some View {
+            if model.boardView == .overview {
+                OverviewPane(model: model)
+            } else if model.boardView == .team {
+                BoardTeamView(model: model)
+            } else if model.boardView == .needsYou {
+                NeedsYouPane(model: model, embedded: true)
+            } else {
+            GeometryReader { viewport in
+            Scrollable {
+                VStack(alignment: .leading, spacing: 16) {
+                    // ADR-091: the team lives here now (the sidebar lists chats): each opens its page.
+                    if model.boardView != .floor { TeamChips(model: model) }
+                    // ADR-111: the work plans: a goal, its portions and how far each is.
+                    if model.boardView != .floor, let plans = model.helpers.list?.plans, !plans.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Plans").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
+                            ForEach(plans.prefix(3)) { plan in PlanCard(model: model, plan: plan) }
+                        }
+                    }
+                    // ADR-093: an agent whose soul.md is broken is missing from the team; say which and why.
+                    if let problems = model.helpers.list?.agentProblems, !problems.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Not loaded (data/agents/<folder>/soul.md)").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+                            ForEach(problems, id: \.line) { ProblemLine(text: $0.line) }
+                        }
+                    }
+                    // ADR-091: the floor keeps its shape and fits the Board's width and the window's height.
+                    if model.boardView == .floor {
+                        studioStatus
+                        if viewport.size.width >= 840 {
+                            HStack(alignment: .top, spacing: 28) {
+                                studioFloor(height: max(320, viewport.size.height - 100)).frame(maxWidth: .infinity)
+                                AgentManagementPanel(model: model).frame(width: 330)
+                            }
+                        } else {
+                            studioFloor(height: max(320, viewport.size.width * CGFloat(OfficeMap.height) / CGFloat(OfficeMap.width)))
+                            AgentManagementPanel(model: model)
+                        }
+                    }
+                    if model.helpers.list == nil {
+                        LoadingStateView(text: "Loading the Board…", retry: { model.send(.helpersList) })
+                    } else if board.isEmpty, label != nil, model.boardView == .columns {
+                        Text("No task on the Board has this label.").appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color)
+                    } else if board.isEmpty, model.boardView == .columns {
+                        EmptyStateView(title: "No tasks yet",
+                                       detail: "Choose a worker and give it a task, or ask ARK in chat to delegate one. Tasks show here by status, with a count for each.")
+                    }
+                    if let tasks = model.helpers.list?.paperclip { PaperclipSection(tasks: tasks) }
+                    if model.boardView == .columns, viewport.size.width >= 1100, !board.isEmpty {
+                        // 2026-11-02 (the Linear reference): on a wide window, one list grouped by status and an inspector for the chosen task.
+                        let items = board.flatMap(\.items)
+                        let chosen = items.first { $0.id == inspected } ?? items.first
+                        HStack(alignment: .top, spacing: 24) {
+                            VStack(alignment: .leading, spacing: 16) {
+                                ForEach(board, id: \.column) { group in
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text("\(group.column.title) · \(group.items.count)")
+                                            .appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
+                                        BoardWell(model: model, items: group.items, selected: chosen?.id) { inspected = $0 }
+                                    }
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            if let chosen { TaskInspector(model: model, item: chosen).frame(width: 340) }
+                        }
+                    } else {
+                    // Bento columns: status groups sit side by side when the Board is wide, stacked when it is narrow.
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 16, alignment: .top)], alignment: .leading, spacing: 16) {
+                        ForEach(model.boardView == .floor ? [] : board, id: \.column) { group in
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("\(group.column.title) · \(group.items.count)")
+                                    .appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
+                                BoardWell(model: model, items: group.items)
+                            }
+                        }
+                    }
+                    }
+                }
+                .padding(.horizontal, Spacing.panel)
+                .padding(.top, 8)
+                .padding(.bottom, Spacing.panel)
+            }
+            }
+            }
+    }
+}
+
 extension BoardPane {
     static func agents(_ n: Int) -> String { n == 1 ? "1 agent" : "\(n) agents" }
 
@@ -894,9 +922,9 @@ extension BoardPane {
     /// 2026-10-15, and Issues became part of Needs you: ADR-116).
     fileprivate func boardTabs(waiting: Int, compact: Bool) -> some View {
         HStack(spacing: 8) {
+            // ADR-256: Needs you and Tasks are one view, the Flow; its count is what waits for Keshab.
+            ViewChoice(title: "Flow", symbol: "rectangle.split.3x1", selected: model.boardView.isFlow, badge: waiting, compact: compact) { model.boardView = .columns }
             ViewChoice(title: "Studio", symbol: "building.2", selected: model.boardView == .floor, compact: compact) { model.boardView = .floor }
-            ViewChoice(title: "Needs you", symbol: "tray", selected: model.boardView == .needsYou, badge: waiting, compact: compact) { model.boardView = .needsYou }
-            ViewChoice(title: "Tasks", symbol: "checklist", selected: model.boardView == .columns, compact: compact) { model.boardView = .columns }
             ViewChoice(title: "Team", symbol: "person.2", selected: model.boardView == .team, compact: compact) { model.boardView = .team }
             ViewChoice(title: "Activity", symbol: "chart.bar", selected: model.boardView == .overview, compact: compact) { model.boardView = .overview }
         }

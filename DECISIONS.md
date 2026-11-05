@@ -4744,3 +4744,91 @@ Keshab asked for "Ambient UI and Glassmorphism on our whole app". Until now ever
 - Not done: glass that shows the desktop behind the window. The backdrop is ARK's own light, so contrast stays under ARK's control.
 - **The drift runs in Core Animation** (`AmbientLayerView`): the window server animates the layers. Measured with the window open, ARK used about 26% CPU with a SwiftUI drift, about 14% with no drift, and about 16% with the layer drift. A 15 fps `TimelineView` was worse, about 18%. Snapshots draw the same lights still, in SwiftUI.
 - Not checked live: GPU and WindowServer cost over a long session, and the island panel's material over a real desktop.
+
+## ADR-256 — The Board's Flow: one view, four lanes (2026-11-05)
+
+### Context
+
+Keshab asked for a makeover of the app outside the glass, and to rethink the Board's workflow. The Board had five tabs: Studio, Needs you, Tasks, Team and Activity. The same work showed in several places. Needs you was a tab, and also a group at the top of Tasks. A grid of ten agent cards pushed the tasks down. The page header repeated the top bar ("Board", then "Tasks").
+
+### Decision
+
+- **The Flow** (`BoardFlow.swift`) replaces the Needs you and Tasks tabs. On a pane 1000 pt or wider, four frosted lanes sit side by side and read left to right as work moves: Needs you, Running, To do, Done. Each lane has its name, a symbol in its status colour and a count, and it scrolls by itself.
+- **Decisions are answered in the lane.** The Needs you lane is the Needs you pane in a compact form (`lane: true`): the kind tile is gone, padding is tighter and the buttons wrap. Approve, Reject, Retry and Open work as before.
+- **A card opens its inspector.** The inspector floats over the right of the lanes as a frosted panel. A second click, ✕ or Escape closes it.
+- **The team is one row of pills** (`TeamStrip`): avatar, name and a live dot for agents at work. This replaces the grid of cards.
+- **Four tabs:** Flow (with the count of what needs you), Studio, Team and Activity. `BoardView.needsYou` stays, so "open what needs me" and saved places still land on the Flow (`BoardView.isFlow`).
+- On a narrow pane the stacked list (Tasks) and the full Needs you pane are kept.
+
+### Consequences
+
+- What needs you, what runs and what comes next are on one screen. The first answer is one click away.
+- Seven goldens changed (Board and Studio shots). One Core test was updated for the new tab name.
+- Not done: a way to give the team a task from the Board itself. Today a task starts in chat or the agent panel.
+
+## ADR-257 — Give the team a task from the Board, and a calm roster (2026-11-05)
+
+### Context
+
+The Flow (ADR-256) showed the work, but a task could only start in chat or in the agent panel. The audit (`docs/ui-audit-2026-11-05.md`, item A1) also found that the Studio roster drew a green "Ready" pill for every idle agent. Five green pills outweighed the one amber "need you".
+
+### Decision
+
+- **Board composer** (`BoardComposer`): one frosted line above the team, with the task, the agent it goes to, and Send. It sends what the agent panel sends (`jobAdd`). The agent is the one you choose, else the first free agent, else the first (`TeamRoster.taskTarget`). Unavailable agents and the reviewer (Tinker) take no task (`TeamRoster.takers`).
+- **Calm roster:** Ready is the usual state, so it is a quiet word with no colour and no box. Only Paused gets a symbol and a box. Edit is an icon button with a hover state and a help tip, not a text link.
+
+### Consequences
+
+- The Board covers the whole loop: give a task, watch it run, answer what it asks, read what it did.
+- Two new tests (`BoardComposerTargetTests`). Four Studio goldens changed.
+
+## ADR-258 — Home: three tiles for live work and one usage line (2026-11-05)
+
+### Context
+
+The audit (`docs/ui-audit-2026-11-05.md`, items A2 and A3) found six equal tiles on Home. Three of them were usage numbers that rarely need a click. The trend chart also had a gradient fill, which DESIGN.md forbids in a flat theme. The dashboard's segmented control drew its selected pill in `fill1`, which is almost clear in dark glass (ADR-255).
+
+### Decision
+
+- Home keeps three tiles for live work: Need you (an amber dot when something waits), Running (a live dot while work runs) and Agents.
+- Today's tokens, the week's API-equivalent cost and cache hits become one quiet line under the tiles.
+- The trend chart's fill is a flat tint in a flat theme. Glass keeps the soft fade.
+- The segmented control's selected pill uses `fill3` in dark themes, so it shows in glass.
+
+### Consequences
+
+- The first row of Home is about what to do, not about cost.
+- One golden changed (`13-helpers-dashboard`). The Studio goldens also change a little on every run, so they were refreshed with this change.
+
+## ADR-259 — Labels under the rail's icons (2026-11-05)
+
+### Context
+
+The audit (`docs/ui-audit-2026-11-05.md`, item A4) found that the rail showed icons only (ADR from 2026-10-31). A page's name appeared only on hover. Chats, Board and Panels looked alike at a glance.
+
+### Decision
+
+- Each page in the rail has a small caption under its glyph (9.5 pt; semibold and in main text when selected). The rail is 64 pt wide, not 51 pt.
+- The logo and the app tiles keep no caption. An app's name still floats out on hover, and a page shows no hover tag, because its caption already names it.
+
+### Consequences
+
+- The rail reads without hovering.
+- Captions show only when the window is tall enough for every rail item with its caption (60 pt each, plus 200 pt for the rest of the rail). A shorter window gets the glyphs alone with names on hover, as before, so no page scrolls out of sight.
+- 34 goldens changed (every shot with the rail).
+
+## ADR-260 — A page says its name once (2026-11-05)
+
+### Context
+
+The audit (`docs/ui-audit-2026-11-05.md`, item A5) found that the window's top bar repeated the page's own title. Workflows showed "Workspace › Workflows" in the bar and then a large "Workflows" under it. The same was true of Scheduled, Panels, Apps, Plugins, Brain and You.
+
+### Decision
+
+- Pages that start with their own large title (`HelpersView.pagesWithTitle`: Scheduled, Workflows, Panels, the Apps list, Plugins, Brain and You) get a bare top bar. It has Back and the actions only, is 40 pt high, and has no tint and no edge, so it reads as part of the page.
+- Chat, the Board, Settings, an agent, an open task and an open app keep the full bar, because their bar names what the page does not.
+
+### Consequences
+
+- Each page says its name once. The content starts 12 pt higher.
+- Goldens of those pages changed.

@@ -156,3 +156,24 @@ struct FloorSeatingTests {
         #expect(plan.seats.count == 10 && plan.moreIdle == 5 && plan.needsYou == 15)
     }
 }
+
+/// ADR-257: who a task from the Board's composer goes to.
+@Suite("Board composer target (ADR-257)")
+struct BoardComposerTargetTests {
+    @Test func theReviewerAndUnavailableAgentsTakeNoTask() {
+        var away = agent(2)
+        away.available = false
+        let takers = TeamRoster.takers(list([agent(0), agent(1, role: "improver"), away]))
+        #expect(takers.map(\.id) == ["a0"])
+        #expect(TeamRoster.takers(nil).isEmpty)
+    }
+
+    @Test func aFreeAgentFirstUnlessOneIsChosen() {
+        let busy = agent(0, [job(1, .running, minutesAgo: 1)])
+        let free = agent(1)
+        #expect(TeamRoster.taskTarget([busy, free], chosen: nil)?.id == "a1", "a free agent before a busy one")
+        #expect(TeamRoster.taskTarget([busy, free], chosen: "a0")?.id == "a0", "the chosen agent, even when busy")
+        #expect(TeamRoster.taskTarget([busy], chosen: "gone")?.id == "a0", "a chosen agent that left: the first")
+        #expect(TeamRoster.taskTarget([], chosen: nil) == nil)
+    }
+}
