@@ -386,6 +386,8 @@ test("allow for this task: revokeTaskAllows on the bridge forgets what a task wa
   assert.equal(events.filter((e) => e.type === "approval.request").length, 2, "asked again after web text");
   bridge.cancelAll();
   await again;
+});
+
 test("a drawn shape reaches the window with the point, and a plain point has none", () => {
   const { bridge, events } = setup();
   bridge.point({ x: 10, y: 20, w: 30, h: 40, label: "here", shape: "box" });

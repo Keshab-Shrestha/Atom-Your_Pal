@@ -1062,6 +1062,8 @@ test("the Return key and a line break may be allowed for the task; Quit, Delete 
   assert.match(s.asked[0]!.taskKey!, /^key:.+:return$/, "Return can be allowed for the task");
   assert.equal(s.asked[1]!.taskKey, undefined, "Quit always asks");
   assert.match(s.asked[2]!.taskKey!, /^linebreak:/, "a line break can be allowed for the task");
+});
+
 test("point may also draw a shape, only a known one, and still clicks nothing", async () => {
   const pointed: Pointed[] = [];
   const s = setup({ point: (p) => pointed.push(p) });
