@@ -137,8 +137,8 @@ extension CommandPaletteView {
         func go(_ page: WindowPage) -> () -> Void { { model.navigate { model.windowPage = page } } }
         add(.init(id: "go:chat", title: "Chat", symbol: "bubble.left.and.bubble.right", group: "Go to"), go(.chat))
         add(.init(id: "go:dashboard", title: "Dashboard", symbol: "chart.bar", group: "Go to", keywords: "tokens cost usage"), go(.dashboard))
-        let boardSymbols: [BoardView: String] = [.floor: "building.2", .needsYou: "tray", .columns: "list.bullet", .team: "person.2", .overview: "chart.bar.xaxis"]
-        for view in [BoardView.floor, .needsYou, .columns, .team, .overview] {
+        let boardSymbols: [BoardView: String] = [.floor: "building.2", .needsYou: "tray", .columns: "list.bullet", .team: "person.2"]
+        for view in [BoardView.floor, .needsYou, .columns, .team] {
             add(.init(id: "board:\(view.rawValue)", title: view.title, detail: "Board", symbol: boardSymbols[view] ?? "square.grid.2x2", group: "Go to", keywords: "board"), {
                 model.navigate { model.windowPage = .agents; model.helpers.selectBoard(); model.boardView = view }
             })

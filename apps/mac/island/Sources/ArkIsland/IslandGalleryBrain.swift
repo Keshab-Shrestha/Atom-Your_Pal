@@ -130,7 +130,6 @@ extension IslandGallery {
             HStack(alignment: .top, spacing: 16) {
                 cell("Plugins: loading") { PluginsPane(model: model(loaded: false)) }
                 cell("Plugins: empty") { PluginsPane(model: model(loaded: true)) }
-                cell("Overview: loading") { OverviewPane(model: model(loaded: false)) }
             }
             HStack(alignment: .top, spacing: 16) {
                 cell("Loading, slow") { LoadingStateView(text: "Loading chats…", retry: {}, slow: true).padding(16) }

@@ -57,8 +57,9 @@ extension IslandGallery {
             save(BoardTeamView(model: model, initiallySelected: "kame").frame(width: 1440, height: 800)
                 .background(model.settings.theme.palette.surfaceSolid.color).themed(model.settings.theme.palette).environment(\.islandSnapshot, true),
                  name: "46-team-manage-" + name, to: directory)
-            model.boardView = .overview
+            model.windowPage = .dashboard // 2026-11-06: Activity (at work, goals, just in) lives on Home
             capture("46-activity-" + name, width: 1280, height: 900)
+            model.windowPage = .agents
             model.boardView = .floor
             model.showsAllAgents = true
             capture("44-agents-" + name, width: 1000)
