@@ -90,6 +90,8 @@ export interface TeamScope {
 export interface NativeScope {
   access?: import("./chat-access.ts").ChatAccessPolicy;
   accessSignal?(): AbortSignal | undefined;
+  /** Told each time a session becomes tainted (web text, a browser page, outside data). The runtime then forgets every "allow for this task". */
+  onTaint?(): void;
   /** Claude Code's own tools of this chat's main thread. */
   tools: readonly string[];
   /** A project chat's read access; undefined: no file reads. */
@@ -134,7 +136,9 @@ export function nativeGate(scope: NativeScope): NativeGate {
   const work = new Map<number, Workdir>();
   const fileReadbacks = new Map<number, { attempt: string; helper: string; checks: TaskFileCheck[]; workspace?: VerificationWorkspace; tree: boolean; observed: boolean; invalid: boolean }>();
   const checkingFiles = new Set<number>();
-  const tainted = new Map<string, string>(); // ADR-123: "main" or "job:<n>" (or the agent id) -> what it read; never logged
+  const tainted = new (class extends Map<string, string> {
+    override set(key: string, value: string) { try { scope.onTaint?.(); } catch { /* a revoke hook must not break a read */ } return super.set(key, value); }
+  })(); // ADR-123: "main" or "job:<n>" (or the agent id) -> what it read; never logged
   const taintKey = (agentId: unknown): string => {
     if (typeof agentId !== "string" || !agentId) return "main";
     const job = team?.board.jobOfAgent(agentId);

@@ -48,6 +48,10 @@ struct NeedsYouPane: View {
                                 QuietButton(title: "Allow for chat", symbol: "checkmark.bubble") { model.answerApproval(true, rememberFile: true) }
                                     .help("Allow future edits to this file in this chat. Say ‘Forget file permissions for this chat’ to revoke.")
                             }
+                            if request.allowTask && !request.rememberFile && !request.accessChange {
+                                QuietButton(title: "Allow for this task", symbol: "checkmark.circle") { model.answerApproval(true, rememberTask: true) }
+                                    .help("ARK will not ask again for this same step in this task. Reading a web page ends it.")
+                            }
                             QuietButton(title: "Decline", symbol: "xmark") { model.answerApproval(false) }
                         }
                     }

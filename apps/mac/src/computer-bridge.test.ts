@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { IslandEvent } from "./island-protocol.ts";
-import { createComputerBridge, stepText } from "./computer-bridge.ts";
+import { createComputerBridge, createTaskAllows, stepText } from "./computer-bridge.ts";
 
 function setup(over: { timeoutMs?: number } = {}) {
   const events: IslandEvent[] = [];
@@ -301,4 +301,89 @@ test("Jev decisions are opt-in, request-scoped and cancelled when the provider c
   assert.equal(events.at(-1)?.type, "computer.decision.cancel");
   bridge.decisionResult(event.id, { choice: "plan_0", confidence: 1, probability: 1 });
   assert.equal(bridge.decisionOptions().provider, "off");
+});
+
+const request = (events: IslandEvent[]) => events.find((e) => e.type === "approval.request") as (IslandEvent & { id: string; allowTask?: true }) | undefined;
+
+test("allow for this task: the same key in the same task is not asked again", async () => {
+  const { bridge, events } = setup();
+  const task = new AbortController().signal;
+  const first = bridge.approve({ summary: "Press return in Mail", reason: "x", taskKey: "key:Mail:return" }, task);
+  await sleep(5);
+  const ask = request(events)!;
+  assert.equal(ask.allowTask, true, "the card offers it");
+  bridge.answer(ask.id, true, false, undefined, true);
+  assert.equal(await first, true);
+  const before = events.length;
+  assert.equal(await bridge.approve({ summary: "Press return in Mail", reason: "x", taskKey: "key:Mail:return" }, task), true, "allowed without a card");
+  assert.equal(events.length, before, "no new request was sent");
+  // Another key, another app or another task still asks.
+  const other = bridge.approve({ summary: "Press return in Notes", reason: "x", taskKey: "key:Notes:return" }, task);
+  await sleep(5);
+  assert.equal(events.filter((e) => e.type === "approval.request").length, 2);
+  bridge.cancelAll();
+  assert.equal(await other, false);
+  const another = bridge.approve({ summary: "Press return in Mail", reason: "x", taskKey: "key:Mail:return" }, new AbortController().signal);
+  await sleep(5);
+  assert.equal(events.filter((e) => e.type === "approval.request").length, 3, "a new task asks again");
+  bridge.cancelAll();
+  await another;
+});
+
+test("allow for this task: a plain Allow remembers nothing, and a request with no task signal has no such button", async () => {
+  const { bridge, events } = setup();
+  const task = new AbortController().signal;
+  const once = bridge.approve({ summary: "s", reason: "r", taskKey: "k" }, task);
+  await sleep(5);
+  bridge.answer(request(events)!.id, true);
+  assert.equal(await once, true);
+  const again = bridge.approve({ summary: "s", reason: "r", taskKey: "k" }, task);
+  await sleep(5);
+  assert.equal(events.filter((e) => e.type === "approval.request").length, 2, "asked again");
+  bridge.cancelAll();
+  await again;
+  const unscoped = bridge.approve({ summary: "s", reason: "r", taskKey: "k" });
+  await sleep(5);
+  assert.equal(events.filter((e) => e.type === "approval.request").at(-1) && (events.filter((e) => e.type === "approval.request").at(-1) as { allowTask?: true }).allowTask, undefined);
+  bridge.cancelAll();
+  await unscoped;
+});
+
+test("allow for this task: revoking forgets every allow, and a refused answer remembers nothing", async () => {
+  const allows = createTaskAllows();
+  const task = new AbortController();
+  allows.add(task.signal, "k");
+  assert.equal(allows.has(task.signal, "k"), true);
+  allows.revoke();
+  assert.equal(allows.has(task.signal, "k"), false, "forgotten");
+  allows.add(task.signal, "k");
+  assert.equal(allows.has(task.signal, "k"), true, "a new allow after the revoke counts");
+  task.abort();
+  assert.equal(allows.has(task.signal, "k"), false, "a stopped task allows nothing");
+  const { bridge, events } = setup();
+  const live = new AbortController().signal;
+  const asked = bridge.approve({ summary: "s", reason: "r", taskKey: "k2" }, live);
+  await sleep(5);
+  bridge.answer(request(events)!.id, false, false, undefined, true);
+  assert.equal(await asked, false);
+  const next = bridge.approve({ summary: "s", reason: "r", taskKey: "k2" }, live);
+  await sleep(5);
+  assert.equal(events.filter((e) => e.type === "approval.request").length, 2, "a decline with the box set still asks next time");
+  bridge.cancelAll();
+  await next;
+});
+
+test("allow for this task: revokeTaskAllows on the bridge forgets what a task was allowed", async () => {
+  const { bridge, events } = setup();
+  const task = new AbortController().signal;
+  const first = bridge.approve({ summary: "s", reason: "r", taskKey: "k" }, task);
+  await sleep(5);
+  bridge.answer(request(events)!.id, true, false, undefined, true);
+  await first;
+  bridge.revokeTaskAllows();
+  const again = bridge.approve({ summary: "s", reason: "r", taskKey: "k" }, task);
+  await sleep(5);
+  assert.equal(events.filter((e) => e.type === "approval.request").length, 2, "asked again after web text");
+  bridge.cancelAll();
+  await again;
 });
