@@ -226,6 +226,7 @@ private struct HelperSidebar: View {
                     }
                         .frame(maxHeight: .infinity)
                     SidebarAgents(model: model)
+                    SidebarApps(model: model)
                 }
                 if !model.searchQuery.isEmpty { Spacer(minLength: 0) }
             }

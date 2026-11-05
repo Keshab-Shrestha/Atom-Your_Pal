@@ -318,6 +318,10 @@ enum IslandGallery {
                      #"{"type":"turn.complete","speechMs":0,"transcriptionMs":0,"modelMs":1800,"firstSoundMs":0}"#, #"{"type":"state","state":"idle"}"#] {
             if let event = try? decodeEvent(line) { tabled.apply(event) } else { FileHandle.standardError.write(Data("gallery: could not decode a chat line\n".utf8)) }
         }
+        // 2026-11-05: the apps ARK made list in the sidebar, under the agents.
+        if let event = try? decodeEvent(#"{"type":"apps","apps":[{"id":"habit-tracker","name":"Habit tracker","description":"Tick a habit each day and see your streak.","ask":false,"version":2,"updatedAt":"2026-11-05T10:00:00.000Z"},{"id":"recipe-helper","name":"Recipe helper","description":"Scale a recipe.","ask":true,"version":1,"updatedAt":"2026-11-05T10:00:00.000Z"}]}"#) {
+            tabled.apply(event)
+        }
         save(window("Chat: a reply with a table, a list and code", tabled), name: name + "-chat-table", to: directory)
         // 2026-11-02: the ⌘K command palette over the chat.
         tabled.paletteShown = true
