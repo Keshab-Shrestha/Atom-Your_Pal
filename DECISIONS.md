@@ -4479,3 +4479,23 @@ ARK's own log showed the computer tool failing with "session 'ark' has ended; to
 
 - A long idle gap no longer breaks the computer tool until restart.
 - If the driver changes the wording of the rejection, the retry does not fire. The test pins the current wording.
+
+## ADR-247 — Draw on the screen (2026-11-05)
+
+### Context
+
+The `point` action flies Pal to a place and shows a label. A small figure beside a button can still be easy to miss. The atticus-mac project draws on the screen for the user.
+
+### Decision
+
+- The `point` action takes an optional `shape`: `ring`, `box`, `underline` or `arrow`. Any other value is refused with a sentence. Without a shape, nothing changes: Pal flies there as before.
+- The shape travels in the `computer.point` event. The window draws it in a click-through panel over the display that holds the place, for as long as Pal dwells (7 s), then fades. A new turn or a reset ends it at once. The stroke draws in over half a second, or at once with Reduce Motion.
+- The runtime sends a place and a shape only. It sends no drawing, no path and no image. The model cannot draw outside the element it named.
+- Drawing changes nothing in any app, so it never asks, as pointing never asks.
+- `DrawPlacement` (pure code) turns the driver's top-left coordinates into the display's own coordinates, and draws nothing for a place that is not on a display.
+
+### Consequences
+
+- The user can see which button ARK means.
+- Checked live: the demo (`ARK_POINT_DEMO` with `|ring`) drew a ring over its place on the real screen, with Pal beside it. Not checked: a shape on a second display, and the model choosing a shape by itself.
+- Not built: free drawing, a pen, or text on the screen.

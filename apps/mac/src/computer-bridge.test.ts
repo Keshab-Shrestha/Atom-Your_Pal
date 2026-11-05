@@ -302,3 +302,12 @@ test("Jev decisions are opt-in, request-scoped and cancelled when the provider c
   bridge.decisionResult(event.id, { choice: "plan_0", confidence: 1, probability: 1 });
   assert.equal(bridge.decisionOptions().provider, "off");
 });
+
+test("a drawn shape reaches the window with the point, and a plain point has none", () => {
+  const { bridge, events } = setup();
+  bridge.point({ x: 10, y: 20, w: 30, h: 40, label: "here", shape: "box" });
+  bridge.point({ x: 10, y: 20, w: 30, h: 40, label: "there" });
+  const points = events.filter((e) => e.type === "computer.point") as Array<Extract<IslandEvent, { type: "computer.point" }>>;
+  assert.equal(points[0]!.shape, "box");
+  assert.equal("shape" in points[1]!, false);
+});

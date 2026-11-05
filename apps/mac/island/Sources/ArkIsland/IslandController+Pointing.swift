@@ -60,6 +60,7 @@ extension IslandController {
             return
         }
         if pointLabel.isVisible { pointLabel.hide() }
+        if model.pointing.target == nil, drawOverlay.isVisible { drawOverlay.hide() } // a new turn or a reset ends the drawing too
         guard model.pointing.target == nil, pet.isPointing else { return }
         pointTimer?.invalidate()
         pointTimer = nil

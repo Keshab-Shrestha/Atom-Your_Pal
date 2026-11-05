@@ -263,7 +263,7 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
     case "computer.point":
         let w = try f.double("w"), h = try f.double("h")
         guard w > 0, h > 0 else { throw ProtocolError.invalidValue(event: "computer.point", field: w > 0 ? "h" : "w") }
-        return .computerPoint(PointTarget(x: try f.double("x"), y: try f.double("y"), w: w, h: h, label: try f.string("label")))
+        return .computerPoint(PointTarget(x: try f.double("x"), y: try f.double("y"), w: w, h: h, label: try f.string("label"), shape: f.optionalString("shape").flatMap(DrawShape.init(rawValue:))))
     case "approval.request":
         return .approvalRequest(ApprovalRequest(id: try f.string("id"), summary: try f.string("summary"), reason: try f.string("reason"), rememberFile: f.optionalBool("rememberFile") ?? false, fileReview: try f.fileReview(), accessChange: f.optionalBool("accessChange") ?? false))
     case "approval.closed":

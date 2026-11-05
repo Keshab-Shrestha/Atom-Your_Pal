@@ -2,6 +2,11 @@ import CoreGraphics
 
 /// A place on screen the model wants to show the user (ADR-054, Task 0.6.4). Positions are the ones Cua Driver
 /// reports: points, origin at the top-left of the main display, y down, spanning all displays.
+/// What the model may draw on the screen: a ring or a box around a place, an underline beneath it, or an arrow to it.
+public enum DrawShape: String, Sendable, Equatable, CaseIterable {
+    case ring, box, underline, arrow
+}
+
 public struct PointTarget: Sendable, Equatable {
     public var x: Double
     public var y: Double
@@ -9,8 +14,11 @@ public struct PointTarget: Sendable, Equatable {
     public var h: Double
     /// What the bubble says, e.g. "the settings button". May be empty.
     public var label: String
+    /// A shape drawn over the place for a few seconds (2026-11-05). Nil: ARK only flies there.
+    public var shape: DrawShape?
 
-    public init(x: Double, y: Double, w: Double, h: Double, label: String) {
+    public init(x: Double, y: Double, w: Double, h: Double, label: String, shape: DrawShape? = nil) {
+        self.shape = shape
         self.x = x
         self.y = y
         self.w = w

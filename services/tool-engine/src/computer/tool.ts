@@ -31,7 +31,7 @@ export interface ComputerToolOptions {
    * Pal flies to this place on screen and the bubble shows the label (the `point` action). Returns false if there is no
    * island to show it. Coordinates are screen points, origin at the top-left of the main display, as Cua reports them.
    */
-  onPoint?: (target: { x: number; y: number; w: number; h: number; label: string }) => boolean | void;
+  onPoint?: (target: { x: number; y: number; w: number; h: number; label: string; shape?: DrawShape }) => boolean | void;
   /** Called as an action begins, so the user can see what ARK is doing. Carries the action and app only. */
   onStep?: (step: { action: string; app?: string }) => void;
   /** Progress within one action; does not begin another action or extend its authority. */
@@ -96,6 +96,9 @@ function withoutMenuBar(elements: Element[]): Element[] {
   return kept;
 }
 
+/** What the `point` action may draw over the place (2026-11-05): a ring, a box, an underline or an arrow. Without one, ARK only flies there. */
+export const DRAW_SHAPES = ["ring", "box", "underline", "arrow"] as const;
+export type DrawShape = (typeof DRAW_SHAPES)[number];
 const ACTIONS = ["status", "list_apps", "windows", "look", "open", "click", "click_sequence", "choose_sequence", "shortcut", "type", "key", "scroll", "set_value", "point"] as const;
 
 /** Actions that change something in an app, so `look_after` makes sense for them. */
@@ -652,8 +655,10 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
         if (!box) throw new Refused(`ARK cannot show where [${el.element_index}] is: it has no place on screen. Describe it in words instead.`);
         if (!onPoint) throw new Refused("Pointing is not available right now. Describe where it is in words instead.");
         const label = (typeof input.text === "string" && input.text.trim() ? input.text : el.label ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
-        if (onPoint({ ...box, label }) === false) throw new Refused("Pointing is not available right now. Describe where it is in words instead.");
-        return `Pointed at [${el.element_index}]${label ? ` (${label})` : ""}. The user can see it now; do not point again unless asked.`;
+        if (input.shape !== undefined && !DRAW_SHAPES.includes(input.shape as DrawShape)) throw new Refused(`"shape" is ring, box, underline or arrow.`);
+        const shape = input.shape as DrawShape | undefined;
+        if (onPoint({ ...box, label, ...(shape ? { shape } : {}) }) === false) throw new Refused("Pointing is not available right now. Describe where it is in words instead.");
+        return `${shape ? `Drew a ${shape} at` : "Pointed at"} [${el.element_index}]${label ? ` (${label})` : ""}. The user can see it now; do not point again unless asked.`;
       }
       case "scroll": {
         const t = need();
@@ -702,7 +707,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
         "Pass `goal` (a short name for the task, e.g. \"add 2 and 3\") to a click_sequence and, when every step passes its check, ARK saves it as a shortcut. A `look` lists the saved shortcuts for the app; `shortcut` with app and goal replays one through the same checks (it needs no labels from you, and stops at the first mismatch). " +
         "Only when the latest look reports a fast decision provider enabled and a genuine choice between prepared button sequences is needed, use choose_sequence with goal and plans:[{description,steps:[{button,expect:{label,value}}]}] (2–4 plans, each 1–8 steps). The Settings-selected Jev/Laya decider chooses one or returns review; off/low confidence/failure sends no input. The main model still prepares the plans and reviews outcomes. Do not use this for a single deterministic path or retry uncertain decisions. It shares bounded goal, button/read-only labels and prepared plans only, never images or editable-field values. " +
         "Unconfirmed input includes a fresh observation of the same window when available; inspect it before taking another step. A changed screen alone does not prove the intended outcome. Never replay uncertain input automatically. " +
-        "Use `point` with an element number (and a short label) to show the user where something is: ARK flies to it. " +
+        "Use `point` with an element number (and a short label) to show the user where something is: ARK flies to it. Add `shape` (ring, box, underline or arrow) to draw it on the screen too. " +
         "Point when the user asks where something is or how to do it, instead of doing it for them. " +
         "ARK asks the user before sending, buying, deleting or changing anything, and never types passwords. " +
         "If the user declines, stop and say so. " +
@@ -719,6 +724,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
           plans: { type: "array", description: "For choose_sequence: 2–4 objects {description: short plan purpose (1–300 characters), steps: 1–8 checked button steps}. No extra fields; each step has {button,expect:{label,value}}." },
           steps: { type: "array", description: 'For click_sequence: 1–8 objects {button: "exact AXButton label", expect: {label: "exact read-only AXStaticText label", value: "exact expected text"}}. All strings 1–120 characters; no extra fields. Checked by the host before any click.' },
           text: { type: "string", description: "Text to type, or the value for set_value" },
+          shape: { type: "string", description: "For point: also draw a ring, box, underline or arrow over the element for a few seconds" },
           look_after: { type: "boolean", description: "After a click, type, key, scroll or set_value: also return the new screen" },
           keys: { type: "array", description: 'Keys to press, last one is the key, e.g. ["cmd","c"] or ["tab"]' },
           direction: { type: "string", description: "up, down, left or right" },
