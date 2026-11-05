@@ -1,5 +1,11 @@
 # ARK Project Status
 
+## Fewer places: Automations, one Apps page, Back to Home — 6 November 2026
+
+- ADR-265: Scheduled and Workflows are one page, Automations, in the workflow card style, with filters. Panels and Apps are one Apps page, and each one gets a tile in the rail. Back goes up out of a sub-page, otherwise Home, and from Home to Chats.
+- Reliability: Home warns when chats often end without an answer, from a new `turn.end` log line for each window turn. Stuck or finished plans have Dismiss. Settings > General shows the running build's commit.
+- Verified: Swift tests (964) and TypeScript tests (1444) pass, and fixture renders of Apps and Automations were checked. Not checked by hand.
+
 ## Trace, team cards, flow cards and handoffs — 5 November 2026
 
 - ADR-264, after the looks of four affectUI Pro items, with ARK's own code and data. A task's tool calls are a waterfall with totals and the slowest call marked. Team cards have a status pill and the current task. Flow cards have a live clock footer. Plan cards show what passed between agents.

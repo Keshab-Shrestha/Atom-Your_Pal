@@ -98,6 +98,10 @@ if [ -d "$root/assets/pals" ]; then
   done
 fi
 
+# 2026-11-06: the commit this build came from (with "+" when the working copy had changes), shown in Settings > General.
+commit="$(git -C "$(dirname "$0")" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+if [ -n "$(git -C "$(dirname "$0")" status --porcelain --untracked-files=no 2>/dev/null)" ]; then commit="$commit+"; fi
+
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -110,6 +114,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$version</string>
   <key>CFBundleVersion</key><string>$(date +%Y%m%d%H%M)</string>
+  <key>ARKBuildCommit</key><string>$commit</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
   $icon

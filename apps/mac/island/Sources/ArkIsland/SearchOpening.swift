@@ -36,7 +36,7 @@ extension IslandModel {
                 case .skills:
                     self.windowPage = .plugins
                 case .routines:
-                    self.windowPage = .scheduled
+                    self.windowPage = .workflows // Automations holds the routines
                 }
             }
         case .settings:

@@ -41,7 +41,7 @@ public enum StartPage: String, CaseIterable, Sendable {
         switch self {
         case .chat: "Chat"
         case .board: "Board"
-        case .dashboard: "Dashboard"
+        case .dashboard: "Home"
         case .last: "Last page used"
         }
     }

@@ -6,7 +6,7 @@ import type { PlanRepairView } from "./workflow-repair.ts";
 
 /**
  * ADR-111 slice B: work plans. One row per plan (its chat, goal and portions as JSON) and one row per portion that
- * started (the Board job it became). Task text stays here; changes carry ids only. Plans are kept; nothing drops them.
+ * started (the Board job it became). Task text stays here; changes carry ids only. Plans are kept; nothing drops them (a dismissed plan only leaves the Board's list).
  */
 
 export interface StoredPlan extends WorkPlan {
@@ -33,13 +33,17 @@ export function planTable(db: DatabaseSync, now: () => Date) {
     );
   `);
   db.exec("CREATE INDEX IF NOT EXISTS plan_jobs_job ON plan_jobs (job_id)");
+  // 2026-11-06: Keshab dismisses an old plan from the Board; the row stays.
+  const columns = new Set((db.prepare("PRAGMA table_info(work_plans)").all() as { name: string }[]).map((c) => c.name));
+  if (!columns.has("dismissed_at")) db.exec("ALTER TABLE work_plans ADD COLUMN dismissed_at TEXT");
   const insert = db.prepare("INSERT INTO work_plans (chat_id, goal, portions, created_at) VALUES (?, ?, ?, ?)");
   const byId = db.prepare("SELECT * FROM work_plans WHERE id = ?");
   const byChatAndId = db.prepare("SELECT * FROM work_plans WHERE chat_id = ? AND id = ?");
   const newestOfChat = db.prepare("SELECT * FROM work_plans WHERE chat_id = ? ORDER BY id DESC LIMIT 1");
   const historyOfChat = db.prepare("SELECT * FROM work_plans WHERE chat_id = ? ORDER BY id DESC LIMIT 10");
   const olderOfChat = db.prepare("SELECT * FROM work_plans WHERE chat_id = ? AND id < ? ORDER BY id DESC LIMIT 10");
-  const newest = db.prepare("SELECT * FROM work_plans ORDER BY id DESC LIMIT ?");
+  const newest = db.prepare("SELECT * FROM work_plans WHERE dismissed_at IS NULL ORDER BY id DESC LIMIT ?");
+  const dismiss = db.prepare("UPDATE work_plans SET dismissed_at = ? WHERE id = ? AND dismissed_at IS NULL");
   const link = db.prepare("INSERT OR IGNORE INTO plan_jobs (plan_id, n, job_id) VALUES (?, ?, ?)");
   const jobsOf = db.prepare("SELECT n, job_id FROM plan_jobs WHERE plan_id = ? ORDER BY n");
   const planOfJob = db.prepare("SELECT p.*, j.n AS portion_n FROM plan_jobs j JOIN work_plans p ON p.id = j.plan_id WHERE j.job_id = ? LIMIT 2");
@@ -67,7 +71,10 @@ export function planTable(db: DatabaseSync, now: () => Date) {
       const row = newestOfChat.get(chatId) as Row | undefined;
       return row && toPlan(row);
     },
+    /** The newest plans that Keshab did not dismiss. */
     newest: (limit: number): StoredPlan[] => (newest.all(limit) as Row[]).map(toPlan),
+    /** True when the plan was dismissed now; false when it was dismissed already. */
+    dismiss: (id: number): boolean => Number(dismiss.run(now().toISOString(), id).changes) > 0,
     /** True when the portion was linked now; false when it had a job already (a second start of one portion). */
     link: (planId: number, n: number, job: number): boolean => Number(link.run(planId, n, job).changes) > 0,
     jobs: (planId: number): { n: number; job: number }[] => (jobsOf.all(planId) as { n: number; job_id: number }[]).map((r) => ({ n: r.n, job: r.job_id })),

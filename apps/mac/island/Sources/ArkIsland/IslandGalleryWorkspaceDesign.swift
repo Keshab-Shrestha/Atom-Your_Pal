@@ -133,7 +133,7 @@ extension IslandGallery {
         save(HelpersView(model: model).frame(width: 1100, height: 900).environment(\.islandSnapshot, true), name: "43-workspace-stats", to: directory)
         model.windowPage = .dashboard
         save(HelpersView(model: model).frame(width: 1440, height: 900).environment(\.islandSnapshot, true), name: "43-workspace-dashboard-wide", to: directory)
-        model.windowPage = .scheduled
+        model.windowPage = .workflows
         save(HelpersView(model: model).frame(width: 1100, height: 760).environment(\.islandSnapshot, true), name: "43-workspace-scheduled", to: directory)
         model.windowPage = .plugins
         save(HelpersView(model: model).frame(width: 1100, height: 760).environment(\.islandSnapshot, true), name: "43-workspace-plugins", to: directory)

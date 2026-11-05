@@ -35,6 +35,8 @@ export interface Signals {
   warnings: { event: string; message: string; count: number }[];
   turnSeconds: { count: number; p90: number };
   overBudget: { session: number; turn: number };
+  /** Window chat turns (the voice loop's `turn.end`) and how many ended without their answer: stopped before it arrived, or failed. */
+  chatTurns: { started: number; unfinished: number };
   /** How many times each finding's problem happened (by finding id), with no threshold: 0 means it did not happen. */
   counts: Record<string, number>;
 }
@@ -67,6 +69,9 @@ export function summarize(lines: readonly string[], now: Date, days = 7): Signal
   const counts: Record<string, number> = {};
   const bump = (id: string) => { counts[id] = (counts[id] ?? 0) + 1; };
   let unauthorized = 0, session = 0, turn = 0, used = 0;
+  // 2026-11-06 (Keshab: "do the reliability checks yourself"): a window turn stopped before its answer arrived, or failed, is what a
+  // stuck chat looks like in the log (the window stayed busy and was stopped by hand). An answer cut off while read aloud counts as done.
+  let turnsEnded = 0, turnsUnfinished = 0;
   for (const line of lines) {
     let d: Record<string, unknown>;
     try { d = JSON.parse(line) as Record<string, unknown>; } catch { continue; }
@@ -90,6 +95,10 @@ export function summarize(lines: readonly string[], now: Date, days = 7): Signal
     else if (event === "session.over_budget") { session += 1; bump("budget:prefix"); }
     else if (event === "turn.over_budget") { turn += 1; bump("budget:prefix"); }
     else if (event === "turn.complete" && typeof d.modelMs === "number" && d.modelMs > 0) { modelMs.push(d.modelMs); if (d.modelMs >= 15_000) bump("slow:turns"); }
+    if (event === "turn.end" && typeof d.outcome === "string") {
+      turnsEnded += 1;
+      if (d.outcome === "stopped" || d.outcome === "failed") turnsUnfinished += 1;
+    }
     if ((d.level === "warn" || d.level === "error") && event && !QUIET_WARNINGS.has(event)) {
       const key = `${event}\u0000${normalizeReason(d.reason ?? d.message)}`;
       const w = warnings.get(key) ?? { message: normalizeReason(d.reason ?? d.message), count: 0 };
@@ -99,6 +108,7 @@ export function summarize(lines: readonly string[], now: Date, days = 7): Signal
     }
   }
   modelMs.sort((a, b) => a - b);
+  if (turnsUnfinished) counts["turns:unfinished"] = turnsUnfinished;
   return {
     from: new Date(since).toISOString(), to: now.toISOString(), lines: used,
     tools: [...tools].map(([name, t]) => ({ name, ...t })).sort((a, b) => b.failed - a.failed),
@@ -108,6 +118,7 @@ export function summarize(lines: readonly string[], now: Date, days = 7): Signal
     warnings: [...warnings].map(([key, w]) => ({ event: key.split("\u0000")[0]!, ...w })).sort((a, b) => b.count - a.count).slice(0, 8),
     turnSeconds: { count: modelMs.length, p90: modelMs.length ? Math.round((modelMs[Math.floor(modelMs.length * 0.9)] ?? 0) / 100) / 10 : 0 },
     overBudget: { session, turn },
+    chatTurns: { started: turnsEnded, unfinished: turnsUnfinished },
     counts,
   };
 }
@@ -133,6 +144,11 @@ export function findingsFrom(s: Signals): Finding[] {
   }
   for (const w of s.warnings) {
     if (w.count >= 20) out.push({ id: `warning:${slug(w.event)}-${slug(w.message).slice(0, 24)}`, kind: "warning", severity: 1, count: w.count, title: `ARK keeps warning: ${w.event}`, evidence: `${w.count} times${w.message ? `: ${w.message}` : ""}.` });
+  }
+  const t = s.chatTurns;
+  if (t.unfinished >= 3 && t.unfinished / Math.max(1, t.started) >= 0.2) {
+    out.push({ id: "turns:unfinished", kind: "warning", severity: 2, count: t.unfinished, title: "Chats often end without an answer",
+      evidence: `${t.unfinished} of ${t.started} chat turns ended before their answer arrived: stopped by hand or failed.` });
   }
   if (s.turnSeconds.count >= 10 && s.turnSeconds.p90 >= 15) {
     out.push({ id: "slow:turns", kind: "slow", severity: 1, count: s.turnSeconds.count, title: "Some answers are slow", evidence: `9 in 10 answers took under ${s.turnSeconds.p90} seconds of model time; the slowest tenth took longer.` });

@@ -929,6 +929,12 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "plan.reject":
         changeHelpers(command.type, (helpers) => helpers.rejectPlan(command.id));
         return;
+      case "plan.dismiss":
+        changeHelpers(command.type, (helpers) => {
+          if (!helpers.dismissPlan) throw new Error("Dismissing a plan is unavailable in this runtime.");
+          helpers.dismissPlan(command.id);
+        });
+        return;
       case "agent.create":
       {
         let id: string | void = undefined;

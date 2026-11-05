@@ -1327,6 +1327,24 @@ test("the helpers event carries Paperclip's tasks only when the connection is on
   assert.equal(Object.hasOwn(off.events().at(-1) as object, "paperclip"), false);
 });
 
+test("plan.dismiss re-sends the helpers list without the stuck plan, and refuses an active plan with a settings error", async () => {
+  const store = openHelperStore({ path: ":memory:" });
+  const portions = [{ n: 1, agent: "sid", task: "a", after: [] }];
+  const stuck = store.addPlan("c", { goal: "old", portions }).id;
+  const job = store.addNativeJob("sid", "a", { chatId: "c" });
+  store.linkPlanJob(stuck, 1, job.id);
+  store.fail(job.id, "ARK was closed.");
+  const active = store.addPlan("c", { goal: "new", portions }).id;
+  const h = islandHarness({ helpers: islandHelpers(store, async () => []) });
+  await tick(5);
+  h.clear();
+  await h.send({ type: "plan.dismiss", id: stuck });
+  assert.deepEqual((h.events().at(-1) as HelpersEvent).plans?.map((p) => p.id), [active]);
+  h.clear();
+  await h.send({ type: "plan.dismiss", id: active });
+  assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: "This plan is still running. You can dismiss it when it is complete or stuck." }]);
+});
+
 test("the helpers event names agent folders that could not be loaded, and leaves the field out when there are none (ADR-093)", async () => {
   const dir = mkdtempSync(join(tmpdir(), "ark-ag-"));
   try {

@@ -121,8 +121,8 @@ extension IslandGallery {
                 cell("Needs you: error") { NeedsYouPane(model: model(loaded: true, failed: true)) }
             }
             HStack(alignment: .top, spacing: 16) {
-                cell("Scheduled: loading") { ScheduledPane(model: model(loaded: false)) }
-                cell("Scheduled: empty") { ScheduledPane(model: model(loaded: true)) }
+                cell("Automations: loading") { WorkflowsPane(model: model(loaded: false)) }
+                cell("Automations: empty") { WorkflowsPane(model: model(loaded: true)) }
                 cell("Dashboard: loading") { DashboardPane(model: model(loaded: false)) }
             }
             HStack(alignment: .top, spacing: 16) {

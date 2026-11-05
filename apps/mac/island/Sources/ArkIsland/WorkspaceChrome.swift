@@ -20,7 +20,8 @@ struct WorkspaceNavigationRail: View {
 
     /// Captions only when every item fits with them; a short window gets the glyphs alone, with names on hover.
     private func captionsFit(_ height: CGFloat) -> Bool {
-        let items = 1 + model.settings.sidebar.top.filter { $0 != .dashboard }.count + min(model.apps?.count ?? 0, Self.appsShown) + 1
+        let tiles = (model.apps?.count ?? 0) + (model.panels?.panels.filter(\.enabled).count ?? 0)
+        let items = 1 + model.settings.sidebar.top.filter { $0 != .dashboard }.count + min(tiles, Self.appsShown) + 1
             + model.settings.sidebar.bottom.filter { $0 != .dashboard }.count
         return height >= Self.railChrome + CGFloat(items) * Self.captionedItem
     }
@@ -77,7 +78,10 @@ struct WorkspaceNavigationRail: View {
         }
         .zIndex(1)
         .accessibilityElement(children: .contain).accessibilityLabel("Main navigation")
-        .onAppear { if !snapshot, model.apps == nil { model.send(.appsList) } }
+        .onAppear {
+            if !snapshot, model.apps == nil { model.send(.appsList) }
+            if !snapshot, model.panels == nil { model.send(.panelsList) } // panels have rail tiles too (2026-11-06)
+        }
     }
 
     /// The most apps shown in the rail. The Apps page lists them all.
@@ -87,12 +91,22 @@ struct WorkspaceNavigationRail: View {
     /// A new app shows here as soon as you approve it. Removing an app stays on the Apps page.
     @ViewBuilder private var railApps: some View {
         let apps = model.apps ?? []
-        if !apps.isEmpty { Rectangle().fill(theme.hairline(true)).frame(width: 20, height: 1).accessibilityHidden(true) }
+        // 2026-11-06 (Keshab): panels are apps too, so each one also gets a tile here, by the +, to reach it fast.
+        let panels = (model.panels?.panels ?? []).filter(\.enabled)
+        let panelsShown = max(0, Self.appsShown - min(apps.count, Self.appsShown))
+        if !apps.isEmpty || !panels.isEmpty { Rectangle().fill(theme.hairline(true)).frame(width: 20, height: 1).accessibilityHidden(true) }
         ForEach(apps.prefix(Self.appsShown)) { app in
             WorkspaceRailButton(title: app.name, symbol: "app.dashed",
                                 selected: model.windowPage == .apps && model.openApp?.id == app.id, badge: 0,
                                 letter: app.name.first.map { String($0).uppercased() }) {
                 model.navigate { model.windowPage = .apps; model.openAppPage(app.id) }
+            }
+        }
+        ForEach(panels.prefix(panelsShown)) { panel in
+            WorkspaceRailButton(title: panel.name, symbol: "square.grid.2x2",
+                                selected: model.windowPage == .apps && model.focusedPanel == panel.id, badge: 0,
+                                letter: panel.name.first.map { String($0).uppercased() }) {
+                model.openPanel(panel.id)
             }
         }
         railButton("New app", symbol: "plus.app", selected: false) { model.askForApp() }
@@ -137,10 +151,8 @@ struct WorkspaceNavigationRail: View {
                     case .board:
                         model.windowPage = .agents; model.helpers.selectBoard()
                         model.boardView = BoardAttention(list: model.helpers.list, approvalPending: model.approval.pending != nil).view(whenOpening: model.boardView)
-                    case .scheduled: model.windowPage = .scheduled
                     case .workflows: model.windowPage = .workflows
-                    case .panels: model.windowPage = .panels
-                    case .apps: model.windowPage = .apps; model.closeAppPage()
+                    case .apps: model.windowPage = .apps; model.closeAppPage(); model.focusedPanel = nil
                     case .brain: model.windowPage = .brain
                     case .plugins: model.windowPage = .plugins
                     case .settings: model.windowPage = .settings
@@ -154,10 +166,8 @@ struct WorkspaceNavigationRail: View {
         switch item {
         case .dashboard: ("Home", "chart.bar.xaxis", model.windowPage == .dashboard)
         case .board: ("Board", "rectangle.split.3x1", model.windowPage == .agents)
-        case .scheduled: ("Scheduled", "calendar", model.windowPage == .scheduled)
-        case .workflows: ("Workflows", "point.3.connected.trianglepath.dotted", model.windowPage == .workflows)
-        case .panels: ("Panels", "square.grid.2x2", model.windowPage == .panels)
-        case .apps: ("Apps", "app.dashed", model.windowPage == .apps && model.openApp == nil)
+        case .workflows: ("Automations", "point.3.connected.trianglepath.dotted", model.windowPage == .workflows)
+        case .apps: ("Apps", "app.dashed", model.windowPage == .apps && model.openApp == nil && model.focusedPanel == nil)
         case .brain: ("Second brain", "brain.head.profile", model.windowPage == .brain)
         case .plugins: ("Plugins", "puzzlepiece.extension", model.windowPage == .plugins)
         case .settings: ("Settings", "gearshape", model.windowPage == .settings)
@@ -214,7 +224,7 @@ private struct WorkspaceRailButton: View {
     private var caption: String {
         switch title {
         case "Second brain": "Brain"
-        case "Scheduled": "Schedule"
+        case "Automations": "Automate"
         default: title
         }
     }

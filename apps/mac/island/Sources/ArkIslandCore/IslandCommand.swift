@@ -147,6 +147,8 @@ public enum IslandCommand: Sendable, Equatable {
     /// Task 3.8: approve or reject a task's waiting plan; whether a worker's new tasks plan first.
     case planApprove(id: Int)
     case planReject(id: Int)
+    /// 2026-11-06: a stuck or finished plan leaves the Board's list (kept in its chat's history; nothing is deleted).
+    case planDismiss(id: Int)
     case helperPlanFirst(helper: String, on: Bool)
     /// ADR-098: whether a worker's runs get the browser.
     case helperBrowser(helper: String, on: Bool)
@@ -334,6 +336,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .jobUndo: "job.undo"
         case .planApprove: "plan.approve"
         case .planReject: "plan.reject"
+        case .planDismiss: "plan.dismiss"
         case .helperPlanFirst: "helper.planFirst"
         case .helperBrowser: "helper.browser"
         case .helperReportsTo: "helper.reportsTo"
@@ -641,7 +644,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .helperPlanFirst(let helper, let on), .helperBrowser(let helper, let on):
             fields["helper"] = helper
             fields["on"] = on // a real JSON boolean
-        case .jobStop(let id), .jobInterrupt(let id), .jobFresh(let id), .planApprove(let id), .planReject(let id), .routineDelete(let id), .jobDelete(let id), .threadGet(let id):
+        case .jobStop(let id), .jobInterrupt(let id), .jobFresh(let id), .planApprove(let id), .planReject(let id), .planDismiss(let id), .routineDelete(let id), .jobDelete(let id), .threadGet(let id):
             fields["id"] = id // a JSON number
         case .jobUndo(let id, let path, let force):
             fields["id"] = id

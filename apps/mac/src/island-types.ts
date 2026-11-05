@@ -317,6 +317,8 @@ export interface IslandHelpers {
   paperclip?(): { issues: PaperclipItem[] };
   /** ADR-111: the newest work plans with the state of each portion. */
   plans?(): PlanItem[];
+  /** 2026-11-06: hides a complete or stuck plan from `plans`. Throws, with words for the user, for an unknown or active plan. */
+  dismissPlan?(id: number): void;
   /** Task 3.14: opens a task's report in its worker's app. Absent: `job.open` is refused. Rejects with words for the user. */
   openReport?(id: number): Promise<string>;
   /** ADR-091: the Dashboard's tokens. */

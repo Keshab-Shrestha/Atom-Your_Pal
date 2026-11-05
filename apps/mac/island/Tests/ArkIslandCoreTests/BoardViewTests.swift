@@ -20,12 +20,4 @@ struct BoardViewTests {
         #expect(BoardView(storedPage: "dashboard") == nil)
         #expect(BoardView(storedPage: "floor") == nil)
     }
-
-    @Test func theBoardViewIsAHistoryStepOnlyOnTheBoard() {
-        let overview = WindowLocation(page: .agents, showsBoard: true, boardView: .overview)
-        let floor = WindowLocation(page: .agents, showsBoard: true, boardView: .floor)
-        #expect(overview != floor)
-        #expect(WindowLocation(page: .dashboard, boardView: .overview) == WindowLocation(page: .dashboard, boardView: .floor))
-        #expect(WindowLocation(page: .agents, showsBoard: false, boardView: .overview) == WindowLocation(page: .agents))
-    }
 }

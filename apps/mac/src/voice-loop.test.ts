@@ -24,6 +24,7 @@ function harness(
   const errors: { stage: LoopStage; error: unknown }[] = [];
   const recordings: { stopped: boolean; fail: (e: AudioError) => void; ready: () => void; level: (peak: number) => void }[] = [];
   const signals: AbortSignal[] = [];
+  const ends: string[] = [];
 
   const stt: SpeechToText = over.stt ?? { transcribe: async () => "what time is it" };
   const core: CoreLike = over.core ?? {
@@ -64,6 +65,7 @@ function harness(
       onTranscript: (t) => log.push(`you:${t}`),
       onReply: (t) => log.push(`ark:${t}`),
       onTurnComplete: () => log.push("done"),
+      onTurnEnd: (outcome) => ends.push(outcome),
       onNotice: (n) => log.push(`notice:${n.kind === "no_speech" ? `no_speech(${n.loudest})` : n.kind}`),
       onLevel: (p) => log.push(`level:${p}`),
       onError: (stage, error) => errors.push({ stage, error }),
@@ -78,7 +80,7 @@ function harness(
     press();
     if (autoReady && recordings.length > before) recordings.at(-1)!.ready();
   };
-  return { loop, log, states, errors, recordings, signals };
+  return { loop, log, states, errors, recordings, signals, ends };
 }
 
 test("a full turn: listen, transcribe, ask the Core, speak", async () => {
@@ -91,6 +93,36 @@ test("a full turn: listen, transcribe, ask the Core, speak", async () => {
   assert.deepEqual(h.states, ["listening", "transcribing", "thinking", "speaking", "idle"]);
   assert.deepEqual(h.errors, []);
   assert.equal(h.recordings[0].stopped, true);
+});
+
+test("each turn reports how it ended: complete, stopped before the answer, cut while read aloud, or failed (2026-11-06)", async () => {
+  const done = harness();
+  done.loop.ask("hello");
+  await tick(5);
+  assert.deepEqual(done.ends, ["complete"]);
+
+  const model = gate<{ text: string }>();
+  const stopped = harness({ core: { handle: () => model.promise } });
+  stopped.loop.ask("first");
+  await tick(1);
+  stopped.loop.cancel(); // Stop before the answer arrives
+  model.resolve({ text: "late" });
+  await tick(5);
+  assert.deepEqual(stopped.ends, ["stopped"]);
+
+  const speech = gate<void>();
+  const cut = harness({ tts: { warmUp: async () => {}, close: () => {}, speak: (_t, _s, hooks) => { hooks?.onStart?.(); return speech.promise; } } });
+  cut.loop.ask("first");
+  await tick(5);
+  cut.loop.ask("second"); // typing over ARK while it reads the first answer aloud
+  speech.resolve();
+  await tick(5);
+  assert.equal(cut.ends[0], "cut");
+
+  const failed = harness({ core: { handle: async () => { throw new Error("model down"); } } });
+  failed.loop.ask("x");
+  await tick(5);
+  assert.deepEqual(failed.ends, ["failed"]);
 });
 
 test("a very short clip is ignored with a notice", async () => {

@@ -1029,11 +1029,6 @@ public struct HelpersState: Sendable, Equatable {
 
     /// ADR-096: Back to the team page lands on the Board's top level: no agent, task, soul or new-agent form opens
     /// again (2026-10-31). The Board's view and All agents are the window's to put back.
-    public mutating func show(_ location: WindowLocation) {
-        guard location.page == .agents else { return }
-        selectBoard()
-    }
-
     public mutating func closeReport() {
         openJobId = nil
         openJobSeen = nil

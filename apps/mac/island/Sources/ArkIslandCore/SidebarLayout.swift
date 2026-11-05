@@ -4,7 +4,8 @@ import Foundation
 /// Projects section are not here: they stay where they are. Needs you and Issues moved into the Board (a saved order that
 /// still names them loads: unknown names are dropped).
 public enum SidebarItem: String, CaseIterable, Sendable {
-    case dashboard, board, scheduled, brain, workflows, panels, apps, plugins, settings
+    // 2026-11-06: "scheduled" and "panels" are gone (Automations and Apps hold them); a saved order naming them still loads.
+    case dashboard, board, workflows, apps, brain, plugins, settings // the standard order, so a page left out comes back in place
 }
 
 /// Where the sidebar's pages sit: the `top` group above Projects and Chats, and the `bottom` group below them. A page can
@@ -15,14 +16,14 @@ public struct SidebarLayout: Sendable, Equatable {
 
     /// The order ARK starts with.
     /// 2026-11-02: Workflows last in the top group, where an older saved layout gets it back.
-    public static let standard = SidebarLayout(top: [.dashboard, .board, .scheduled, .brain, .workflows, .panels, .apps], bottom: [.plugins, .settings])
+    public static let standard = SidebarLayout(top: [.dashboard, .board, .workflows, .apps, .brain], bottom: [.plugins, .settings])
 
     /// Any lists: a page named twice keeps its first place, and a page left out goes back to the end of its standard group.
     public init(top: [SidebarItem], bottom: [SidebarItem]) {
         var seen = Set<SidebarItem>()
         let cleanTop = top.filter { seen.insert($0).inserted }
         let cleanBottom = bottom.filter { seen.insert($0).inserted }
-        let standardTop: [SidebarItem] = [.dashboard, .board, .scheduled, .brain, .workflows, .panels, .apps]
+        let standardTop: [SidebarItem] = [.dashboard, .board, .workflows, .apps, .brain]
         let missing = SidebarItem.allCases.filter { !seen.contains($0) }
         self.top = cleanTop + missing.filter { standardTop.contains($0) }
         self.bottom = cleanBottom + missing.filter { !standardTop.contains($0) }

@@ -170,6 +170,7 @@ export function islandHelpers(
         complete: p.complete,
         stuck: p.stuck,
       })),
+    dismissPlan: (id) => store.dismissPlan(id),
     usage: () => {
       const summary = store.usage();
       const names = new Map(store.list().map((h) => [h.id, h.name]));
