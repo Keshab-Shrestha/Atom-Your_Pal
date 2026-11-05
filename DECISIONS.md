@@ -4480,6 +4480,46 @@ ARK's own log showed the computer tool failing with "session 'ark' has ended; to
 - A long idle gap no longer breaks the computer tool until restart.
 - If the driver changes the wording of the rejection, the retry does not fire. The test pins the current wording.
 
+## ADR-243 — Remind the model when it repeats a call (2026-11-05)
+
+### Context
+
+A model can call the same tool with the same input again and again, hoping for a new result. Each call costs time and tokens and changes nothing. The deepseek-harness project warns its model in this case. ARK's own log showed the computer tool failing in this way.
+
+### Decision
+
+- The tool engine counts identical calls (same tool name, same input, key order ignored) in one turn. One turn is one abort signal. A call with no signal is not counted.
+- From the third identical call, the result ends with a short reminder: the same input gives the same result unless something changed, so try a different step or tell the user what blocks. The reminder is on failing calls too.
+- The call still runs. The reminder is advice. It blocks nothing.
+- The `tool.call` log line gains `repeat` (the count) from the third call. The ARK notices can use it later.
+- The engine keeps at most 200 distinct calls per turn.
+
+### Consequences
+
+- A loop shows up to the model, and in the log.
+- A legitimate repeat, such as scrolling the same step three times, gets a reminder it can ignore.
+- The model is the only reader. Code does not stop a loop.
+
+## ADR-244 — Allow a repeated step for the rest of the task (2026-11-05)
+
+### Context
+
+One task can ask the same question many times: press Return in Mail five times, type text with a line break again. The user must answer each card. The atticus-mac project lets the user allow a kind of step for the task.
+
+### Decision
+
+- A card can show a quiet button "Allow for this task". The runtime sets `allowTask` on the card only when the caller names a `taskKey` and the call has a task signal.
+- Only two kinds of step name a key: a Return key or a chord that can send or confirm (`key:<app>:<keys>`), and typing text with a line break (`linebreak:<app>`). Clicks, Delete, Quit, Spotlight and Force Quit always ask.
+- The user's answer travels as `approval.answer.rememberTask`. Code in `computer-bridge.ts` stores the key against the task's abort signal. The next ask with the same key and the same signal returns yes with no card.
+- A new task (a new signal) asks again. A stopped task allows nothing. A decline with the box set remembers nothing.
+- Taint forgets all of it. When a session reads web text, a browser page, imported notes or outside data, `native-safety.ts` calls `onTaint`, and the runtime calls `revokeTaskAllows()`. This is blunt on purpose: it fails safe.
+- Telegram's card has no such button. The model cannot set the answer.
+
+### Consequences
+
+- Fewer cards for a loop of the same safe step. A step in another app or with another key still asks.
+- The user trusts the app at the click. The taint rule keeps web text from riding on that trust.
+- A single-line Return after typing already needed no card (ADR-054). That is unchanged.
 ## ADR-245 — A Stats page: tool and turn numbers from ARK's own log (2026-11-05)
 
 ### Context

@@ -108,6 +108,11 @@ test("model.set without a provider or model string is a protocol error", () => {
   }
 });
 
+test("approval.answer may carry rememberTask, and only as a boolean", () => {
+  assert.deepEqual(parseCommand('{"type":"approval.answer","id":"a1","approved":true,"rememberTask":true}'), { command: { type: "approval.answer", id: "a1", approved: true, rememberTask: true } });
+  assert.ok("error" in parseCommand('{"type":"approval.answer","id":"a1","approved":true,"rememberTask":"yes"}'));
+});
+
 test("approval.answer needs an id and a real boolean", () => {
   assert.deepEqual(parseCommand('{"type":"approval.answer","id":"a1","approved":true}'), { command: { type: "approval.answer", id: "a1", approved: true } });
   assert.deepEqual(parseCommand('{"type":"approval.answer","id":"a1","approved":false}'), { command: { type: "approval.answer", id: "a1", approved: false } });

@@ -5,7 +5,7 @@ import type { ComputerDecisionAnswer, ComputerDecisionState } from "@ark/decisio
 import { randomUUID } from "node:crypto";
 import type { IslandEvent } from "./island-protocol.ts";
 
-export type FileApproval = false | "once" | "chat";
+export type FileApproval = false | "once" | "chat" | "task";
 export type FileEditReview = { path: string; before: string; after: string };
 export const FILE_REVIEW_BYTES = 32 * 1024;
 export const FILE_REVIEW_LINES = 1_000;
@@ -15,14 +15,14 @@ export function validFileReview(review: FileEditReview): boolean {
     && Buffer.byteLength(review.before) + Buffer.byteLength(review.after) <= FILE_REVIEW_BYTES
     && review.before.split("\n").length + review.after.split("\n").length <= FILE_REVIEW_LINES;
 }
-type ApprovalInput = { summary: string; reason: string; timeoutMs?: number; reasonMax?: number; rememberFile?: boolean; fileReview?: FileEditReview; accessChange?: true };
+type ApprovalInput = { summary: string; reason: string; timeoutMs?: number; reasonMax?: number; rememberFile?: boolean; taskKey?: string; fileReview?: FileEditReview; accessChange?: true };
 
 export interface ComputerBridge {
   /** Where events go. Until the island is attached, every approval is a refusal and steps are dropped. */
   attach(send: (event: IslandEvent) => void): void;
   /** Passed to the computer tool as `approve`. Resolves true only if the user answers yes. */
   /** `timeoutMs` overrides the default wait for this one request. */
-  approve(request: { summary: string; reason: string; timeoutMs?: number; reasonMax?: number; accessChange?: true }, signal?: AbortSignal): Promise<boolean>;
+  approve(request: { summary: string; reason: string; timeoutMs?: number; reasonMax?: number; accessChange?: true; taskKey?: string }, signal?: AbortSignal): Promise<boolean>;
   approveFile(request: { summary: string; reason: string }, signal?: AbortSignal): Promise<FileApproval>;
   /** Full local review. Approval requires a token returned only by the detailed native review surface. */
   approveFileEdit(request: FileEditReview & { summary: string }, signal?: AbortSignal): Promise<boolean>;
@@ -46,7 +46,9 @@ export interface ComputerBridge {
   /** Passed to the computer tool as `deliveryMode`. */
   deliveryMode(): "background" | "foreground";
   /** The island's `approval.answer`. An unknown or finished id does nothing. */
-  answer(id: string, approved: boolean, rememberFile?: boolean, reviewToken?: string): void;
+  answer(id: string, approved: boolean, rememberFile?: boolean, reviewToken?: string, rememberTask?: boolean): void;
+  /** Forgets every "allow for this task". Called when a session reads web text, imported notes or outside data (taint). */
+  revokeTaskAllows(): void;
   /** Declines everything waiting (the turn ended or was cancelled). */
   cancelAll(): void;
   /** ADR-098: the requests waiting for an answer, oldest first (for Telegram's /needs). */
@@ -61,6 +63,8 @@ export interface ApprovalAsk {
   summary: string;
   reason: string;
   rememberFile?: true;
+  /** The user may allow this kind of action for the rest of the task. */
+  allowTask?: true;
   accessChange?: true;
   fileReview?: FileEditReview & { token: string };
 }
@@ -108,6 +112,27 @@ export const MAX_REASON_CHARS = 600;
 /** Quiet time after the last step before the island is told the work is over. */
 export const COMPUTER_END_MS = 6000;
 
+/**
+ * "Allow for this task": the keys the user allowed, per task (one abort signal). Revoking forgets all of them at once: an epoch moves on, and a
+ * set from an older epoch counts as empty.
+ */
+export function createTaskAllows() {
+  let epoch = 0;
+  const byTask = new WeakMap<AbortSignal, { epoch: number; keys: Set<string> }>();
+  return {
+    has(signal: AbortSignal, key: string): boolean {
+      const entry = byTask.get(signal);
+      return Boolean(entry && entry.epoch === epoch && entry.keys.has(key) && !signal.aborted);
+    },
+    add(signal: AbortSignal, key: string): void {
+      let entry = byTask.get(signal);
+      if (!entry || entry.epoch !== epoch) byTask.set(signal, (entry = { epoch, keys: new Set() }));
+      entry.keys.add(key);
+    },
+    revoke(): void { epoch += 1; },
+  };
+}
+
 export function createComputerBridge(options: ComputerBridgeOptions = {}): ComputerBridge {
   const { timeoutMs = 60_000, endAfterMs = COMPUTER_END_MS, newId = randomUUID } = options;
   // The agent cursor (2026-10-23): on with a task's first step, back to ARK and hidden when the task ends. It never blocks an action.
@@ -125,6 +150,7 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
     options.cursor.start().catch(cursorFailed);
   }
   let sendEvent: ((event: IslandEvent) => void) | undefined;
+  const taskAllows = createTaskAllows();
   const waiting = new Map<string, (approved: FileApproval) => void>();
   const asks = new Map<string, ApprovalAsk>();
   const askListeners = new Set<(ask: ApprovalAsk) => void>();
@@ -142,7 +168,7 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
     endTimer.unref?.();
   }
 
-  function settle(id: string, approved: boolean, rememberFile = false, reviewToken?: string) {
+  function settle(id: string, approved: boolean, rememberFile = false, reviewToken?: string, rememberTask = false) {
     const done = waiting.get(id);
     if (!done) return;
     waiting.delete(id);
@@ -150,7 +176,7 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
     const canRemember = request?.rememberFile === true;
     if (request?.fileReview && reviewToken !== request.fileReview.token) approved = false;
     asks.delete(id);
-    done(approved ? (rememberFile && canRemember ? "chat" : "once") : false);
+    done(approved ? (rememberFile && canRemember ? "chat" : rememberTask && request?.allowTask ? "task" : "once") : false);
     sendEvent?.({ type: "approval.closed", id });
     scheduleEnd();
   }
@@ -167,7 +193,7 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
           resolve(approved);
         });
         signal?.addEventListener("abort", onAbort, { once: true });
-        const ask: ApprovalAsk = { id, summary: oneLine(request.summary, 140), reason: oneLine(request.reason, Math.min(Math.max(request.reasonMax ?? 140, 140), MAX_REASON_CHARS)), ...(request.accessChange ? { accessChange: true } : {}), ...(request.rememberFile ? { rememberFile: true } : {}), ...(request.fileReview ? { fileReview: { ...request.fileReview, token: randomUUID() } } : {}) };
+        const ask: ApprovalAsk = { id, summary: oneLine(request.summary, 140), reason: oneLine(request.reason, Math.min(Math.max(request.reasonMax ?? 140, 140), MAX_REASON_CHARS)), ...(request.accessChange ? { accessChange: true } : {}), ...(request.rememberFile ? { rememberFile: true } : {}), ...(request.taskKey && signal ? { allowTask: true as const } : {}), ...(request.fileReview ? { fileReview: { ...request.fileReview, token: randomUUID() } } : {}) };
         asks.set(id, ask);
         sendEvent!({ type: "approval.request", ...ask });
         for (const listener of askListeners) listener(ask);
@@ -176,7 +202,13 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
 
   return {
     attach(send) { sendEvent = send; },
-    approve: async (request, signal) => Boolean(await ask(request, signal)),
+    approve: async (request, signal) => {
+      const key = request.taskKey;
+      if (key && signal && taskAllows.has(signal, key)) return true;
+      const answer = await ask(request, signal);
+      if (answer === "task" && key && signal) taskAllows.add(signal, key);
+      return Boolean(answer);
+    },
     approveFile: (request, signal) => ask({ ...request, reasonMax: MAX_REASON_CHARS, rememberFile: true }, signal),
     approveFileEdit: async (request, signal) => validFileReview(request) && Boolean(await ask({ summary: request.summary, reason: "Review the full file change in ARK on your Mac. An undo copy is required before applying.", timeoutMs: 120_000, fileReview: { path: request.path, before: request.before, after: request.after } }, signal)),
     point(target) {
@@ -239,7 +271,8 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
       if (Number.isFinite(point.x) && Number.isFinite(point.y) && Math.abs(point.x) <= 100_000 && Math.abs(point.y) <= 100_000)
         sendEvent?.({ type: "computer.cursor", x: point.x, y: point.y });
     },
-    answer: (id, approved, rememberFile, reviewToken) => settle(id, approved, rememberFile, reviewToken),
+    answer: (id, approved, rememberFile, reviewToken, rememberTask) => settle(id, approved, rememberFile, reviewToken, rememberTask),
+    revokeTaskAllows: () => taskAllows.revoke(),
     cancelAll() {
       cancelDecisions();
       for (const id of [...waiting.keys()]) settle(id, false);

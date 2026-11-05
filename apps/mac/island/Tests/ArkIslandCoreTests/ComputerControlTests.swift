@@ -155,6 +155,20 @@ struct ComputerControlStateTests {
         #expect(state.answer(approved: true, rememberFile: true) == .approvalAnswer(id: request.id, approved: true))
     }
 
+    @Test func allowingForTheTaskNeedsARequestThatOffersIt() throws {
+        var state = ApprovalState()
+        state.apply(.approvalRequest(ApprovalRequest(id: "t1", summary: "Press return in Mail", reason: "it can send", allowTask: true)))
+        #expect(state.answer(approved: true, rememberTask: true) == .approvalAnswer(id: "t1", approved: true, rememberTask: true))
+        state.apply(.approvalRequest(request))
+        #expect(state.answer(approved: true, rememberTask: true) == .approvalAnswer(id: request.id, approved: true), "a request that does not offer it cannot be allowed for the task")
+        state.apply(.approvalRequest(ApprovalRequest(id: "t2", summary: "s", reason: "r", allowTask: true)))
+        #expect(state.answer(approved: false, rememberTask: true) == .approvalAnswer(id: "t2", approved: false), "a decline remembers nothing")
+        let line = IslandCommand.approvalAnswer(id: "t1", approved: true, rememberTask: true).line
+        let object = try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any]
+        #expect(object?["rememberTask"] as? Bool == true)
+        #expect(try decodeEvent(#"{"type":"approval.request","id":"t3","summary":"s","reason":"r","allowTask":true}"#) == .approvalRequest(ApprovalRequest(id: "t3", summary: "s", reason: "r", allowTask: true)))
+    }
+
     @Test func petBrainReactsToTheNewKinds() {
         var brain = PetBrain(width: 800, now: 0)
         brain.update(status: .acting, at: 1)

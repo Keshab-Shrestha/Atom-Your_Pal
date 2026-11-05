@@ -40,7 +40,7 @@ public enum IslandCommand: Sendable, Equatable {
     case workflowRun(id: String)
     case chatReasoning(id: String, provider: String, model: String, effort: String)
     /// The user's answer to an `approval.request` (ADR-054).
-    case approvalAnswer(id: String, approved: Bool, rememberFile: Bool = false, reviewToken: String? = nil)
+    case approvalAnswer(id: String, approved: Bool, rememberFile: Bool = false, reviewToken: String? = nil, rememberTask: Bool = false)
     /// Memory (ADR-058): ask for the list (and its changes from then on), forget one, or forget everything.
     case memoryList, memoryClear
     case memoryForget(id: Int)
@@ -416,10 +416,11 @@ public enum IslandCommand: Sendable, Equatable {
             fields["provider"] = provider
             fields["model"] = model
         }
-        if case .approvalAnswer(let id, let approved, let rememberFile, let reviewToken) = self {
+        if case .approvalAnswer(let id, let approved, let rememberFile, let reviewToken, let rememberTask) = self {
             fields["id"] = id
             fields["approved"] = approved // a real JSON boolean: the runtime refuses the strings "true" and "yes"
             if rememberFile { fields["rememberFile"] = true }
+            if rememberTask { fields["rememberTask"] = true }
             if let reviewToken { fields["reviewToken"] = reviewToken }
         }
         if case .memoryForget(let id) = self {

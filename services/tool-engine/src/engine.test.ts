@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { capabilityItems, createToolEngine, type Tool, type ToolOutput } from "./engine.ts";
+import { capabilityItems, createToolEngine, REPEAT_REMINDER_AT, type Tool, type ToolOutput } from "./engine.ts";
 import { timeTool } from "./tools/time.ts";
 import { createAppTools } from "./tools/apps.ts";
 import { createMediaTools } from "./tools/media.ts";
@@ -158,4 +158,37 @@ test("capabilityItems merges tools with one title, keeps registration order, dro
     { title: "Weather", examples: ["What's the weather?"] },
   ]);
   assert.deepEqual(capabilityItems([]), []);
+});
+
+test("the third identical call in one turn carries a reminder, a different input does not", async () => {
+  const seen: Array<{ repeat?: number }> = [];
+  const engine = createToolEngine({ tools: [echo], onCall: (e) => seen.push(e) });
+  const turn = new AbortController().signal;
+  const call = (text: string, id: string) => engine.run({ id, name: "echo", input: { text } }, turn);
+  const results = [await call("a", "1"), await call("a", "2")];
+  assert.ok(results.every((r) => r.content === "a"), "the first two are untouched");
+  const third = await call("a", "3");
+  assert.equal(REPEAT_REMINDER_AT, 3);
+  assert.match(third.content, /^a\n\[Reminder: this is call 3 to "echo"/);
+  assert.equal((await call("b", "4")).content, "b", "another input starts again");
+  assert.match((await call("a", "5")).content, /call 4 to "echo"/);
+  assert.deepEqual(seen.map((e) => e.repeat), [undefined, undefined, 3, undefined, 4]);
+});
+
+test("the count is per turn and ignores the order of an input's keys", async () => {
+  const engine = createToolEngine({ tools: [echo] });
+  const one = new AbortController().signal;
+  const two = new AbortController().signal;
+  for (let i = 0; i < 2; i++) await engine.run({ id: `x${i}`, name: "echo", input: { text: "a", times: 1 } }, one);
+  assert.match((await engine.run({ id: "x2", name: "echo", input: { times: 1, text: "a" } }, one)).content, /Reminder/, "same input, keys in another order");
+  assert.equal((await engine.run({ id: "y", name: "echo", input: { text: "a", times: 1 } }, two)).content, "a", "another turn starts at one");
+});
+
+test("a failing call that repeats gets the reminder too", async () => {
+  const engine = createToolEngine({ tools: [{ ...echo, run: () => { throw new Error("no"); } }] });
+  const turn = new AbortController().signal;
+  for (let i = 0; i < 2; i++) await engine.run({ id: `f${i}`, name: "echo", input: { text: "a" } }, turn);
+  const third = await engine.run({ id: "f3", name: "echo", input: { text: "a" } }, turn);
+  assert.equal(third.isError, true);
+  assert.match(third.content, /"echo" failed: no\n\[Reminder/);
 });
