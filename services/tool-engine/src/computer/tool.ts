@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { Tool, ToolOutput } from "../engine.ts";
 import type { ToolImage } from "@ark/contracts";
 import type { CuaTransport } from "./cua-client.ts";
@@ -39,7 +40,8 @@ export interface ComputerToolOptions {
   /** Progress within one action; does not begin another action or extend its authority. */
   onProgress?: (step: { action: string; app: string; current: number; total: number }) => void;
   /** Visual overlay only; observed global screen points, never a real-pointer input. */
-  onCursorMove?: (point: { x: number; y: number }) => void;
+  /** `lane` is set for a lane other than the main one (ADR-249): the window draws a cursor for it. */
+  onCursorMove?: (point: { x: number; y: number; lane?: string }) => void;
   /** The user's Settings default for input, read at each action. Absent: background. A request's own `mode` wins over it. */
   deliveryMode?: () => DeliveryMode;
   /** Optional fast selector; only a prepared plan index may come back, never arbitrary actions. */
@@ -101,7 +103,7 @@ function withoutMenuBar(elements: Element[]): Element[] {
 /** What the `point` action may draw over the place (2026-11-05): a ring, a box, an underline or an arrow. Without one, ARK only flies there. */
 export const DRAW_SHAPES = ["ring", "box", "underline", "arrow"] as const;
 export type DrawShape = (typeof DRAW_SHAPES)[number];
-const ACTIONS = ["status", "list_apps", "windows", "look", "open", "click", "click_sequence", "choose_sequence", "shortcut", "type", "key", "scroll", "set_value", "point"] as const;
+const ACTIONS = ["status", "list_apps", "windows", "look", "open", "click", "click_sequence", "choose_sequence", "shortcut", "type", "key", "scroll", "set_value", "point", "parallel"] as const;
 
 /** Actions that change something in an app, so `look_after` makes sense for them. */
 const INPUT_ACTIONS = new Set(["click", "type", "key", "scroll", "set_value"]);
@@ -202,13 +204,36 @@ function screenTexts(tree: string): string[] {
  * secret fields, and only elements from the latest `look`. The model chooses actions; it never touches Cua directly.
  */
 export function createComputerTool(options: ComputerToolOptions): Tool<string | ToolOutput> {
-  const { cua, approve, onAction, onStep, onPoint, deliveryMode, maxElements = 150 } = options;
-  let target: Target | undefined;
-  let observationImages: ToolImage[] | undefined;
-  let active = false;
-  const capturedImages = (): ToolImage[] | undefined => observationImages;
-  /** The app of the last good look. list_apps cost 0.55-0.70 s per look (speed baseline 2026-10-23); its pid is reused while it owns windows. */
-  let lastApp: { name: string; bundle_id?: string; pid: number; generation: number | undefined } | undefined;
+  const { cua: rawCua, approve, onAction, onStep, onPoint, deliveryMode, maxElements = 150 } = options;
+  /**
+   * A lane (ADR-249): one window ARK works in, with its own last look, its own Cua session (so its own calls and cursor) and its own
+   * "one action at a time" guard. Without a lane name the model works in the main lane: ARK's own session, one window, as before.
+   */
+  interface Lane {
+    name: string;
+    /** The Cua session label; undefined for the main lane (the transport uses ARK's own). */
+    session: string | undefined;
+    /** Running inside `parallel`: a step that needs the user's OK is refused, because cards cannot be answered side by side. */
+    parallel: boolean;
+    target: Target | undefined;
+    observationImages: ToolImage[] | undefined;
+    active: boolean;
+    lastApp: { name: string; bundle_id?: string; pid: number; generation: number | undefined } | undefined;
+  }
+  const newLane = (name: string, session?: string): Lane => ({ name, session, parallel: false, target: undefined, observationImages: undefined, active: false, lastApp: undefined });
+  const mainLane = newLane("main");
+  const lanes = new Map<string, Lane>([["main", mainLane]]);
+  const laneStore = new AsyncLocalStorage<Lane>();
+  const lane = (): Lane => laneStore.getStore() ?? mainLane;
+  /** Every call to the driver carries the current lane's session; the main lane carries none (the transport adds ARK's own). */
+  const cua: CuaTransport = {
+    get generation() { return rawCua.generation; },
+    call: (name, args, signal, generation) => rawCua.call(name, lane().session && !("session" in args) ? { ...args, session: lane().session } : args, signal, generation),
+    ...(rawCua.probe ? { probe: rawCua.probe.bind(rawCua) } : {}),
+    close: () => rawCua.close(),
+  };
+  const capturedImages = (): ToolImage[] | undefined => lane().observationImages;
+  // The app of the last good look is kept per lane (Lane.lastApp). list_apps cost 0.55-0.70 s per look (speed baseline 2026-10-23); its pid is reused while it owns windows.
 
   const log = (e: ComputerAction) => onAction?.(e);
 
@@ -239,9 +264,10 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
   }
 
   async function look(appName: string, signal?: AbortSignal, windowId?: number, query?: string): Promise<string> {
-    target = undefined; // a failed fresh observation must not leave the previous window's elements actionable
-    const cached = lastApp && lastApp.generation === cua.generation && lastApp.name.toLowerCase() === appName.trim().toLowerCase() ? lastApp : undefined;
-    lastApp = undefined;
+    lane().target = undefined; // a failed fresh observation must not leave the previous window's elements actionable
+    const previousApp = lane().lastApp;
+    const cached = previousApp && previousApp.generation === cua.generation && previousApp.name.toLowerCase() === appName.trim().toLowerCase() ? previousApp : undefined;
+    lane().lastApp = undefined;
     const app = cached ?? (await findApp(appName, signal));
     const pid = cached?.pid ?? (await pidOf(app, signal));
     if (pid === undefined) throw new Refused(`${app.name} is not running. Use action "open" first.`);
@@ -266,9 +292,9 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
     // Token and speed cost: the window image is about 1 300 tokens and a screenshot grab, the intro about 250 tokens. A look sends both;
     // a read after an action or between sequence clicks sends only what the model needs (measured 2026-10-31).
     const { image = true, intro = true } = view;
-    const prior = target;
-    target = undefined;
-    lastApp = undefined;
+    const prior = lane().target;
+    lane().target = undefined;
+    lane().lastApp = undefined;
     const state = await cua.call("get_window_state", { pid, window_id: windowId, include_screenshot: image, ...(image ? { max_dimension: 1280 } : {}), ...(query ? { query } : {}) }, signal, generation);
     if (state.isError) refuse(state.refusal?.code, app.name, `Could not read ${app.name}: ${state.refusal?.message ?? state.text}`);
     if (generation !== undefined && generation !== cua.generation) throw new Refused("The computer session changed while reading the window. Look again.");
@@ -277,12 +303,15 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
         (state.data.app_name !== undefined && state.data.app_name !== app.name)) {
       throw new Refused(`The ${app.name} window owner changed. No elements were retained; look again.`);
     }
+    for (const other of lanes.values()) {
+      if (other !== lane() && other.target && other.target.pid === pid) throw new Refused(`Lane "${other.name}" is already working in ${app.name}. A lane needs its own app, or use that lane.`);
+    }
     const elements = withoutMenuBar((state.data.elements ?? []) as Element[]);
-    observationImages = image ? state.images : undefined;
+    lane().observationImages = image ? state.images : undefined;
     // A read without an image carries no window bounds; the same window keeps the bounds of the read before.
     const bounds = state.data.window_bounds ?? (prior && prior.pid === pid && prior.windowId === windowId ? prior.bounds : undefined);
-    target = { generation: cua.generation, pid, windowId: windowId, app: app.name, bundleId: app.bundle_id, bounds, elements: new Map(elements.map((e) => [e.element_index, e])), justTyped: false, readings: labelledReadings(String(state.data.tree_markdown ?? "")) };
-    lastApp = { name: app.name, ...(app.bundle_id ? { bundle_id: app.bundle_id } : {}), pid, generation: cua.generation };
+    lane().target = { generation: cua.generation, pid, windowId: windowId, app: app.name, bundleId: app.bundle_id, bounds, elements: new Map(elements.map((e) => [e.element_index, e])), justTyped: false, readings: labelledReadings(String(state.data.tree_markdown ?? "")) };
+    lane().lastApp = { name: app.name, ...(app.bundle_id ? { bundle_id: app.bundle_id } : {}), pid, generation: cua.generation };
     const shown = elements.slice(0, maxElements).map((e) => {
       const bits = [`[${e.element_index}] ${e.role ?? "?"}`];
       if (e.label) bits.push(`"${e.label.slice(0, 80)}"`);
@@ -296,7 +325,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
     const read = texts.length ? `\nText on screen (read only): ${texts.join("; ")}` : "";
     const picture = !image
       ? "No window image with this read: use the numbered elements and do not claim visual verification. Look again for the image."
-      : observationImages?.length ? "Complete window image attached; cross-check it with the elements." : "No usable window image was returned: accessibility-only observation. Do not claim visual verification.";
+      : lane().observationImages?.length ? "Complete window image attached; cross-check it with the elements." : "No usable window image was returned: accessibility-only observation. Do not claim visual verification.";
     const geometry = bounds ? `Window bounds in global screen points: ${JSON.stringify(bounds)}.\n` : "";
     let introduction = "";
     if (intro) {
@@ -309,11 +338,12 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
 
   /** The new screen, appended to an action's reply so the model needs no extra step. The "just typed" memory survives it. */
   async function lookAfter(signal?: AbortSignal, image = false): Promise<string> {
-    const keep = target?.justTyped ?? false;
+    const keep = lane().target?.justTyped ?? false;
     try {
       const previous = need();
       const seen = await readWindow({ name: previous.app, ...(previous.bundleId ? { bundle_id: previous.bundleId } : {}) }, previous.pid, previous.windowId, undefined, signal, previous.generation, undefined, { image, intro: false });
-      if (target) target.justTyped = keep;
+      const now = lane().target;
+      if (now) now.justTyped = keep;
       return `\n\n${seen}`;
     } catch (error) {
       // A cancel is not "could not read": Cua's cancel is a plain Error("Cancelled."), not an AbortError, so the name alone never caught it.
@@ -323,7 +353,9 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
   }
 
   function need(): Target {
-    if (target && target.generation !== cua.generation) target = undefined;
+    const current = lane().target;
+    if (current && current.generation !== cua.generation) lane().target = undefined;
+    const target = lane().target;
     if (!target) throw new Refused("Look at an app first (action \"look\"), then act on its numbered elements.");
     return target;
   }
@@ -336,6 +368,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
 
   async function ask(summary: string, reason: string, signal?: AbortSignal, taskKey?: string) {
     if (signal?.aborted) throw new Refused("Cancelled.");
+    if (lane().parallel) throw new Refused(`This step needs the user's OK (${summary}), and OK cards cannot be answered side by side. Do it on its own, outside parallel, and carry on.`);
     const aborted = new Promise<boolean>((resolve) => signal?.addEventListener("abort", () => resolve(false), { once: true }));
     const yes = await Promise.race([approve({ summary, reason, ...(taskKey ? { taskKey } : {}) }, signal), aborted]);
     if (!yes) throw new Refused(`The user did not approve: ${summary}. Do not try again or find another way; tell the user it was not done.`);
@@ -379,7 +412,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
 
   function checkResult(r: { isError: boolean; text: string; refusal?: { code: string; message: string } }, what: string, app: string) {
     if (r.refusal?.code === "stale_element_token") {
-      target = undefined;
+      lane().target = undefined;
       throw new Refused("The window changed since the last look. Look again, then retry.");
     }
     if (r.isError) refuse(r.refusal?.code, app, `${what} failed: ${r.refusal?.message ?? r.text}`);
@@ -404,12 +437,12 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
     return "";
   }
 
-  async function run(input: Record<string, unknown>, signal?: AbortSignal): Promise<string | ToolOutput> {
-    if (active) throw new Refused("A computer action is still running. Wait for its result before observing or acting again.");
-    active = true;
-    observationImages = undefined;
+  async function runInLane(input: Record<string, unknown>, signal?: AbortSignal): Promise<string | ToolOutput> {
+    if (lane().active) throw new Refused("A computer action is still running. Wait for its result before observing or acting again.");
+    lane().active = true;
+    lane().observationImages = undefined;
     const action = String(input.action);
-    const appName = typeof input.app === "string" ? input.app : target?.app;
+    const appName = typeof input.app === "string" ? input.app : lane().target?.app;
     try {
       // Reject malformed delivery modes before approvals or cursor/step side effects.
       if (["click", "click_sequence", "choose_sequence", "shortcut", "type", "key", "scroll"].includes(action)) modeOf(input);
@@ -419,18 +452,18 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
       const result = await perform(action, input, signal);
       let out = typeof result === "string" ? result : result.text;
       const uncertain = typeof result !== "string" && result.uncertain;
-      if ((input.look_after === true || uncertain) && INPUT_ACTIONS.has(action) && target) out += await lookAfter(signal, Boolean(uncertain)); // an uncertain effect keeps the image to check it by eye
+      if ((input.look_after === true || uncertain) && INPUT_ACTIONS.has(action) && lane().target) out += await lookAfter(signal, Boolean(uncertain)); // an uncertain effect keeps the image to check it by eye
       const images = capturedImages();
       const stopped = typeof result !== "string" && result.stopped === true;
       log({ action, ...(appName ? { app: appName } : {}), ok: !stopped, ...(stopped ? { reason: "sequence_stopped" } : {}), ...(images?.length ? { imageCount: images.length } : {}) });
       return images?.length ? { text: out, images } : out;
     } catch (error) {
-      if (!(error instanceof Refused)) target = undefined;
+      if (!(error instanceof Refused)) lane().target = undefined;
       log({ action, ...(appName ? { app: appName } : {}), ok: false, reason: error instanceof Refused ? error.message.slice(0, 160) : "error" });
       throw error;
     } finally {
-      active = false;
-      observationImages = undefined;
+      lane().active = false;
+      lane().observationImages = undefined;
     }
   }
 
@@ -457,8 +490,9 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
   function moveVisualCursor(t: Target, el?: Element) {
     const frame = usableFrame(el?.frame);
     const bounds = t.bounds;
-    if (frame) options.onCursorMove?.({ x: frame.x + frame.w / 2, y: frame.y + frame.h / 2 });
-    else if (bounds) options.onCursorMove?.({ x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 });
+    const laneTag = lane().name === "main" ? {} : { lane: lane().name };
+    if (frame) options.onCursorMove?.({ x: frame.x + frame.w / 2, y: frame.y + frame.h / 2, ...laneTag });
+    else if (bounds) options.onCursorMove?.({ x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2, ...laneTag });
   }
 
   async function perform(action: string, input: Record<string, unknown>, signal?: AbortSignal): Promise<string | { text: string; uncertain: boolean; effect?: unknown; stopped?: boolean }> {
@@ -467,7 +501,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
         if (!cua.probe) throw new Refused("This computer transport does not support a readiness check.");
         const status = await cua.probe(signal);
         if (!status.ready) {
-          target = undefined;
+          lane().target = undefined;
           throw new Refused(`Computer driver is missing required methods: ${status.missingTools.join(", ")}. Check or update the driver installation; no desktop action was performed.`);
         }
         const startup = status.reused
@@ -495,10 +529,11 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
       case "look":
         if (input.window_id !== undefined && (!Number.isSafeInteger(input.window_id) || Number(input.window_id) <= 0)) throw new Refused("window_id must identify a window returned by windows.");
       {
-        const seen = await look(String(input.app ?? target?.app ?? ""), signal, input.window_id as number | undefined,
+        const seen = await look(String(input.app ?? lane().target?.app ?? ""), signal, input.window_id as number | undefined,
           typeof input.query === "string" ? input.query.trim().slice(0, 120) : undefined);
-        const known = target && options.shortcuts ? options.shortcuts.forApp(target.app).slice(0, 8) : [];
-        return known.length ? `${seen}\nSaved shortcuts for ${target!.app} (use action "shortcut" with app and goal; each replays checked clicks): ${known.map((k) => JSON.stringify(k.goal)).join("; ")}.` : seen;
+        const seenTarget = lane().target;
+        const known = seenTarget && options.shortcuts ? options.shortcuts.forApp(seenTarget.app).slice(0, 8) : [];
+        return known.length ? `${seen}\nSaved shortcuts for ${lane().target!.app} (use action "shortcut" with app and goal; each replays checked clicks): ${known.map((k) => JSON.stringify(k.goal)).join("; ")}.` : seen;
       }
       case "choose_sequence": {
         const plans = preparedPlans(input);
@@ -514,7 +549,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
         const criteria = Object.fromEntries(plans.map((p, i) => [`plan_${i}`, p.description]));
         criteria.review = "None clearly fits the goal and current window; return to the main model without input.";
         const selected = await options.choosePlan({ state, criteria }, signal);
-        if (signal?.aborted) { target = undefined; throw new Refused("Cancelled. No sequence was started."); }
+        if (signal?.aborted) { lane().target = undefined; throw new Refused("Cancelled. No sequence was started."); }
         if (!selected || selected.index === undefined || !Number.isSafeInteger(selected.index) || selected.index < 0 || selected.index >= plans.length) {
           const why = selected?.reason === "uncertain" ? `${selected.source} could not confidently choose a prepared plan.` : selected?.reason === "unavailable" ? `${selected.source} was unavailable or exceeded its short time limit.` : "Fast decisions are off or the current configuration changed.";
           return `${why} No input was sent. Review the current window with the main model; do not retry the selector automatically.`;
@@ -525,7 +560,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
       }
       case "shortcut": {
         if (!options.shortcuts) throw new Refused("Learned shortcuts are off. Use click_sequence.");
-        const app = String(input.app ?? target?.app ?? "");
+        const app = String(input.app ?? lane().target?.app ?? "");
         const goal = typeof input.goal === "string" ? input.goal : "";
         const found = app && goal ? options.shortcuts.find(app, goal) : undefined;
         if (!found) throw new Refused(`No saved shortcut for ${JSON.stringify(goal)} in ${app || "that app"}. Do the task with click_sequence or single actions. Pass goal to a click_sequence to save it.`);
@@ -559,7 +594,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
         const withImage = async () => { seen = await readPinned(true).catch(() => seen); };
         for (const [i, step] of steps.entries()) {
           if (signal?.aborted) {
-            target = undefined;
+            lane().target = undefined;
             throw new Refused(`Cancelled after ${completed}/${steps.length} checked clicks. No remaining clicks were sent; look again before continuing.`);
           }
           const t = need();
@@ -578,7 +613,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
             seen = await readPinned(i === steps.length - 1);
             if (signal?.aborted) throw new Refused("Cancelled.");
           } catch (error) {
-            target = undefined;
+            lane().target = undefined;
             throw new Refused(`Sequence stopped at click ${i + 1}/${steps.length}; ${completed} earlier clicks passed checks. The current click may have happened. No remaining clicks were sent; look again, never replay the sequence. ${signal?.aborted ? "Cancelled." : error instanceof Refused ? error.message : "The driver or observation failed."}`);
           }
           const effect = typeof clicked !== "string" ? clicked.effect : undefined;
@@ -695,6 +730,60 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
     }
   }
 
+  /** At most this many lanes besides the main one (ADR-249): more cursors than that cannot be followed. */
+  const MAX_LANES = 3;
+  /** A lane idle for this long is dropped, so a new task can use the names again. */
+  const LANE_IDLE_MS = 10 * 60_000;
+  const laneUsed = new Map<string, number>();
+  const PARALLEL_ACTIONS = new Set(["look", "windows", "open", "click", "type", "key", "scroll", "set_value", "point"]);
+
+  function laneFor(value: unknown): Lane {
+    const now = Date.now();
+    for (const [name, l] of lanes) if (name !== "main" && !l.active && now - (laneUsed.get(name) ?? 0) > LANE_IDLE_MS) { lanes.delete(name); laneUsed.delete(name); }
+    if (value === undefined || value === "main") return mainLane;
+    if (typeof value !== "string" || !/^[a-z][a-z0-9-]{0,11}$/.test(value)) throw new Refused('"lane" is a short lowercase name such as "a" or "notes".');
+    let found = lanes.get(value);
+    if (!found) {
+      if (lanes.size > MAX_LANES) throw new Refused(`ARK works in at most ${MAX_LANES} lanes besides the main one.`);
+      found = newLane(value, `ark-${value}`);
+      lanes.set(value, found);
+    }
+    laneUsed.set(value, now);
+    return found;
+  }
+
+  async function run(input: Record<string, unknown>, signal?: AbortSignal): Promise<string | ToolOutput> {
+    if (input.action === "parallel") return parallel(input, signal);
+    return laneStore.run(laneFor(input.lane), () => runInLane(input, signal));
+  }
+
+  /** One step in each of 2 or 3 lanes at the same time, each in its own window. A step that would ask the user's OK is refused in its lane. */
+  async function parallel(input: Record<string, unknown>, signal?: AbortSignal): Promise<string | ToolOutput> {
+    const calls = Array.isArray(input.calls) ? input.calls : [];
+    if (calls.length < 2 || calls.length > MAX_LANES) throw new Refused(`"calls" holds 2 to ${MAX_LANES} steps, one for each lane.`);
+    const planned = calls.map((raw) => {
+      if (raw === null || typeof raw !== "object" || Array.isArray(raw)) throw new Refused('Each of "calls" is an object: {lane, action, ...}.');
+      const { lane: name, ...step } = raw as Record<string, unknown>;
+      if (!PARALLEL_ACTIONS.has(String(step.action))) throw new Refused(`"${String(step.action)}" cannot run in parallel. Parallel steps are: ${[...PARALLEL_ACTIONS].join(", ")}.`);
+      return { lane: laneFor(name), step };
+    });
+    if (new Set(planned.map((p) => p.lane)).size !== planned.length) throw new Refused("Each step needs its own lane.");
+    const done = await Promise.all(planned.map(async ({ lane: l, step }) => {
+      l.parallel = true;
+      try {
+        const out = await laneStore.run(l, () => runInLane(step, signal));
+        return { name: l.name, ok: true, text: typeof out === "string" ? out : out.text, images: typeof out === "string" ? [] : out.images ?? [] };
+      } catch (error) {
+        return { name: l.name, ok: false, text: error instanceof Refused ? error.message : "the step failed. Look again in this lane.", images: [] as ToolImage[] };
+      } finally {
+        l.parallel = false;
+      }
+    }));
+    const text = done.map((d) => `[lane ${d.name}]${d.ok ? "" : " FAILED:"} ${d.text}`).join("\n\n");
+    const images = done.flatMap((d) => d.images).slice(0, MAX_LANES);
+    return images.length ? { text, images } : text;
+  }
+
   return {
     capability: { title: "Use apps for you", examples: ["Where's Bluetooth in System Settings?", "In TextEdit, make the title bold"] },
     spec: {
@@ -710,6 +799,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
         "Pass `goal` (a short name for the task, e.g. \"add 2 and 3\") to a click_sequence and, when every step passes its check, ARK saves it as a shortcut. A `look` lists the saved shortcuts for the app; `shortcut` with app and goal replays one through the same checks (it needs no labels from you, and stops at the first mismatch). " +
         "Only when the latest look reports a fast decision provider enabled and a genuine choice between prepared button sequences is needed, use choose_sequence with goal and plans:[{description,steps:[{button,expect:{label,value}}]}] (2–4 plans, each 1–8 steps). The Settings-selected Jev/Laya decider chooses one or returns review; off/low confidence/failure sends no input. The main model still prepares the plans and reviews outcomes. Do not use this for a single deterministic path or retry uncertain decisions. It shares bounded goal, button/read-only labels and prepared plans only, never images or editable-field values. " +
         "Unconfirmed input includes a fresh observation of the same window when available; inspect it before taking another step. A changed screen alone does not prove the intended outcome. Never replay uncertain input automatically. " +
+        "Lanes: to work in 2 or 3 apps at once, look at each app with its own `lane` (a, b, c), then send one round of steps with `parallel` and `calls`. Lanes are for independent steps in different apps; do anything that needs the user's OK on its own. " +
         "Use `point` with an element number (and a short label) to show the user where something is: ARK flies to it. Add `shape` (ring, box, underline or arrow) to draw it on the screen too. " +
         "Point when the user asks where something is or how to do it, instead of doing it for them. " +
         "ARK asks the user before sending, buying, deleting or changing anything, and never types passwords. " +
@@ -719,6 +809,8 @@ export function createComputerTool(options: ComputerToolOptions): Tool<string | 
         type: "object",
         properties: {
           action: { type: "string", description: `One of: ${ACTIONS.join(", ")}` },
+          lane: { type: "string", description: "Optional short name (a, b, notes): works in its own window, with its own look and cursor, next to the main lane. Up to 3. Each lane needs its own app." },
+          calls: { type: "array", description: 'For parallel: 2 or 3 objects {lane, action, ...the action\'s own fields}, run at the same time, each in its own lane. Look in each lane first. Steps that need the user\'s OK are refused here: do them alone.' },
           app: { type: "string", description: "App name for windows, look and open, e.g. TextEdit" },
           window_id: { type: "number", description: "For look: a window_id from windows, including windows on secondary displays" },
           query: { type: "string", description: "For look: optional text filter for long element trees; the image still shows the whole window" },

@@ -285,10 +285,14 @@ test("on connect ARK hides the driver's own cursor for its session and sends its
   const cua = make({ env: { ...process.env, CUA_FIXTURE_SESSION: "1" } });
   try {
     const echoed = await cua.call("echo", { text: "hi" });
-    assert.equal(echoed.data.args.session, CUA_SESSION_LABEL, "a tool that takes a session gets ARK's");
-    assert.equal((await cua.call("echo", { text: "hi", session: "other" })).data.args.session, "other", "an explicit session is kept");
+    assert.match(echoed.data.args.session, new RegExp(`^${CUA_SESSION_LABEL}-[0-9a-f]{6}$`), "a tool that takes a session gets ARK's, with this connection's nonce");
+    assert.equal((await cua.call("echo", { text: "hi", session: "other" })).data.args.session.replace(/-[0-9a-f]{6}$/, ""), "other", "an explicit session is kept, with this connection's nonce added");
     const audit = (await cua.call("requests", {})).data;
-    assert.deepEqual(audit.calls.slice(0, 3), ["set_agent_cursor_enabled", JSON.stringify({ session: CUA_SESSION_LABEL, enabled: false }), "echo"], "the cursor is hidden before the first action");
+    assert.equal(audit.calls[0], "set_agent_cursor_enabled");
+    assert.equal(audit.calls[2], "echo", "the cursor is hidden before the first action");
+    const hidden = JSON.parse(audit.calls[1]);
+    assert.equal(hidden.enabled, false);
+    assert.match(hidden.session, new RegExp(`^${CUA_SESSION_LABEL}-[0-9a-f]{6}$`));
     assert.equal(audit.calls.filter((c: string) => c === "set_agent_cursor_enabled").length, 1, "once per connection");
   } finally { await cua.close(); }
   const plain = make();
@@ -321,6 +325,53 @@ test("a driver without start_session reports the ended session and does not retr
     const r = await cua.call("echo", { text: "hi" });
     assert.equal(r.isError, true);
     assert.match(r.text, /has ended/);
+  } finally {
+    await cua.close();
+  }
+});
+
+test("two lane sessions run at the same time; one lane's calls stay in order (ADR-249)", async () => {
+  const cua = make({ env: { ...process.env, CUA_FIXTURE_LANES: "1" } });
+  try {
+    await cua.call("echo", { text: "warm" }); // start the connection first, so only the calls below are timed
+    const began = Date.now();
+    const [a, b] = await Promise.all([cua.call("later", { ms: 300, session: "ark-a" }), cua.call("later", { ms: 300, session: "ark-b" })]);
+    const both = Date.now() - began;
+    assert.match(a.data.session, /^ark-a-/);
+    assert.match(b.data.session, /^ark-b-/);
+    assert.ok(both < 550, `two lanes took ${both} ms; run one after another they would take 600`);
+    const sameBegan = Date.now();
+    await Promise.all([cua.call("later", { ms: 200, session: "ark-a" }), cua.call("later", { ms: 200, session: "ark-a" })]);
+    assert.ok(Date.now() - sameBegan >= 380, "calls of one lane wait for each other");
+    const audit = await cua.call("requests", {});
+    assert.deepEqual([...audit.data.started].map((s: string) => s.replace(/-[0-9a-f]{6}$/, "")).sort(), ["ark-a", "ark-b"], "each lane session is started once, not per call");
+    assert.match(a.data.session, /^ark-a-[0-9a-f]{6}$/);
+    assert.equal(a.data.session.split("-").at(-1), b.data.session.split("-").at(-1), "one connection, one nonce");
+  } finally {
+    await cua.close();
+  }
+});
+
+test("a lane session the driver ended is started again, like ARK's own", async () => {
+  const cua = make({ env: { ...process.env, CUA_FIXTURE_SESSION: "1", CUA_FIXTURE_LANES: "1", CUA_FIXTURE_ENDED: "1" } });
+  try {
+    const r = await cua.call("echo", { text: "hi", session: "ark" });
+    assert.equal(r.isError, false);
+    assert.equal(r.text, "hi");
+  } finally {
+    await cua.close();
+  }
+});
+
+test("a new connection never reuses the session name an old one made (the driver gives a name to its maker only)", async () => {
+  const cua = make({ env: { ...process.env, CUA_FIXTURE_SESSION: "1" }, idleMs: 60 });
+  try {
+    const first = (await cua.call("echo", { text: "a" })).data.args.session as string;
+    await new Promise((r) => setTimeout(r, 200)); // idle: the driver process stops
+    const second = (await cua.call("echo", { text: "b" })).data.args.session as string;
+    assert.match(first, /^ark-[0-9a-f]{6}$/);
+    assert.match(second, /^ark-[0-9a-f]{6}$/);
+    assert.notEqual(first, second);
   } finally {
     await cua.close();
   }

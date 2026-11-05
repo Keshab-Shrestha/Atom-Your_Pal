@@ -3,8 +3,13 @@ import AppKit
 /// A visual second pointer owned by ARK, shown only during computer work. Never changes the real pointer.
 @MainActor
 final class AgentCursorController {
-    private let panel = AgentCursorPanel(contentRect: CGRect(origin: .zero, size: CursorArt.size), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-    private let art = CursorArt(frame: CGRect(origin: .zero, size: CursorArt.size))
+    private let panel: AgentCursorPanel
+    private let art: CursorArt
+    /// The cursors of the lanes other than the main one (ADR-249): each a tinted copy that wears the lane's name. At most `maxLanes`.
+    private var lanes: [String: AgentCursorController] = [:]
+    static let maxLanes = 3
+    /// Coral, violet and amber: a lane's cursor is not ARK's teal.
+    static let laneTints = [NSColor(calibratedRed: 0.86, green: 0.36, blue: 0.36, alpha: 1), NSColor(calibratedRed: 0.55, green: 0.42, blue: 0.86, alpha: 1), NSColor(calibratedRed: 0.90, green: 0.62, blue: 0.16, alpha: 1)]
     private var enabled = false
     private var active = false
     private var returning = false
@@ -14,7 +19,13 @@ final class AgentCursorController {
     private var motion: Timer?
     var log: (String, [String: String]) -> Void = { _, _ in }
 
-    init() {
+    /// `tint` and `label` make a lane's cursor: the same hand in another colour, with the lane's name beside it.
+    init(tint: NSColor? = nil, label: String = "") {
+        let size = CursorArt.size(label: label)
+        panel = AgentCursorPanel(contentRect: CGRect(origin: .zero, size: size), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        art = CursorArt(frame: CGRect(origin: .zero, size: size))
+        art.tint = tint
+        art.label = label
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
@@ -27,12 +38,38 @@ final class AgentCursorController {
         panel.setAccessibilityLabel("ARK agent cursor")
     }
 
+    /// A lane's cursor, made the first time it moves. A fourth name takes the place of a lane that is not moving; none is free: nil.
+    func lane(_ name: String) -> AgentCursorController? {
+        if let known = lanes[name] { return known }
+        if lanes.count >= Self.maxLanes {
+            guard let idle = lanes.first(where: { !$0.value.active })?.key else { return nil }
+            lanes[idle]?.retire()
+            lanes[idle] = nil
+        }
+        let tints = Self.laneTints
+        let used = Set(lanes.values.map(\.art.tint))
+        let tint = tints.first(where: { !used.contains($0) }) ?? tints[0]
+        let made = AgentCursorController(tint: tint, label: name)
+        made.log = log
+        made.setEnabled(enabled)
+        made.setHome(home)
+        lanes[name] = made
+        return made
+    }
+
+    /// Gone at once: no glide home.
+    func retire() {
+        revision += 1; motion?.invalidate(); motion = nil; active = false; returning = false; panel.orderOut(nil)
+    }
+
     func setHome(_ point: CGPoint) {
+        lanes.values.forEach { $0.setHome(point) }
         home = point
         if enabled && !active { place(point) }
     }
 
     func setEnabled(_ value: Bool) {
+        lanes.values.forEach { $0.setEnabled(value) }
         guard value != enabled else { return }
         enabled = value
         if value { place(home); panel.orderOut(nil) }
@@ -81,6 +118,7 @@ final class AgentCursorController {
     }
 
     func end() {
+        lanes.values.forEach { $0.end() }
         guard enabled, active, !returning else { return }
         returning = true
         revision += 1
@@ -149,6 +187,18 @@ private final class AgentCursorPanel: NSPanel {
 /// The fingertip is the point ARK acts on; a ring ripples from it when the pointer arrives. Vector, drawn at any scale.
 final class CursorArt: NSView {
     static let size = CGSize(width: 44, height: 48)
+    /// Room for a lane's name beside the hand.
+    static let labelFont = NSFont.systemFont(ofSize: 10, weight: .semibold)
+    static func size(label: String) -> CGSize {
+        guard !label.isEmpty else { return size }
+        return CGSize(width: size.width + ceil((label as NSString).size(withAttributes: [.font: labelFont]).width) + 12, height: size.height)
+    }
+    /// A lane's colour; nil: ARK's teal.
+    var tint: NSColor?
+    /// A lane's name, drawn in a small chip beside the hand.
+    var label = ""
+    /// Where the label chip starts, to the right of the hand.
+    private static let labelOrigin = CGPoint(x: 36, y: 20)
     /// The fingertip in the panel's own (bottom-left) coordinates: where the pointer is.
     static let tip = CGPoint(x: 19.75, y: 37)
     /// The hand's offset inside the panel: room around the fingertip for the ripple.
@@ -201,7 +251,7 @@ final class CursorArt: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        let teal = NSColor(calibratedRed: 0.13, green: 0.63, blue: 0.58, alpha: 1)
+        let teal = tint ?? NSColor(calibratedRed: 0.13, green: 0.63, blue: 0.58, alpha: 1)
         let alpha: CGFloat = active ? 1 : 0.55
         let tipPoint = CGPoint(x: Self.tip.x, y: Self.size.height - Self.tip.y)
         if let progress = rippleProgress {
@@ -231,5 +281,14 @@ final class CursorArt: NSView {
         knuckles.lineWidth = 0.8
         knuckles.stroke()
         context?.endTransparencyLayer()
+        if !label.isEmpty {
+            let attributes: [NSAttributedString.Key: Any] = [.font: Self.labelFont, .foregroundColor: NSColor.white]
+            let text = (label as NSString).size(withAttributes: attributes)
+            let chip = NSRect(x: Self.labelOrigin.x, y: Self.labelOrigin.y, width: ceil(text.width) + 10, height: 16)
+            context?.setAlpha(alpha)
+            teal.setFill()
+            NSBezierPath(roundedRect: chip, xRadius: 8, yRadius: 8).fill()
+            (label as NSString).draw(at: CGPoint(x: chip.minX + 5, y: chip.minY + (chip.height - text.height) / 2), withAttributes: attributes)
+        }
     }
 }

@@ -4595,3 +4595,25 @@ An app ARK makes (ADR-238) showed only on the Apps page. The user had to open th
 - One click from the sidebar to an app.
 - The sidebar has one more section, so its chat list has less height. The section has a header and "+" even with no app.
 - Four golden shots changed (the sidebar of the chat and agent panel shots, dark and daylight).
+## ADR-249 — Cursor lanes: work in two or three apps at once, each with its own cursor (2026-11-05)
+
+### Context
+
+The computer tool had one session, one target window and one pointer. The swarm-cursors project shows many cursors working at once. ARK can make that real: the Cua driver runs calls from different sessions at the same time (measured: two window reads took 382 ms together). While we tested it, we also found why the earlier "session 'ark' has ended" error (ADR-242) kept coming back: the driver gives a session name only to the connection that made it. ARK stops its driver process after 120 s idle. The next process asked for the same name `ark` and was refused. ADR-242's start-again step did not help, because the driver answered `session_unavailable`.
+
+### Decision
+
+- **A name per connection.** The transport adds a random suffix to every session label for one connection (`ark-3fa91c`). A new connection never asks for an old name. Checked live: a look, a pause past the idle stop, and a second look failed on the old code and works now.
+- **Lanes.** Any `computer` call may carry `lane` (a short lowercase name). A lane has its own last look, its own session and its own "one action at a time" guard. Without `lane`, the main lane works as before. At most 3 lanes besides the main one. A lane idle for 10 minutes is dropped.
+- **One app per lane.** A look that would put a second lane in an app that another lane holds is refused (two lanes in one app fight over the keyboard).
+- **`parallel`.** One call with `calls`: 2 or 3 steps, each for its own lane, run at the same time. Only plain actions: look, windows, open, click, type, key, scroll, set_value, point. Each lane's result comes back under its name.
+- **No cards in parallel.** A step that needs the user's OK is refused in its lane ("do it on its own"), and the other lanes go on. The window shows one card at a time, so side-by-side cards would lose answers. Every other rule (blocked apps, secret fields, delete) applies in each lane as before.
+- **Transport.** One queue per session: a lane's calls stay in order, and lanes run side by side. A lane's session starts once per connection with the driver's own cursor hidden.
+- **Cursors.** A cursor move from a lane carries the lane name in `computer.cursor`. The window draws a copy of the fingertip in another colour (coral, violet, amber) with the lane's name beside it. They glide home when the work ends.
+
+### Consequences
+
+- The model can look at two apps, then act in both in one step. It must plan the lanes itself: the tool does not split a task.
+- Sub-agents still cannot use the computer. Not built.
+- Not tried live end to end: no second controllable app window was open. Checked live: the main lane, a lane session, the idle reconnect, and the driver's parallel reads. The cursor drawing is shown in a gallery shot, not yet watched on screen.
+- ADR-242's start-again step stays. It helps only if a session ends while its connection is alive.

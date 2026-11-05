@@ -1,4 +1,5 @@
 import { spawn, type ChildProcessByStdio } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import type { Readable, Writable } from "node:stream";
 import { createInterface } from "node:readline";
 import type { ToolImage } from "@ark/contracts";
@@ -75,6 +76,10 @@ interface Connection {
   sessionTools: Set<string>;
   /** The driver offers `start_session`, which revives an ended session name. */
   canStart?: boolean;
+  /** Lane sessions (ADR-249) this connection has started; a new connection starts them again. */
+  started: Set<string>;
+  /** Added to every session label: the driver gives a session name to the connection that made it and never to another, even after that one has gone. */
+  nonce: string;
   generation: number;
   ready: Promise<void>;
   startupMs: number;
@@ -101,7 +106,8 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
   let active: Connection | undefined;
   let nextId = 0, generation = 0;
   let idleTimer: NodeJS.Timeout | undefined;
-  let queue: Promise<unknown> = Promise.resolve();
+  // One queue per session: a lane's calls stay in order, and two lanes (two sessions) run at the same time (ADR-249).
+  const queues = new Map<string, Promise<unknown>>();
   const stopping = new Set<Promise<void>>();
 
   function send(c: Connection, message: object) { c.proc.stdin.write(`${JSON.stringify(message)}\n`); }
@@ -149,7 +155,7 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
     if (active) return active;
     const started = performance.now();
     const proc = spawn(command, args, { env, stdio: ["pipe", "pipe", "ignore"] });
-    const c: Connection = { proc, generation: ++generation, ready: Promise.resolve(), startupMs: 0, pending: new Map(), sessionTools: new Set() };
+    const c: Connection = { proc, generation: ++generation, ready: Promise.resolve(), startupMs: 0, pending: new Map(), sessionTools: new Set(), started: new Set(), nonce: randomBytes(3).toString("hex") };
     active = c;
     // Pending replies belong to one connection: a late old exit cannot reject a replacement's calls.
     proc.on("error", (error) => void retire(c, new Error(`Could not start Cua Driver (${error.message}). Is it installed?`)));
@@ -193,9 +199,26 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
     } catch { /* The driver's cursor may show; every action still works. */ }
   }
 
-  async function hideCursor(c: Connection) {
+  /** The label the driver sees: the caller's own label and this connection's nonce. A new connection never reuses a name an old one made. */
+  const sessionName = (c: Connection, label: string) => `${label}-${c.nonce}`;
+
+  async function hideCursor(c: Connection, session = CUA_SESSION_LABEL) {
     if (c.sessionTools.has("set_agent_cursor_enabled")) {
-      await request(c, "tools/call", { name: "set_agent_cursor_enabled", arguments: { session: CUA_SESSION_LABEL, enabled: false } }, initializeTimeoutMs);
+      await request(c, "tools/call", { name: "set_agent_cursor_enabled", arguments: { session: sessionName(c, session), enabled: false } }, initializeTimeoutMs);
+    }
+  }
+
+  /** A lane's session (a name other than ARK's own) is started once per connection, with the driver's cursor hidden: ARK draws the lane's cursor. */
+  async function startLane(c: Connection, session: string) {
+    if (c.started.has(session) || !c.canStart) return;
+    c.started.add(session);
+    try {
+      const made = await request(c, "tools/call", { name: "start_session", arguments: { session: sessionName(c, session) } }, initializeTimeoutMs);
+      if (made?.isError) throw new Error("Cua Driver would not start a session for this lane.");
+      await hideCursor(c, session).catch(() => {});
+    } catch (error) {
+      c.started.delete(session);
+      throw error;
     }
   }
 
@@ -203,11 +226,12 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
    * The driver ends a session name after a while and never revives it on an ordinary action (seen live: "session 'ark' has ended ...
    * Call start_session"). Every later computer call failed until ARK restarted. Start it again, hide the cursor again, and report whether it worked.
    */
-  async function revive(c: Connection): Promise<boolean> {
+  async function revive(c: Connection, session = CUA_SESSION_LABEL): Promise<boolean> {
     if (!c.canStart) return false;
     try {
-      await request(c, "tools/call", { name: "start_session", arguments: { session: CUA_SESSION_LABEL } }, initializeTimeoutMs);
-      await hideCursor(c).catch(() => {});
+      const made = await request(c, "tools/call", { name: "start_session", arguments: { session: sessionName(c, session) } }, initializeTimeoutMs);
+      if (made?.isError) return false;
+      await hideCursor(c, session).catch(() => {});
       return true;
     } catch { return false; }
   }
@@ -247,24 +271,26 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
     }
   }
 
-  function enqueue<T>(work: () => Promise<T>): Promise<T> {
-    const run = queue.then(work);
-    queue = run.catch(() => {});
+  function enqueue<T>(session: string, work: () => Promise<T>): Promise<T> {
+    const run = (queues.get(session) ?? Promise.resolve()).then(work);
+    queues.set(session, run.catch(() => {}));
     return run;
   }
 
   return {
     get generation() { return active?.generation ?? 0; },
     call(name, callArgs, signal, expectedGeneration) {
-      return enqueue(() => using(async (c) => {
+      const session = typeof callArgs.session === "string" ? callArgs.session : CUA_SESSION_LABEL;
+      return enqueue(session, () => using(async (c) => {
         if (expectedGeneration !== undefined && expectedGeneration !== c.generation) throw new StaleSession("The computer session changed. Look at the app again before acting; no input was sent.");
+        if (session !== CUA_SESSION_LABEL) await startLane(c, session);
         const started = performance.now();
         let ok = false;
         try {
-          const args = c.sessionTools.has(name) && !("session" in callArgs) ? { ...callArgs, session: CUA_SESSION_LABEL } : callArgs;
+          const args = "session" in callArgs || c.sessionTools.has(name) ? { ...callArgs, session: sessionName(c, session) } : callArgs;
           let result = await request(c, "tools/call", { name, arguments: args });
           // A call the driver rejected for an ended session did not run, so one retry after reviving the session cannot repeat an action.
-          if (result?.isError && ENDED_SESSION.test(textOf(result)) && await revive(c)) result = await request(c, "tools/call", { name, arguments: args });
+          if (result?.isError && ENDED_SESSION.test(textOf(result)) && await revive(c, session)) result = await request(c, "tools/call", { name, arguments: args });
           const structured = (result?.structuredContent ?? {}) as Record<string, any>;
           const images = (result?.content ?? []).filter((item: any) => item.type === "image" && ["image/png", "image/jpeg"].includes(item.mimeType)
             && typeof item.data === "string" && item.data.length > 0 && item.data.length <= 12 * 1024 * 1024 && /^[A-Za-z0-9+/]+={0,2}$/.test(item.data))
@@ -279,7 +305,7 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
       }, signal));
     },
     probe(signal) {
-      return enqueue(() => using(async (c, reused) => {
+      return enqueue(CUA_SESSION_LABEL, () => using(async (c, reused) => {
         const started = performance.now();
         let ok = false;
         try {
