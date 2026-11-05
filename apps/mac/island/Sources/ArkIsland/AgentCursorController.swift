@@ -19,7 +19,7 @@ final class AgentCursorController {
     private var motion: Timer?
     var log: (String, [String: String]) -> Void = { _, _ in }
 
-    /// `tint` and `label` make a lane's cursor: the same hand in another colour, with the lane's name beside it.
+    /// `tint` and `label` make a lane's cursor: the same arrow in another colour, with the lane's name beside it.
     init(tint: NSColor? = nil, label: String = "") {
         let size = CursorArt.size(label: label)
         panel = AgentCursorPanel(contentRect: CGRect(origin: .zero, size: size), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
@@ -183,11 +183,11 @@ private final class AgentCursorPanel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
-/// The agent pointer (2026-11-02, Keshab: "more stylish like fingertips"): a pointing hand in ARK's teal with a white outline.
-/// The fingertip is the point ARK acts on; a ring ripples from it when the pointer arrives. Vector, drawn at any scale.
+/// The agent pointer: an arrow in ARK's teal with a white outline (2026-11-05: it was a pointing hand; now like the swarm-cursors project).
+/// The tip is the point ARK acts on; a ring ripples from it when the pointer arrives. Vector, drawn at any scale.
 final class CursorArt: NSView {
     static let size = CGSize(width: 44, height: 48)
-    /// Room for a lane's name beside the hand.
+    /// Room for a lane's name beside the arrow.
     static let labelFont = NSFont.systemFont(ofSize: 10, weight: .semibold)
     static func size(label: String) -> CGSize {
         guard !label.isEmpty else { return size }
@@ -195,42 +195,37 @@ final class CursorArt: NSView {
     }
     /// A lane's colour; nil: ARK's teal.
     var tint: NSColor?
-    /// A lane's name, drawn in a small chip beside the hand.
+    /// A lane's name, drawn in a small chip beside the arrow.
     var label = ""
-    /// Where the label chip starts, to the right of the hand.
-    private static let labelOrigin = CGPoint(x: 36, y: 20)
-    /// The fingertip in the panel's own (bottom-left) coordinates: where the pointer is.
+    /// Where the label chip starts, to the right of the arrow.
+    private static let labelOrigin = CGPoint(x: 37, y: 27)
+    /// The tip in the panel's own (bottom-left) coordinates: where the pointer is.
     static let tip = CGPoint(x: 19.75, y: 37)
-    /// The hand's offset inside the panel: room around the fingertip for the ripple.
-    private static let inset = CGPoint(x: 9, y: 9)
     var active = false
     private var rippleProgress: CGFloat?
     private var rippleTimer: Timer?
     override var isFlipped: Bool { true }
 
-    /// The hand's parts, top-left origin, fingertip at (10.75, 2) before the inset.
-    static func parts() -> [NSBezierPath] {
-        func capsule(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat, _ r: CGFloat) -> NSBezierPath {
-            NSBezierPath(roundedRect: NSRect(x: x + inset.x, y: y + inset.y, width: w, height: h), xRadius: r, yRadius: r)
+    /// The pointer (2026-11-05, after the swarm-cursors project: an arrow, one colour for each cursor, its name beside it). The tip is the point
+    /// ARK acts on. Top-left origin; the tip sits at `tip` (in bottom-left coordinates, so 11 points below the panel's top).
+    static func arrow() -> NSBezierPath {
+        let origin = CGPoint(x: tip.x, y: size.height - tip.y)
+        let unit: [CGPoint] = [(0, 0), (0, 17), (4.3, 13.3), (7.1, 19.6), (9.8, 18.5), (7.0, 12.3), (12.6, 12.3)].map { CGPoint(x: $0.0, y: $0.1) }
+        let path = NSBezierPath()
+        let scale: CGFloat = 1.2
+        for (index, point) in unit.enumerated() {
+            let at = CGPoint(x: origin.x + point.x * scale, y: origin.y + point.y * scale)
+            if index == 0 { path.move(to: at) } else { path.line(to: at) }
         }
-        let thumb = capsule(4, 15, 5.5, 11, 2.75)
-        let turn = AffineTransform(translationByX: 8.5 + inset.x, byY: 24 + inset.y)
-        var transform = AffineTransform(translationByX: -(8.5 + inset.x), byY: -(24 + inset.y))
-        transform.append(AffineTransform(rotationByDegrees: -32))
-        transform.append(turn)
-        thumb.transform(using: transform)
-        return [capsule(8, 2, 5.5, 17, 2.75),    // index finger
-                capsule(13, 10, 4.5, 10, 2.25),  // middle
-                capsule(17, 11.5, 4.5, 9, 2.25), // ring
-                capsule(21, 13.5, 3.5, 7.5, 1.75), // little finger
-                capsule(7, 14, 17.5, 14.5, 5),   // palm
-                thumb]
+        path.close()
+        path.lineJoinStyle = .round
+        return path
     }
 
     /// The ring at a fixed point of its way out, for the gallery.
     func showRipple(at progress: CGFloat) { rippleProgress = progress }
 
-    /// One ring, out from the fingertip and fading, over 0.45 seconds. None with Reduce Motion.
+    /// One ring, out from the tip and fading, over 0.45 seconds. None with Reduce Motion.
     func ripple() {
         guard !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else { return }
         rippleTimer?.invalidate()
@@ -261,25 +256,17 @@ final class CursorArt: NSView {
             ring.lineWidth = 2
             ring.stroke()
         }
-        // One layer at the hand's opacity, so overlapping parts never show through each other when it is idle.
+        // One layer at the pointer's opacity, so the outline never shows through the fill when it is idle.
         let context = NSGraphicsContext.current?.cgContext
         context?.setAlpha(alpha)
         context?.beginTransparencyLayer(auxiliaryInfo: nil)
-        let parts = Self.parts()
-        // The outline first, wide, then one fill over the whole hand: only its outer edge stays white.
+        let arrow = Self.arrow()
+        // The outline first, wide and white, then the colour over it: only the outer edge stays white.
         NSColor.white.setStroke()
-        for part in parts { part.lineWidth = 3; part.lineJoinStyle = .round; part.stroke() }
-        let hand = NSBezierPath()
-        hand.windingRule = .nonZero
-        for part in parts { hand.append(part) }
-        NSGradient(starting: teal.blended(withFraction: 0.25, of: .white) ?? teal, ending: teal.blended(withFraction: 0.2, of: .black) ?? teal)?
-            .draw(in: hand, angle: 90)
-        // Knuckle lines between the fingers, faint.
-        let knuckles = NSBezierPath()
-        for x in [CGFloat(13), 17, 21] { knuckles.move(to: CGPoint(x: x + Self.inset.x, y: 15 + Self.inset.y)); knuckles.line(to: CGPoint(x: x + Self.inset.x, y: 19 + Self.inset.y)) }
-        NSColor.black.withAlphaComponent(0.18).setStroke()
-        knuckles.lineWidth = 0.8
-        knuckles.stroke()
+        arrow.lineWidth = 3
+        arrow.stroke()
+        NSGradient(starting: teal.blended(withFraction: 0.25, of: .white) ?? teal, ending: teal.blended(withFraction: 0.15, of: .black) ?? teal)?
+            .draw(in: arrow, angle: 90)
         context?.endTransparencyLayer()
         if !label.isEmpty {
             let attributes: [NSAttributedString.Key: Any] = [.font: Self.labelFont, .foregroundColor: NSColor.white]
