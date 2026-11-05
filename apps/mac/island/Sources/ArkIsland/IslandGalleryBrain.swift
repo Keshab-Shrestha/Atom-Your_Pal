@@ -96,6 +96,8 @@ extension IslandGallery {
             let m = IslandModel(settings: IslandSettings(defaults: defaults))
             m.settings.theme = theme
             if loaded, let event = try? decodeEvent(empty) { m.apply(event) }
+            // Automations reads the workflow list too (2026-11-06): loaded and empty means an empty list, not "loading".
+            if loaded, let event = try? decodeEvent(#"{"type":"workflows","workflows":[]}"#) { m.apply(event) }
             if failed {
                 _ = m.helpers.mcpCommand(.mcpRemove(id: 1)) // the window waits for an answer, so the refusal is shown
                 if let event = try? decodeEvent(failure) { m.apply(event) }
