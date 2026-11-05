@@ -306,8 +306,11 @@ export interface IslandHelpers {
   setBrowser(helper: string, on: boolean): void;
   setPaused?(helper: string, paused: boolean): void;
   /** ADR-088: add an agent (its folder and soul.md) or remove one Keshab added. Throw with words for the user. */
-  createAgent(input: { name: string; role: string; kit: "research" | "folders" | "think"; personality: string; howItWorks: string; rules: string }): void;
+  /** Returns the new agent's id. */
+  createAgent(input: { name: string; role: string; kit: "research" | "folders" | "think"; personality: string; howItWorks: string; rules: string }): string | void;
   removeAgent(id: string): void;
+  /** 2026-11-05 (org.ts): who an agent reports to; null: ARK. Throws, with words for the user, on an unknown agent, a loop or too many levels. */
+  setReportsTo?(helper: string, lead: string | null): void;
   /** ADR-093: agent folders whose soul.md could not be loaded, for the Board (folder name and why, never task text). */
   agentProblems(): { id: string; problem: string }[];
   /** Task 3.16: the tasks handed to Keshab's Paperclip, for the board. Absent when the connection is off. */

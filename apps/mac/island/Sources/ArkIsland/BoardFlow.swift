@@ -8,14 +8,20 @@ struct BoardFlow: View {
     let model: IslandModel
     let board: [(column: BoardColumn, items: [BoardItem])]
     @State private var inspected: Int?
+    /// The inspector's width; Keshab drags its left edge (hand check 2026-11-05: 360 pt was too small to review a task).
+    @State private var inspectorWidth: CGFloat = 560
+    @State private var dragStartWidth: CGFloat?
+    @State private var cursorPushed = false
     @Environment(\.theme) private var theme
 
     static let laneSpacing: CGFloat = 12
-    static let inspectorWidth: CGFloat = 360
+    static let inspectorMin: CGFloat = 420
 
     var body: some View {
         let attention = BoardAttention(list: model.helpers.list, approvalPending: model.approval.pending != nil)
         let chosen = inspected.flatMap { id in board.flatMap(\.items).first { $0.id == id } }
+        GeometryReader { proxy in
+        let maxWidth = max(Self.inspectorMin, proxy.size.width - 120)
         HStack(alignment: .top, spacing: Self.laneSpacing) {
             FlowLane(title: "Needs you", symbol: "tray", tint: theme.attention.color, count: attention.total) {
                 NeedsYouPane(model: model, embedded: true, lane: true)
@@ -53,14 +59,47 @@ struct BoardFlow: View {
                     .buttonStyle(.plain).help("Close the task").accessibilityLabel("Close the task")
                     .padding(8)
                 }
-                .frame(width: Self.inspectorWidth)
+                .frame(width: min(max(inspectorWidth, Self.inspectorMin), maxWidth))
                 .frame(maxHeight: .infinity, alignment: .top)
                 .floatingSurface(RoundedRectangle(cornerRadius: theme.radiusCard + 6, style: .continuous))
+                .overlay(alignment: .leading) { resizeHandle(maxWidth: maxWidth) }
+                .overlay(alignment: .topTrailing) {
+                    // The whole task, as its own page, for a long review.
+                    Button { model.navigate { model.sendHelpers(model.helpers.openThread(chosen.id)) } } label: {
+                        Glyph(systemName: "arrow.up.left.and.arrow.down.right").appFont(.system(size: 11, weight: .semibold)).foregroundStyle(theme.text2.color)
+                            .frame(width: 28, height: 28).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain).help("Open the task as a full page").accessibilityLabel("Open the task as a full page")
+                    .padding(.top, 8).padding(.trailing, 40)
+                }
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
         .animation(.easeOut(duration: 0.2), value: inspected)
         .onExitCommand { inspected = nil }
+        }
+    }
+
+    private func setResizeCursor(_ on: Bool) {
+        guard on != cursorPushed else { return }
+        if on { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
+        cursorPushed = on
+    }
+
+    /// A thin grip on the inspector's left edge: drag left to widen it.
+    private func resizeHandle(maxWidth: CGFloat) -> some View {
+        Rectangle().fill(Color.clear).frame(width: 8).frame(maxHeight: .infinity).contentShape(Rectangle())
+            .onHover { inside in setResizeCursor(inside) }
+            .onDisappear { setResizeCursor(false) }
+            // Global points: the handle moves with the width, so its own space would feed the drag back into itself.
+            .gesture(DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                .onChanged { value in
+                    let start = dragStartWidth ?? inspectorWidth
+                    dragStartWidth = start
+                    inspectorWidth = min(max(start - value.translation.width, Self.inspectorMin), maxWidth)
+                }
+                .onEnded { _ in dragStartWidth = nil })
+            .accessibilityHidden(true)
     }
 
     private func tint(_ column: BoardColumn) -> Color {

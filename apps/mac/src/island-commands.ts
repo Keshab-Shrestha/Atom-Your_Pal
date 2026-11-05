@@ -153,7 +153,7 @@ export type IslandCommand =
   | { type: "mcp.remove"; id: number }
   | { type: "mcp.set"; id: number; enabled?: boolean; trusted?: boolean; workers?: string[] }
   | { type: "mcp.test"; id: number }
-  | { type: "agent.create"; name: string; role: string; kit: "research" | "folders" | "think"; personality: string; howItWorks: string; rules: string }
+  | { type: "agent.create"; name: string; role: string; kit: "research" | "folders" | "think"; personality: string; howItWorks: string; rules: string; reportsTo?: string }
   | { type: "agent.remove"; id: string }
   | { type: "agent.pause"; id: string; paused: boolean }
   | { type: "proposal.accept"; id: number }
@@ -193,6 +193,7 @@ export type IslandCommand =
   | { type: "job.delete"; id: number }
   | { type: "helper.pin"; helper: string; model: string }
   | { type: "helper.codex.pin"; helper: string; model: string }
+  | { type: "helper.reportsTo"; helper: string; lead: string | null }
   | { type: "helpers.settings"; allowLarge?: boolean }
   /** The Settings default for computer input: foreground fronts the target window for each action. */
   | { type: "computer.decisions"; provider: "off" | "jev" | "laya"; backup: boolean }
@@ -338,6 +339,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "job.delete",
   "helper.pin",
   "helper.codex.pin",
+  "helper.reportsTo",
   "helpers.settings",
   "computer.mode",
   "computer.decisions",
@@ -566,7 +568,10 @@ export function parseCommand(line: string): ParsedLine {
     if (text("name") === undefined || text("role") === undefined || text("personality") === undefined) return { error: 'agent.create needs "name", "role" and "personality" strings.' };
     const kit = text("kit");
     if (kit !== "research" && kit !== "folders" && kit !== "think") return { error: 'agent.create needs "kit": "research", "folders" or "think".' };
-    return { command: { type, name: text("name")!, role: text("role")!, kit, personality: text("personality")!, howItWorks: text("howItWorks") ?? "", rules: text("rules") ?? "" } };
+    // 2026-11-05: "Add agent to this team" on the Team board: the new agent's lead, checked by the team chart after it exists.
+    const reportsTo = v.reportsTo;
+    if (reportsTo !== undefined && (typeof reportsTo !== "string" || !/^[a-z][a-z0-9-]{0,39}$/.test(reportsTo))) return { error: 'agent.create needs "reportsTo" to be an agent id.' };
+    return { command: { type, name: text("name")!, role: text("role")!, kit, personality: text("personality")!, howItWorks: text("howItWorks") ?? "", rules: text("rules") ?? "", ...(reportsTo ? { reportsTo } : {}) } };
   }
   if (type === "agent.pause") {
     const { id, paused } = value as { id?: unknown; paused?: unknown };
@@ -702,6 +707,14 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof helper !== "string" || helper === "") return { error: 'helper.pin needs a "helper" string.' };
     if (typeof model !== "string") return { error: 'helper.pin needs a "model" string ("" to let Laya choose).' };
     return { command: { type, helper, model } };
+  }
+  if (type === "helper.reportsTo") {
+    if (Object.keys(value).some((key) => !["type", "helper", "lead"].includes(key))) return { error: "helper.reportsTo contains unsupported fields." };
+    const { helper, lead } = value as { helper?: unknown; lead?: unknown };
+    const isAgentId = (v: unknown): v is string => typeof v === "string" && /^[a-z][a-z0-9-]{0,39}$/.test(v);
+    if (!isAgentId(helper)) return { error: "helper.reportsTo needs a valid helper id." };
+    if (lead !== null && !isAgentId(lead)) return { error: 'helper.reportsTo needs "lead": a helper id, or null to report to ARK.' };
+    return { command: { type, helper, lead } };
   }
   if (type === "helper.codex.pin") {
     if (Object.keys(value).some((key) => !["type", "helper", "model"].includes(key))) return { error: "helper.codex.pin contains unsupported fields." };

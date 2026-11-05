@@ -163,6 +163,7 @@ struct OfficeScene {
         g.scaleBy(x: s, y: s)
         OfficeDrawing.background(g)
         // Notes on the "Needs you" board, one per worker waiting for Keshab (drawn or not).
+        if plan.needsYou == 0 { OfficeDrawing.allClear(g) }
         for i in 0..<min(plan.needsYou, 10) {
             OfficeDrawing.note(g, index: i, x: CGFloat(163 + (i % 5) * 7), y: CGFloat(9 + (i / 5) * 7))
         }

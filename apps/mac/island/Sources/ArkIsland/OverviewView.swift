@@ -145,8 +145,13 @@ private struct TodayMeters: View {
             if let five = model.planUsage?.fiveHour {
                 meter("Claude plan, 5 hours", value: min(1, five), text: "\(Int((five * 100).rounded()))% used", warn: five >= NoticeWatcher.warnAt)
             }
+            // Tokens come from ARK's own count, the plan meter from Claude: say both, so Home's "tokens today" and this agree
+            // (hand check 2026-11-05: "No plan use reported yet" beside 3.5K tokens on Home read as a contradiction).
+            if let usage = model.helpers.list?.usage {
+                Text("\(TokenTotals.short(usage.today.io)) tokens today").appFont(.system(size: 12.5)).monospacedDigit().foregroundStyle(theme.text.color)
+            }
             if model.planUsage?.fiveHour == nil {
-                Text("No plan use reported yet.").appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color)
+                Text("Claude has not reported the plan's 5-hour use yet.").appFont(.system(size: 12)).foregroundStyle(theme.text3.color)
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 12)

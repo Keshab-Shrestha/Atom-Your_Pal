@@ -19,6 +19,7 @@ import type { TextToSpeech } from "./tts.ts";
 import { createComputerBridge } from "./computer-bridge.ts";
 import { BUILT_IN_KITS, HELPERS, openHelperStore, skillFile, tieredModels } from "@ark/helpers";
 import { islandHelpers } from "./island-helpers.ts";
+import { createOrgStore, orgAgentIds } from "./org.ts";
 import { createHubCommands } from "./hub-commands.ts";
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
@@ -1359,6 +1360,53 @@ test("agent.create adds an agent with its soul.md; agent.remove takes it out (AD
     assert.match((h.events()[0] as { message: string }).message, /taken by ARK/);
     await h.send({ type: "agent.remove", id: "rumi" });
     assert.ok(!(h.events().at(-1) as HelpersEvent).helpers.some((x) => x.id === "rumi"));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("helper.reportsTo saves the lead, sends the helpers list with reportsTo, and refuses with a settings error", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "ark-org-"));
+  try {
+    const store = openHelperStore({ path: ":memory:" });
+    const org = createOrgStore(join(dir, "org.json"), () => orgAgentIds(store.list()));
+    const h = islandHarness({ helpers: islandHelpers(store, async () => [], undefined, undefined, undefined, undefined, org) });
+    await tick(5);
+    const [lead, worker] = orgAgentIds(store.list());
+    await h.send({ type: "helper.reportsTo", helper: worker!, lead: lead! });
+    const list = (h.events().at(-1) as HelpersEvent).helpers;
+    assert.equal(list.find((x) => x.id === worker)!.reportsTo, lead);
+    assert.equal(Object.hasOwn(list.find((x) => x.id === lead)!, "reportsTo"), false, "absent: reports to ARK");
+    h.clear();
+    await h.send({ type: "helper.reportsTo", helper: lead!, lead: worker! });
+    assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: `${worker} already works under ${lead}, so ${lead} cannot report to ${worker}.` }]);
+    await h.send({ type: "helper.reportsTo", helper: worker!, lead: null });
+    assert.equal(Object.hasOwn((h.events().at(-1) as HelpersEvent).helpers.find((x) => x.id === worker)!, "reportsTo"), false);
+    h.clear();
+    const plain = islandHarness({ helpers: islandHelpers(store, async () => []) });
+    await plain.send({ type: "helper.reportsTo", helper: worker!, lead: null });
+    assert.match((plain.events()[0] as { message: string }).message, /team chart is unavailable/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("agent.create with reportsTo puts the new agent on that lead's team (Team board, 2026-11-05)", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "ark-org-new-"));
+  try {
+    const store = openHelperStore({ path: ":memory:", agentsDir: join(dir, "agents") });
+    const org = createOrgStore(join(dir, "org.json"), () => orgAgentIds(store.list()));
+    const h = islandHarness({ helpers: islandHelpers(store, async () => [], undefined, undefined, undefined, undefined, org) });
+    await tick(5);
+    const [lead] = orgAgentIds(store.list());
+    await h.send({ type: "agent.create", name: "Rumi", role: "Travel planner", kit: "think", personality: "Calm.", howItWorks: "", rules: "", reportsTo: lead! });
+    const rumi = (h.events().at(-1) as HelpersEvent).helpers.find((x) => x.id === "rumi")!;
+    assert.equal(rumi.reportsTo, lead);
+    h.clear();
+    await h.send({ type: "agent.create", name: "Tova", role: "Writer", kit: "think", personality: "Kind.", howItWorks: "", rules: "", reportsTo: "nobody" });
+    assert.ok((h.events()[0] as HelpersEvent).helpers.some((x) => x.id === "tova"), "the list with the new agent comes first");
+    assert.match((h.events()[1] as { message: string }).message, /lead is not on your team/);
+    assert.ok(store.list().some((x) => x.id === "tova"), "the agent exists; it reports to ARK");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

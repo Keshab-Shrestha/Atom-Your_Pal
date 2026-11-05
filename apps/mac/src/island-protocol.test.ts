@@ -202,6 +202,9 @@ test("parses the helper commands", () => {
     { type: "plan.approve", id: 3 },
     { type: "plan.reject", id: 3 },
     { type: "helper.planFirst", helper: "sid", on: false },
+    { type: "helper.reportsTo", helper: "sid", lead: "kame" },
+    { type: "helper.reportsTo", helper: "sid", lead: null },
+    { type: "helper.reportsTo", helper: "sid", lead: "sid" }, // refused later by the org store, with stage "settings"
     { type: "routine.delete", id: 2 },
     { type: "grant.add", helper: "kame", path: "/Users/k/Developer/app" },
     { type: "grant.remove", helper: "kame", path: "/Users/k/Developer/app" },
@@ -254,10 +257,13 @@ test("parses the helper commands", () => {
     { type: "mcp.test", id: 1 },
     { type: "mcp.remove", id: 1 },
     { type: "agent.create", name: "Rumi", role: "travel planner", kit: "research", personality: "Calm.", howItWorks: "", rules: "" },
+    { type: "agent.create", name: "Rumi", role: "travel planner", kit: "research", personality: "Calm.", howItWorks: "", rules: "", reportsTo: "kame" },
     { type: "agent.remove", id: "rumi" },
   ];
   for (const command of good) assert.deepEqual(parseCommand(JSON.stringify(command)), { command }, JSON.stringify(command));
   assert.deepEqual(parseCommand('{"type":"helpers.list","extra":1}'), { command: { type: "helpers.list" } });
+  assert.deepEqual(parseCommand(JSON.stringify({ type: "agent.create", name: "X", role: "r", kit: "think", personality: "p", reportsTo: "Bad Id" })),
+    { error: 'agent.create needs "reportsTo" to be an agent id.' });
   const soul = { name: "Sid", personality: "x", howItWorks: "", rules: "", lessons: "", tools: ["Bash"] };
   assert.deepEqual(parseCommand(JSON.stringify({ type: "soul.set", helper: "sid", soul })), {
     command: { type: "soul.set", helper: "sid", soul: { name: "Sid", personality: "x", howItWorks: "", rules: "", lessons: "" } },
@@ -279,6 +285,10 @@ test("helper commands with missing or wrong fields are protocol errors", () => {
     [{ type: "job.stop", id: "12" }, /whole number/],
     [{ type: "job.delete", id: 1.5 }, /whole number/],
     [{ type: "helper.pin", model: "x" }, /"helper"/],
+    [{ type: "helper.reportsTo", helper: "sid", lead: "kame", extra: 1 }, /unsupported fields/],
+    [{ type: "helper.reportsTo", helper: "sid" }, /"lead"/],
+    [{ type: "helper.reportsTo", helper: "sid", lead: "" }, /"lead"/],
+    [{ type: "helper.reportsTo", helper: "../x", lead: null }, /valid helper id/],
     [{ type: "helper.pin", helper: "", model: "x" }, /"helper"/],
     [{ type: "helper.pin", helper: "sid" }, /"model"/],
     [{ type: "helper.pin", helper: "sid", model: null }, /"model"/],

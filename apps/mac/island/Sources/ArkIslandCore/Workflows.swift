@@ -34,10 +34,17 @@ public struct Workflow: Codable, Sendable, Equatable, Identifiable {
     public var steps: [Step]
     public var createdAt: String?
     public var lastRunAt: String?
+    /// A node's place on the canvas (2026-11-05, n8n-style editor): "trigger" or a step's index ("0"…"7"). Absent: laid out in a row.
+    public struct Point: Codable, Sendable, Equatable {
+        public var x: Double
+        public var y: Double
+        public init(x: Double, y: Double) { self.x = x; self.y = y }
+    }
+    public var layout: [String: Point]?
     /// When a published schedule workflow runs next (from the runtime; not saved back). The Mac wakes for it (ADR-246).
     public var nextAt: Date?
 
-    private enum CodingKeys: String, CodingKey { case id, name, enabled, trigger, steps, createdAt, lastRunAt }
+    private enum CodingKeys: String, CodingKey { case id, name, enabled, trigger, steps, createdAt, lastRunAt, layout }
 
     public init(id: String = "", name: String, enabled: Bool = false, trigger: Trigger = Trigger(kind: "manual"), steps: [Step], createdAt: String? = nil, lastRunAt: String? = nil, nextAt: Date? = nil) {
         self.id = id; self.name = name; self.enabled = enabled; self.trigger = trigger; self.steps = steps; self.createdAt = createdAt; self.lastRunAt = lastRunAt; self.nextAt = nextAt

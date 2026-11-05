@@ -216,13 +216,19 @@ public struct OfficePlan: Sendable, Equatable {
         // The lounge: everyone idle when they fit (in the team's order, as before); else the ten who matter most: waiting
         // for Keshab or failed first, then the most recently active.
         let idle = units.indices.filter { !units[$0].working }
-        let shown = idle.count <= Self.loungeLimit ? idle : Array(idle.sorted { a, b in
+        let ranked = idle.count <= Self.loungeLimit ? idle : idle.sorted { a, b in
             let (fa, fb) = (units[a].seat.flag != nil, units[b].seat.flag != nil)
             if fa != fb { return fa }
             let (la, lb) = (units[a].lastActive ?? .distantPast, units[b].lastActive ?? .distantPast)
             return la != lb ? la > lb : a < b
-        }.prefix(Self.loungeLimit))
+        }
+        let shown = Array(ranked.prefix(Self.loungeLimit))
         let loungeOf = Dictionary(uniqueKeysWithValues: shown.enumerated().map { ($1, $0) })
+        // Studio (hand check 2026-11-05): idle ones past the lounge sit at the meeting table's free seats before any "+N more" sign,
+        // so a team of up to fourteen idle shows everyone. Same order as the lounge: who matters most first.
+        let freeMeeting = (OfficeMap.desks.count..<Self.seatLimit).filter { !Set(deskOf.values).contains($0) }
+        let overflow = ranked.filter { loungeOf[$0] == nil }
+        for (index, seatIndex) in zip(overflow, freeMeeting) { deskOf[index] = seatIndex }
         let seats = units.enumerated().compactMap { index, unit -> Seat? in
             var seat = unit.seat
             if let desk = deskOf[index] {
@@ -235,7 +241,8 @@ public struct OfficePlan: Sendable, Equatable {
             }
             return seat
         }
-        return (seats, atWork.count - deskOf.count, idle.count - shown.count)
+        let seatedIdle = idle.filter { deskOf[$0] != nil }.count
+        return (seats, atWork.count - (deskOf.count - seatedIdle), idle.count - shown.count - seatedIdle)
     }
 
     /// One worker's animation, bubble, task and flag; its spot is chosen by `init`.

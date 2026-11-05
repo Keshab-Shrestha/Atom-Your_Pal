@@ -1,86 +1,328 @@
 import SwiftUI
 import ArkIslandCore
 
-/// The Board's Team view (2026-11-02, after the org-chart reference Keshab chose): who works for whom, live. Keshab at the top, ARK under him,
-/// and every agent under ARK on one line. A card's line lights while that agent works; the card says what it does now. A click opens the agent.
+/// The Board's Team view: the org chart on an endless board (2026-11-05, Keshab: "an infinite board where we can see the level of our
+/// agents like an office: CEO, managers, workers"). Keshab owns ARK; ARK is the CEO; each agent reports to ARK or to a lead. Drag an
+/// agent onto another agent to put it under that lead, or onto ARK to report to ARK; the runtime checks and keeps it, and ARK routes
+/// work in a lead's area through the lead. A card's line lights while that agent works; a click opens the agent.
 struct BoardTeamView: View {
     let model: IslandModel
+    @State private var dragging: String?
+    @State private var dragAt: CGPoint = .zero
+    @State private var pointerAt: CGPoint = .zero
+    /// The agent whose management panel is open (2026-11-05: manage the team from the board).
+    @State private var selected: String?
+    /// The panel open at first (the fixture gallery); nil normally.
+    var initiallySelected: String?
     @Environment(\.theme) private var theme
+
+    static let node = CGSize(width: 220, height: 96)
+    static let margin: CGFloat = 48
 
     var body: some View {
         let helpers = (model.helpers.list?.helpers ?? []).filter { $0.role != "improver" }
-        Scrollable {
-            VStack(spacing: 0) {
-                node(title: "You", detail: "Owner")
-                stem(lit: model.status.isBusy)
-                node(title: "ARK", detail: model.status.isBusy ? model.status.title : "Ready", lit: model.status.isBusy)
-                stem(lit: helpers.contains(where: working))
-                // The line the agents hang from, then the agents, wrapping onto more rows on a narrow window.
-                Rectangle().fill(line(false)).frame(height: 1).frame(maxWidth: CGFloat(max(1, helpers.count - 1)) * (AgentNodeCard.width + 16))
-                FlowLayout(spacing: 16, centered: true) {
-                    ForEach(helpers) { helper in
-                        VStack(spacing: 0) {
-                            Rectangle().fill(line(working(helper))).frame(width: 1, height: 16)
-                            AgentNodeCard(helper: helper) { model.navigate { model.windowPage = .agents; model.helpers.selectHelper(helper.id) } }
-                        }
-                    }
+        let org = OrgChart(helpers: helpers)
+        let raw = org.layout(node: Self.node, gap: 28, levelGap: 64)
+        let points = raw.mapValues { CGPoint(x: $0.x + Self.margin, y: $0.y + Self.margin) }
+        let bounds = CGRect(x: 0, y: 0, width: (points.values.map(\.x).max() ?? 0) + Self.node.width / 2 + Self.margin,
+                            height: (points.values.map(\.y).max() ?? 0) + Self.node.height / 2 + Self.margin)
+        let target = dragging.flatMap { dropTarget(at: pointerAt, points: points, excluding: $0) }
+        InfiniteCanvas(bounds: bounds) {
+            ZStack(alignment: .topLeading) {
+                edges(org: org, points: points, helpers: helpers).allowsHitTesting(false)
+                ForEach([OrgChart.owner, OrgChart.ark] + org.agents, id: \.self) { id in
+                    let point = id == dragging ? dragAt : (points[id] ?? .zero)
+                    card(id, org: org, helpers: helpers, target: target)
+                        .frame(width: Self.node.width, height: Self.node.height)
+                        .position(point)
+                        .zIndex(id == dragging ? 1 : 0)
+                        .gesture(org.agents.contains(id) ? drag(id, from: points[id] ?? .zero, org: org, points: points) : nil)
                 }
-                .padding(.horizontal, 24)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 24)
+        }
+        .overlay(alignment: .topLeading) {
+            Text("Click an agent to manage it. Drag it onto a manager to move it to that team, or onto ARK to report to ARK.")
+                .appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 16).padding(.top, 8)
+        }
+        .overlay(alignment: .topTrailing) {
+            if let id = selected, let helper = helpers.first(where: { $0.id == id }) {
+                TeamMemberPanel(model: model, helper: helper, org: org, helpers: helpers, select: { selected = $0 }, close: { selected = nil })
+                    .frame(width: 340).padding(12)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
+        }
+        .animation(.easeOut(duration: 0.18), value: selected)
+        .onExitCommand { selected = nil }
+        .onAppear { if selected == nil { selected = initiallySelected } }
+    }
+
+    // MARK: - Drag to reassign
+
+    private func drag(_ id: String, from start: CGPoint, org: OrgChart, points: [String: CGPoint]) -> some Gesture {
+        DragGesture(minimumDistance: 4, coordinateSpace: .named(InfiniteCanvasSpace.name))
+            .onChanged { value in
+                dragging = id
+                pointerAt = value.location
+                // The card keeps the point where it was grabbed; the drop target is still the node under the pointer.
+                dragAt = CGPoint(x: start.x + value.translation.width, y: start.y + value.translation.height)
+            }
+            .onEnded { value in
+                defer { dragging = nil }
+                guard let lead = dropTarget(at: value.location, points: points, excluding: id) else { return }
+                let newLead: String? = lead == OrgChart.ark || lead == OrgChart.owner ? nil : lead
+                guard newLead != org.leadOf[id], org.canReport(id, to: newLead) else { return }
+                model.send(.helperReportsTo(helper: id, lead: newLead))
+            }
+    }
+
+    /// The node under the pointer, if any (not the one being dragged).
+    private func dropTarget(at point: CGPoint, points: [String: CGPoint], excluding id: String) -> String? {
+        points.first { key, center in
+            key != id && CGRect(x: center.x - Self.node.width / 2, y: center.y - Self.node.height / 2,
+                                width: Self.node.width, height: Self.node.height).contains(point)
+        }?.key
+    }
+
+    // MARK: - Drawing
+
+    /// Elbow lines from each parent's bottom to its children's tops; a line lights while the agent below works.
+    private func edges(org: OrgChart, points: [String: CGPoint], helpers: [Helper]) -> some View {
+        let working = Set(helpers.filter { $0.jobs.contains { $0.state == .running } }.map(\.id))
+        let half = Self.node.height / 2
+        let busy = model.status.isBusy
+        let lit = theme.accent.color
+        let quiet = theme.text3.color.opacity(0.45)
+        let hidden = dragging
+        return Canvas { context, _ in
+            for id in [OrgChart.ark] + org.agents where id != hidden {
+                guard let parent = org.parent(of: id), let from = points[parent], let to = points[id] else { continue }
+                var path = Path()
+                let start = CGPoint(x: from.x, y: from.y + half)
+                let end = CGPoint(x: to.x, y: to.y - half)
+                let mid = (start.y + end.y) / 2
+                path.move(to: start)
+                path.addLine(to: CGPoint(x: start.x, y: mid))
+                path.addLine(to: CGPoint(x: end.x, y: mid))
+                path.addLine(to: end)
+                let on = working.contains(id) || (id == OrgChart.ark && busy)
+                context.stroke(path, with: .color(on ? lit : quiet), lineWidth: on ? 2 : 1.2)
+            }
         }
     }
 
-    private func working(_ helper: Helper) -> Bool { helper.jobs.contains { $0.state == .running } }
-    private func line(_ lit: Bool) -> Color { lit ? theme.accent.color : theme.text3.color.opacity(0.35) }
-    private func stem(lit: Bool) -> some View { Rectangle().fill(line(lit)).frame(width: 1, height: 24) }
-
-    private func node(title: String, detail: String, lit: Bool = false) -> some View {
-        VStack(spacing: 2) {
-            Text(title).appFont(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
-            Text(detail).appFont(.system(size: 11)).foregroundStyle(lit ? theme.live.color : theme.text3.color).lineLimit(1)
+    @ViewBuilder
+    private func card(_ id: String, org: OrgChart, helpers: [Helper], target: String?) -> some View {
+        let level = org.level(of: id)
+        let isTarget = id == target
+        let valid = dragging.map { org.canReport($0, to: id == OrgChart.ark || id == OrgChart.owner ? nil : id) } ?? false
+        Group {
+            switch id {
+            case OrgChart.owner:
+                FixedNode(title: "You", detail: "Owner", level: level, lit: false)
+            case OrgChart.ark:
+                FixedNode(title: "ARK", detail: model.status.isBusy ? model.status.title : "Ready", level: level, lit: model.status.isBusy)
+            default:
+                if let helper = helpers.first(where: { $0.id == id }) {
+                    AgentOrgCard(helper: helper, level: level, reports: org.children(of: id).count, selected: selected == id)
+                        .onTapGesture { selected = selected == id ? nil : id }
+                }
+            }
         }
-        .padding(.horizontal, 16).frame(minWidth: 140, minHeight: 48)
-        .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(theme.fill1.color))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+            .strokeBorder(isTarget ? (valid ? theme.accent.color : theme.problem.color) : .clear, lineWidth: 2))
+        .opacity(id == dragging ? 0.85 : 1)
     }
 }
 
-/// One agent in the Team view: who it is, what it does now, and its recent record.
-private struct AgentNodeCard: View {
+/// A level chip: Owner, CEO, Lead, Worker.
+private struct LevelChip: View {
+    let level: OrgChart.Level
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let strong = level == .ceo || level == .lead
+        Text(level.rawValue.uppercased()).appFont(.system(size: 9, weight: .semibold)).tracking(0.6)
+            .foregroundStyle(strong ? theme.onAccent.color : theme.text2.color)
+            .padding(.horizontal, 6).padding(.vertical, 2)
+            .background(Capsule().fill(strong ? theme.accent.color : theme.fill2.color))
+    }
+}
+
+/// You and ARK: fixed at the top.
+private struct FixedNode: View {
+    let title: String
+    let detail: String
+    let level: OrgChart.Level
+    let lit: Bool
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(spacing: 6) {
+            LevelChip(level: level)
+            Text(title).appFont(.system(size: 15, weight: .semibold)).foregroundStyle(theme.text.color)
+            Text(detail).appFont(.system(size: 11)).foregroundStyle(lit ? theme.live.color : theme.text3.color).lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(theme.fill1.color))
+        .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(theme.surfaceSolid.color)) // solid over the grid
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(theme.separator.color, lineWidth: 1))
+    }
+}
+
+/// One agent: its level, who it is, what it does now, and its record.
+private struct AgentOrgCard: View {
     let helper: Helper
-    let open: () -> Void
-    static let width: CGFloat = 200
+    let level: OrgChart.Level
+    let reports: Int
+    var selected = false
     @Environment(\.theme) private var theme
 
     var body: some View {
         let running = helper.jobs.first { $0.state == .running }
         let waiting = helper.jobs.filter { $0.state == .queued }.count
-        Button(action: open) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    HelperBadge(helper: helper, size: 28)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(helper.name).appFont(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color).lineLimit(1)
-                        Text(helper.roleTitle).appFont(.system(size: 11)).foregroundStyle(theme.text3.color).lineLimit(1)
+        let record = AgentStats(jobs: helper.jobs).line
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                HelperBadge(helper: helper, size: 28)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(helper.name).appFont(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color).lineLimit(1)
+                    Text(helper.roleTitle).appFont(.system(size: 11)).foregroundStyle(theme.text3.color).lineLimit(1)
+                }
+                Spacer(minLength: 4)
+                LevelChip(level: level)
+            }
+            if let running {
+                Text(running.step ?? "Working").appFont(.system(size: 11)).foregroundStyle(theme.live.color).lineLimit(1)
+            } else {
+                Text(helper.paused ? "Paused" : waiting > 0 ? "\(waiting) waiting" : "Idle").appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
+            }
+            Text(reports > 0 ? "Manages \(reports)" + (record.map { " · " + $0 } ?? "") : record ?? " ")
+                .appFont(.system(size: 10.5)).monospacedDigit().foregroundStyle(theme.text3.color).lineLimit(1)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(theme.fill1.color))
+        .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(theme.surfaceSolid.color)) // solid over the grid
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+            .strokeBorder(selected ? theme.accent.color : running != nil ? theme.live.color.opacity(0.6) : theme.separator.color, lineWidth: selected ? 2 : 1))
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(helper.name), \(level.rawValue), \(running?.step ?? (helper.paused ? "paused" : "idle"))")
+        .accessibilityAddTraits(.isButton)
+    }
+}
+
+/// Manage one agent from the Team board: availability, manager, its people, and the agent's own pages. Every change goes through the
+/// runtime's existing commands (agent.pause, helper.reportsTo, agent.create, agent.remove); removing asks first and moves the folder to
+/// agents-removed, never deletes it.
+private struct TeamMemberPanel: View {
+    let model: IslandModel
+    let helper: Helper
+    let org: OrgChart
+    let helpers: [Helper]
+    let select: (String?) -> Void
+    let close: () -> Void
+    @State private var removing = false
+    @Environment(\.theme) private var theme
+    @Environment(\.islandSnapshot) private var snapshot
+
+    private func leadName(_ lead: String?) -> String { lead.flatMap { id in helpers.first { $0.id == id }?.name } ?? "ARK (CEO)" }
+
+    var body: some View {
+        let level = org.level(of: helper.id)
+        let lead = org.leadOf[helper.id]
+        let people = org.children(of: helper.id)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 10) {
+                HelperBadge(helper: helper, size: 36)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(helper.name).appFont(.system(size: 15, weight: .semibold)).foregroundStyle(theme.text.color).lineLimit(1)
+                    Text(helper.roleTitle).appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color).lineLimit(1)
+                }
+                Spacer(minLength: 4)
+                LevelChip(level: level)
+                IconButton(symbol: "xmark", label: "Close") { close() }
+            }
+            row("Availability") { AgentAvailabilityMenu(model: model, helper: helper) }
+            row("Reports to") {
+                // A snapshot cannot draw a Menu (it renders as a placeholder): the gallery shows its label alone.
+                if snapshot { Text(leadName(lead)).appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color) } else {
+                Menu {
+                    Button { model.send(.helperReportsTo(helper: helper.id, lead: nil)) } label: {
+                        Label("ARK (CEO)", systemImage: lead == nil ? "checkmark" : "building.2")
                     }
+                    Divider()
+                    ForEach(helpers.filter { $0.id != helper.id && org.canReport(helper.id, to: $0.id) }) { other in
+                        Button { model.send(.helperReportsTo(helper: helper.id, lead: other.id)) } label: {
+                            Label(other.name, systemImage: lead == other.id ? "checkmark" : "person")
+                        }
+                    }
+                } label: {
+                    Text(leadName(lead))
+                        .appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
                 }
-                if let running {
-                    Text(running.step ?? "Working").appFont(.system(size: 11)).foregroundStyle(theme.live.color).lineLimit(1)
-                    Text(running.title ?? running.task).appFont(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(2)
-                } else {
-                    Text(helper.paused ? "Paused" : waiting > 0 ? "\(waiting) waiting" : "Idle").appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
-                }
-                if let record = AgentStats(jobs: helper.jobs).line {
-                    Text(record).appFont(.system(size: 11)).monospacedDigit().foregroundStyle(theme.text3.color).lineLimit(1)
+                .menuStyle(.borderlessButton).fixedSize()
+                .accessibilityLabel("\(helper.name) reports to")
                 }
             }
-            .padding(12)
-            .frame(width: Self.width, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(theme.fill1.color))
-            .contentShape(Rectangle())
+            VStack(alignment: .leading, spacing: 6) {
+                Text(people.isEmpty ? "Team" : "Team · \(people.count)").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+                if people.isEmpty {
+                    Text("Nobody reports to \(helper.name) yet. Add an agent, or drag one onto this card.")
+                        .appFont(.system(size: 12)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
+                }
+                ForEach(people, id: \.self) { id in
+                    if let person = helpers.first(where: { $0.id == id }) {
+                        HStack(spacing: 8) {
+                            HelperBadge(helper: person, size: 22)
+                            Button(person.name) { select(id) }.buttonStyle(.plain)
+                                .appFont(.system(size: 12.5)).foregroundStyle(theme.text.color)
+                            Spacer()
+                            // Off this team: up to this manager's own manager (or ARK).
+                            Button("Move up") { model.send(.helperReportsTo(helper: id, lead: lead)) }.buttonStyle(.plain)
+                                .appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+                                .disabled(!org.canReport(id, to: lead))
+                                .help("Report to \(lead.flatMap { l in helpers.first { $0.id == l }?.name } ?? "ARK") instead")
+                        }
+                    }
+                }
+                QuietButton(title: "Add agent to this team", symbol: "person.badge.plus") {
+                    model.navigate { model.windowPage = .agents; model.helpers.openNewAgent(lead: helper.id) }
+                }
+                .disabled(org.depth(of: helper.id) >= OrgChart.maxDepth)
+            }
+            Divider()
+            HStack(spacing: 8) {
+                QuietButton(title: "Edit soul", symbol: "pencil") {
+                    model.navigate { model.windowPage = .agents; model.helpers.selectHelper(helper.id); model.helpers.openSoul() }
+                }
+                QuietButton(title: "Open", symbol: "arrow.up.right") {
+                    model.navigate { model.windowPage = .agents; model.helpers.selectHelper(helper.id) }
+                }
+                Spacer()
+                if helper.custom {
+                    Button("Remove", role: .destructive) { removing = true }.buttonStyle(.plain)
+                        .appFont(.system(size: 12)).foregroundStyle(theme.problem.color)
+                        .confirmationDialog("Remove \(helper.name) from the team?", isPresented: $removing) {
+                            Button("Remove \(helper.name)", role: .destructive) {
+                                model.send(.agentRemove(id: helper.id))
+                                close()
+                            }
+                        } message: {
+                            Text("Its folder moves to agents-removed; nothing is deleted. Its people move up to \(lead.flatMap { l in helpers.first { $0.id == l }?.name } ?? "ARK").")
+                        }
+                }
+            }
         }
-        .buttonStyle(.pressable)
-        .accessibilityLabel("\(helper.name), \(running?.step ?? (helper.paused ? "paused" : "idle"))")
+        .padding(16)
+        .floatingSurface(RoundedRectangle(cornerRadius: theme.radiusCard + 6, style: .continuous))
+    }
+
+    private func row(_ title: String, @ViewBuilder _ content: () -> some View) -> some View {
+        HStack {
+            Text(title).appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
+            Spacer()
+            content()
+        }
     }
 }

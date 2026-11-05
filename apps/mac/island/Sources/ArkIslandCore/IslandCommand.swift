@@ -150,6 +150,8 @@ public enum IslandCommand: Sendable, Equatable {
     case helperPlanFirst(helper: String, on: Bool)
     /// ADR-098: whether a worker's runs get the browser.
     case helperBrowser(helper: String, on: Bool)
+    /// Org chart (2026-11-05): who an agent reports to; nil: ARK.
+    case helperReportsTo(helper: String, lead: String?)
     /// Task 3.9: remove a routine.
     case routineDelete(id: Int)
     /// ADR-094: pause or resume a routine; post a task to the team (nil role: anyone) or take one back; a worker's
@@ -195,7 +197,8 @@ public enum IslandCommand: Sendable, Equatable {
     case mcpSet(id: Int, enabled: Bool?, trusted: Bool?, workers: [String]?)
     case mcpTest(id: Int)
     /// ADR-088: add an agent (its soul.md), or remove one Keshab added.
-    case agentCreate(name: String, role: String, kit: String, soul: HelperSoul)
+    /// `reportsTo`: the new agent's manager (Team board's "Add agent to this team"); nil reports to ARK.
+    case agentCreate(name: String, role: String, kit: String, soul: HelperSoul, reportsTo: String? = nil)
     case agentRemove(id: String)
     case agentPause(id: String, paused: Bool)
     case grantRemove(helper: String, path: String)
@@ -333,6 +336,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .planReject: "plan.reject"
         case .helperPlanFirst: "helper.planFirst"
         case .helperBrowser: "helper.browser"
+        case .helperReportsTo: "helper.reportsTo"
         case .routineDelete: "routine.delete"
         case .routinePause: "routine.pause"
         case .routineAdd: "routine.add"
@@ -519,7 +523,8 @@ public enum IslandCommand: Sendable, Equatable {
             fields["id"] = id
             fields["good"] = good // a real JSON boolean
             if let comment, !comment.isEmpty { fields["comment"] = comment }
-        case .agentCreate(let name, let role, let kit, let soul):
+        case .agentCreate(let name, let role, let kit, let soul, let reportsTo):
+            if let reportsTo { fields["reportsTo"] = reportsTo }
             fields["name"] = name
             fields["role"] = role
             fields["kit"] = kit
@@ -630,6 +635,9 @@ public enum IslandCommand: Sendable, Equatable {
         case .grantAdd(let helper, let path), .grantRemove(let helper, let path):
             fields["helper"] = helper
             fields["path"] = path
+        case .helperReportsTo(let helper, let lead):
+            fields["helper"] = helper
+            fields["lead"] = lead ?? NSNull() // a JSON null: reports to ARK
         case .helperPlanFirst(let helper, let on), .helperBrowser(let helper, let on):
             fields["helper"] = helper
             fields["on"] = on // a real JSON boolean

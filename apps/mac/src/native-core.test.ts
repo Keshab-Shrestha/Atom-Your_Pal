@@ -363,6 +363,23 @@ test("N2: with a team the main thread gets the Agent tool, the team prompt and t
   store.close();
 });
 
+test("org: the team line joins the team prompt only when set; a chart change reaches the session at restartWhenIdle", async () => {
+  const { sdk, queries } = fakeSdk();
+  const store = openHelperStore({ path: ":memory:" });
+  let line = "";
+  const core = make(sdk, { team: { helpers: store, approve: async () => false, worktrees: "/tmp/ark-org-wt", org: () => line } });
+  await core.handle({ text: "hello", source: "voice" });
+  assert.equal(queries[0]!.options.systemPrompt, NATIVE_TEAM_PROMPT, "no chart: no extra text");
+  line = "Team: Kame leads Sid.\nWork in a lead's area goes through the lead.";
+  await core.handle({ text: "again", source: "voice" });
+  assert.equal(queries.length, 1, "a chart change alone does not refuse or reopen a turn");
+  core.restartWhenIdle();
+  await core.handle({ text: "next", source: "voice" });
+  assert.equal(queries.length, 2);
+  assert.equal(queries[1]!.options.systemPrompt, `${NATIVE_TEAM_PROMPT}\n${line}`);
+  store.close();
+});
+
 test("N2: a new agent restarts the session with resume only at a turn when no background task runs", async () => {
   const { sdk, queries } = backgroundSdk();
   const { store: chatSessions } = sessions();

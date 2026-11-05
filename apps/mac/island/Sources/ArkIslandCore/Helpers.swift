@@ -80,6 +80,8 @@ public struct Helper: Sendable, Equatable, Identifiable {
     /// ADR-088: what it may use ("research", "folders", "think"; nil from an older runtime), and whether Keshab added it.
     public var kit: String?
     public var custom: Bool
+    /// Org chart (2026-11-05): the agent it reports to (its lead); nil reports to ARK. An agent others report to is a lead.
+    public var reportsTo: String?
     /// The coder, designer and documenter work in folders Keshab grants.
     public var worksInFolders: Bool { kit.map { $0 == "folders" } ?? ["coder", "designer", "documenter"].contains(role) }
     /// ADR-088: the kit in words.
@@ -94,7 +96,8 @@ public struct Helper: Sendable, Equatable, Identifiable {
     public init(id: String, name: String, available: Bool, app: String?, jobs: [HelperJob], pinnedModel: String? = nil,
                 role: String = "", soul: HelperSoul? = nil, soulVersion: Int = 1, soulVersions: [SoulVersion] = [],
                 planFirst: Bool = false, routines: [HelperRoutine] = [], grants: [String] = [], skills: [String] = [], proposals: [SoulProposal] = [], kit: String? = nil, custom: Bool = false,
-                browser: Bool = false, codexPinnedModel: String? = nil, paused: Bool = false) {
+                browser: Bool = false, codexPinnedModel: String? = nil, paused: Bool = false, reportsTo: String? = nil) {
+        self.reportsTo = reportsTo
         self.id = id
         self.name = name
         self.available = available
@@ -538,6 +541,7 @@ public struct HelpersState: Sendable, Equatable {
             // ADR-088: the agent just created is chosen, and its form closes.
             if isCreatingAgent, isWaiting, let old = list, let added = newList.helpers.first(where: { new in !old.helpers.contains { $0.id == new.id } }) {
                 isCreatingAgent = false
+                newAgentLead = nil
                 selectedHelperId = added.id
             }
             list = newList
@@ -583,6 +587,7 @@ public struct HelpersState: Sendable, Equatable {
     /// Any listed worker can be chosen, so a worker not ready for jobs can still have its soul shaped.
     public mutating func selectHelper(_ id: String) {
         isCreatingAgent = false
+        newAgentLead = nil
         guard list?.helpers.contains(where: { $0.id == id }) == true else { return }
         if id == selectedHelperId {
             // The agent is already the selected one but may be hidden behind the Board: opening it must leave the Board (code review, 2026-10-16).
@@ -605,7 +610,11 @@ public struct HelpersState: Sendable, Equatable {
     /// ADR-088: the "New agent" form is open.
     public private(set) var isCreatingAgent = false
 
-    public mutating func openNewAgent() {
+    /// The manager a new agent will report to (opened from the Team board); nil: ARK.
+    public private(set) var newAgentLead: String?
+
+    public mutating func openNewAgent(lead: String? = nil) {
+        newAgentLead = lead
         closeReport()
         showsBoard = false
         isSoulOpen = false
@@ -615,6 +624,7 @@ public struct HelpersState: Sendable, Equatable {
 
     public mutating func closeNewAgent() {
         isCreatingAgent = false
+        newAgentLead = nil
         problem = nil
     }
 
@@ -627,7 +637,7 @@ public struct HelpersState: Sendable, Equatable {
             return nil
         }
         guard ["research", "folders", "think"].contains(kit) else { return nil }
-        return waiting(.agentCreate(name: clean.name, role: roleClean, kit: kit, soul: clean))
+        return waiting(.agentCreate(name: clean.name, role: roleClean, kit: kit, soul: clean, reportsTo: newAgentLead))
     }
 
     /// Removes the chosen agent, if Keshab added it.
@@ -638,6 +648,7 @@ public struct HelpersState: Sendable, Equatable {
 
     public mutating func selectBoard() {
         isCreatingAgent = false
+        newAgentLead = nil
         showsBoard = true
         closeReport()
         isSoulOpen = false

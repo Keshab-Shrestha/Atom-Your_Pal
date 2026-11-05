@@ -953,6 +953,12 @@ struct NewAgentTests {
         state.apply(try decodeEvent(withMika))
         #expect(!state.isCreatingAgent && state.selectedHelperId == "mika")
         #expect(state.removeAgent() == .agentRemove(id: "mika"))
+        // Team board (2026-11-05): "Add agent to this team" sends the manager with the new agent; closing the form forgets it.
+        state.openNewAgent(lead: "rumi")
+        #expect(state.createAgent(role: "Writer", kit: "think", soul: soul) == .agentCreate(name: "Mika", role: "Writer", kit: "think", soul: soul.trimmed, reportsTo: "rumi"))
+        state.closeNewAgent()
+        #expect(state.newAgentLead == nil)
+        #expect(IslandCommand.agentCreate(name: "A", role: "r", kit: "think", soul: soul.trimmed, reportsTo: "rumi").line.contains(#""reportsTo":"rumi""#))
     }
 }
 

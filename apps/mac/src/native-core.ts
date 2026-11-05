@@ -162,6 +162,8 @@ export interface NativeTeamDeps {
   skills?(chatId: string): { pluginDir: string; plugin: string } | undefined;
   /** Codex host loader: bounded instructions only, never a plugin or executable tool. The router checks assignment. */
   readAssignedSkill?(name: string): { name: string; description: string; body: string } | undefined;
+  /** 2026-11-05 (org.ts): the team line and routing rule for the main agent's prompt; "" when no agent has a lead. */
+  org?(): string;
   /** A reply the session gave by itself (an agent reported). `saved`: it is already in the open chat's turns. */
   onWake?(chatId: string, text: string, saved: boolean): void;
 }
@@ -543,10 +545,14 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
     const attached = project || chatOnly ? undefined : await quiet(() => deps.attachments?.turn(chat));
     const files = project?.files ?? attached?.files;
     const base = chatOnly ? CHAT_ONLY_SYSTEM_PROMPT : deps.team ? NATIVE_TEAM_PROMPT : NATIVE_SYSTEM_PROMPT;
-    const prompt = project ? `${base}\n\n${project.note}` : attached ? `${base}\n\n${attached.note}` : base;
+    const withNote = (text: string) => project ? `${text}\n\n${project.note}` : attached ? `${text}\n\n${attached.note}` : text;
+    // 2026-11-05 (org.ts): the team chart, only when an agent has a lead. It stays out of the key: a chart change reaches an open
+    // session through restartWhenIdle (once no background task runs), as a new agent does, never by refusing a turn.
+    const team = !chatOnly && deps.team?.org?.();
+    const prompt = withNote(team ? `${base}\n${team}` : base);
     const web = !chatOnly && Boolean(deps.web) && (!files || files.web === true); // as the plan adapter: ADR-069, ADR-107
     const tools = [...(files ? READ_TOOLS : []), ...(web ? WEB_TOOLS : []), ...(!chatOnly && deps.team ? ["Agent"] : [])];
-    const key = JSON.stringify([prompt, tools, files?.cwd, reasoning, access]);
+    const key = JSON.stringify([withNote(base), tools, files?.cwd, reasoning, access]);
     return { project, files, prompt, web, tools, key, readOnly: !project && Boolean(attached) };
   }
 
