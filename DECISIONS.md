@@ -4909,3 +4909,27 @@ Keshab gave four more affectUI showcase images (Agent Tree, Trace Waterfall, Age
 
 - A task's run, the team, the Flow and a plan each read at a glance, with no new runtime data.
 - No cost figures are shown, because ARK records cost per run, not per call or per agent card.
+
+## ADR-265 — Fewer places: Automations, one Apps page, Back goes Home, reliability checks (2026-11-06)
+
+### Context
+
+Keshab found too many places that overlap. Panels and Apps were both "make me a thing". Scheduled and Workflows both ran work by themselves. Scheduled was a near-empty page. Back also took him into a Board tab that he had left. He asked for one Apps page, one page called Automations in the workflow style, and Back that goes Home or to Chats. He also asked ARK to check its own reliability.
+
+### Decision
+
+- Automations (`WorkflowsPane`): one page for workflows, the routines that were the Scheduled page, and the web pages that ARK watches. Every item uses the workflow card: the trigger, then the steps. Filters are All, On a timer, When something happens, and By hand. "New automation" makes a workflow or "repeat one task on a timer" (the routine form, which keeps the Telegram notice and the webhook). The page and the rail item are named Automations. Its code name stays `workflows`.
+- Apps (`AppsPane`): panels show as simple apps in one grid with the custom apps, on one page. "New app" asks for a simple app or a custom app. Each app and panel has a tile in the rail beside the +. A panel tile opens Apps with that panel outlined.
+- The Scheduled and Panels pages are removed from `WindowPage` and `SidebarItem`. A saved sidebar order that names them still loads without them. A panel button or a search result that opens them goes to Automations or Apps.
+- Back (`BackStep`): from inside a page (an agent, a task, an open app, a Settings page) Back goes up to that page. From any page Back goes Home. From Home Back goes to Chats. The window history (`WindowHistory`, `WindowLocation`) is removed.
+- Reliability:
+  - Each window turn (typed or spoken) logs `turn.end` with how it ended: `complete`, `cut` (the answer arrived, then a new message or Stop ended its reading aloud), `stopped` (ended before the answer arrived) or `failed`. Routines, workflows, Telegram and the API do not log it.
+  - ARK's log review adds "Chats often end without an answer". The finding shows when 3 or more window turns, and at least 20% of them, were `stopped` or `failed`.
+  - A stuck or complete plan has Dismiss (`plan.dismiss`). The plan leaves the Board's list and stays in its chat's history. Nothing is deleted.
+  - Settings > General shows "This build": the version, the commit (with "+" when the build had changes that were not committed) and the build time.
+
+### Consequences
+
+- The rail has 7 pages instead of 10: Home, Chats, Board, Automations, Apps, Brain, Plugins, then Settings.
+- Back no longer reopens old places. To return to a Board tab, use the rail.
+- A stuck chat shows on Home within a day of use, not when Keshab notices it.

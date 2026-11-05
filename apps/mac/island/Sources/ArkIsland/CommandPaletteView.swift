@@ -143,11 +143,9 @@ extension CommandPaletteView {
                 model.navigate { model.windowPage = .agents; model.helpers.selectBoard(); model.boardView = view }
             })
         }
-        add(.init(id: "go:panels", title: "Panels", symbol: "square.grid.2x2", group: "Go to", keywords: "widgets lists counters morphs"), go(.panels))
-        add(.init(id: "go:apps", title: "Apps", symbol: "app.dashed", group: "Go to", keywords: "plugins tools built run sandbox"), go(.apps))
+        add(.init(id: "go:apps", title: "Apps", symbol: "app.dashed", group: "Go to", keywords: "panels widgets lists counters plugins tools built run sandbox"), go(.apps))
         add(.init(id: "go:you", title: "You", symbol: "person.crop.circle", group: "Go to", keywords: "profile me memory account"), go(.you))
-        add(.init(id: "go:workflows", title: "Workflows", symbol: "point.3.connected.trianglepath.dotted", group: "Go to", keywords: "automation trigger steps"), go(.workflows))
-        add(.init(id: "go:scheduled", title: "Scheduled", symbol: "calendar", group: "Go to", keywords: "routines"), go(.scheduled))
+        add(.init(id: "go:workflows", title: "Automations", symbol: "point.3.connected.trianglepath.dotted", group: "Go to", keywords: "workflows schedule scheduled routines trigger steps watch"), go(.workflows))
         add(.init(id: "go:brain", title: "Brain", symbol: "brain.head.profile", group: "Go to", keywords: "notes memory"), go(.brain))
         add(.init(id: "go:plugins", title: "Plugins", symbol: "puzzlepiece.extension", group: "Go to", keywords: "skills mcp"), go(.plugins))
         add(.init(id: "go:settings", title: "Settings", symbol: "gearshape", group: "Go to"), { model.openSettings(nil) })

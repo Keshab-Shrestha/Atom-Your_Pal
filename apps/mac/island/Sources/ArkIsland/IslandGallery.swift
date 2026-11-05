@@ -204,7 +204,7 @@ enum IslandGallery {
         let plugging = model(theme)
         plugging.windowPage = .plugins
         let scheduling = model(theme) // ADR-094
-        scheduling.windowPage = .scheduled
+        scheduling.windowPage = .workflows // 2026-11-06: Automations holds the routines
         // ADR-094: fifty agents: fourteen at work, three failed, five used in the last hour, the rest idle. The Board shows
         // twelve chips and All agents; the floor twelve seats, ten in the lounge and a "+N" sign for each of the rest.
         let crowdNames = ["Ada", "Bo", "Cy", "Dee", "Eli", "Fay", "Gus", "Hal", "Ivy", "Jo", "Kai", "Lu", "Max", "Nia", "Oz", "Pia", "Quin",
@@ -341,7 +341,7 @@ enum IslandGallery {
         if let event = try? decodeEvent(#"{"type":"panels","panels":[{"id":"p1","name":"My day","enabled":true,"home":true,"blocks":[{"kind":"stat","label":"Needs you","value":"{{live.needsYou}}","detail":"waiting on your answer"},{"kind":"progress","label":"Tokens this week","value":"{{live.tokensWeek}}","max":100000},{"kind":"counter","label":"Glasses of water","count":3,"step":1},{"kind":"button","label":"Plan my day","action":{"kind":"ask","prompt":"Plan my day from my calendar"}}]},{"id":"p2","name":"Reading list","enabled":true,"home":false,"blocks":[{"kind":"checklist","label":"This month","items":[{"text":"Dune","done":true},{"text":"Hyperion","done":false},{"text":"The Dispossessed","done":false}]},{"kind":"notes","label":"Notes","items":[{"text":"Ask Sid for a Le Guin summary"}]},{"kind":"chart","chart":{"type":"bar","title":"Pages per day","labels":["Mon","Tue","Wed"],"series":[{"name":"Pages","values":[22,35,18]}]}}]}]}"#) {
             tabled.apply(event)
         }
-        tabled.windowPage = .panels
+        tabled.windowPage = .apps // 2026-11-06: panels live on Apps
         save(window("Panels", tabled), name: name + "-panels", to: directory)
         // 2026-11-05: apps: two on the Apps page.
         if let event = try? decodeEvent(#"{"type":"apps","apps":[{"id":"habit-tracker","name":"Habit tracker","description":"Tick a habit each day and see your streak.","ask":false,"version":2,"updatedAt":"2026-11-05T10:00:00.000Z"},{"id":"recipe-helper","name":"Recipe helper","description":"Scale a recipe and ask ARK for a swap when an ingredient is missing.","ask":true,"version":1,"updatedAt":"2026-11-05T09:00:00.000Z"}]}"#) {

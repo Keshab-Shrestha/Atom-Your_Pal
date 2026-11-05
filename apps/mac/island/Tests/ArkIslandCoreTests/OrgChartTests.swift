@@ -51,4 +51,18 @@ struct OrgChartTests {
         #expect(row[1] - row[0] >= size.width + 20, "siblings do not overlap")
         #expect(p["d"]!.x - p["a"]!.x >= size.width + 20)
     }
+
+    @Test func backGoesHomeNotIntoAnOldTab() {
+        #expect(BackStep.from(page: .workflows, insideAgents: false, appOpen: false, settingsSubpage: false) == .to(.dashboard))
+        #expect(BackStep.from(page: .agents, insideAgents: false, appOpen: false, settingsSubpage: false) == .to(.dashboard), "the Board itself: Home")
+        #expect(BackStep.from(page: .agents, insideAgents: true, appOpen: false, settingsSubpage: false) == .toBoard, "an agent or a task: the Board")
+        #expect(BackStep.from(page: .apps, insideAgents: false, appOpen: true, settingsSubpage: false) == .closeApp)
+        #expect(BackStep.from(page: .settings, insideAgents: false, appOpen: false, settingsSubpage: true) == .toSettings)
+        #expect(BackStep.from(page: .dashboard, insideAgents: false, appOpen: false, settingsSubpage: false) == .to(.chat), "Home: Chats")
+    }
+
+    @Test func planDismissIsOneIdCommand() {
+        #expect(IslandCommand.planDismiss(id: 7).line.contains(#""type":"plan.dismiss""#))
+        #expect(IslandCommand.planDismiss(id: 7).line.contains(#""id":7"#))
+    }
 }

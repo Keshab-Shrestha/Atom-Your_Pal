@@ -54,6 +54,17 @@ test("a quiet week gives no findings; a few failures are not enough", () => {
   assert.deepEqual(findingsFrom(summarize([line("tool.call", { name: "a", ok: false }), line("tool.call", { name: "a", ok: true }), line("island.runtime.exit", { code: 1, requested: false })], NOW)), []);
 });
 
+test("window turns stopped before their answer, or failed, become a finding; a reading cut short is done (2026-11-06)", () => {
+  const end = (outcome: string) => line("turn.end", { outcome });
+  const lines = [...many(5, () => end("complete")), end("cut"), end("stopped"), end("stopped"), end("failed"),
+    line("chat.context_budget", { requestId: "routine" })]; // a routine's turn has no turn.end: never counted
+  const s = summarize(lines, NOW);
+  assert.deepEqual(s.chatTurns, { started: 9, unfinished: 3 });
+  const found = findingsFrom(s).find((f) => f.id === "turns:unfinished");
+  assert.ok(found && found.severity === 2 && /3 of 9 chat turns ended before their answer arrived/.test(found.evidence));
+  assert.equal(findingsFrom(summarize([...many(12, () => end("complete")), ...many(5, () => end("cut")), end("stopped")], NOW)).some((f) => f.id === "turns:unfinished"), false, "one stop is not a pattern");
+});
+
 test("suggestions keep only the findings that were given, trimmed, one each", () => {
   const given = [{ id: "a" }, { id: "b" }] as Finding[];
   const text = 'Here you go: [{"id":"a","why":"  It stops   work. ","change":"Restart the helper."},{"id":"z","why":"x","change":"y"},{"id":"b","why":5,"change":"y"},{"id":"a","why":"dup","change":"dup"}] done';

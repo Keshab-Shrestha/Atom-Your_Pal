@@ -2,7 +2,8 @@
 
 /// ADR-089: the ARK window's pages: the conversation, the board and the team, and Settings.
 public enum WindowPage: Equatable, Sendable {
-    case dashboard, chat, scheduled, workflows, panels, apps, agents, plugins, brain, settings, you
+    /// 2026-11-06: Scheduled is part of Automations (`workflows`), Panels part of Apps.
+    case dashboard, chat, workflows, apps, agents, plugins, brain, settings, you
 }
 
 /// The Board's views, in the order of its switch: what waits for Keshab first. Overview, Needs you and Issues were sidebar
@@ -38,57 +39,16 @@ public enum BoardView: String, CaseIterable, Sendable {
     }
 }
 
-/// One step of the window's history: the sidebar page and, on the team page, whether the Board or an agent was
-/// shown, the Board's view and whether All agents was open. What was open inside the page (which agent, a task, a
-/// soul, the new-agent form) is not kept: Back returns to the Board, never into an agent Keshab already left
-/// (2026-10-31: Board with an agent open, Settings, Back reopened the agent).
-public struct WindowLocation: Equatable, Sendable {
-    public var page: WindowPage
-    /// The Board was shown, not an agent's page. Keeps "Board, then an agent" two steps; both return to the Board.
-    public var showsBoard = false
-    public var boardView = BoardView.floor
-    public var allAgents = false
+/// Where Back goes (Keshab, 2026-11-06: "take it back to home or chats", not into the Board tab left before). Inside a page, Back
+/// steps out to that page (an agent or a task to the Board, an open app to the Apps list, a Settings page to Settings). From any
+/// page it goes Home; from Home, to Chats. Pure.
+public enum BackStep: Equatable, Sendable {
+    case toBoard, closeApp, toSettings, to(WindowPage)
 
-    public init(page: WindowPage, showsBoard: Bool = false, boardView: BoardView = .floor, allAgents: Bool = false) {
-        self.page = page
-        guard page == .agents else { return }
-        self.showsBoard = showsBoard
-        self.boardView = showsBoard ? boardView : .floor
-        self.allAgents = allAgents
-    }
-
-    public init(page: WindowPage, helpers: HelpersState, allAgents: Bool, boardView: BoardView = .floor) {
-        self.init(page: page, showsBoard: helpers.showsBoard, boardView: boardView, allAgents: allAgents)
-    }
-}
-
-/// The steps Back returns to, newest last: at most 30, never the same step twice in a row.
-public struct WindowHistory: Equatable, Sendable {
-    public static let limit = 30
-    public private(set) var steps: [WindowLocation] = []
-
-    public init() {}
-
-    public var canGoBack: Bool { !steps.isEmpty }
-
-    public mutating func push(_ location: WindowLocation) {
-        guard steps.last != location else { return }
-        steps.append(location)
-        if steps.count > Self.limit { steps.removeFirst(steps.count - Self.limit) }
-    }
-
-    /// A move away from `last`: it becomes a step Back returns to, unless the move went up a level with a page's own "‹" button
-    /// (Soul → Jobs, a report → Board). Then the page left is not a step to come back to; without this, the top bar's Back led
-    /// into the Soul page and its "‹" led out again, in a loop (found by Keshab, 2026-10-16).
-    public mutating func recordMove(from last: WindowLocation, up: Bool) {
-        if !up { push(last) }
-    }
-
-    /// The newest step that `isUsable` accepts; the steps after it, and it, leave the history.
-    public mutating func back(where isUsable: (WindowLocation) -> Bool) -> WindowLocation? {
-        while let last = steps.popLast() {
-            if isUsable(last) { return last }
-        }
-        return nil
+    public static func from(page: WindowPage, insideAgents: Bool, appOpen: Bool, settingsSubpage: Bool) -> BackStep {
+        if page == .agents && insideAgents { return .toBoard }
+        if page == .apps && appOpen { return .closeApp }
+        if page == .settings && settingsSubpage { return .toSettings }
+        return page == .dashboard ? .to(.chat) : .to(.dashboard)
     }
 }

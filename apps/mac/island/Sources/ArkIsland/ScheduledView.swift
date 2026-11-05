@@ -1,143 +1,8 @@
 import SwiftUI
 import ArkIslandCore
 
-// ADR-094: the Scheduled page (everything that runs by itself). The logic lives in `ScheduledPage` and `HelpersState`;
-// these views only draw it. ADR-110 N5: no team tasks and no wake-ups.
-
-/// The sidebar row's second line.
-enum ScheduledRow {
-    static func detail(_ list: HelpersList) -> String? {
-        let page = ScheduledPage(list: list)
-        let running = page.entries.filter { !$0.paused }.count
-        if page.isEmpty { return "Nothing scheduled" }
-        return running > 0 ? "\(running) on" : "All paused"
-    }
-}
-
-/// Every worker's routines, with their next time, last run, Pause/Resume and Delete.
-struct ScheduledPane: View {
-    let model: IslandModel
-    /// ADR-097: the open New schedule or Edit form. `State` without the macro (no SwiftUI macro plugin here).
-    private let form = State<ScheduleForm?>(initialValue: nil)
-    @Environment(\.theme) private var theme
-
-    init(model: IslandModel) { self.model = model }
-
-    var body: some View {
-        let page = model.helpers.list.map(ScheduledPage.init(list:))
-        Scrollable {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .center, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Scheduled").appFont(.system(size: 20, weight: .medium)).foregroundStyle(theme.text.color)
-                            .accessibilityAddTraits(.isHeader)
-                        Text("What runs by itself: routines")
-                            .appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
-                    }
-                    Spacer(minLength: 8)
-                    if form.wrappedValue == nil, let first = model.helpers.list?.helpers.first(where: \.takesTasks) {
-                        PillButton(title: "New schedule", symbol: "plus", prominent: true) {
-                            let start = Calendar.current.date(byAdding: .hour, value: 1, to: Date()) ?? Date()
-                            form.wrappedValue = ScheduleForm(id: nil, draft: RoutineDraft(helper: first.id, startAt: start))
-                        }
-                    }
-                }
-                if let problem = model.helpers.problem { ProblemLine(text: problem) }
-                if form.wrappedValue != nil { ScheduleFormCard(model: model, form: form.projectedValue) }
-                if page == nil {
-                    LoadingStateView(text: "Loading what is scheduled…", retry: { model.send(.helpersList) })
-                } else if page?.isEmpty == true {
-                    EmptyStateView(title: "Nothing is scheduled",
-                                   detail: "A routine runs a task for a worker by itself, for example \"Sid, every morning at 8, …\". Say one in chat, or use New schedule.")
-                }
-                if let page {
-                    ForEach(page.entries) { entry in
-                        ScheduledCard(model: model, entry: entry) { routine, helper in
-                            form.wrappedValue = ScheduleForm(id: routine.id, draft: RoutineDraft(routine: routine, helper: helper))
-                        }
-                    }
-                }
-                if !model.watches.isEmpty {
-                    Text("Watching").appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text2.color).padding(.top, 8)
-                        .accessibilityAddTraits(.isHeader)
-                    ForEach(model.watches) { watch in WatchCard(model: model, watch: watch) }
-                }
-            }
-            // A readable measure, as on the Settings pages.
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, Spacing.panel)
-            .padding(.top, 28)
-            .padding(.bottom, Spacing.panel)
-        }
-        .onAppear { model.send(.watchesGet) }
-    }
-}
-
-/// The card style of the Issues page: a hairline outline, the worker and what it does, the times, the buttons.
-private struct ScheduledCard: View {
-    let model: IslandModel
-    let entry: ScheduledPage.Entry
-    /// ADR-097: opens the Edit form for a routine.
-    let edit: (HelperRoutine, String) -> Void
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-        HStack(alignment: .center, spacing: 16) {
-            // What kind of entry it is: repeating or paused. The state's colour is in the badge only.
-            Glyph(systemName: entry.paused ? "pause" : "repeat").appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text2.color)
-                .frame(width: 36, height: 36)
-                .background(theme.fill3.color, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-            VStack(alignment: .leading, spacing: 4) {
-                Text(entry.title).appFont(.system(size: 13.5, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
-                HStack(spacing: 8) {
-                    Text(entry.helperName).appFont(theme.appIdentifierFont(.system(size: 11, weight: .medium), size: 10.5))
-                        .foregroundStyle(theme.idColor(theme.text))
-                        .padding(.horizontal, 8).frame(height: 18)
-                        .background(Capsule().fill(theme.fill3.color))
-                    Text(entry.schedule).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(1)
-                }
-                Text(ScheduledPage.lastText(entry)).appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
-            }
-            Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 12) {
-                HStack(spacing: 4) {
-                    StatusDot(color: entry.paused ? theme.attention.color : theme.success.color, size: 6)
-                    Text(ScheduledPage.nextText(entry)).appFont(.system(size: 11, weight: .medium)).monospacedDigit()
-                        .foregroundStyle(entry.paused ? theme.attention.color : theme.text2.color)
-                }
-                .padding(.horizontal, 8).frame(height: 22)
-                .background(Capsule().fill((entry.paused ? theme.attention.color : theme.success.color).opacity(0.1)))
-                HStack(spacing: 8) {
-                    if case .routine(let id) = entry.kind, let routine = model.helpers.list?.helpers.first(where: { $0.id == entry.helperId })?.routines.first(where: { $0.id == id }) {
-                        IconButton(symbol: "pencil", label: "Edit \(entry.title)", diameter: ControlMetrics.buttonHeight) { edit(routine, entry.helperId) }
-                    }
-                    IconButton(symbol: entry.paused ? "play.fill" : "pause.fill", label: entry.paused ? "Resume" : "Pause",
-                               diameter: ControlMetrics.buttonHeight) { pause(!entry.paused) }
-                    IconButton(symbol: "trash", label: "Delete \(entry.title)", diameter: ControlMetrics.buttonHeight) { delete() }
-                }
-            }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(theme.fill1.a > 0 ? theme.fill1.color : theme.fill2.color.opacity(0.5), in: shape)
-        .overlay(shape.strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
-        .hoverLift(radius: 14)
-        .accessibilityElement(children: .contain)
-    }
-
-    private func pause(_ paused: Bool) {
-        switch entry.kind {
-        case .routine(let id): model.sendHelpers(model.helpers.pauseRoutine(id, paused: paused))
-        }
-    }
-
-    private func delete() {
-        switch entry.kind {
-        case .routine(let id): model.sendHelpers(model.helpers.deleteAnyRoutine(id))
-        }
-    }
-}
+// ADR-094: what runs by itself. 2026-11-06: the Scheduled page is part of Automations (WorkflowsPane); these are its routine form
+// and its watch card. The logic lives in `ScheduledPage` and `HelpersState`.
 
 /// ADR-097: the open form: which routine (nil: a new one), what it was, what Keshab has typed, and whether it was sent.
 struct ScheduleForm: Equatable {
@@ -157,7 +22,7 @@ struct ScheduleForm: Equatable {
 
 /// ADR-097: the New schedule and Edit form: the agent, the task, the repeat and its time (or the first time of an
 /// hourly one). It closes when ARK answers without a problem.
-private struct ScheduleFormCard: View {
+struct ScheduleFormCard: View {
     let model: IslandModel
     let form: Binding<ScheduleForm?>
     @Environment(\.theme) private var theme
@@ -271,7 +136,7 @@ private struct ScheduleFormCard: View {
 }
 
 /// A page ARK watches for the user (2026-11-04): where, until what, how often, and Stop. ARK reads it with no model.
-private struct WatchCard: View {
+struct WatchCard: View {
     let model: IslandModel
     let watch: WatchItem
     @Environment(\.theme) private var theme

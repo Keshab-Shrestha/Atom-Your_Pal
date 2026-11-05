@@ -47,6 +47,11 @@ struct PlanCard: View {
                 }
                 Spacer(minLength: 8)
                 PlanDots(plan: plan)
+                // 2026-11-06: an old plan that is stuck or done can leave the Board (it stays in its chat's history).
+                if plan.stuck || plan.complete {
+                    QuietButton(title: "Dismiss", symbol: "xmark") { model.send(.planDismiss(id: plan.id)) }
+                        .help("Remove this plan from the Board. Its tasks and its chat stay as they are.")
+                }
             }
             .padding(.horizontal, 16).padding(.vertical, 12)
             PlanHandoffStrip(model: model, plan: plan)

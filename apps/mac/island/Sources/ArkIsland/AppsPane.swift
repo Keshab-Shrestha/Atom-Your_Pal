@@ -4,6 +4,7 @@ import ArkIslandCore
 
 /// Apps (2026-11-05): small apps the agent made for you ("make me a habit tracker"), each approved on a card. Open one and it runs here, in a
 /// locked-down web view with no network and no files; it keeps its own notes through ARK. An app is changed or made in a chat.
+/// 2026-11-06 (Keshab: "merge that into apps … one page"): panels live here too, as simple apps used in place, in one grid with the rest.
 struct AppsPane: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
@@ -18,29 +19,71 @@ struct AppsPane: View {
 
     private var list: some View {
         let apps = model.apps ?? []
-        return Scrollable {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Apps").appFont(theme.pageTitleFont()).foregroundStyle(theme.text.color)
-                        Text("Small apps ARK builds for you. They run in a sandbox with no network, and keep their own notes.")
-                            .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
+        let panels = model.panels?.panels ?? []
+        return ScrollViewReader { reader in
+            Scrollable {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Apps").appFont(theme.pageTitleFont()).foregroundStyle(theme.text.color)
+                            Text("What ARK builds for you. Simple apps (lists, counters, charts and buttons) work right here; custom apps open on their own, in a sandbox with no network.")
+                                .appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer()
+                        NewAppMenu(model: model)
                     }
-                    Spacer()
-                    Button { model.askForApp() } label: { Label("New app", systemImage: "plus").appFont(.system(size: 12, weight: .semibold)) }
-                        .buttonStyle(.borderedProminent).tint(theme.accent.color).foregroundStyle(theme.onAccent.color)
+                    if let problem = model.panels?.problem { ProblemLine(text: problem) }
+                    if model.apps == nil && model.panels == nil {
+                        LoadingStateView(text: "Loading apps…", retry: { model.send(.appsList); model.send(.panelsList) })
+                    } else if apps.isEmpty && panels.isEmpty {
+                        EmptyStateView(title: "No apps yet", detail: "Ask ARK in a chat: \"Make me a habit tracker\" or \"Make me a panel with a reading list and a water counter.\" You approve it first.")
+                    }
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 16, alignment: .top)], alignment: .leading, spacing: 16) {
+                        ForEach(apps) { app in AppCard(model: model, app: app) }
+                        ForEach(panels) { panel in
+                            PanelCard(model: model, panel: panel, manage: true)
+                                .overlay(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
+                                    .strokeBorder(model.focusedPanel == panel.id ? theme.accent.color : .clear, lineWidth: 2))
+                                .id("panel:" + panel.id)
+                        }
+                    }
                 }
-                if model.apps == nil { LoadingStateView(text: "Loading apps…", retry: { model.send(.appsList) }) }
-                else if apps.isEmpty {
-                    EmptyStateView(title: "No apps yet", detail: "Ask ARK in a chat: \"Make me a habit tracker app.\" You approve it first, and see what it may do.")
-                }
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 280), spacing: 16, alignment: .top)], alignment: .leading, spacing: 16) {
-                    ForEach(apps) { app in AppCard(model: model, app: app) }
-                }
+                .padding(24)
             }
-            .padding(24)
+            .onAppear {
+                model.send(.appsList); model.send(.panelsList)
+                if let id = model.focusedPanel { reader.scrollTo("panel:" + id, anchor: .top) }
+            }
+            .onChange(of: model.focusedPanel) { _, id in
+                if let id { withAnimation(.easeOut(duration: 0.25)) { reader.scrollTo("panel:" + id, anchor: .top) } }
+            }
+            // Opened from the rail before the panels arrived: scroll once they do.
+            .onChange(of: panels.count) { _, _ in
+                if let id = model.focusedPanel { reader.scrollTo("panel:" + id, anchor: .top) }
+            }
+            .onDisappear { model.focusedPanel = nil }
         }
-        .onAppear { model.send(.appsList) }
+    }
+}
+
+/// One "New app" button: a simple app (a panel, made in seconds) or a custom app (its own screen and logic). Both start in a chat.
+private struct NewAppMenu: View {
+    let model: IslandModel
+    @Environment(\.theme) private var theme
+    @Environment(\.islandSnapshot) private var snapshot
+
+    var body: some View {
+        let label = Label("New app", systemImage: "plus").appFont(.system(size: 12, weight: .semibold))
+        if snapshot {
+            Button {} label: { label }.buttonStyle(.borderedProminent).tint(theme.accent.color).foregroundStyle(theme.onAccent.color)
+        } else {
+            Menu {
+                Button { model.askForPanel() } label: { Label("Simple app: lists, counters, charts, buttons", systemImage: "square.grid.2x2") }
+                Button { model.askForApp() } label: { Label("Custom app: its own screen and logic", systemImage: "app.dashed") }
+            } label: { label }
+            .menuStyle(.borderedButton).fixedSize()
+            .accessibilityLabel("New app")
+        }
     }
 }
 

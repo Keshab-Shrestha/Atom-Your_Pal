@@ -2,40 +2,8 @@ import SwiftUI
 import ArkIslandCore
 
 /// Panels (2026-11-02, after Empryo's "Morphs"): panels the agent made for you, or you asked for. Each is a card of blocks you use
-/// directly: tick, add, count, and click buttons. Nothing runs by itself. A panel is changed or removed here; a new one is asked
-/// for in a chat ("make me a panel that…"), and ARK adds it after you approve it.
-struct PanelsPane: View {
-    let model: IslandModel
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        let list = model.panels?.panels ?? []
-        Scrollable {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Panels").appFont(theme.pageTitleFont()).foregroundStyle(theme.text.color)
-                        Text("Lists, counters, charts and buttons that ARK made for you. Pin one to Home.")
-                            .appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
-                    }
-                    Spacer()
-                    Button { model.askForPanel() } label: { Label("New panel", systemImage: "plus").appFont(.system(size: 12, weight: .semibold)) }
-                        .buttonStyle(.borderedProminent).tint(theme.accent.color).foregroundStyle(theme.onAccent.color)
-                }
-                if let problem = model.panels?.problem { ProblemLine(text: problem) }
-                if model.panels == nil { LoadingStateView(text: "Loading panels…", retry: { model.send(.panelsList) }) }
-                else if list.isEmpty {
-                    EmptyStateView(title: "No panels yet", detail: "Ask ARK in a chat: \"Make me a panel with a reading list and a counter for glasses of water.\" You approve it first.")
-                }
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 16, alignment: .top)], alignment: .leading, spacing: 16) {
-                    ForEach(list) { panel in PanelCard(model: model, panel: panel, manage: true) }
-                }
-            }
-            .padding(24)
-        }
-        .onAppear { model.send(.panelsList) }
-    }
-}
+/// directly: tick, add, count, and click buttons. Nothing runs by itself. 2026-11-06: they live on the Apps page as simple apps
+/// (AppsPane), and in the rail; a new one is asked for in a chat, and ARK adds it after you approve it.
 
 /// The panels pinned to Home, under the tiles.
 struct HomePanels: View {

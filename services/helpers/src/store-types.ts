@@ -392,8 +392,10 @@ export interface HelperStore {
   planForChat(chatId: string, id: number): PlanView | undefined;
   /** Up to ten plans in this chat, newest first; before is an exclusive plan-id cursor. */
   planHistory(chatId: string, before?: number): PlanView[];
-  /** The newest plans of every chat, newest first. */
+  /** The newest plans of every chat, newest first, without dismissed plans. */
   plans(limit: number): PlanView[];
+  /** Hides a complete or stuck plan from `plans` (the row stays; chat history still reads it). Throws HelperError for an unknown or active plan. */
+  dismissPlan(id: number): void;
   /** Ties a portion to the Board job it became. Throws HelperError when the portion has a job already. */
   linkPlanJob(planId: number, n: number, job: number): void;
   /** Host-only review of an eligible completed retry; never starts or changes work. */

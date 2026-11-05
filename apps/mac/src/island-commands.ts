@@ -136,6 +136,8 @@ export type IslandCommand =
   | { type: "job.add"; helper: string; task: string; blockedBy?: number[]; planFirst?: boolean }
   | { type: "plan.approve"; id: number }
   | { type: "plan.reject"; id: number }
+  /** 2026-11-06: hide a complete or stuck work plan from the Board's plan list. The row stays. */
+  | { type: "plan.dismiss"; id: number }
   | { type: "helper.planFirst"; helper: string; on: boolean }
   | { type: "helper.browser"; helper: string; on: boolean }
   | { type: "routine.delete"; id: number }
@@ -297,6 +299,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "job.add",
   "plan.approve",
   "plan.reject",
+  "plan.dismiss",
   "helper.planFirst",
   "helper.browser",
   "routine.delete",
@@ -908,6 +911,11 @@ export function parseCommand(line: string): ParsedLine {
       return { error: 'chats.export needs "folder", a full path to a folder on this Mac.' };
     }
     return { command: { type, folder } };
+  }
+  if (type === "plan.dismiss") {
+    const v = value as Record<string, unknown>;
+    if (Object.keys(v).some((k) => !["type", "id"].includes(k)) || !Number.isSafeInteger(v.id) || (v.id as number) < 1) return { error: 'plan.dismiss needs only an "id" that is a positive whole number.' };
+    return { command: { type, id: v.id as number } };
   }
   if (type === "brain.search") {
     const { query } = value as { query?: unknown };

@@ -7,14 +7,14 @@ import Testing
 struct SidebarLayoutTests {
     @Test func startsInTheStandardOrder() {
         let layout = SidebarLayout.standard
-        #expect(layout.top == [.dashboard, .board, .scheduled, .brain, .workflows, .panels, .apps])
+        #expect(layout.top == [.dashboard, .board, .workflows, .apps, .brain])
         #expect(layout.bottom == [.plugins, .settings])
     }
 
     @Test func aPageMovesBeforeAnotherInTheSameGroup() {
         var layout = SidebarLayout.standard
-        layout.move(.scheduled, onto: .board)
-        #expect(layout.top == [.dashboard, .scheduled, .board, .brain, .workflows, .panels, .apps])
+        layout.move(.workflows, onto: .board)
+        #expect(layout.top == [.dashboard, .workflows, .board, .apps, .brain])
         layout.move(.settings, onto: .plugins)
         #expect(layout.bottom == [.settings, .plugins])
     }
@@ -22,15 +22,15 @@ struct SidebarLayoutTests {
     @Test func aPageDraggedDownPassesTheOneBelowIt() {
         var layout = SidebarLayout.standard
         layout.move(.dashboard, onto: .board)
-        #expect(layout.top == [.board, .dashboard, .scheduled, .brain, .workflows, .panels, .apps])
-        layout.move(.dashboard, onto: .apps) // down to the last place of the group
+        #expect(layout.top == [.board, .dashboard, .workflows, .apps, .brain])
+        layout.move(.dashboard, onto: .brain) // down to the last place of the group
         #expect(layout.top.last == .dashboard)
     }
 
     @Test func theMenuMovesAPageOnePlaceInsideItsGroup() {
         var layout = SidebarLayout.standard
-        layout.shift(.scheduled, by: -1)
-        #expect(layout.top.prefix(3) == [.dashboard, .scheduled, .board])
+        layout.shift(.workflows, by: -1)
+        #expect(layout.top.prefix(3) == [.dashboard, .workflows, .board])
         layout.shift(.dashboard, by: -1) // already first: nothing happens
         layout.shift(.settings, by: 1) // already last: nothing happens
         #expect(layout.top.first == .dashboard && layout.bottom == [.plugins, .settings])
@@ -40,8 +40,8 @@ struct SidebarLayoutTests {
 
     @Test func aPageMovesToTheBottomGroupBesideSettingsAndPlugins() {
         var layout = SidebarLayout.standard
-        layout.move(.scheduled, onto: .settings) // dropped on a row of the bottom group
-        #expect(layout.bottom == [.plugins, .scheduled, .settings] && !layout.top.contains(.scheduled))
+        layout.move(.workflows, onto: .settings) // dropped on a row of the bottom group
+        #expect(layout.bottom == [.plugins, .workflows, .settings] && !layout.top.contains(.workflows))
         layout.move(.brain, before: nil, toBottom: true) // dropped at the end of the bottom group
         #expect(layout.bottom.last == .brain)
         layout.move(.plugins, before: .dashboard, toBottom: false) // back to the top, in first place
@@ -60,14 +60,14 @@ struct SidebarLayoutTests {
 
     @Test func aPageDroppedOnItselfStaysWhereItIs() {
         var layout = SidebarLayout.standard
-        layout.move(.scheduled, onto: .scheduled)
-        layout.move(.scheduled, before: .scheduled, toBottom: false)
+        layout.move(.workflows, onto: .workflows)
+        layout.move(.workflows, before: .workflows, toBottom: false)
         #expect(layout == .standard)
     }
 
     @Test func storageRoundTripsAndBadStorageGivesAValidLayout() {
         var layout = SidebarLayout.standard
-        layout.move(.scheduled, onto: .plugins)
+        layout.move(.workflows, onto: .plugins)
         layout.move(.board, onto: .dashboard)
         #expect(SidebarLayout(storage: layout.storage) == layout)
         #expect(SidebarLayout(storage: nil) == .standard)
@@ -83,9 +83,9 @@ struct SidebarLayoutTests {
     /// 2026-10-15: Needs you and Issues moved into the Board. A layout saved before that still loads, without them.
     @Test func anOldSavedLayoutThatNamesNeedsYouAndIssuesStillLoads() {
         let old = SidebarLayout(storage: "dashboard,inbox,issues,board,scheduled,brain|plugins,settings")
-        #expect(old == .standard)
-        let moved = SidebarLayout(storage: "scheduled,inbox,dashboard|issues,settings,plugins")
-        #expect(moved.top.prefix(2) == [.scheduled, .dashboard] && moved.bottom.prefix(2) == [.settings, .plugins])
+        #expect(old.top == [.dashboard, .board, .brain, .workflows, .apps], "scheduled is dropped; Automations and Apps come back at the end")
+        let moved = SidebarLayout(storage: "brain,inbox,dashboard|issues,settings,plugins")
+        #expect(moved.top.prefix(2) == [.brain, .dashboard] && moved.bottom.prefix(2) == [.settings, .plugins])
         #expect(Set(moved.top + moved.bottom) == Set(SidebarItem.allCases), "every page is still in exactly one group")
         #expect(!SidebarItem.allCases.map(\.rawValue).contains("inbox") && !SidebarItem.allCases.map(\.rawValue).contains("issues"))
     }
@@ -95,9 +95,16 @@ struct SidebarLayoutTests {
         let defaults = UserDefaults(suiteName: suite)!
         let first = IslandSettings(defaults: defaults)
         #expect(first.sidebar == .standard)
-        first.sidebar.move(.scheduled, onto: .settings)
+        first.sidebar.move(.workflows, onto: .settings)
         let second = IslandSettings(defaults: defaults)
-        #expect(second.sidebar.bottom == [.plugins, .scheduled, .settings])
+        #expect(second.sidebar.bottom == [.plugins, .workflows, .settings])
         defaults.removePersistentDomain(forName: suite)
+    }
+
+    /// 2026-11-06: Scheduled moved into Automations and Panels into Apps. A layout saved with them loads without them.
+    @Test func aLayoutSavedWithScheduledAndPanelsStillLoads() {
+        let saved = SidebarLayout(storage: "dashboard,board,scheduled,brain,workflows,panels,apps|plugins,settings")
+        #expect(saved.top == [.dashboard, .board, .brain, .workflows, .apps] && saved.bottom == [.plugins, .settings])
+        #expect(!SidebarItem.allCases.map(\.rawValue).contains("scheduled") && !SidebarItem.allCases.map(\.rawValue).contains("panels"))
     }
 }

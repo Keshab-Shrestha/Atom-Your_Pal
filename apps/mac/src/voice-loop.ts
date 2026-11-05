@@ -33,6 +33,8 @@ export interface TurnTimings {
  */
 export type LoopNotice = { kind: "too_short" } | { kind: "mic_starting" } | { kind: "no_speech"; loudest: string };
 
+export type TurnOutcome = "complete" | "cut" | "stopped" | "failed";
+
 export interface VoiceLoopEvents {
   onState?(state: LoopState): void;
   /** The microphone is capturing: speech from now on is recorded. */
@@ -40,6 +42,12 @@ export interface VoiceLoopEvents {
   onTranscript?(text: string): void;
   onReply?(text: string): void;
   onTurnComplete?(timings: TurnTimings): void;
+  /**
+   * 2026-11-06: how a window turn ended, for ARK's own log review: "complete", "cut" (the answer arrived, then a new message or Stop
+   * ended its reading aloud), "stopped" (ended before the answer arrived) or "failed". Only turns of this loop (typed or spoken in
+   * the window) report it, never routines, workflows, Telegram or the API.
+   */
+  onTurnEnd?(outcome: TurnOutcome): void;
   onNotice?(notice: LoopNotice): void;
   /** Peak level (0–1) of each chunk of microphone audio, for the current recording only. */
   onLevel?(peak: number): void;
@@ -240,19 +248,21 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
       } catch (error) {
         queue.end();
         await speaking.catch(() => {});
+        events.onTurnEnd?.(signal.aborted ? "stopped" : "failed");
         throw error;
       }
       const model = now() - started;
       if (firstText === undefined && answer.text.length) firstText = model;
-      if (signal.aborted) return;
+      if (signal.aborted) { events.onTurnEnd?.("stopped"); return; }
       if (!queue.received) queue.push(answer.text); // a model that cannot stream: speak the whole reply now
       queue.end();
       events.onReply?.(answer.text);
 
       onStage("speech");
       await speaking;
-      if (signal.aborted) return;
+      if (signal.aborted) { events.onTurnEnd?.("cut"); return; }
       events.onTurnComplete?.({ requestId: answer.requestId, ...heard, model, firstSound, firstText });
+      events.onTurnEnd?.("complete");
     } finally {
       signal.removeEventListener("abort", endQueue);
     }

@@ -101,6 +101,10 @@ export function withLogging(log: Logger, micName: () => Promise<string>, events:
       });
       events.onTurnComplete?.(t);
     },
+    onTurnEnd: (outcome) => {
+      log.info("turn.end", { outcome });
+      events.onTurnEnd?.(outcome);
+    },
     onNotice: (notice) => {
       log.info("turn.skipped", { reason: notice.kind, loudest: notice.kind === "no_speech" ? notice.loudest : undefined });
       events.onNotice?.(notice);

@@ -34,6 +34,10 @@ struct GeneralSection: View {
         }
         .onAppear { login.refresh(); model.updater.check() }
         if model.updater.isSourceCopy { UpdateCard(updater: model.updater) }
+        // 2026-11-06: which build runs, so "is this the new one?" is never a guess. "+" means the build had changes not yet committed.
+        Card {
+            Row(title: "This build", detail: BuildInfo.line) { EmptyView() }
+        }
         Card(footer: "Opens GitHub with only the ARK and macOS versions filled in. No log or chat is attached.") {
             Row(title: "Report a problem", detail: "Tell us what went wrong") {
                 PillButton(title: "Report…") {
@@ -90,5 +94,19 @@ private struct UpdateCard: View {
     private var footer: String? {
         if case .available(_, let subjects)? = updater.status, !subjects.isEmpty { return subjects.map { "• " + $0 }.joined(separator: "\n") }
         return nil
+    }
+}
+
+/// The running build: version, commit and build time, from the app's Info.plist (written by build-app.sh). "development" outside it.
+enum BuildInfo {
+    static var line: String {
+        let info = Bundle.main.infoDictionary ?? [:]
+        let version = info["CFBundleShortVersionString"] as? String ?? "development"
+        let commit = info["ARKBuildCommit"] as? String
+        let built = (info["CFBundleVersion"] as? String).flatMap { stamp -> String? in
+            let f = DateFormatter(); f.dateFormat = "yyyyMMddHHmm"
+            return f.date(from: stamp)?.formatted(date: .abbreviated, time: .shortened)
+        }
+        return [version, commit.map { "commit \($0)" }, built.map { "built \($0)" }].compactMap { $0 }.joined(separator: " · ")
     }
 }

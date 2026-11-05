@@ -441,3 +441,10 @@ test("stats.get takes no fields", () => {
   assert.deepEqual(parseCommand('{"type":"stats.get"}'), { command: { type: "stats.get" } });
   assert.ok("error" in parseCommand('{"type":"stats.get","x":1}'));
 });
+
+test("plan.dismiss takes only a positive whole-number id", () => {
+  assert.deepEqual(parseCommand('{"type":"plan.dismiss","id":7}'), { command: { type: "plan.dismiss", id: 7 } });
+  for (const bad of [{ id: 7, chat: "c" }, {}, { id: "7" }, { id: 0 }, { id: -1 }, { id: 1.5 }, { id: 2 ** 53 }]) {
+    assert.match((parseCommand(JSON.stringify({ type: "plan.dismiss", ...bad })) as { error: string }).error, /plan\.dismiss needs only an "id"/, JSON.stringify(bad));
+  }
+});

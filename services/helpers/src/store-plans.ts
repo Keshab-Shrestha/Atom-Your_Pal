@@ -4,7 +4,7 @@ import { HelperError } from "./jobs.ts";
 import type { StoreContext } from "./store-context.ts";
 import type { HelperStore } from "./store-types.ts";
 
-export function planMethods(ctx: StoreContext): Pick<HelperStore, "addPlan" | "plan" | "latestPlan" | "planForChat" | "planHistory" | "plans" | "linkPlanJob"> {
+export function planMethods(ctx: StoreContext): Pick<HelperStore, "addPlan" | "plan" | "latestPlan" | "planForChat" | "planHistory" | "plans" | "dismissPlan" | "linkPlanJob"> {
   const { emit, get, workPlans, planView } = ctx;
   const planOf = (id: number) => {
     const stored = workPlans.get(id);
@@ -40,6 +40,14 @@ export function planMethods(ctx: StoreContext): Pick<HelperStore, "addPlan" | "p
 
     plans(limit) {
       return workPlans.newest(Math.max(1, Math.min(limit, 50))).map(planView);
+    },
+
+    dismissPlan(id) {
+      if (!Number.isSafeInteger(id) || id < 1) throw new HelperError("plan must be a positive plan id.");
+      const view = planOf(id);
+      if (!view) throw new HelperError(`There is no plan ${id}.`);
+      if (!view.complete && !view.stuck) throw new HelperError("This plan is still running. You can dismiss it when it is complete or stuck.");
+      if (workPlans.dismiss(id)) emit({ action: "plan_work", plan: id });
     },
 
     linkPlanJob(planId, n, job) {

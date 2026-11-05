@@ -261,6 +261,17 @@ final class IslandModel {
     /// "New panel": a new chat that begins the request; the user finishes it and sends it.
     func askForPanel() { startChat(with: "Make me a panel that ", send: false) }
 
+    /// The panel the rail opened on the Apps page (2026-11-06: panels live there); it scrolls into view and is outlined.
+    var focusedPanel: String?
+
+    func openPanel(_ id: String) {
+        navigate { [self] in
+            windowPage = .apps
+            closeAppPage()
+            focusedPanel = id
+        }
+    }
+
     /// ARK's own numbers for a panel's `{{live.name}}`.
     var panelLive: [String: Int] {
         let attention = BoardAttention(list: helpers.list, approvalPending: approval.pending != nil)
@@ -282,9 +293,9 @@ final class IslandModel {
                 case "board": self.windowPage = .agents; self.helpers.selectBoard()
                 case "chat": self.windowPage = .chat
                 case "workflows": self.windowPage = .workflows
-                case "scheduled": self.windowPage = .scheduled
+                case "scheduled": self.windowPage = .workflows // 2026-11-06: part of Automations
                 case "brain": self.windowPage = .brain
-                case "panels": self.windowPage = .panels
+                case "panels": self.windowPage = .apps // 2026-11-06: part of Apps
                 case "apps": self.windowPage = .apps
                 case "you": self.windowPage = .you
                 case "settings": self.openSettings(nil)
@@ -983,45 +994,19 @@ final class IslandModel {
 
     // MARK: ADR-096: Back, and leaving unsaved edits
 
-    /// Where the window is now, as one step of its history.
-    var location: WindowLocation { WindowLocation(page: windowPage, helpers: helpers, allAgents: showsAllAgents, boardView: boardView) }
-    /// The steps Back returns to.
-    private(set) var history = WindowHistory()
-    /// The step last recorded: a change from it is Keshab's next step.
-    @ObservationIgnored private var lastLocation: WindowLocation?
-
-    /// Called on every change of `location` (the window's `onChange`): the step before becomes a Back step.
-    func recordLocation() {
-        let now = location
-        if let last = lastLocation, last != now {
-            history.recordMove(from: last, up: leavingUp == last)
-            leavingUp = nil
-        }
-        lastLocation = now
-    }
-
-    /// The page the last "‹" (up one level) came from, so recording that move does not make it a Back step.
-    @ObservationIgnored private var leavingUp: WindowLocation?
-
-    /// A page's own "‹" button: goes up one level (after "Discard changes?" when needed) and does not add the page it leaves to Back.
-    func navigateUp(_ change: @escaping () -> Void) {
-        navigate { [self] in
-            leavingUp = location
-            change()
-        }
-    }
-
-    /// Back (the top bar's arrow, ⌘[ and the mouse's back button): the newest step that still exists.
+    /// Back (the top bar's arrow, ⌘[ and the mouse's back button), BackStep's rule: out of a sub-page to its page, else Home,
+    /// and from Home to Chats. It never reopens a Board tab or page left earlier (Keshab, 2026-11-06).
     func goBack() {
         navigate { [self] in
-            recordLocation()
-            let current = location
-            guard let target = history.back(where: { $0 != current }) else { return }
-            windowPage = target.page
-            showsAllAgents = target.allAgents
-            boardView = target.boardView
-            helpers.show(target) // the Board's top level: nothing open inside the page comes back
-            lastLocation = location // a Back is not a new step
+            let insideAgents = !helpers.showsBoard || helpers.openJobId != nil || helpers.isCreatingAgent
+            switch BackStep.from(page: windowPage, insideAgents: insideAgents, appOpen: openApp != nil, settingsSubpage: settingsPage != nil) {
+            case .toBoard: helpers.selectBoard()
+            case .closeApp: closeAppPage()
+            case .toSettings: settingsPage = nil
+            case .to(let page):
+                showsAllAgents = false
+                windowPage = page
+            }
         }
     }
 
@@ -1075,10 +1060,8 @@ final class IslandModel {
     /// Keeps the conversation and model list in step with the runtime. The status is applied by the controller.
     func apply(_ event: IslandEvent) {
         let helperRefusal = helpers.claims(event)
-        recordLocation() // Keshab's last step, before the runtime moves the page (a new agent, a removed one)
         helpers.apply(event)
         if helpers.takeRenameConfirmed() { showSaved("agent-name") } // only once the runtime's list has the new name
-        lastLocation = location // a change the runtime made is not a step
         if let refresh = helpers.takeRefresh() { send(refresh) } // the open task changed: ask for its thread again
         if helperRefusal { return } // a refused helper command is shown in the ARK window only
         conversation.apply(event)

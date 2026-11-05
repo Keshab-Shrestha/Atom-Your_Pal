@@ -60,8 +60,6 @@ struct HelpersView: View {
         .background(DesktopWindowAppearance(palette: palette))
         .animation(Motion.workspace(reduceMotion), value: sidebarHidden)
         .ignoresSafeArea(edges: .top)
-        // ADR-096: every change of page or of what is open is a step Back returns to.
-        .onChange(of: model.location, initial: true) { model.recordLocation() }
         .alert("Discard changes?", isPresented: Binding(get: { model.asksDiscard }, set: { if !$0 { model.keepEditing() } })) {
             Button("Keep editing", role: .cancel) { model.keepEditing() }
             Button("Discard", role: .destructive) { model.discardEdits() }
@@ -119,7 +117,8 @@ struct HelpersView: View {
             centeredTitle: model.windowPage == .dashboard,
             context: ownsTitle ? nil : model.windowPage == .chat ? chatMetaLine : model.windowPage == .settings ? SettingsHome.groupTitle(of: model.settingsPage) : (model.windowPage == .agents || model.windowPage == .dashboard) ? nil : "Workspace",
             showSidebar: model.settings.sidebarHidden && (model.windowPage == .chat || model.windowPage == .settings) ? { model.toggleSidebar() } : nil,
-            back: model.windowPage == .dashboard ? nil : settingsBack ?? (model.history.canGoBack && !ownBack ? { model.goBack() } : nil)) {
+            // Back is always there except on Home (BackStep: to Home; a sub-page with its own "‹" keeps that one).
+            back: model.windowPage == .dashboard ? nil : settingsBack ?? (!ownBack ? { model.goBack() } : nil)) {
                 if model.windowPage == .chat {
                     Button { model.toggleWorkspace() } label: {
                         Glyph(systemName: "sidebar.right").frame(width: 30, height: 30)
@@ -136,10 +135,8 @@ struct HelpersView: View {
     @ViewBuilder private var pageContent: some View {
         switch model.windowPage {
         case .dashboard: DashboardPane(model: model)
-        case .scheduled: ScheduledPane(model: model)
         case .workflows: WorkflowsPane(model: model)
         case .you: YouPane(model: model)
-        case .panels: PanelsPane(model: model)
         case .apps: AppsPane(model: model)
         case .plugins: PluginsPane(model: model)
         case .brain: BrainPane(model: model)
@@ -163,7 +160,7 @@ struct HelpersView: View {
 extension HelpersView {
     /// The open page's name and symbol, for the top bar.
     /// ADR-260: pages whose content starts with their own large title.
-    static let pagesWithTitle: [WindowPage] = [.scheduled, .workflows, .panels, .apps, .plugins, .brain, .you]
+    static let pagesWithTitle: [WindowPage] = [.workflows, .apps, .plugins, .brain, .you]
 
     static func page(_ model: IslandModel) -> (title: String, symbol: String) {
         switch model.windowPage {
@@ -171,10 +168,8 @@ extension HelpersView {
         case .chat:
             let chats = model.chats
             return (chats?.chats.first { $0.id == chats?.current }?.title ?? "New chat", "bubble.left.and.text.bubble.right")
-        case .scheduled: return ("Scheduled", "clock")
-        case .workflows: return ("Workflows", "point.3.connected.trianglepath.dotted")
+        case .workflows: return ("Automations", "point.3.connected.trianglepath.dotted")
         case .you: return ("You", "person.crop.circle")
-        case .panels: return ("Panels", "square.grid.2x2")
         case .apps: return (model.openApp?.name ?? "Apps", "app.dashed")
         case .plugins: return ("Plugins", "puzzlepiece.extension")
         case .brain: return ("Second brain", "brain.head.profile")
