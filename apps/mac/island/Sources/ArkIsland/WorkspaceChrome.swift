@@ -14,8 +14,9 @@ struct WorkspaceNavigationRail: View {
     }
 
     /// ADR-259: the height one captioned rail item takes (glyph, caption and gap), and what the rail needs besides its items.
-    private static let captionedItem: CGFloat = 59
-    private static let railChrome: CGFloat = 130
+    private static let captionedItem: CGFloat = 60
+    /// The logo, the account avatar, the drop strips, the gaps and the padding (measured 2026-11-05: a 130 pt guess clipped a caption).
+    private static let railChrome: CGFloat = 200
 
     /// Captions only when every item fits with them; a short window gets the glyphs alone, with names on hover.
     private func captionsFit(_ height: CGFloat) -> Bool {

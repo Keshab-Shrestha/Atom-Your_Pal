@@ -4814,5 +4814,21 @@ The audit (`docs/ui-audit-2026-11-05.md`, item A4) found that the rail showed ic
 ### Consequences
 
 - The rail reads without hovering.
-- Captions show only when the window is tall enough for every rail item with its caption (59 pt each, plus 130 pt for the rest of the rail). A shorter window gets the glyphs alone with names on hover, as before, so no page scrolls out of sight.
+- Captions show only when the window is tall enough for every rail item with its caption (60 pt each, plus 200 pt for the rest of the rail). A shorter window gets the glyphs alone with names on hover, as before, so no page scrolls out of sight.
 - 34 goldens changed (every shot with the rail).
+
+## ADR-260 — A page says its name once (2026-11-05)
+
+### Context
+
+The audit (`docs/ui-audit-2026-11-05.md`, item A5) found that the window's top bar repeated the page's own title. Workflows showed "Workspace › Workflows" in the bar and then a large "Workflows" under it. The same was true of Scheduled, Panels, Apps, Plugins, Brain and You.
+
+### Decision
+
+- Pages that start with their own large title (`HelpersView.pagesWithTitle`: Scheduled, Workflows, Panels, the Apps list, Plugins, Brain and You) get a bare top bar. It has Back and the actions only, is 40 pt high, and has no tint and no edge, so it reads as part of the page.
+- Chat, the Board, Settings, an agent, an open task and an open app keep the full bar, because their bar names what the page does not.
+
+### Consequences
+
+- Each page says its name once. The content starts 12 pt higher.
+- Goldens of those pages changed.
