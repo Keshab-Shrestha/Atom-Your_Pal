@@ -168,17 +168,63 @@ private struct FlowCard: View {
     let selected: Bool
     let choose: () -> Void
     @Environment(\.theme) private var theme
+    @Environment(\.islandSnapshot) private var snapshot
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: theme.radiusCard + 2, style: .continuous)
         Button(action: choose) {
-            BoardCard(model: model, item: item)
+            VStack(alignment: .leading, spacing: 0) {
+                BoardCard(model: model, item: item)
+                footer.padding(.horizontal, 16).padding(.bottom, 10).padding(.top, -4)
+            }
                 .background(shape.fill(selected ? theme.fill3.color : theme.fill2.color))
                 .overlay(shape.strokeBorder(selected ? theme.accent.color.opacity(0.6) : theme.separator.color, lineWidth: selected ? 1.2 : 0.6))
                 .clipShape(shape)
         }
         .buttonStyle(.pressable)
         .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    /// The card's state and time on one quiet line (after affectUI's Agent Inbox look): a spinner and a live clock while it runs,
+    /// "Waiting for you" when it needs Keshab, a green dot and how long it took once done, red once failed.
+    @ViewBuilder
+    private var footer: some View {
+        let job = item.job
+        HStack(spacing: 6) {
+            switch job.state {
+            case .running:
+                RaySpinner(size: 10, color: theme.live.color)
+                if snapshot { clock(job.clockText()) } else {
+                    TimelineView(.periodic(from: .now, by: 1)) { context in clock(job.clockText(now: context.date)) }
+                }
+            case .done:
+                Circle().fill(theme.success.color).frame(width: 6, height: 6)
+                clock(job.clockText().map { "Took \($0)" })
+            case .failed:
+                Glyph(systemName: "exclamationmark.circle.fill").appFont(.system(size: 10)).foregroundStyle(theme.problem.color)
+                Text("Failed").foregroundStyle(theme.problem.color)
+            case .stopped:
+                Glyph(systemName: "stop.circle").appFont(.system(size: 10)).foregroundStyle(theme.text3.color)
+                Text("Stopped").foregroundStyle(theme.text2.color)
+                clock(job.clockText().map { "after \($0)" })
+            case .queued:
+                if job.awaitsApproval || job.held != nil {
+                    Glyph(systemName: "exclamationmark.triangle.fill").appFont(.system(size: 10)).foregroundStyle(theme.attention.color)
+                    Text("Waiting for you").foregroundStyle(theme.text2.color)
+                    clock(job.clockText().map { "· \($0)" })
+                } else {
+                    Circle().strokeBorder(theme.text3.color, lineWidth: 1).frame(width: 7, height: 7)
+                    Text("Queued").foregroundStyle(theme.text3.color)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .appFont(.system(size: 11)).monospacedDigit()
+        .help("Counted from when the task was given.")
+    }
+
+    private func clock(_ text: String?) -> some View {
+        Text(text ?? "").foregroundStyle(theme.text3.color)
     }
 }
 

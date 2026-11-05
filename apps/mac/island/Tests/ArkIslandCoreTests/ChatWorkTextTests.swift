@@ -35,6 +35,6 @@ struct ChatWorkTextTests {
         var finished = work
         finished.calls[1].state = "ok"
         #expect(ChatWorkText.phase(finished) == "Thinking")
-        #expect(ChatWorkText.duration(ms: 4_200) == "4s" && ChatWorkText.duration(ms: 75_000) == "1m 15s" && ChatWorkText.duration(ms: 7_500_000) == "2h 05m")
+        #expect(ChatWorkText.duration(ms: 4_200) == "4s" && ChatWorkText.duration(ms: 75_000) == "1m 15s" && ChatWorkText.duration(ms: 7_500_000) == "2h 05m" && ChatWorkText.duration(ms: 834_780_000) == "9d 15h")
     }
 }

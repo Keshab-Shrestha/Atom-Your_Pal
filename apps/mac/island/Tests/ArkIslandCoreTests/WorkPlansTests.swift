@@ -67,4 +67,25 @@ struct WorkPlansTests {
         list.plans = [done, stuck]
         #expect(list.activePlan == nil)
     }
+
+    @Test func handoffsFollowTheDependencies() {
+        let plan = WorkPlanItem(id: 1, goal: "g", portions: [
+            PlanPortion(n: 1, agent: "sid", name: "Sid", task: "find", job: 10, state: .done),
+            PlanPortion(n: 2, agent: "quill", name: "Quill", task: "write", after: [1], job: 11, state: .running),
+            PlanPortion(n: 3, agent: "kame", name: "Kame", task: "check", after: [2], state: .waiting),
+            PlanPortion(n: 4, agent: "penny", name: "Penny", task: "cost", after: [5], state: .waiting),
+        ])
+        let items = PlanHandoff.items(plan) { $0 == 10 ? "Three sources found" : nil }
+        #expect(items.map(\.id) == ["1>2", "2>3"], "one per dependency; an unknown portion is skipped")
+        #expect(items[0].state == .handedOver && items[0].carried == "Three sources found")
+        #expect(items[1].state == .waiting && items[1].carried == nil)
+        var failed = plan
+        failed.portions[0].state = .failed
+        #expect(PlanHandoff.items(failed) { _ in "partial" }[0].state == .notHandedOver)
+        #expect(PlanHandoff.items(failed) { _ in "partial" }[0].carried == nil, "a failed portion passed nothing on")
+        let odd = WorkPlanItem(id: 2, goal: "g", portions: [
+            PlanPortion(n: 1, agent: "a", name: "A", task: "x", state: .done),
+            PlanPortion(n: 2, agent: "b", name: "B", task: "y", after: [1, 1, 2], state: .waiting)])
+        #expect(PlanHandoff.items(odd) { _ in nil }.map(\.id) == ["1>2"], "duplicates and a self-dependency drop")
+    }
 }

@@ -49,13 +49,14 @@ public enum ChatWorkText {
         return label(tool: running.tool, running: true)
     }
 
-    /// A short time: "4s", "1m 15s", "2h 05m" (after affectUI's `took`).
+    /// A short time: "4s", "1m 15s", "2h 05m", "9d 15h" (after affectUI's `took`).
     public static func duration(ms: Double) -> String {
         let s = max(0, Int(ms / 1000))
         if s < 60 { return "\(s)s" }
         let m = s / 60
         if m < 60 { return "\(m)m \(s % 60)s" }
-        return "\(m / 60)h " + String(format: "%02dm", m % 60)
+        let h = m / 60
+        return h < 24 ? "\(h)h " + String(format: "%02dm", m % 60) : "\(h / 24)d \(h % 24)h"
     }
 
     /// One call's row text: what it does while running, what it did once it ended.

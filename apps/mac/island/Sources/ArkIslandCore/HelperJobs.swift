@@ -238,3 +238,14 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
         return nil
     }
 }
+
+public extension HelperJob {
+    /// The time on a Flow card (2026-11-05, after affectUI's Agent Inbox look): how long since the task was given while it runs or
+    /// waits, how long it took once ended. Counted from when the task was given (ARK keeps no separate start time). Nil undated.
+    func clockText(now: Date = Date()) -> String? {
+        guard let created = createdAt else { return nil }
+        let ended = state == .done || state == .failed || state == .stopped
+        if ended && endedAt == nil { return nil } // no end recorded: say nothing rather than "0s"
+        return ChatWorkText.duration(ms: max(0, (ended ? endedAt! : now).timeIntervalSince(created)) * 1000)
+    }
+}

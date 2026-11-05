@@ -16,7 +16,7 @@ struct BoardTeamView: View {
     var initiallySelected: String?
     @Environment(\.theme) private var theme
 
-    static let node = CGSize(width: 220, height: 96)
+    static let node = CGSize(width: 240, height: 112)
     static let margin: CGFloat = 48
 
     var body: some View {
@@ -38,11 +38,27 @@ struct BoardTeamView: View {
                         .zIndex(id == dragging ? 1 : 0)
                         .gesture(org.agents.contains(id) ? drag(id, from: points[id] ?? .zero, org: org, points: points) : nil)
                 }
+                ports(org: org, points: points, helpers: helpers).allowsHitTesting(false).zIndex(2)
             }
         }
-        .overlay(alignment: .topLeading) {
-            Text("Click an agent to manage it. Drag it onto a manager to move it to that team, or onto ARK to report to ARK.")
-                .appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 16).padding(.top, 8)
+        .overlay(alignment: .top) {
+            // The hint and the counts share one line, so they never overlap; the hint gives way on a narrow window.
+            HStack(spacing: 12) {
+                Text("Click an agent to manage it. Drag it onto a manager to move it to that team, or onto ARK to report to ARK.")
+                    .foregroundStyle(theme.text3.color).lineLimit(1).truncationMode(.tail)
+                Spacer(minLength: 8)
+                if selected == nil {
+                    let running = helpers.filter { $0.jobs.contains { $0.state == .running } }.count
+                    let managers = org.agents.filter { org.level(of: $0) == .lead }.count
+                    Group {
+                        Text(helpers.count == 1 ? "1 agent" : "\(helpers.count) agents").foregroundStyle(theme.text3.color)
+                        if running > 0 { Text("\(running) running").foregroundStyle(theme.live.color) }
+                        Text(managers == 1 ? "1 manager" : "\(managers) managers").foregroundStyle(theme.text3.color)
+                    }
+                    .fixedSize()
+                }
+            }
+            .appFont(.system(size: 11.5, weight: .medium)).monospacedDigit().padding(.horizontal, 16).padding(.top, 8)
         }
         .overlay(alignment: .topTrailing) {
             if let id = selected, let helper = helpers.first(where: { $0.id == id }) {
@@ -106,6 +122,26 @@ struct BoardTeamView: View {
                 path.addLine(to: end)
                 let on = working.contains(id) || (id == OrgChart.ark && busy)
                 context.stroke(path, with: .color(on ? lit : quiet), lineWidth: on ? 2 : 1.2)
+
+            }
+        }
+    }
+
+    /// Ports where a line meets a card (after affectUI's Agent Tree look), drawn above the cards so each dot shows whole.
+    private func ports(org: OrgChart, points: [String: CGPoint], helpers: [Helper]) -> some View {
+        let working = Set(helpers.filter { $0.jobs.contains { $0.state == .running } }.map(\.id))
+        let half = Self.node.height / 2
+        let lit = theme.accent.color, quiet = theme.text3.color.opacity(0.6), fill = theme.surfaceSolid.color
+        let busy = model.status.isBusy, hidden = dragging
+        return Canvas { context, _ in
+            for id in [OrgChart.ark] + org.agents where id != hidden {
+                guard let parent = org.parent(of: id), let from = points[parent], let to = points[id] else { continue }
+                let on = working.contains(id) || (id == OrgChart.ark && busy)
+                for point in [CGPoint(x: from.x, y: from.y + half), CGPoint(x: to.x, y: to.y - half)] {
+                    let dot = Path(ellipseIn: CGRect(x: point.x - 3.5, y: point.y - 3.5, width: 7, height: 7))
+                    context.fill(dot, with: .color(fill))
+                    context.stroke(dot, with: .color(on ? lit : quiet), lineWidth: 1.2)
+                }
             }
         }
     }
@@ -169,7 +205,7 @@ private struct FixedNode: View {
     }
 }
 
-/// One agent: its level, who it is, what it does now, and its record.
+/// One agent (after affectUI's Agent Tree look): who it is and its level, a status pill, what it does now, and its record.
 private struct AgentOrgCard: View {
     let helper: Helper
     let level: OrgChart.Level
@@ -182,21 +218,20 @@ private struct AgentOrgCard: View {
         let waiting = helper.jobs.filter { $0.state == .queued }.count
         let record = AgentStats(jobs: helper.jobs).line
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
                 HelperBadge(helper: helper, size: 28)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(helper.name).appFont(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color).lineLimit(1)
                     Text(helper.roleTitle).appFont(.system(size: 11)).foregroundStyle(theme.text3.color).lineLimit(1)
                 }
                 Spacer(minLength: 4)
-                LevelChip(level: level)
+                statusPill(running: running != nil)
             }
-            if let running {
-                Text(running.step ?? "Working").appFont(.system(size: 11)).foregroundStyle(theme.live.color).lineLimit(1)
-            } else {
-                Text(helper.paused ? "Paused" : waiting > 0 ? "\(waiting) waiting" : "Idle").appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
-            }
-            Text(reports > 0 ? "Manages \(reports)" + (record.map { " · " + $0 } ?? "") : record ?? " ")
+            // What it does now, or that it is free: the reference's task line.
+            Text(task(running: running, waiting: waiting))
+                .appFont(.system(size: 11.5)).foregroundStyle(running == nil ? theme.text3.color : theme.text2.color).lineLimit(1)
+            Spacer(minLength: 0)
+            Text([level.rawValue, reports > 0 ? "manages \(reports)" : nil, record].compactMap { $0 }.joined(separator: " · "))
                 .appFont(.system(size: 10.5)).monospacedDigit().foregroundStyle(theme.text3.color).lineLimit(1)
         }
         .padding(12)
@@ -207,8 +242,25 @@ private struct AgentOrgCard: View {
             .strokeBorder(selected ? theme.accent.color : running != nil ? theme.live.color.opacity(0.6) : theme.separator.color, lineWidth: selected ? 2 : 1))
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(helper.name), \(level.rawValue), \(running?.step ?? (helper.paused ? "paused" : "idle"))")
+        .accessibilityLabel("\(helper.name), \(level.rawValue), \(running != nil ? "running" : helper.paused ? "paused" : "idle"): \(task(running: running, waiting: waiting))\(reports > 0 ? ", manages \(reports)" : "")")
         .accessibilityAddTraits(.isButton)
+    }
+
+    private func task(running: HelperJob?, waiting: Int) -> String {
+        running.map { $0.title ?? $0.task } ?? (waiting > 0 ? "\(waiting) waiting" : "Ready for a task")
+    }
+
+    /// Running (with a spinner), Paused or Idle.
+    @ViewBuilder
+    private func statusPill(running: Bool) -> some View {
+        let (text, color): (String, Color) = running ? ("Running", theme.live.color) : helper.paused ? ("Paused", theme.attention.color) : ("Idle", theme.text3.color)
+        HStack(spacing: 4) {
+            if running { RaySpinner(size: 9, color: color) }
+            Text(text).appFont(.system(size: 10.5, weight: .medium))
+        }
+        .foregroundStyle(color)
+        .padding(.horizontal, 7).padding(.vertical, 2.5)
+        .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(color.opacity(0.12)))
     }
 }
 
