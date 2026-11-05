@@ -40,15 +40,40 @@ public struct MessageQueue: Sendable, Equatable {
     public var running: Bool { active || awaitingStart }
     public private(set) var awaitingStart = false
     private var active = false
+    /// The turn's final reply has arrived; ARK may still be reading it aloud (2026-11-06).
+    private var replied = false
     private var stop = false
     private var failure = false
     public init() {}
 
     public mutating func turn(_ state: LoopState, chat: String? = nil) -> Outcome {
         let ended = active
-        active = state == .transcribing || state == .thinking || state == .speaking
+        switch state {
+        case .transcribing, .thinking:
+            replied = false
+            active = true
+        // Speech can start on the first sentence while the model still writes, so speaking holds input until the reply is in.
+        case .speaking: active = !replied
+        default: active = false
+        }
         if active { awaitingStart = false }
         guard state == .idle else { return .none }
+        replied = false
+        return settle(ended: ended, chat: chat)
+    }
+
+    /// The final reply arrived (Keshab, 2026-11-06: "once one message returns it's always on"). The answer is done even while ARK
+    /// reads it aloud: input is free now, and the next queued message goes at once. Sending stops the speech, as typing over ARK
+    /// always did; Stop still stops it too.
+    public mutating func replyDone(chat: String? = nil) -> Outcome {
+        guard active else { return .none }
+        active = false
+        replied = true
+        awaitingStart = false
+        return settle(ended: true, chat: chat)
+    }
+
+    private mutating func settle(ended: Bool, chat: String?) -> Outcome {
         let elsewhere = messages.contains { chat != nil && $0.chat != chat && $0.chat != "" }
         if stop || failure || elsewhere {
             stop = false

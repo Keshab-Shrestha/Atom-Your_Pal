@@ -1,5 +1,10 @@
 # ARK Task Plan
 
+## Chat free while ARK reads aloud — 6 November 2026
+
+- Fix: a typed reply kept the chat busy for 10 to 55 s while ARK read it aloud, so the next message waited and Stop stayed. The bug started on 2 November. Now the chat is free as soon as the reply text is in. ARK keeps reading. A new message stops the reading and starts the next turn. During the reading the Stop button says "Stop speaking". Fork and draft restore still wait for the reading to end, because the runtime refuses them until then.
+- Verified: `pnpm island:test` (962 pass, with a new MessageQueue test). Independent review: no blocking bug.
+
 ## Thinking pill and tool call rows — 5 November 2026
 
 - ADR-263: the chat's "Thinking" dots are now a pill with a spinner. Its label says what ARK does now ("Reading a file"). The work log's tool calls sit in one card, a row each, with a glyph, the plain words, the tool name, and a live timer, a check with the time, "Failed" or "Unknown". Ported from affectUI (MIT) as SwiftUI.

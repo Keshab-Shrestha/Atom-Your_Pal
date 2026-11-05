@@ -189,7 +189,8 @@ struct Composer: View {
     }
 
     @ViewBuilder private var sendControls: some View {
-        if answering { StopReplyButton { model.stopReply() } }
+        // While ARK only reads a finished reply aloud, the button stops the speech; typing and sending work meanwhile (2026-11-06).
+        if answering { StopReplyButton(title: model.status.kind == .speaking && !model.queue.running ? "Stop speaking" : "Stop the answer") { model.stopReply() } }
         if !answering || !empty {
             ComposerButton(empty: empty, listening: model.status.kind == .listening, hint: talkHint, queueing: model.queue.running, action: send)
         }
@@ -562,6 +563,7 @@ private struct QueuedRow: View {
 
 /// The composer's stop button: a filled square in a circle, in the place of the microphone while ARK answers.
 private struct StopReplyButton: View {
+    var title = "Stop the answer"
     let action: () -> Void
     @Environment(\.theme) private var theme
 
@@ -581,8 +583,8 @@ private struct StopReplyButton: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .help("Stop the answer")
-        .accessibilityLabel("Stop the answer")
+        .help(title)
+        .accessibilityLabel(title)
     }
 }
 

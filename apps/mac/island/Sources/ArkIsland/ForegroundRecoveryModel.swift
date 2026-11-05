@@ -48,7 +48,7 @@ extension IslandModel {
         }
     }
     func restoreForegroundDraft(_ record: ForegroundRecoveryResponse.Record) {
-        guard composerEmpty, chats?.currentReadOnlyNotice == nil, !queue.running, chatControls.mutation == nil,
+        guard composerEmpty, chats?.currentReadOnlyNotice == nil, !queue.running, !status.isBusy, chatControls.mutation == nil,
               !["prepared", "running"].contains(record.state), record.draftText.utf8.count <= 128 * 1024 else {
             recovery.notice = "Use an empty, writable, idle chat. Large input must be copied or shortened before restoring."
             return

@@ -33,6 +33,26 @@ struct MessageQueueTests {
         #expect(q.turn(.idle) == .none, "once")
     }
 
+    @Test func theReplyFreesInputWhileARKStillSpeaks() {
+        // 2026-11-06: speech starts on the first sentence, so speaking alone holds input; the final reply frees it.
+        var q = MessageQueue()
+        _ = q.turn(.thinking)
+        #expect(q.turn(.speaking) == .none && q.running, "speaking while the model still writes holds input")
+        #expect(q.replyDone(chat: "c1") == .none)
+        #expect(!q.running, "the answer is in: the next message goes at once, while ARK reads aloud")
+        #expect(q.turn(.speaking) == .none && !q.running, "a late speaking state does not hold input again")
+        #expect(q.turn(.idle) == .none, "the speech ending sends nothing")
+        // A message queued before the reply goes as soon as the reply is in, not when the speech ends.
+        _ = q.turn(.thinking)
+        let waiting = q.add(text: "next", files: files("/a"), chat: "c1")!
+        _ = q.turn(.speaking)
+        #expect(q.replyDone(chat: "c1") == .send(waiting))
+        #expect(q.replyDone(chat: "c1") == .none, "once")
+        // A new turn starts holding again.
+        _ = q.turn(.thinking)
+        #expect(q.turn(.speaking) == .none && q.running)
+    }
+
     @Test func followUpsStaySeparateAndWaitForTheirOwnTurns() {
         var q = MessageQueue()
         _ = q.turn(.thinking)
