@@ -23,6 +23,8 @@ final class IslandController {
     let voicePill: VoicePillController
     /// The short label beside Pal while it points.
     let pointLabel = PointLabelController()
+    /// A shape drawn over the place Pal points at (2026-11-05).
+    let drawOverlay = DrawOverlayController()
     let agentCursor = AgentCursorController()
     /// The ARK window (ADR-081).
     let helpersWindow: MainWindowController
@@ -204,6 +206,7 @@ final class IslandController {
         bubble.stop()
         strip.stop()
         pointLabel.stop()
+        drawOverlay.hide(animated: false)
         menuIcon.remove()
         for monitor in monitors { NSEvent.removeMonitor(monitor) }
         monitors = []
@@ -336,7 +339,10 @@ final class IslandController {
         if case .computerCursor(let x, let y) = event { agentCursor.move(x: x, y: y) }
         if case .computerEnd = event { agentCursor.end() }
         if case .state(.idle) = event { agentCursor.end() }
-        if case .computerPoint(let target) = event { startPointing(target) }
+        if case .computerPoint(let target) = event {
+            if let shape = target.shape { drawOverlay.show(target, shape: shape, palette: model.settings.theme.palette) } else { drawOverlay.hide() }
+            startPointing(target)
+        }
         if case .settingsOpen = event { // ADR-071: as if the user opened Settings by hand
             model.tab = .settings
             setExpanded(true)

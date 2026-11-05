@@ -49,13 +49,15 @@ extension IslandController {
         ])
     }
 
-    /// Development only (`ARK_POINT_DEMO="x,y,w,h,label;x,y,w,h,label"`): plays each place through the real event path,
+    /// Development only (`ARK_POINT_DEMO="x,y,w,h,label[|shape];x,y,w,h,label"`): plays each place through the real event path,
     /// 11 s apart, as the runtime would send them (Cua's coordinates: points, origin top-left of the main display).
     func playPointDemo(_ spots: String) {
         for (index, spot) in spots.split(separator: ";").enumerated() {
+            // The label may be followed by `|ring`, `|box`, `|underline` or `|arrow`: a shape drawn over the place.
             let parts = spot.split(separator: ",", maxSplits: 4).map(String.init)
             guard parts.count == 5, let x = Double(parts[0]), let y = Double(parts[1]), let w = Double(parts[2]), let h = Double(parts[3]) else { continue }
-            let target = PointTarget(x: x, y: y, w: w, h: h, label: parts[4])
+            let labelAndShape = parts[4].split(separator: "|", maxSplits: 1).map(String.init)
+            let target = PointTarget(x: x, y: y, w: w, h: h, label: labelAndShape.first ?? "", shape: labelAndShape.count > 1 ? DrawShape(rawValue: labelAndShape[1]) : nil)
             schedule([(3 + Double(index) * 11, { [self] in
                 trace("demo point \(target.label)")
                 apply(.state(.thinking))

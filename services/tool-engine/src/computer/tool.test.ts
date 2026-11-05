@@ -373,7 +373,7 @@ test("an unknown refusal still passes Cua's own message along", async () => {
 
 // ---- Pointing (ADR-054, Task 0.6.4)
 
-type Pointed = { x: number; y: number; w: number; h: number; label: string };
+type Pointed = { x: number; y: number; w: number; h: number; label: string; shape?: string };
 
 test("point sends the element's place on screen and a label to Pal, and clicks nothing", async () => {
   const pointed: Pointed[] = [];
@@ -1062,4 +1062,21 @@ test("the Return key and a line break may be allowed for the task; Quit, Delete 
   assert.match(s.asked[0]!.taskKey!, /^key:.+:return$/, "Return can be allowed for the task");
   assert.equal(s.asked[1]!.taskKey, undefined, "Quit always asks");
   assert.match(s.asked[2]!.taskKey!, /^linebreak:/, "a line break can be allowed for the task");
+});
+
+test("point may also draw a shape, only a known one, and still clicks nothing", async () => {
+  const pointed: Pointed[] = [];
+  const s = setup({ point: (p) => pointed.push(p) });
+  await sees(s);
+  const r = await s.run({ action: "point", element: 6, text: "here", shape: "ring" });
+  assert.equal(r.ok, true);
+  assert.match(r.text, /Drew a ring at/);
+  assert.equal(pointed[0]!.shape, "ring");
+  const bad = await s.run({ action: "point", element: 6, shape: "star" });
+  assert.equal(bad.ok, false);
+  assert.match(bad.text, /ring, box, underline or arrow/);
+  assert.equal(pointed.length, 1, "a bad shape draws nothing");
+  assert.deepEqual(s.calls.map((c) => c.name), ["list_apps", "list_windows", "get_window_state"], "nothing was clicked or typed");
+  await s.run({ action: "point", element: 6 });
+  assert.equal("shape" in pointed[1]!, false, "no shape: only the pointing, as before");
 });

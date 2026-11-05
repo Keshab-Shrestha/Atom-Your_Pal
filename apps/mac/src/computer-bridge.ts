@@ -27,7 +27,7 @@ export interface ComputerBridge {
   /** Full local review. Approval requires a token returned only by the detailed native review surface. */
   approveFileEdit(request: FileEditReview & { summary: string }, signal?: AbortSignal): Promise<boolean>;
   /** Passed to the computer tool as `onPoint`. False if there is no island to show it. */
-  point(target: { x: number; y: number; w: number; h: number; label: string }): boolean;
+  point(target: { x: number; y: number; w: number; h: number; label: string; shape?: "ring" | "box" | "underline" | "arrow" }): boolean;
   /** Task 2.x: the island opens its Settings page. False if there is no island. */
   openSettings(): boolean;
   /** Task 2.x: the island presses the Mac's play/pause key. False if there is no island. */
@@ -214,7 +214,7 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
     point(target) {
       if (!sendEvent) return false;
       const whole = (n: number) => Math.round(n);
-      sendEvent({ type: "computer.point", x: whole(target.x), y: whole(target.y), w: whole(target.w), h: whole(target.h), label: oneLine(target.label, 48) });
+      sendEvent({ type: "computer.point", x: whole(target.x), y: whole(target.y), w: whole(target.w), h: whole(target.h), label: oneLine(target.label, 48), ...(target.shape ? { shape: target.shape } : {}) });
       begin();
       scheduleEnd();
       return true;

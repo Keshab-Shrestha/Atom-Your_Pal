@@ -573,6 +573,23 @@ enum IslandGallery {
         save(sheet, name: name, to: directory)
         save(strip("Permission for one file", [thinking, askFile]).padding(24).background(theme.palette.surface.color), name: "\(name)-file-permission", to: directory)
         if name == "8-computer-control" {
+            // Draw on screen: each shape over a sample button, as the overlay draws it (the place padded by 8 points).
+            let drawn = HStack(spacing: 24) {
+                ForEach(DrawShape.allCases, id: \.self) { shape in
+                    ZStack(alignment: .topLeading) {
+                        RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.16)).frame(width: 110, height: 34)
+                            .overlay(Text("Send").font(.system(size: 13, weight: .medium)).foregroundStyle(.white))
+                            .offset(x: 80, y: 80)
+                        DrawShapeView(shape: shape, rect: CGRect(x: 72, y: 72, width: 126, height: 50), color: theme.palette.attention.color)
+                    }
+                    .frame(width: 240, height: 190, alignment: .topLeading)
+                }
+            }
+            .padding(24)
+            .background(LinearGradient(colors: [Color(red: 0.17, green: 0.21, blue: 0.31), Color(red: 0.26, green: 0.31, blue: 0.45)], startPoint: .top, endPoint: .bottom))
+            save(drawn, name: "8-computer-control-draw", to: directory)
+        }
+        if name == "8-computer-control" {
             let access = #"{"type":"approval.request","id":"access-1","summary":"Enable Full access for this chat?","accessChange":true,"reason":"Only this chat. Skip routine file overwrite, classified-command, worker-browser site-opening and already-granted plugin prompts. Plugins can act outside ARK's file sandbox. Protected files, tool/worker limits, sandboxing, cancellation and macOS permissions still apply. Plans, browser submissions/uploads/interactions, computer actions, shell previews and complete file reviews still ask. External-content safeguards remain. Stays on after restart; new and forked chats use Saved permissions. You can switch back when this chat is idle."}"#
             save(strip("Full access consent — complete scope", [thinking, access]).padding(24).background(theme.palette.surface.color), name: "34-full-access-confirmation", to: directory)
         }
