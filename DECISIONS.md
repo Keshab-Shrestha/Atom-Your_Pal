@@ -4618,6 +4618,24 @@ The computer tool had one session, one target window and one pointer. The swarm-
 - Not tried live end to end: no second controllable app window was open. Checked live: the main lane, a lane session, the idle reconnect, and the driver's parallel reads. The cursor drawing is shown in a gallery shot, not yet watched on screen.
 - ADR-242's start-again step stays. It helps only if a session ends while its connection is alive.
 
+## ADR-250 — Arrow pointers for the agent cursors (2026-11-05)
+
+### Context
+
+ARK's agent pointer was a pointing hand ("more stylish like fingertips", 2026-11-02). With cursor lanes (ADR-249), several pointers can show at once. The user asked for pointers like the swarm-cursors project: arrows, one colour for each, a name beside each.
+
+### Decision
+
+- The pointer is an arrow with a white outline and a soft gradient. The main pointer is ARK's teal. A lane's pointer is coral, violet or amber, and wears the lane's name in a small chip beside it.
+- The tip is still the point ARK acts on, at the same place in the panel, so the glide, the arrival ring and the "atTarget" check do not change.
+- Only the drawing changed. No protocol, runtime or tool change.
+
+### Consequences
+
+- The pointers read like multiplayer cursors, and several are easy to tell apart.
+- Two gallery goldens changed (`49-agent-cursor`, `50-agent-cursor-lanes`).
+- Checked live with two lanes: the coral "a" arrow showed in TextEdit while a ring marked a link in Brave.
+- During the live check a second TextEdit window was open, and the driver reported 0 of 18 characters typed although the text arrived. That is the driver's check with two windows of one app, not the pointer.
 ## ADR-251 — A lane's step starts no pointer by itself (2026-11-05)
 
 ### Context
