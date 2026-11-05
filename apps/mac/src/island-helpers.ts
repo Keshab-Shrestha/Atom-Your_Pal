@@ -113,11 +113,15 @@ export function islandHelpers(
   now: () => Date = () => new Date(),
   /** Offered Codex models only, independent of the current global/chat provider. */
   codexModels: () => { id: string; name: string }[] = () => [],
+  /** 2026-11-05 (org.ts): who reports to whom; absent: every agent reports to ARK and `helper.reportsTo` is refused. */
+  org?: { map(): Readonly<Record<string, string>>; set(helper: string, lead: string | null): void },
 ): IslandHelpers {
   return {
-    list: () =>
-      store.list().map((h) => ({
+    list: () => {
+      const reportsTo = org?.map() ?? {};
+      return store.list().map((h) => ({
         ...h,
+        ...(reportsTo[h.id] ? { reportsTo: reportsTo[h.id] } : {}),
         soulVersions: h.soulVersions.map((v) => ({ version: v.version, createdAt: v.createdAt.toISOString() })),
         routines: h.routines.map((r) => ({
           id: r.id,
@@ -135,7 +139,9 @@ export function islandHelpers(
           return { id: p.id, field: p.field, text: p.text, reason: p.reason, jobId: p.jobId, state: p.state, createdAt: p.createdAt.toISOString(), ...(tests ? { tests } : {}) };
         }),
         jobs: h.jobs.map((job) => toJobItem(job)),
-      })),
+      }));
+    },
+    ...(org ? { setReportsTo: (helper: string, lead: string | null) => org.set(helper, lead) } : {}),
     apps: async () => [...(await apps())].sort((a, b) => a.localeCompare(b)),
     setApp: (helper, app) => store.setApp(helper, app),
     addJob: (helper, task, blockedBy, planFirst) =>

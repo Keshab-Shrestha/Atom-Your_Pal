@@ -105,6 +105,7 @@ import { createAppStore, createAppTool, createBridge } from "./ark-apps.ts";
 import { createWatchRunner, createWatchStore, createWatchTool } from "./watches.ts";
 import { readPublicPage } from "./public-page.ts";
 import { webFetchProblem } from "./web-guard.ts";
+import { createOrgStore, orgAgentIds, orgPrompt } from "./org.ts";
 import { createWorkflowStore, dueWorkflows, eventWorkflows, workflowPrompt, type Workflow, type WorkflowEvent } from "./workflows.ts";
 import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
 import { testMcpServer } from "./mcp-servers.ts";
@@ -795,8 +796,17 @@ export function createRuntime(
   // Core, the Telegram chat's, the API's and each routine's.
   // `composed`: Telegram and the API, whose text goes to Claude Code as written.
   // Phase N2: the sub-agents of each native chat session; their Board rows, safety, worktrees and skills.
+  // 2026-11-05 (org.ts): who reports to whom. A change reaches open sessions as a new agent does: each restarts when idle.
+  const org = helpers && generatedImages
+    ? createOrgStore(join(dirname(generatedImages), "org.json"), () => orgAgentIds(helpers.list()), (message) => log.warn("org.unreadable", { message }))
+    : undefined;
+  const orgChanged = () => nativeCores.forEach((c) => c.restartWhenIdle());
+  const islandOrg = org && { map: () => org.map(), set: (helper: string, lead: string | null) => { org.set(helper, lead); orgChanged(); } };
+  // A removed agent's reports move up to its own lead (or ARK) in the file too, so nothing passes to a new agent with its id.
+  helpers?.onChange((change) => { if (change.action === "agent" && !change.added && org?.prune()) orgChanged(); });
   const nativeTeam = helpers && {
     helpers,
+    ...(org ? { org: () => orgPrompt(org.map(), (id: string) => helpers.list().find((h) => h.id === id)?.name) } : {}),
     approve: (request: { summary: string; reason: string; reasonMax?: number }, signal?: AbortSignal) => computer.approve(request, signal),
     approveFile: (request: { summary: string; reason: string }, signal?: AbortSignal) => computer.approveFile(request, signal),
     approveFileEdit: (request: import("./computer-bridge.ts").FileEditReview & { summary: string }, signal?: AbortSignal) => computer.approveFileEdit(request, signal),
@@ -1523,7 +1533,7 @@ export function createRuntime(
     islandSlashCommands: { list: () => listCommands(userCommandsDir()) },
     islandSkillFiles: { read: (name) => readSkillFile(name, userSkillsDir(), skillsDir), write: (name, text) => writeSkillFile(name, text, userSkillsDir(), skillsDir) },
     ...(helpers ? { islandHelpers: warmOnOpen(withPaperclip(paperclip, paperclipListeners, {
-            ...islandHelpers(helpers, installedApps, planModels, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name))), undefined, codexWorkerModels),
+            ...islandHelpers(helpers, installedApps, planModels, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name))), undefined, codexWorkerModels, islandOrg),
             hub: createHubCommands({ store: helpers, log }), // B3.5
             // ADR-110 N5: no legacy runner starts a queued task, so the page's task field and Retry hand it to the main agent.
             addJob: (helper: string, task: string) => {

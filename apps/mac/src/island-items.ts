@@ -511,6 +511,8 @@ export interface HelperItem {
   planFirst: boolean;
   /** ADR-098: its runs get the browser (default false). */
   browser?: boolean;
+  /** 2026-11-05 (org.ts): the id of the agent it reports to (its lead); absent: it reports to ARK. */
+  reportsTo?: string;
   /**
    * Task 3.9: its routines: `when` in words ("Every day at 8:00 AM"), when it last came due, and whether that was skipped.
    * ADR-094: whether it is paused, and when it next comes due (absent while paused).

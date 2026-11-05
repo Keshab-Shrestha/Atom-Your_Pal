@@ -55,7 +55,7 @@ public enum OfficeMap {
     /// lounge's wall by its door (above the pals' "!" and bubbles), in map units. Drawn only when someone is left out;
     /// a click opens "All agents".
     public static let atWorkSign = CGRect(x: 287, y: 77, width: 30, height: 15)
-    public static let loungeSign = CGRect(x: 226, y: 84, width: 30, height: 15)
+    public static let loungeSign = CGRect(x: 226, y: 93, width: 30, height: 15) // y 84 sat on the desk row (hand check 2026-11-05)
 
     /// Tiles nobody walks on: furniture, and Pal's office (Pal stays at its desk).
     public static let blocked: Set<Tile> = {

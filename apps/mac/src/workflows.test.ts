@@ -63,3 +63,25 @@ test("workflowNextAt gives the next run of a published schedule workflow only", 
   assert.equal(workflowNextAt({ ...base, enabled: true, trigger: { kind: "manual" as const } }, now), undefined);
   assert.equal(workflowNextAt({ ...base, enabled: true, trigger: { kind: "event" as const, event: "task.failed" as const } }, now), undefined);
 });
+
+test("layout keeps canvas positions of known nodes, rounded and clamped, and drops junk", () => {
+  const w = checkWorkflow({ ...base, layout: {
+    trigger: { x: 10.4, y: -3.6 }, "0": { x: 250000, y: -250000 }, "1": { x: 5, y: 6 },
+    "2": { x: 1, y: 1 }, "01": { x: 1, y: 1 }, nope: { x: 1, y: 1 }, "7": { x: 1, y: 1 },
+  } }, agents);
+  assert.deepEqual(w.layout, { trigger: { x: 10, y: -4 }, "0": { x: 100000, y: -100000 }, "1": { x: 5, y: 6 } }, "index 2 and 7 are past the 2 steps");
+  const junk = checkWorkflow({ ...base, layout: { trigger: { x: "1", y: 2 }, "0": { x: Infinity, y: 0 }, "1": { x: Number.NaN, y: 0 }, "": null } }, agents);
+  assert.equal("layout" in junk, false, "empty: omitted");
+  assert.equal("layout" in checkWorkflow({ ...base, layout: [1, 2] }, agents), false);
+});
+
+test("layout survives save, list and markRun", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ark-workflows-"));
+  const path = join(dir, "workflows.json");
+  try {
+    const store = createWorkflowStore(path, () => agents);
+    const [saved] = store.save({ ...base, layout: { trigger: { x: 0, y: 0 }, "1": { x: 300, y: 40 } } });
+    store.markRun(saved!.id, new Date("2026-11-05T00:00:00Z"));
+    assert.deepEqual(createWorkflowStore(path, () => agents).list()[0]!.layout, { trigger: { x: 0, y: 0 }, "1": { x: 300, y: 40 } });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

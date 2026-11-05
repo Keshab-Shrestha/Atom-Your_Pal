@@ -16,7 +16,7 @@ struct WorkspaceNavigationRail: View {
     /// ADR-259: the height one captioned rail item takes (glyph, caption and gap), and what the rail needs besides its items.
     private static let captionedItem: CGFloat = 60
     /// The logo, the account avatar, the drop strips, the gaps and the padding (measured 2026-11-05: a 130 pt guess clipped a caption).
-    private static let railChrome: CGFloat = 200
+    private static let railChrome: CGFloat = 214 // +14: the Home logo has a caption too (hand check 2026-11-05)
 
     /// Captions only when every item fits with them; a short window gets the glyphs alone, with names on hover.
     private func captionsFit(_ height: CGFloat) -> Bool {
@@ -152,7 +152,7 @@ struct WorkspaceNavigationRail: View {
 
     private func destination(_ item: SidebarItem) -> (title: String, symbol: String, selected: Bool) {
         switch item {
-        case .dashboard: ("Dashboard", "chart.bar.xaxis", model.windowPage == .dashboard)
+        case .dashboard: ("Home", "chart.bar.xaxis", model.windowPage == .dashboard)
         case .board: ("Board", "rectangle.split.3x1", model.windowPage == .agents)
         case .scheduled: ("Scheduled", "calendar", model.windowPage == .scheduled)
         case .workflows: ("Workflows", "point.3.connected.trianglepath.dotted", model.windowPage == .workflows)
@@ -219,9 +219,9 @@ private struct WorkspaceRailButton: View {
         }
     }
 
-    /// ADR-259: pages carry a small caption under the glyph, so the rail reads without hovering. The logo and app tiles do not
-    /// (an app's name floats out on hover, as before).
-    private var showsCaption: Bool { !appIcon && letter == nil && railCaptions }
+    /// ADR-259: pages carry a small caption under the glyph, so the rail reads without hovering. The Home logo too (hand check
+    /// 2026-11-05: it was the only page without one). App tiles do not (an app's name floats out on hover, as before).
+    private var showsCaption: Bool { letter == nil && railCaptions }
     @Environment(\.railCaptions) private var railCaptions
 
     var body: some View {

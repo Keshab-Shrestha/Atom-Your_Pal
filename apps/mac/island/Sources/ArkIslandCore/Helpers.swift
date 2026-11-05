@@ -80,6 +80,8 @@ public struct Helper: Sendable, Equatable, Identifiable {
     /// ADR-088: what it may use ("research", "folders", "think"; nil from an older runtime), and whether Keshab added it.
     public var kit: String?
     public var custom: Bool
+    /// Org chart (2026-11-05): the agent it reports to (its lead); nil reports to ARK. An agent others report to is a lead.
+    public var reportsTo: String?
     /// The coder, designer and documenter work in folders Keshab grants.
     public var worksInFolders: Bool { kit.map { $0 == "folders" } ?? ["coder", "designer", "documenter"].contains(role) }
     /// ADR-088: the kit in words.
@@ -94,7 +96,8 @@ public struct Helper: Sendable, Equatable, Identifiable {
     public init(id: String, name: String, available: Bool, app: String?, jobs: [HelperJob], pinnedModel: String? = nil,
                 role: String = "", soul: HelperSoul? = nil, soulVersion: Int = 1, soulVersions: [SoulVersion] = [],
                 planFirst: Bool = false, routines: [HelperRoutine] = [], grants: [String] = [], skills: [String] = [], proposals: [SoulProposal] = [], kit: String? = nil, custom: Bool = false,
-                browser: Bool = false, codexPinnedModel: String? = nil, paused: Bool = false) {
+                browser: Bool = false, codexPinnedModel: String? = nil, paused: Bool = false, reportsTo: String? = nil) {
+        self.reportsTo = reportsTo
         self.id = id
         self.name = name
         self.available = available

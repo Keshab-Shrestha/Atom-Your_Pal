@@ -179,6 +179,11 @@ enum OfficeDrawing {
         g.fill(shape, with: .color(.white))
         g.stroke(shape, with: .color(line.opacity(0.9)), lineWidth: 0.5)
     }
+    /// The "Needs you" board with nothing on it says so (hand check 2026-11-05: an empty box read as missing content).
+    static func allClear(_ g: GraphicsContext) {
+        label(g, "All clear", 168, 13, size: 3, opacity: 0.55)
+    }
+
     static func note(_ g: GraphicsContext, index: Int, x: CGFloat, y: CGFloat) {
         g.fill(box(x, y, 5, 5, 0.6), with: .color(index % 2 == 0 ? amber : live))
         g.fill(box(x + 1, y + 1.8, 3, 0.6, 0.3), with: .color(.black.opacity(0.4)))

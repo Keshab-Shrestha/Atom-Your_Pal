@@ -21,6 +21,8 @@ export interface Workflow {
   steps: WorkflowStep[];
   createdAt: string;
   lastRunAt?: string;
+  /** 2026-11-05: where the window's canvas draws each node: "trigger" or a step index ("0".."7"). Absent when empty. */
+  layout?: Record<string, { x: number; y: number }>;
 }
 
 export const MAX_WORKFLOWS = 20;
@@ -28,6 +30,8 @@ export const MAX_STEPS = 8;
 export const MAX_NAME = 80;
 export const MAX_TASK = 2000;
 const EVENTS: readonly WorkflowEvent[] = ["task.failed", "task.done"];
+/** The farthest a canvas node may sit from the origin, in points. */
+export const MAX_LAYOUT = 100_000;
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const text = (v: unknown, max: number, what: string): string => {
@@ -35,6 +39,18 @@ const text = (v: unknown, max: number, what: string): string => {
   if (v.length > max) throw new Error(`${what} is longer than ${max} characters.`);
   return v.trim();
 };
+
+/** The canvas positions worth keeping: known node keys with finite numbers, rounded and clamped. Anything else is dropped. */
+function checkLayout(input: unknown, steps: number): Workflow["layout"] {
+  if (!isObject(input)) return undefined;
+  const coord = (v: unknown) => Math.min(MAX_LAYOUT, Math.max(-MAX_LAYOUT, Math.round(v as number)));
+  const kept = Object.entries(input).flatMap(([key, p]) => {
+    if (key !== "trigger" && !(/^[0-7]$/.test(key) && Number(key) < steps)) return [];
+    if (!isObject(p) || !Number.isFinite(p.x) || !Number.isFinite(p.y)) return [];
+    return [[key, { x: coord(p.x), y: coord(p.y) }] as const];
+  });
+  return kept.length ? Object.fromEntries(kept) : undefined;
+}
 
 /** A workflow from the window, checked: a name, a known trigger, 1 to 8 steps, each with an agent that exists and a task. */
 export function checkWorkflow(input: unknown, agents: readonly string[], now = new Date()): Workflow {
@@ -53,10 +69,12 @@ export function checkWorkflow(input: unknown, agents: readonly string[], now = n
     return { helper: step.helper, task: text(step.task, MAX_TASK, `Step ${i + 1}'s task`) };
   });
   const id = typeof input.id === "string" && /^[a-z0-9-]{1,40}$/.test(input.id) ? input.id : randomUUID().slice(0, 8);
+  const layout = checkLayout(input.layout, steps.length);
   return {
     id, name: text(input.name, MAX_NAME, "The name"), enabled: input.enabled === true, trigger: checked, steps,
     createdAt: typeof input.createdAt === "string" && !Number.isNaN(Date.parse(input.createdAt)) ? input.createdAt : now.toISOString(),
     ...(typeof input.lastRunAt === "string" && !Number.isNaN(Date.parse(input.lastRunAt)) ? { lastRunAt: input.lastRunAt } : {}),
+    ...(layout ? { layout } : {}),
   };
 }
 

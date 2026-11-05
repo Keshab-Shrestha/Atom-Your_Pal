@@ -193,6 +193,7 @@ export type IslandCommand =
   | { type: "job.delete"; id: number }
   | { type: "helper.pin"; helper: string; model: string }
   | { type: "helper.codex.pin"; helper: string; model: string }
+  | { type: "helper.reportsTo"; helper: string; lead: string | null }
   | { type: "helpers.settings"; allowLarge?: boolean }
   /** The Settings default for computer input: foreground fronts the target window for each action. */
   | { type: "computer.decisions"; provider: "off" | "jev" | "laya"; backup: boolean }
@@ -338,6 +339,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "job.delete",
   "helper.pin",
   "helper.codex.pin",
+  "helper.reportsTo",
   "helpers.settings",
   "computer.mode",
   "computer.decisions",
@@ -702,6 +704,14 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof helper !== "string" || helper === "") return { error: 'helper.pin needs a "helper" string.' };
     if (typeof model !== "string") return { error: 'helper.pin needs a "model" string ("" to let Laya choose).' };
     return { command: { type, helper, model } };
+  }
+  if (type === "helper.reportsTo") {
+    if (Object.keys(value).some((key) => !["type", "helper", "lead"].includes(key))) return { error: "helper.reportsTo contains unsupported fields." };
+    const { helper, lead } = value as { helper?: unknown; lead?: unknown };
+    const isAgentId = (v: unknown): v is string => typeof v === "string" && /^[a-z][a-z0-9-]{0,39}$/.test(v);
+    if (!isAgentId(helper)) return { error: "helper.reportsTo needs a valid helper id." };
+    if (lead !== null && !isAgentId(lead)) return { error: 'helper.reportsTo needs "lead": a helper id, or null to report to ARK.' };
+    return { command: { type, helper, lead } };
   }
   if (type === "helper.codex.pin") {
     if (Object.keys(value).some((key) => !["type", "helper", "model"].includes(key))) return { error: "helper.codex.pin contains unsupported fields." };

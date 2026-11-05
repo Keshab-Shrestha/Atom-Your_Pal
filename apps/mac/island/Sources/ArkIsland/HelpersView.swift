@@ -167,7 +167,7 @@ extension HelpersView {
 
     static func page(_ model: IslandModel) -> (title: String, symbol: String) {
         switch model.windowPage {
-        case .dashboard: return ("Dashboard", "chart.bar.xaxis")
+        case .dashboard: return ("Home", "chart.bar.xaxis") // one name: the rail says Home (hand check 2026-11-05)
         case .chat:
             let chats = model.chats
             return (chats?.chats.first { $0.id == chats?.current }?.title ?? "New chat", "bubble.left.and.text.bubble.right")
@@ -184,8 +184,8 @@ extension HelpersView {
         if model.helpers.isCreatingAgent { return ("New agent", "person.badge.plus") }
         if model.helpers.openJobId != nil { return ("Task", "text.page") }
         if model.helpers.showsBoard {
-            let view = model.boardView == .overview || model.boardView == .needsYou ? " · " + model.boardView.title : ""
-            return ("Board" + view, "square.grid.2x2")
+            // ADR-260: the view's own heading names it; the bar says Board only (hand check 2026-11-05: Activity showed twice).
+            return ("Board", "square.grid.2x2")
         }
         if let helper = model.helpers.selectedHelper {
             return (helper.roleTitle.isEmpty ? helper.name : "\(helper.name) · \(helper.roleTitle)", "person.crop.circle")

@@ -211,7 +211,9 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
 
     /// A short name for the task in other tasks' "Waits for": its report's title, else its own words.
     public var shortTitle: String {
-        let text = title ?? task
+        // A work-plan portion is titled only "P1", "P2"…: add its task so a list row says what it was (hand check 2026-11-05).
+        let bare = title.map { $0.range(of: #"^P\d+$"#, options: .regularExpression) != nil } ?? false
+        let text = bare ? "\(title!): \(task)" : (title ?? task)
         return text.count > 48 ? String(text.prefix(47)) + "…" : text
     }
 

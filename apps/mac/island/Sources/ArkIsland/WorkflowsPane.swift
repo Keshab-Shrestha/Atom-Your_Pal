@@ -6,10 +6,24 @@ import ArkIslandCore
 struct WorkflowsPane: View {
     let model: IslandModel
     @State private var editing: Workflow?
+    /// The workflow open on the canvas (2026-11-05); nil shows the list.
+    @State private var opened: String?
     @Environment(\.theme) private var theme
 
     var body: some View {
         let list = model.workflows?.workflows ?? []
+        Group {
+            if let id = opened, let flow = list.first(where: { $0.id == id }) {
+                WorkflowCanvas(model: model, flow: flow, close: { opened = nil }, edit: { editing = $0 })
+            } else {
+                listView(list)
+            }
+        }
+        .onAppear { model.send(.workflowsList) }
+        .sheet(item: $editing) { flow in WorkflowEditor(model: model, draft: flow).themed(theme) }
+    }
+
+    private func listView(_ list: [Workflow]) -> some View {
         Scrollable {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .top) {
@@ -33,8 +47,6 @@ struct WorkflowsPane: View {
             }
             .padding(24)
         }
-        .onAppear { model.send(.workflowsList) }
-        .sheet(item: $editing) { flow in WorkflowEditor(model: model, draft: flow).themed(theme) }
     }
 
     private var agents: [Helper] { (model.helpers.list?.helpers ?? []).filter { $0.role != "improver" } }
@@ -59,7 +71,9 @@ struct WorkflowsPane: View {
                     node(symbol: "\(index + 1).circle", title: "\(name(step.helper)): \(step.task)", accent: false)
                 }
             }
+            .contentShape(Rectangle()).onTapGesture { opened = flow.id }
             HStack(spacing: 8) {
+                QuietButton(title: "Open canvas", symbol: "square.grid.3x3") { opened = flow.id }
                 QuietButton(title: "Test run", symbol: "play") { model.send(.workflowRun(id: flow.id)) }
                 QuietButton(title: flow.enabled ? "Unpublish" : "Publish", symbol: flow.enabled ? "pause" : "paperplane") {
                     var changed = flow; changed.enabled.toggle(); model.send(.workflowSave(changed))
@@ -91,7 +105,7 @@ extension ISO8601DateFormatter {
 }
 
 /// New or Edit: the name, the trigger and up to eight steps. Save keeps a draft as a draft; publishing is on the card.
-private struct WorkflowEditor: View {
+struct WorkflowEditor: View {
     let model: IslandModel
     @State var draft: Workflow
     @Environment(\.dismiss) private var dismiss
@@ -120,7 +134,7 @@ private struct WorkflowEditor: View {
                     Text("\(i + 1)").appFont(.system(size: 12, design: .monospaced)).foregroundStyle(theme.text3.color).padding(.top, 6)
                     Picker("", selection: $draft.steps[i].helper) { ForEach(agents) { Text($0.name).tag($0.id) } }.labelsHidden().frame(width: 140)
                     TextField("What this agent does", text: $draft.steps[i].task, axis: .vertical).textFieldStyle(.roundedBorder).lineLimit(1...4)
-                    Button { draft.steps.remove(at: i) } label: { Glyph(systemName: "minus.circle") }.buttonStyle(.plain).disabled(draft.steps.count == 1)
+                    Button { removeStep(i) } label: { Glyph(systemName: "minus.circle") }.buttonStyle(.plain).disabled(draft.steps.count == 1)
                         .accessibilityLabel("Remove step \(i + 1)")
                 }
             }
@@ -134,6 +148,16 @@ private struct WorkflowEditor: View {
             }
         }
         .padding(24).frame(width: 560).floatingSurface()
+    }
+
+    /// Removes a step; the canvas places of the steps after it move up one index with them.
+    private func removeStep(_ i: Int) {
+        draft.steps.remove(at: i)
+        guard let layout = draft.layout else { return }
+        draft.layout = Dictionary(uniqueKeysWithValues: layout.compactMap { key, point -> (String, Workflow.Point)? in
+            guard let n = Int(key) else { return (key, point) }
+            return n == i ? nil : (n > i ? String(n - 1) : key, point)
+        })
     }
 
     private var choice: TriggerChoice {

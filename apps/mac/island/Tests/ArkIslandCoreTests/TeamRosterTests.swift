@@ -90,8 +90,13 @@ struct TeamChipsTests {
 
 @Suite("Office floor seats (ADR-094)")
 struct FloorSeatingTests {
+    /// Seats of agents at work (idle ones past the lounge also sit at the meeting table; see `meeting`).
     func desks(_ plan: OfficePlan) -> [String: Int] {
-        Dictionary(uniqueKeysWithValues: plan.seats.compactMap { s in if case .desk(let d) = s.spot { (s.helperId, d) } else { nil } })
+        Dictionary(uniqueKeysWithValues: plan.seats.compactMap { s in if case .desk(let d) = s.spot, s.animation == "working" { (s.helperId, d) } else { nil } })
+    }
+
+    func meeting(_ plan: OfficePlan) -> [String] {
+        plan.seats.compactMap { s in if case .desk = s.spot, s.animation != "working" { s.helperId } else { nil } }
     }
 
     func lounge(_ plan: OfficePlan) -> [String] {
@@ -137,6 +142,7 @@ struct FloorSeatingTests {
         for i in [2, 14, 26] { team[i].jobs = [job(i + 1, .running, minutesAgo: Double(50 - i))] } // 2, then 14, then 26
         let before = desks(OfficePlan(list: list(team), now: now))
         #expect(before == ["a2": 2, "a14": 3, "a26": 4], "a14's own seat (14 % 12 = 2) is taken: the next free one")
+        #expect(meeting(OfficePlan(list: list(team), now: now)).count == 4, "idle ones past the lounge fill the meeting table")
         // Someone starts later: the earlier ones keep their seats.
         team[5].jobs = [job(99, .running, minutesAgo: 1)]
         let after = desks(OfficePlan(list: list(team), now: now))
@@ -153,7 +159,7 @@ struct FloorSeatingTests {
             team[i].jobs = [held]
         }
         let plan = OfficePlan(list: list(team), now: now)
-        #expect(plan.seats.count == 10 && plan.moreIdle == 5 && plan.needsYou == 15)
+        #expect(plan.seats.count == 14 && plan.moreIdle == 1 && plan.needsYou == 15, "ten in the lounge, four at the meeting table")
     }
 }
 

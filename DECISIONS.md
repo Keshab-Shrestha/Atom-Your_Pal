@@ -4832,3 +4832,40 @@ The audit (`docs/ui-audit-2026-11-05.md`, item A5) found that the window's top b
 
 - Each page says its name once. The content starts 12 pt higher.
 - Goldens of those pages changed.
+
+## ADR-261 — Team levels and chain of command (2026-11-05)
+
+### Context
+
+Keshab wants to see the levels of the team like an office: CEO, managers and workers. He chose two things: the Board shows the levels, and the levels change how ARK routes work. ADR-095 had Manager files. ADR-110 N5 removed Manager runs for token cost, and ARK no longer reads those files. The Claude Agent SDK does not let a sub-agent start another sub-agent.
+
+### Decision
+
+- Any agent can report to another agent, its lead. An agent without a lead reports to ARK. ARK is the CEO. An agent with reports is a Lead. An agent without reports is a Worker.
+- The runtime keeps the chart in `data/org.json` (`{ version: 1, reportsTo: { agent: lead } }`, owner-only, written whole). The command `helper.reportsTo { helper, lead | null }` changes it. The runtime refuses an unknown agent, an agent that leads itself, a loop, and a chart deeper than 4 levels below ARK. A removed agent's reports move up to its own lead.
+- The `helpers` event carries `reportsTo` for each agent. The window mirrors the rules in `OrgChart.swift`, so it refuses a bad drop before it sends it.
+- Chain of command: when the chart has at least one lead, ARK's system prompt gets one team line and one rule. Work in a lead's area goes through the lead: `plan_work` with a first portion for the lead (split and assign), portions for its people, then a last portion for the lead to review. Small single-step work can go straight to a worker. The text is sorted, so it changes only when the chart changes. An empty chart adds no tokens. A change restarts each open session when it is idle (`restartWhenIdle`).
+- No Manager runs come back. The lead is an ordinary agent that gets portions in a plan.
+
+### Consequences
+
+- The Team view shows the real levels, and Keshab changes them by drag and drop.
+- A lead's portions cost model calls only when ARK uses the lead for planning or review.
+- The old Manager files in `data/agents/` stay unread.
+
+## ADR-262 — An endless board for the Team and for Workflows (2026-11-05)
+
+### Context
+
+Keshab asked for an infinite board for the Team and for Workflows, with n8n's editor as the reference. ARK uses n8n as a design reference only. ARK copies no n8n code.
+
+### Decision
+
+- `InfiniteCanvas.swift` is one shared board: a dotted grid, pan by drag or two-finger scroll, zoom by pinch or Command-scroll around the pointer, and Fit, Zoom in, Zoom out and 100% at the bottom left. It reads scroll events only while the pointer is over it.
+- Team: the org chart is on the board. Drag an agent onto a lead to move it to that team. Drop it on ARK to report to ARK.
+- Workflows: "Open canvas" shows the trigger and the steps as nodes with ports and curved links. Drag a node to move it. ARK saves the node centres in the workflow's `layout` (`"trigger"` or a step index, rounded, clamped to ±100000). "+" adds a step. Test run is at the bottom. Removing a step in the editor moves the later steps' places up by one.
+
+### Consequences
+
+- The Team and a workflow fit any size, and Keshab sees all of each.
+- A saved layout is in `data/workflows.json`. An older runtime drops the field and the nodes go back to a row.

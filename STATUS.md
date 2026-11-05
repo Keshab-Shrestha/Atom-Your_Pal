@@ -1,5 +1,15 @@
 # ARK Project Status
 
+## Hand check fixes, team levels and endless boards — 5 November 2026
+
+- Hand check fixes: the Home logo has a caption, and the page is called Home. The Board's top bar says Board only. A plan portion's title "P1" shows its task too. Activity's Today shows the tokens and says when Claude has not reported the plan's use.
+- Flow: the task inspector is 560 pt wide. Drag its left edge to change the width. A button opens the task as a full page.
+- Studio: idle agents past the lounge sit at the free meeting seats before the "+N more" sign shows. The sign no longer sits on the desk row. An empty Needs you board says "All clear".
+- Team levels and chain of command (ADR-261): agents report to ARK or to a lead, stored in `data/org.json`. ARK routes work in a lead's area through the lead.
+- Endless boards (ADR-262): the Team org chart and each workflow are on a pan and zoom board. Workflow nodes are draggable, and ARK saves their places.
+- Verified: `pnpm typecheck`, `pnpm test` (1437 pass, 0 fail) and `pnpm island:test` (960 pass). Fixture renders of Team, Activity, Studio, Workflows and the workflow canvas were checked in dark and light.
+- Not done: no signed app build, and no live check in Keshab's ARK. The routing rule is not yet tested with a real model run.
+
 ## ARK rename, redesign and new views — 1 and 2 November 2026
 
 - Tests: four TypeScript and six Swift checks were out of date and now match the code. `pnpm check` runs typecheck, the TypeScript tests and the Swift tests. CI runs on every branch push. The smoke test waits 120 s for the runtime.

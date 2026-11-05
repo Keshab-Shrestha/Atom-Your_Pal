@@ -1083,6 +1083,12 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "helper.pin":
         changeHelpers(command.type, (helpers) => helpers.pin(command.helper, command.model));
         return;
+      case "helper.reportsTo":
+        changeHelpers(command.type, (helpers) => {
+          if (!helpers.setReportsTo) throw new Error("The team chart is unavailable in this runtime.");
+          helpers.setReportsTo(command.helper, command.lead);
+        });
+        return;
       case "helper.codex.pin":
         changeHelpers(command.type, (helpers) => {
           if (!helpers.pinCodex) throw new Error("Codex worker model pins are unavailable in this runtime.");
