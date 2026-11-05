@@ -11,9 +11,14 @@ public struct ImprovementNote: Sendable, Equatable, Identifiable {
     public var severity: Int
     public var why: String
     public var change: String
+    /// The user pressed Fix it: ARK now judges the log by what happens after.
+    public var fixing: Bool
+    /// It was marked fixed or gone, and then came back.
+    public var cameBack: Bool
 
-    public init(id: String, title: String, evidence: String, severity: Int, why: String, change: String) {
+    public init(id: String, title: String, evidence: String, severity: Int, why: String, change: String, fixing: Bool = false, cameBack: Bool = false) {
         self.id = id; self.title = title; self.evidence = evidence; self.severity = severity; self.why = why; self.change = change
+        self.fixing = fixing; self.cameBack = cameBack
     }
 
     /// The first message of a chat that talks the note through. The user sends it; nothing is sent by itself.
@@ -25,7 +30,25 @@ public struct ImprovementNote: Sendable, Equatable, Identifiable {
     public static func list(from value: Any?) -> [ImprovementNote] {
         (value as? [Any] ?? []).compactMap { entry in
             guard let n = entry as? [String: Any], let id = n["id"] as? String, let title = n["title"] as? String, let evidence = n["evidence"] as? String else { return nil }
-            return ImprovementNote(id: id, title: title, evidence: evidence, severity: n["severity"] as? Int ?? 1, why: n["why"] as? String ?? "", change: n["change"] as? String ?? "")
+            return ImprovementNote(id: id, title: title, evidence: evidence, severity: n["severity"] as? Int ?? 1, why: n["why"] as? String ?? "", change: n["change"] as? String ?? "", fixing: n["fixing"] as? Bool ?? false, cameBack: n["cameBack"] as? Bool ?? false)
+        }
+    }
+}
+
+/// A note whose problem stopped: "fixed" after Fix it, "went-away" by itself (ADR-241).
+public struct ResolvedNote: Sendable, Equatable, Identifiable {
+    public var id: String
+    public var title: String
+    public var how: String
+
+    public init(id: String, title: String, how: String) { self.id = id; self.title = title; self.how = how }
+
+    public var line: String { how == "fixed" ? "Fixed: \(title)" : "Went away: \(title)" }
+
+    public static func list(from value: Any?) -> [ResolvedNote] {
+        (value as? [Any] ?? []).compactMap { entry in
+            guard let r = entry as? [String: Any], let id = r["id"] as? String, let title = r["title"] as? String else { return nil }
+            return ResolvedNote(id: id, title: title, how: r["how"] as? String ?? "went-away")
         }
     }
 }
@@ -35,10 +58,14 @@ public struct ImprovementsState: Sendable, Equatable {
     public var running: Bool
     public var lastRunAt: Date?
     public var notes: [ImprovementNote]
+    public var resolved: [ResolvedNote]
 
-    public init(enabled: Bool = true, running: Bool = false, lastRunAt: Date? = nil, notes: [ImprovementNote] = []) {
-        self.enabled = enabled; self.running = running; self.lastRunAt = lastRunAt; self.notes = notes
+    public init(enabled: Bool = true, running: Bool = false, lastRunAt: Date? = nil, notes: [ImprovementNote] = [], resolved: [ResolvedNote] = []) {
+        self.enabled = enabled; self.running = running; self.lastRunAt = lastRunAt; self.notes = notes; self.resolved = resolved
     }
+
+    /// The most recent few that stopped, for the quiet line under the notes.
+    public var recentlyResolved: [ResolvedNote] { Array(resolved.prefix(3)) }
 
     /// Worst first, at most three: Home never shows a wall of warnings.
     public var shown: [ImprovementNote] {

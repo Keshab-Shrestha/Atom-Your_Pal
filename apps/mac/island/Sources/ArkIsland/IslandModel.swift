@@ -229,6 +229,7 @@ final class IslandModel {
     /// "Fix it": a project chat in ARK's own source folder, with the fix prompt in the box (not sent). Adds the folder as a project first when it is not one.
     func fixThis(_ note: ImprovementNote) {
         guard let root = AppUpdate.sourceRoot(bundle: Bundle.main.bundleURL) else { return }
+        send(.improvementFixing(id: note.id)) // the runtime now judges this note by the log after this moment
         if let project = sourceProject(root) { startFix(note, in: project.id); return }
         pendingFix = note
         send(.projectAdd(name: "ARK source", path: root.path))

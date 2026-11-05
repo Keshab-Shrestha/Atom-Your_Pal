@@ -40,8 +40,10 @@ export interface IslandPanels {
 
 /** 2026-11-05: ARK notices (improve.ts): notes about what goes wrong in ARK, from its own log. */
 export interface IslandImprovements {
-  state(): { enabled: boolean; running: boolean; lastRunAt?: string; notes: import("./improve.ts").Note[] };
+  state(): { enabled: boolean; running: boolean; lastRunAt?: string; notes: import("./improve.ts").Note[]; resolved: import("./improve.ts").Resolved[] };
   run(): void;
+  /** The user pressed Fix it on this note (ADR-241): the log is judged by what happens after. */
+  markFixing(id: string): void;
   dismiss(id: string): void;
   setEnabled(on: boolean): void;
   onChange(listener: () => void): () => void;

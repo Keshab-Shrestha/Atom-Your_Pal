@@ -2551,22 +2551,26 @@ test("improvements: get, run, switch and dismiss reach the store; bad commands a
   let enabled = true;
   const note = { id: "crash:137", kind: "crash" as const, title: "ARK's runtime stopped by itself", evidence: "8 times in a week.", severity: 3 as const, why: "It loses work.", change: "Find why.", createdAt: "2026-11-05T10:00:00.000Z" };
   const h = islandHarness({ improvements: {
-    state: () => ({ enabled, running: false, lastRunAt: "2026-11-05T10:00:00.000Z", notes: [note] }),
+    state: () => ({ enabled, running: false, lastRunAt: "2026-11-05T10:00:00.000Z", notes: [{ ...note, fixStartedAt: "2026-11-05T11:00:00.000Z" }], resolved: [{ id: "tool:x", title: "X fails", how: "fixed" as const, resolvedAt: "2026-11-05T12:00:00.000Z", createdAt: "2026-11-01T10:00:00.000Z" }] }),
+    markFixing: (id) => void calls.push(`fixing:${id}`),
     run: () => void calls.push("run"), dismiss: (id) => void calls.push(`dismiss:${id}`), setEnabled: (on) => { enabled = on; calls.push(`set:${on}`); }, onChange: () => () => {},
   } });
   try {
     await h.send({ type: "improvements.get" });
     await h.send({ type: "improvements.run" });
     await h.send({ type: "improvements.set", enabled: false });
+    await h.send({ type: "improvement.fixing", id: "crash:137" });
     await h.send({ type: "improvement.dismiss", id: "crash:137" });
     await h.send({ type: "improvement.dismiss", id: "../x" });
     await h.send({ type: "improvements.set", enabled: "yes" });
     const events = h.events();
     const sent = events.filter((e) => e.type === "improvements") as { enabled: boolean; notes: { id: string; why: string }[] }[];
-    assert.equal(sent.length, 4);
+    assert.equal(sent.length, 5);
+    assert.deepEqual(sent[0]!.notes.map((n) => (n as { fixing?: boolean }).fixing), [true]);
+    assert.deepEqual((sent[0] as { resolved?: { how: string }[] }).resolved?.map((r) => r.how), ["fixed"]);
     assert.deepEqual(sent[0]!.notes.map((n) => [n.id, n.why]), [["crash:137", "It loses work."]]);
     assert.equal(sent[2]!.enabled, false);
-    assert.deepEqual(calls, ["run", "set:false", "dismiss:crash:137"]);
+    assert.deepEqual(calls, ["run", "set:false", "fixing:crash:137", "dismiss:crash:137"]);
     assert.equal(events.filter((e) => e.type === "error").length >= 2, true);
   } finally { await h.send({ type: "quit" }); }
 });

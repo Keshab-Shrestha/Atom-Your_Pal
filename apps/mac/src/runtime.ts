@@ -1403,6 +1403,7 @@ export function createRuntime(
       improving = true; improveChanged.forEach((l) => l());
       improver.run({ force: true }).catch((error) => log.warn("improve.failed", { ...errorFields(error) })).finally(() => { improving = false; improveChanged.forEach((l) => l()); });
     },
+    markFixing: (id) => { improver.markFixing(id); },
     dismiss: (id) => { const s = improveStore.read(); improveStore.write({ ...s, notes: s.notes.filter((n) => n.id !== id), dismissed: { ...s.dismissed, [id]: new Date().toISOString() } }); improveChanged.forEach((l) => l()); },
     setEnabled: (on) => { improveStore.write({ ...improveStore.read(), enabled: on }); improveChanged.forEach((l) => l()); },
     onChange: (listener) => { improveChanged.add(listener); return () => improveChanged.delete(listener); },

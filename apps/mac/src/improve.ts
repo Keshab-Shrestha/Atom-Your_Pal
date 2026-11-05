@@ -7,6 +7,8 @@ import { dirname } from "node:path";
 // only counts and short normalized reasons as input, writes a one-line "why" and a concrete change for each. The result is three notes at most,
 // shown on Home. Nothing here changes ARK: the user reads a note, dismisses it, or talks it through in a chat. Later phases (a branch with a
 // fix, opened as a pull request the user merges) need their own approval and ADR. The model never decides anything: counts do.
+// Phase 3 (ADR-241) closes the loop: a note whose problem stops showing in the log moves to "fixed" (or "went away"), and one that comes back
+// reopens. A note the user sent to Fix it is checked against only the log after the fix started, so one clean week is not needed.
 
 export type FindingKind = "tool" | "computer" | "crash" | "unauthorized" | "warning" | "slow" | "budget";
 
@@ -33,6 +35,8 @@ export interface Signals {
   warnings: { event: string; message: string; count: number }[];
   turnSeconds: { count: number; p90: number };
   overBudget: { session: number; turn: number };
+  /** How many times each finding's problem happened (by finding id), with no threshold: 0 means it did not happen. */
+  counts: Record<string, number>;
 }
 
 const DAY_MS = 86_400_000;
@@ -41,6 +45,9 @@ export const MAX_LOG_BYTES = 12 * 1024 * 1024;
 export const MAX_OPEN = 3;
 export const DISMISS_DAYS = 30;
 export const MIN_HOURS_BETWEEN_RUNS = 20;
+/** A note sent to Fix it is judged only after this many days of log since the fix started. */
+export const MIN_DAYS_AFTER_FIX = 2;
+export const MAX_RESOLVED = 10;
 /** Warnings that are not about a fault in ARK, or that other findings already cover. */
 const QUIET_WARNINGS = new Set(["api.unauthorized", "settings.ignored", "island.bad_command", "system.pause"]);
 
@@ -57,6 +64,8 @@ export function summarize(lines: readonly string[], now: Date, days = 7): Signal
   const exits = new Map<string, number>();
   const warnings = new Map<string, { message: string; count: number }>();
   const modelMs: number[] = [];
+  const counts: Record<string, number> = {};
+  const bump = (id: string) => { counts[id] = (counts[id] ?? 0) + 1; };
   let unauthorized = 0, session = 0, turn = 0, used = 0;
   for (const line of lines) {
     let d: Record<string, unknown>;
@@ -67,23 +76,26 @@ export function summarize(lines: readonly string[], now: Date, days = 7): Signal
     const event = typeof d.event === "string" ? d.event : "";
     if (event === "tool.call" && typeof d.name === "string") {
       const t = tools.get(d.name) ?? { total: 0, failed: 0 };
-      t.total += 1; if (d.ok === false) t.failed += 1;
+      t.total += 1; if (d.ok === false) { t.failed += 1; bump(`tool:${slug(d.name)}`); }
       tools.set(d.name, t);
     } else if (event === "computer.action" && d.ok === false) {
       const reason = normalizeReason(d.reason);
       computer.set(reason, (computer.get(reason) ?? 0) + 1);
+      bump(`computer:${slug(reason)}`);
     } else if (event === "island.runtime.exit" && d.requested !== true && d.code !== 0) {
       const code = String(d.code ?? "unknown");
       exits.set(code, (exits.get(code) ?? 0) + 1);
-    } else if (event === "api.unauthorized") unauthorized += 1;
-    else if (event === "session.over_budget") session += 1;
-    else if (event === "turn.over_budget") turn += 1;
-    else if (event === "turn.complete" && typeof d.modelMs === "number" && d.modelMs > 0) modelMs.push(d.modelMs);
+      bump(`crash:${slug(code)}`);
+    } else if (event === "api.unauthorized") { unauthorized += 1; bump("unauthorized:api"); }
+    else if (event === "session.over_budget") { session += 1; bump("budget:prefix"); }
+    else if (event === "turn.over_budget") { turn += 1; bump("budget:prefix"); }
+    else if (event === "turn.complete" && typeof d.modelMs === "number" && d.modelMs > 0) { modelMs.push(d.modelMs); if (d.modelMs >= 15_000) bump("slow:turns"); }
     if ((d.level === "warn" || d.level === "error") && event && !QUIET_WARNINGS.has(event)) {
       const key = `${event}\u0000${normalizeReason(d.reason ?? d.message)}`;
       const w = warnings.get(key) ?? { message: normalizeReason(d.reason ?? d.message), count: 0 };
       w.count += 1;
       warnings.set(key, w);
+      bump(`warning:${slug(event)}-${slug(w.message).slice(0, 24)}`);
     }
   }
   modelMs.sort((a, b) => a - b);
@@ -96,6 +108,7 @@ export function summarize(lines: readonly string[], now: Date, days = 7): Signal
     warnings: [...warnings].map(([key, w]) => ({ event: key.split("\u0000")[0]!, ...w })).sort((a, b) => b.count - a.count).slice(0, 8),
     turnSeconds: { count: modelMs.length, p90: modelMs.length ? Math.round((modelMs[Math.floor(modelMs.length * 0.9)] ?? 0) / 100) / 10 : 0 },
     overBudget: { session, turn },
+    counts,
   };
 }
 
@@ -130,24 +143,32 @@ export function findingsFrom(s: Signals): Finding[] {
   return out.sort((a, b) => b.severity - a.severity || b.count - a.count);
 }
 
-export interface Note { id: string; kind: FindingKind; title: string; evidence: string; severity: 1 | 2 | 3; why: string; change: string; createdAt: string }
-export interface ImproveState { enabled: boolean; lastRunAt?: string; notes: Note[]; dismissed: Record<string, string> }
+export interface Note {
+  id: string; kind: FindingKind; title: string; evidence: string; severity: 1 | 2 | 3; why: string; change: string; createdAt: string;
+  /** The user pressed Fix it: from then on the log is judged by what happens after. */
+  fixStartedAt?: string;
+  /** The problem was marked fixed or gone, and then came back. */
+  cameBack?: boolean;
+}
+/** A note whose problem stopped. `how`: "fixed" after Fix it, "went-away" by itself. */
+export interface Resolved { id: string; title: string; how: "fixed" | "went-away"; resolvedAt: string; createdAt: string }
+export interface ImproveState { enabled: boolean; lastRunAt?: string; notes: Note[]; dismissed: Record<string, string>; resolved: Resolved[] }
 
 export interface ImproveStore { read(): ImproveState; write(state: ImproveState): void }
 
 /** Held in memory; `path` is read once and rewritten after each change (mode 0600). Unreadable reads as the default. */
 export function createImproveStore(path?: string): ImproveStore {
-  let state: ImproveState = { enabled: true, notes: [], dismissed: {} };
+  let state: ImproveState = { enabled: true, notes: [], dismissed: {}, resolved: [] };
   if (path) {
     try {
       const raw = JSON.parse(readFileSync(path, "utf8")) as Partial<ImproveState>;
-      state = { enabled: raw.enabled !== false, ...(raw.lastRunAt ? { lastRunAt: raw.lastRunAt } : {}), notes: Array.isArray(raw.notes) ? raw.notes.filter((n): n is Note => Boolean(n) && typeof n.id === "string") : [], dismissed: raw.dismissed && typeof raw.dismissed === "object" ? raw.dismissed : {} };
+      state = { enabled: raw.enabled !== false, ...(raw.lastRunAt ? { lastRunAt: raw.lastRunAt } : {}), notes: Array.isArray(raw.notes) ? raw.notes.filter((n): n is Note => Boolean(n) && typeof n.id === "string") : [], dismissed: raw.dismissed && typeof raw.dismissed === "object" ? raw.dismissed : {}, resolved: Array.isArray(raw.resolved) ? raw.resolved.filter((r): r is Resolved => Boolean(r) && typeof r.id === "string") : [] };
     } catch { /* none yet, or damaged */ }
   }
   return {
-    read: () => ({ ...state, notes: [...state.notes], dismissed: { ...state.dismissed } }),
+    read: () => ({ ...state, notes: [...state.notes], dismissed: { ...state.dismissed }, resolved: [...state.resolved] }),
     write(next) {
-      state = { ...next, notes: [...next.notes], dismissed: { ...next.dismissed } };
+      state = { ...next, notes: [...next.notes], dismissed: { ...next.dismissed }, resolved: [...next.resolved] };
       if (!path) return;
       try {
         mkdirSync(dirname(path), { recursive: true });
@@ -202,6 +223,8 @@ export interface Improver {
   run(options?: { force?: boolean }): Promise<{ notes: number; ran: boolean }>;
   /** Runs when the last run is old enough and the switch is on. */
   maybeRun(): Promise<void>;
+  /** The user pressed Fix it on this note: from now the log is judged by what happens after. Returns false when there is no such open note. */
+  markFixing(id: string): boolean;
 }
 
 export function createImprover(options: {
@@ -222,10 +245,35 @@ export function createImprover(options: {
     running = true;
     try {
       const at = now();
-      const signals = summarize((options.readLines ?? (() => readLogTail(options.logPath)))(), at);
+      const lines = (options.readLines ?? (() => readLogTail(options.logPath)))();
+      const signals = summarize(lines, at);
+      const all = findingsFrom(signals);
       const recent = (id: string) => { const d = state.dismissed[id]; return d !== undefined && at.getTime() - Date.parse(d) < DISMISS_DAYS * DAY_MS; };
-      const wanted = findingsFrom(signals).filter((f) => !recent(f.id)).slice(0, MAX_OPEN);
-      const known = new Map(state.notes.map((n) => [n.id, n]));
+
+      // Closing the loop (ADR-241): which open notes stopped happening? One that was sent to Fix it is judged by the log since the fix started
+      // (a clean week is not needed); any other is judged by the week, as a finding.
+      const stopped = (note: Note): boolean => {
+        if (note.fixStartedAt) {
+          const days = (at.getTime() - Date.parse(note.fixStartedAt)) / DAY_MS;
+          if (!(days >= MIN_DAYS_AFTER_FIX)) return false;
+          return (summarize(lines, at, Math.min(7, days)).counts[note.id] ?? 0) === 0;
+        }
+        return !all.some((f) => f.id === note.id);
+      };
+      const done = state.notes.filter(stopped);
+      const open = state.notes.filter((n) => !done.includes(n));
+      const resolvedNow: Resolved[] = done.map((n) => ({ id: n.id, title: n.title, how: n.fixStartedAt ? "fixed" : "went-away", resolvedAt: at.toISOString(), createdAt: n.createdAt }));
+      // A resolved problem comes back only when it happened after it was marked resolved: the old events are still in the week's log.
+      const cameBack = new Set(all.filter((f) => state.resolved.some((r) => {
+        if (r.id !== f.id) return false;
+        const days = (at.getTime() - Date.parse(r.resolvedAt)) / DAY_MS;
+        return days > 0 && (summarize(lines, at, Math.min(7, days)).counts[f.id] ?? 0) > 0;
+      })).map((f) => f.id));
+      const resolved = [...resolvedNow, ...state.resolved.filter((r) => !cameBack.has(r.id) && !resolvedNow.some((n) => n.id === r.id))].slice(0, MAX_RESOLVED);
+      const settled = new Set(resolved.map((r) => r.id));
+
+      const wanted = all.filter((f) => !recent(f.id) && !settled.has(f.id)).slice(0, MAX_OPEN);
+      const known = new Map(open.map((n) => [n.id, n]));
       const fresh = wanted.filter((f) => !known.has(f.id));
       let suggestions: Suggestion[] = [];
       if (fresh.length) {
@@ -234,16 +282,32 @@ export function createImprover(options: {
       const notes: Note[] = wanted.map((f) => {
         const old = known.get(f.id);
         const s = suggestions.find((x) => x.id === f.id);
-        return { id: f.id, kind: f.kind, title: f.title, evidence: f.evidence, severity: f.severity, why: old?.why ?? s?.why ?? "ARK saw this often enough to count.", change: old?.change ?? s?.change ?? "Ask ARK to look into it, with the evidence above.", createdAt: old?.createdAt ?? at.toISOString() };
+        const back = cameBack.has(f.id);
+        return {
+          id: f.id, kind: f.kind, title: f.title, evidence: f.evidence, severity: f.severity,
+          why: old?.why ?? s?.why ?? (back ? "It came back after it was marked fixed." : "ARK saw this often enough to count."),
+          change: old?.change ?? s?.change ?? "Ask ARK to look into it, with the evidence above.",
+          createdAt: old?.createdAt ?? at.toISOString(),
+          ...(old?.fixStartedAt ? { fixStartedAt: old.fixStartedAt } : {}),
+          ...(back || old?.cameBack ? { cameBack: true } : {}),
+        };
       });
-      options.store.write({ ...state, lastRunAt: at.toISOString(), notes });
-      options.log?.("improve.run", { findings: wanted.length, fresh: fresh.length, suggested: suggestions.length, lines: signals.lines });
+      options.store.write({ ...state, lastRunAt: at.toISOString(), notes, resolved });
+      options.log?.("improve.run", { findings: wanted.length, fresh: fresh.length, suggested: suggestions.length, resolved: resolvedNow.length, cameBack: cameBack.size, lines: signals.lines });
       options.changed?.();
       return { notes: notes.length, ran: true };
     } finally { running = false; }
   };
   return {
     run,
+    markFixing(id) {
+      const state = options.store.read();
+      const note = state.notes.find((n) => n.id === id);
+      if (!note) return false;
+      options.store.write({ ...state, notes: state.notes.map((n) => (n.id === id ? { ...n, fixStartedAt: n.fixStartedAt ?? now().toISOString() } : n)) });
+      options.changed?.();
+      return true;
+    },
     async maybeRun() {
       const { lastRunAt, enabled } = options.store.read();
       if (!enabled) return;

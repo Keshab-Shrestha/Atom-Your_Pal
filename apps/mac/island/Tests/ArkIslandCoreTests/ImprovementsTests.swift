@@ -41,4 +41,16 @@ struct ImprovementsTests {
         let text = FixPrompt.text(for: ImprovementNote(id: "a", title: "Tool fails", evidence: "4 of 12 calls failed.", severity: 2, why: "Users wait.", change: "Retry once."))
         for part in ["Tool fails", "4 of 12 calls failed.", "Users wait.", "Retry once.", "its own branch", "pnpm typecheck", "Do not push or merge", "security, permission, approval"] { #expect(text.contains(part)) }
     }
+
+    @Test("the event reads fix state, came-back and the notes that stopped; Home shows the latest three")
+    func readsResolved() {
+        let line = #"{"type":"improvements","enabled":true,"running":false,"notes":[{"id":"a","title":"A","evidence":"e","severity":2,"why":"w","change":"c","fixing":true,"cameBack":true}],"resolved":[{"id":"r1","title":"Tool fails","how":"fixed"},{"id":"r2","title":"Slow","how":"went-away"},{"id":"r3","title":"Three","how":"fixed"},{"id":"r4","title":"Four","how":"fixed"},{"bad":1}]}"#
+        guard case .improvements(let state)? = try? decodeEvent(line) else { Issue.record("not an improvements event"); return }
+        #expect(state.notes[0].fixing && state.notes[0].cameBack)
+        #expect(state.resolved.count == 4)
+        #expect(state.recentlyResolved.map(\.id) == ["r1", "r2", "r3"])
+        #expect(state.resolved[0].line == "Fixed: Tool fails")
+        #expect(state.resolved[1].line == "Went away: Slow")
+        #expect(IslandCommand.improvementFixing(id: "a").line.contains(#""type":"improvement.fixing""#))
+    }
 }

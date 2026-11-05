@@ -135,7 +135,7 @@ test("the store keeps notes in a private file; the log tail skips a cut first li
   const dir = mkdtempSync(join(tmpdir(), "ark-improve-"));
   const path = join(dir, "improvements.json");
   const store = createImproveStore(path);
-  store.write({ enabled: false, lastRunAt: NOW.toISOString(), notes: [], dismissed: { a: NOW.toISOString() } });
+  store.write({ enabled: false, lastRunAt: NOW.toISOString(), notes: [], dismissed: { a: NOW.toISOString() }, resolved: [] });
   const again = createImproveStore(path).read();
   assert.equal(again.enabled, false);
   assert.deepEqual(again.dismissed, { a: NOW.toISOString() });
@@ -144,4 +144,76 @@ test("the store keeps notes in a private file; the log tail skips a cut first li
   writeFileSync(log, `${line("a")}\n${line("b")}\n`);
   assert.equal(readLogTail(log).filter(Boolean).length, 2);
   assert.deepEqual(readLogTail(join(dir, "missing.log")), []);
+});
+
+// ADR-241: closing the loop. The log is the clock: events carry their own time, built from the test's clock.
+function loop() {
+  let clock = NOW;
+  const events: Array<{ at: number; text: (t: string) => string }> = [];
+  const crash = (hoursBefore: (c: Date) => Date, n: number) => { for (let i = 0; i < n; i++) events.push({ at: 0, text: () => JSON.stringify({ time: hoursBefore(clock).toISOString(), level: "info", event: "island.runtime.exit", code: 137, requested: false }) }); };
+  const store = createImproveStore();
+  const improver = createImprover({ store, logPath: "unused", now: () => clock, readLines: () => events.map((e) => e.text("")), suggest: async () => "[]" });
+  return { store, improver, crashNow: (n: number) => crash(() => new Date(clock.getTime() - 3_600_000), n), crashAt: (when: Date, n: number) => crash(() => when, n), tick: (days: number) => { clock = new Date(clock.getTime() + days * 86_400_000); }, now: () => clock, clear: () => { events.length = 0; } };
+}
+
+test("a note whose problem stops by itself moves to 'went away'; one that comes back reopens, marked", async () => {
+  const l = loop();
+  l.crashNow(5);
+  await l.improver.run();
+  assert.equal(l.store.read().notes.length, 1);
+  l.clear();
+  l.tick(1);
+  await l.improver.run({ force: true });
+  const gone = l.store.read();
+  assert.deepEqual(gone.notes, []);
+  assert.deepEqual(gone.resolved.map((r) => [r.id, r.how]), [["crash:137", "went-away"]]);
+  l.crashNow(5);
+  l.tick(1);
+  await l.improver.run({ force: true });
+  const back = l.store.read();
+  assert.equal(back.notes[0]!.cameBack, true);
+  assert.match(back.notes[0]!.why, /came back/);
+  assert.deepEqual(back.resolved, [], "it is no longer counted as fixed");
+});
+
+test("after Fix it, a note waits two days, is fixed when nothing happened since, and stays open when it did", async () => {
+  const l = loop();
+  const start = l.now();
+  l.crashAt(new Date(start.getTime() - 3_600_000), 5);
+  await l.improver.run();
+  assert.equal(l.improver.markFixing("nope"), false);
+  assert.equal(l.improver.markFixing("crash:137"), true);
+  const stamped = l.store.read().notes[0]!.fixStartedAt;
+  assert.ok(stamped);
+  assert.equal(l.improver.markFixing("crash:137"), true);
+  assert.equal(l.store.read().notes[0]!.fixStartedAt, stamped, "the first press counts");
+
+  l.tick(1);
+  await l.improver.run({ force: true });
+  assert.equal(l.store.read().notes.length, 1, "one day is not enough to judge");
+
+  l.tick(2); // three days after the fix, with no crash since: the old ones are before the fix
+  await l.improver.run({ force: true });
+  const done = l.store.read();
+  assert.deepEqual(done.notes, []);
+  assert.deepEqual(done.resolved.map((r) => [r.id, r.how]), [["crash:137", "fixed"]]);
+
+  const again = loop();
+  again.crashAt(new Date(again.now().getTime() - 3_600_000), 5);
+  await again.improver.run();
+  again.improver.markFixing("crash:137");
+  again.tick(3);
+  again.crashAt(new Date(again.now().getTime() - 3_600_000), 5); // it still happens after the fix
+  await again.improver.run({ force: true });
+  assert.equal(again.store.read().notes.length, 1, "a crash after the fix keeps it open");
+  assert.equal(again.store.read().resolved.length, 0);
+});
+
+test("the resolved list keeps the last ten", async () => {
+  const l = loop();
+  const state = l.store.read();
+  l.store.write({ ...state, resolved: Array.from({ length: 12 }, (_, i) => ({ id: `r${i}`, title: "t", how: "fixed" as const, resolvedAt: NOW.toISOString(), createdAt: NOW.toISOString() })) });
+  l.crashNow(5);
+  await l.improver.run({ force: true });
+  assert.equal(l.store.read().resolved.length, 10);
 });

@@ -4441,3 +4441,23 @@ Phase 1 (ADR-239) notes what goes wrong in ARK. Keshab asked for the next phase:
 - The loop closes: log, note, task, branch, the user's review, the user's push, a pull request, the user's merge, then the Update button.
 - The prompt is advice to a model. The guard is what holds: it works on the files in the diff, whatever the agent was told.
 - The list is a floor. A new guarding file whose name has none of the words must be added to it.
+
+## ADR-241 — ARK notices phase 3: close the loop (2026-11-05)
+
+### Context
+
+Phase 1 notes a problem (ADR-239). Phase 2 lets a note start a fix on a branch the user reviews and pushes (ADR-240). Neither says whether the problem went away. Without that, the loop cannot tell a good fix from a bad one.
+
+### Decision
+
+- **Count each problem, with no threshold.** `summarize` also returns `counts`, keyed by finding id: how many times that exact problem happened in the window. A finding needs a threshold to be shown; a count of 0 needs none to be called gone.
+- **Fix it starts a clock.** Pressing Fix it sends `improvement.fixing`; the runtime stamps `fixStartedAt` on the note (the first press counts). The note shows "fix in progress" and loses its Fix it button.
+- **A note is judged by the log after the fix**, not by a clean week: once 2 days have passed since the fix started, the window is "since the fix started" (at most 7 days). Zero events of that problem in it means "fixed". A note never sent to Fix it is "went away" when it stops being a finding in the week.
+- **A resolved problem comes back only when it happens after it was marked resolved.** The old events are still in the week's log and must not reopen it. A problem that comes back reopens as a note marked "came back", with its fix state cleared. A resolved id is kept out of the new notes until then.
+- **Home shows the last three that stopped**, one quiet line each ("Fixed: …", "Went away: …"). The state keeps the last ten.
+
+### Consequences
+
+- The loop closes: log, note, Fix it, branch, review, push, merge, update, then the log decides. A fix that does not work shows as a note that stays open.
+- "Fixed" means the problem was not logged for at least 2 days after the fix started. It does not prove the cause was fixed: a rare problem may simply not have happened. The line says what the log says, nothing more.
+- The model plays no part in judging. Counts do.

@@ -8,7 +8,7 @@ struct HomeNotices: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        if let state = model.improvements, state.enabled, !state.shown.isEmpty {
+        if let state = model.improvements, state.enabled, !state.shown.isEmpty || !state.recentlyResolved.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("ARK noticed").appFont(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text2.color).accessibilityAddTraits(.isHeader)
@@ -16,6 +16,13 @@ struct HomeNotices: View {
                     QuietButton(title: state.running ? "Looking…" : "Look again", symbol: "arrow.clockwise") { model.lookForImprovements() }.disabled(state.running)
                 }
                 ForEach(state.shown) { note in NoticeRow(model: model, note: note) }
+                ForEach(state.recentlyResolved) { done in
+                    HStack(spacing: 6) {
+                        Glyph(systemName: "checkmark.circle.fill").appFont(.system(size: 11)).foregroundStyle(theme.success.color)
+                        Text(done.line).appFont(.system(size: 12)).foregroundStyle(theme.text3.color).lineLimit(1)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
             }
         }
     }
@@ -34,12 +41,14 @@ private struct NoticeRow: View {
             HStack(spacing: 8) {
                 StatusDot(color: color, size: 7)
                 Text(note.title).appFont(.system(size: 13.5, weight: .semibold)).foregroundStyle(theme.text.color).lineLimit(2)
+                if note.cameBack { Text("came back").appFont(.system(size: 10.5, weight: .medium)).foregroundStyle(theme.problem.color).padding(.horizontal, 6).background(Capsule().fill(theme.problem.color.opacity(0.12))) }
+                if note.fixing { Text("fix in progress").appFont(.system(size: 10.5, weight: .medium)).foregroundStyle(theme.text2.color).padding(.horizontal, 6).background(Capsule().fill(theme.fill3.color)) }
             }
             Text(note.evidence).appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
             if !note.change.isEmpty { Text("Suggested: \(note.change)").appFont(.system(size: 12)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true) }
             HStack(spacing: 8) {
                 QuietButton(title: "Talk it through", symbol: "bubble.left") { model.talkThrough(note) }
-                if snapshot || model.canFixItself { // snapshots do not depend on where the app sits
+                if (snapshot || model.canFixItself) && !note.fixing { // snapshots do not depend on where the app sits
                     QuietButton(title: "Fix it", symbol: "wrench.and.screwdriver") { model.fixThis(note) }
                         .help("Opens a chat in ARK's own source. A coding agent works on its own branch; you review and push it.")
                 }

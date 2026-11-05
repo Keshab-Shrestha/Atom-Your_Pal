@@ -230,6 +230,7 @@ test("parses the helper commands", () => {
     { type: "improvements.run" },
     { type: "improvements.set", enabled: false },
     { type: "improvement.dismiss", id: "crash:137" },
+    { type: "improvement.fixing", id: "crash:137" },
     { type: "apps.list" },
     { type: "app.open", id: "habit-tracker" },
     { type: "app.remove", id: "habit-tracker" },
