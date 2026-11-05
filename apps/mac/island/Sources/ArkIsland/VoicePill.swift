@@ -29,7 +29,7 @@ struct VoicePill: View {
         }
         .padding(.horizontal, 16).padding(.vertical, 12)
         .frame(width: Self.size.width, height: Self.size.height, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: Self.size.height / 2.6, style: .continuous).fill(theme.surfaceSolid.color))
+        .floatingSurface(RoundedRectangle(cornerRadius: Self.size.height / 2.6, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(transcribing ? "ARK is writing down what you said" : "ARK is listening")
     }
@@ -59,7 +59,7 @@ struct VoicePill: View {
 /// Reads the theme and text size on every render, so a change in Settings reaches the open pill.
 private struct VoicePillRoot: View {
     let model: IslandModel
-    var body: some View { VoicePill(model: model).themed(model.settings.theme.palette).appTypography(model.settings) }
+    var body: some View { VoicePill(model: model).themed(model.settings.palette).appTypography(model.settings) }
 }
 
 /// The pill's window: centred under the menu bar of the screen with the menu bar, above other windows, never key, never clicked.

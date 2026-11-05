@@ -49,7 +49,7 @@ struct ChatBriefEditor: View {
             }
         }
         .appFont(.system(size: 12)).padding(20).frame(width: 560)
-        .background(theme.surfaceSolid.color).foregroundStyle(theme.text.color)
+        .floatingSurface().foregroundStyle(theme.text.color)
         .onChange(of: model.chatControls.briefReceipt?.request) { _, request in
             guard request == pending, let response = model.chatControls.briefReceipt, response.id == chat else { return }
             pending = nil

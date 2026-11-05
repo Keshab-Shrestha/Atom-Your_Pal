@@ -7,7 +7,7 @@ import Testing
 @Suite("Reset this page")
 @MainActor
 struct ResetPageTests {
-    static let appearanceKeys: Set = [IslandSettings.themeKey, IslandSettings.textSizeKey, IslandSettings.typefaceKey]
+    static let appearanceKeys: Set = [IslandSettings.themeKey, IslandSettings.glassKey, IslandSettings.textSizeKey, IslandSettings.typefaceKey]
     static let dictationKeys: Set = [IslandSettings.dictationModeKey, IslandSettings.livePreviewKey, IslandSettings.removeFillersKey, IslandSettings.tidyKey, IslandSettings.quietKey]
     static let palKeys: Set = [
         IslandSettings.palSizeKey, IslandSettings.palWanderKey, IslandSettings.palNapKey,
@@ -27,7 +27,7 @@ struct ResetPageTests {
         let name = "ark.test.reset.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: name)!
         let s = IslandSettings(defaults: defaults)
-        s.theme = other(s.theme); s.textSize = other(s.textSize); s.typeface = other(s.typeface)
+        s.theme = other(s.theme); s.glass.toggle(); s.textSize = other(s.textSize); s.typeface = other(s.typeface)
         s.dictationMode = other(s.dictationMode); s.livePreview.toggle(); s.removeFillers.toggle()
         s.palSize = other(s.palSize); s.palWander = other(s.palWander); s.palNap = other(s.palNap)
         s.palReacts.toggle(); s.palHomeDisplay = .display(uuid: "SIDE")

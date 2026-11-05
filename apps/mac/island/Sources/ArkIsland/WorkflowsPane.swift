@@ -133,7 +133,7 @@ private struct WorkflowEditor: View {
                     .disabled(draft.name.trimmingCharacters(in: .whitespaces).isEmpty || draft.steps.contains { $0.task.trimmingCharacters(in: .whitespaces).isEmpty })
             }
         }
-        .padding(24).frame(width: 560).background(theme.surfaceSolid.color)
+        .padding(24).frame(width: 560).floatingSurface()
     }
 
     private var choice: TriggerChoice {

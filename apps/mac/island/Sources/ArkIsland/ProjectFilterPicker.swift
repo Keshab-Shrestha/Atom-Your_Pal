@@ -97,7 +97,7 @@ struct ProjectFilterPicker: View {
             Text("Filters lists only · Search covers all content")
                 .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color).padding(12)
         }
-        .frame(width: 340, height: 360).background(theme.surfaceSolid.color)
+        .frame(width: 340, height: 360).floatingSurface()
         .onAppear { query = initialQuery; if !snapshot { focused = true } }
         .onChange(of: choices.map(\.id)) { cursor = 0 }
     }

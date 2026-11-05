@@ -240,7 +240,7 @@ struct SavedChatHistory: View {
             ChatControlFeedback(model: model)
         }
         .padding(16).frame(width: 700, height: 520)
-        .background(theme.surfaceSolid.color).foregroundStyle(theme.text.color)
+        .floatingSurface().foregroundStyle(theme.text.color)
     }
 
     private func branch(_ kind: String, _ seq: Int) {

@@ -43,7 +43,7 @@ struct IslandView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        let palette = model.settings.theme.palette
+        let palette = model.settings.palette
         let radius = IslandView.cornerRadius
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         CompactView(model: model)

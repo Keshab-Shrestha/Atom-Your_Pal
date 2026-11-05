@@ -22,6 +22,14 @@ struct AppearanceSection: View {
         Card("Icons", footer: UIcons.inUse
              ? "Icons: \(UIcons.credit). Free with this credit; your Mac downloaded its own copy during setup."
              : "Apple's SF Symbols. Run sh scripts/setup.sh to download Flaticon's UIcons for this Mac.") { EmptyView() }
+        // ADR-255: the material for every theme.
+        Card("Material", footer: settings.reduceTransparency
+             ? "Reduce Transparency is on in System Settings, so ARK draws Flat until you turn it off."
+             : "Glass: frosted panes over a soft light that drifts and takes ARK's mood. Blue while it works, amber when something needs you, red for a problem. Flat: solid panes.") {
+            Row(title: "Ambient glass", detail: "Frosted panes and a light that follows what ARK is doing") {
+                ThemedSwitch(isOn: settings.glass, set: { settings.glass = $0 }, label: "Ambient glass")
+            }
+        }
         Card("Workspace themes", footer: "Applied to the whole window and companion. " + settings.theme.detail) {
             VStack(spacing: 8) {
                 ForEach(Array(stride(from: 0, to: themes.count, by: 3)), id: \.self) { start in
@@ -46,7 +54,7 @@ struct AppearanceSection: View {
                 }
             }.padding(8)
         }
-        ResetPageCard(footer: "The theme, typeface and text size go back to their defaults.") { settings.resetAppearance() }
+        ResetPageCard(footer: "The theme, material, typeface and text size go back to their defaults.") { settings.resetAppearance() }
     }
 }
 

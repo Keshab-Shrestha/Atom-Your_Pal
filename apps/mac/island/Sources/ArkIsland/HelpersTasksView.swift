@@ -846,7 +846,7 @@ private struct AllAgentsList: View {
         }
         .padding(16)
         .frame(width: 440)
-        .background(shape.fill(theme.surfaceSolid.color))
+        .floatingSurface(shape)
         .overlay(shape.strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
     }
 

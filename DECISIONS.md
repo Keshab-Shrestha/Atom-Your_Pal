@@ -4720,3 +4720,27 @@ ADR-228 put the agents in the chat pane (`SidebarAgents`), with a live dot each:
 - Lost: seeing which agents work while in Chats. The Board badge counts only agents that wait for the user. If this is missed, a small dot on the Board button when any agent works is the cheap way back.
 - Lost: a one-click jump to one agent. Use the Board or the agent panel.
 - 32 goldens changed by less than 1% of their pixels: the chat pane shots lose the agent list, and every shot with a tall rail gains the "New app" button (ADR-253).
+
+## ADR-255 — Ambient glass: frosted panes over a light that takes ARK's mood (2026-11-05)
+
+### Context
+
+Keshab asked for "Ambient UI and Glassmorphism on our whole app". Until now every theme was flat (ADR-086 and the 2026-11-01 redesign): opaque panes, hairlines, no blur. The palette code already had a glass path for surfaces (`SurfaceBackground`, `PalBubble`), but no theme used it.
+
+### Decision
+
+- **A material for every theme.** `IslandSettings.glass` (key `ark.look.glass`) picks Ambient glass or Flat. Glass is the default. Settings > Appearance > Material has the switch. The system's Reduce Transparency always draws Flat (`IslandSettings.reduceTransparency`, kept current from `NSWorkspace`).
+- **Glass palette and panes** (`AmbientGlass.swift`, in `ArkIslandCore`). They use the same tone steps as flat. Panes are translucent tints (alpha 0.42 to 0.62). Fills are see-through. Edges are a lit rim. Text is one step stronger. `surfaceSolid` stays opaque for masks (terminal, web view).
+- **Panes are tints, not blur.** The backdrop is already soft, so a tint reads as frosted glass. It draws the same in a snapshot as on screen, and contrast is something a test can check.
+- **The ambient backdrop** (`AmbientBackdrop.swift`). Three soft pools of light drift slowly behind the panes: the theme's accent hue, a neighbour hue, and the mood. `AmbientMood` comes from ARK's state and the Board's counts: problem, then attention (amber), then active (blue), else calm. Colour changes fade in 1.2 s. Reduce Motion and snapshots hold the lights still.
+- **Floating surfaces are frosted** (`FloatingSurface` / `.floatingSurface`). These are the pickers, menus, sheets, popovers, command palette, slash picker, voice pill and agent panel: the system material, the tint, a lit edge and a soft shadow. In Flat they draw `surfaceSolid` as before.
+- **The companion follows too.** The island panel, Pal's bubble, the work strip, the quick action panel and the point label read `settings.palette`, so they take the glass path that already existed.
+
+### Consequences
+
+- The whole window and the companion are glass by default. Flat stays one switch away, and the flat palettes did not change (a test checks this).
+- `GlassThemeTests` checks contrast for every theme and mood: main text 7:1 or more, secondary text and captions 4.5:1 or more. This covers the panel, work, workspace and card panes, a selected row and a floating tint over the brightest light. The chat bubble gets a plain check, and so does the rail with its navigation palette.
+- 35 goldens changed: every full-window shot (40 updates in all, after the snapshot drawing changed). Pages and components rendered alone in the gallery still draw flat. A snapshot cannot draw the system material, so floating surfaces show their opaque colour there.
+- Not done: glass that shows the desktop behind the window. The backdrop is ARK's own light, so contrast stays under ARK's control.
+- **The drift runs in Core Animation** (`AmbientLayerView`): the window server animates the layers. Measured with the window open, ARK used about 26% CPU with a SwiftUI drift, about 14% with no drift, and about 16% with the layer drift. A 15 fps `TimelineView` was worse, about 18%. Snapshots draw the same lights still, in SwiftUI.
+- Not checked live: GPU and WindowServer cost over a long session, and the island panel's material over a real desktop.

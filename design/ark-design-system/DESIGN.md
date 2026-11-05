@@ -10,7 +10,7 @@ This file describes how the ARK window looks. The values are in `tokens.css`. A 
 ARK is a tool you leave open all day. It must be quiet. It must show what the assistant and the agents are doing, and it must not compete for attention.
 
 - **Two themes in this package.** Void is dark and is the default. Daylight is light.
-- **Flat.** A surface is one opaque colour. A 1 px hairline is the edge of a card. No blur, no gradient, no drop shadow, no glow.
+- **Two materials (ADR-255).** Every theme has two materials. **Ambient glass** is the default: frosted panes over a soft, moving light. **Flat** is the alternative: one opaque colour per surface, a 1 px hairline as the edge, no blur, no gradient, no drop shadow, no glow. The system's Reduce Transparency always draws Flat. The values below are the flat ones; `AmbientGlass.swift` builds the glass ones from the same tones.
 - **One accent.** In Void the accent is light grey. In Daylight it is indigo. Colour appears otherwise only as status.
 - **Status is a small dot.** A dot with a word beside it. A dot alone never carries meaning.
 - **Identifiers are monospaced.** Model names, app names, timings, shortcuts and file paths use the mono font.
@@ -87,11 +87,20 @@ Two levels only.
 
 Do not add a third level. Depth in the dark theme comes from a lighter surface step (`--surface-2`, `--surface-3`) and a hairline, not from a shadow. Shadows are invisible on black.
 
+### Ambient glass
+
+- **Panes are tints, not blur.** The window's panes (rail, sidebar, work area, workspace) are translucent tints of the theme over an ambient backdrop. The work area is the clearest.
+- **The backdrop is light.** Three large, soft pools of colour: the theme's accent hue, a neighbour hue, and the mood. They drift slowly (31 to 46 s a cycle).
+- **The light takes ARK's mood.** Calm: the theme's colours only. Active (listening, thinking, working, agents at work): blue. Attention (something needs you): amber. Problem: red. Plain code picks the mood from ARK's state.
+- **Floating surfaces are frosted.** Menus, pickers, popovers, sheets and the agent panel use the system material, the theme's tint, a lit top edge and a soft shadow.
+- **Text stays readable.** Text is a step stronger in glass. A test checks every theme and mood: main text 7:1 or more, secondary text and captions 4.5:1 or more, on every pane over the brightest light.
+- **Masks stay opaque.** `surfaceSolid` is opaque in glass too. Use it only where something must hide what is under it, such as a terminal or a web view.
+
 ## 7. Motion
 
 - Two durations: **150 ms** (state change, hover) and **200 ms** (something arrives). One curve (`--ease-standard`).
 - ARK names its motion in `Motion.swift`: snap, settle, open, close. Things arrive with a little life and leave without fuss. Nothing springs on the way out.
-- Every motion has a Reduce Motion form: a plain 150 ms fade. Breathing and cascades stop.
+- Every motion has a Reduce Motion form: a plain 150 ms fade. Breathing, cascades and the ambient drift stop.
 - Move only to show a change of state or a relation. Do not move to decorate.
 
 ## 8. Accessibility

@@ -150,7 +150,7 @@ struct LocalBackupPane: View {
                         Text(error).foregroundStyle(theme.problem.color).textSelection(.enabled)
                     }
         }
-        .padding(20).frame(width: 680).frame(minHeight: 460, idealHeight: 680, maxHeight: 760).foregroundStyle(theme.text.color).background(theme.surfaceSolid.color)
+        .padding(20).frame(width: 680).frame(minHeight: 460, idealHeight: 680, maxHeight: 760).foregroundStyle(theme.text.color).floatingSurface()
         .onAppear { if !snapshot { client.session = session; client.response = nil; perform("get") } }
         .onDisappear { if !snapshot && client.session == session { perform("close") } }
         .onChange(of: client.response) { _, value in

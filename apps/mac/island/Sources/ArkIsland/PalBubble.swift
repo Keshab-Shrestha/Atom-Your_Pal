@@ -98,7 +98,7 @@ struct BubbleView: View {
     var body: some View {
         let size = BubbleLayout.size
         let tail = BubbleLayout.tailHeight
-        let palette = model.settings.theme.palette
+        let palette = model.settings.palette
         let tone = BubbleTone(model.status.kind)
         let tailAnchor = UnitPoint(x: state.tailX / size.width, y: state.tailOnTop ? 0 : 1)
         BubbleContent(model: model)

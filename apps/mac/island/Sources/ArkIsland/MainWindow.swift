@@ -40,7 +40,7 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSMenuItemValidati
             model.send(.chatsList) // ADR-091
             model.send(.commandsList) // the "/" picker (ADR-117)
         }
-        let palette = ChatAppearance.palette(theme: model.settings.theme)
+        let palette = ChatAppearance.palette(settings: model.settings)
         window.appearance = NSAppearance(named: palette.isDark ? .darkAqua : .aqua)
         window.backgroundColor = palette.surfaceSolid.nsColor
         window.hasShadow = palette.usesShadows // Void: a hairline, no drop shadow (ADR-086)

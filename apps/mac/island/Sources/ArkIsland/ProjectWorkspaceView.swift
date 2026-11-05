@@ -61,7 +61,8 @@ struct ProjectWorkspaceView: View {
         .foregroundStyle(theme.text.color)
         .buttonStyle(SnapshotBorderlessButtonStyle())
         .frame(minWidth: 260, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(WorkspaceColors.for(model.settings.theme).workspace.color)
+        // ADR-255: in glass the workspace lane behind this already holds the tint; a second coat would darken it.
+        .background(model.settings.glassShown ? Color.clear : model.settings.lanes.workspace.color)
         .task(id: scope) {
             guard !snapshot else { return }
             pieces = nil

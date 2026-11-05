@@ -43,8 +43,8 @@ extension IslandController {
 
     func applyLook() {
         bubble.lookChanged()
-        panel.hasShadow = model.settings.theme.palette.usesShadows
-        menuIcon.update(model.status.kind, title: model.status.title, flat: !model.settings.theme.palette.usesGlow)
+        panel.hasShadow = model.settings.palette.usesShadows
+        menuIcon.update(model.status.kind, title: model.status.title, flat: !model.settings.palette.usesGlow)
         guard let current, panel.isVisible else { return }
         let target = layout().frame(current)
         guard target != panel.frame else { return }

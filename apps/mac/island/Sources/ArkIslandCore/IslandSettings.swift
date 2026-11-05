@@ -43,6 +43,7 @@ public final class IslandSettings {
     static let textSizeKey = "ark.look.textSize"
     static let typefaceKey = "ark.look.typeface"
     static let themeKey = "ark.look.theme"
+    static let glassKey = "ark.look.glass"
     static let sidebarKey = "ark.window.sidebar"
     static let projectFilterKey = "ark.window.projectFilter"
     static let workspaceWidthKey = "ark.window.workspaceWidth"
@@ -148,6 +149,15 @@ public final class IslandSettings {
     /// The sans typeface for every surface. Default the system font (SF Pro): Keshab found Inter and Geist "off" in chat (2026-10-31).
     public var typeface: AppTypeface { didSet { store(typeface.rawValue, Self.typefaceKey) } }
     public var theme: AppTheme { didSet { store(theme.rawValue, Self.themeKey) } }
+    /// Ambient glass (ADR-255): frosted panes over a soft, moving light. On by default; Flat when off.
+    public var glass: Bool { didSet { defaults.set(glass, forKey: Self.glassKey) } }
+    /// The system's Reduce Transparency, set by the app. Not stored: while it is on, ARK draws Flat whatever `glass` says.
+    public var reduceTransparency = false
+    /// Glass is drawn: chosen, and the system does not ask for less transparency.
+    public var glassShown: Bool { glass && !reduceTransparency }
+    /// The palette and the window's panes for the theme in the material that is shown.
+    public var palette: ThemePalette { theme.palette(glass: glassShown) }
+    public var lanes: WorkspaceColors { WorkspaceColors.for(theme, glass: glassShown) }
 
     // Settings → Defaults (2026-11-02). The runtime applies the first two to a chat started in the ARK window.
     public var newChatAccess: ChatAccessMode { didSet { saveText(newChatAccess.rawValue, Self.newChatAccessKey) } }
@@ -296,6 +306,7 @@ public final class IslandSettings {
         studioLightsOn = defaults.bool(forKey: Self.studioLightsKey)
         typeface = Self.choice(defaults, Self.typefaceKey, .system)
         theme = Self.choice(defaults, Self.themeKey, .void)
+        glass = defaults.object(forKey: Self.glassKey) as? Bool ?? true
         sidebar = SidebarLayout(storage: defaults.string(forKey: Self.sidebarKey))
         sidebarHidden = defaults.bool(forKey: Self.sidebarHiddenKey)
         projectFilter = defaults.string(forKey: Self.projectFilterKey)
@@ -390,6 +401,7 @@ public final class IslandSettings {
     /// Appearance: the theme, the text size and the typeface.
     public func resetAppearance() {
         theme = .void
+        glass = true
         textSize = .standard
         typeface = .system
     }

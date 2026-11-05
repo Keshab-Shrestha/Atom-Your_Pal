@@ -24,7 +24,7 @@ struct CommandPaletteView: View {
                 list(results, actions)
             }
             .frame(width: 580)
-            .background(RoundedRectangle(cornerRadius: theme.radiusSurface, style: .continuous).fill(theme.surfaceSolid.color))
+            .floatingSurface(RoundedRectangle(cornerRadius: theme.radiusSurface, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: theme.radiusSurface, style: .continuous).strokeBorder(theme.border.color, lineWidth: 1))
             .shadow(color: .black.opacity(0.22), radius: 30, y: 12)
             .padding(.top, 90)

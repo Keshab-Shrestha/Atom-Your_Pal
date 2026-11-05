@@ -212,7 +212,7 @@ final class PetController {
     private func applyLook() {
         let next = PetBrain.Tuning(wander: settings.palWander, nap: settings.palNap)
         if brain.tuning != next { brain.tuning = next }
-        if state.palette != settings.theme.palette { state.palette = settings.theme.palette }
+        if state.palette != settings.palette { state.palette = settings.palette }
         let drawn = settings.palSize.points
         guard state.size != drawn else { return }
         state.size = drawn
@@ -532,7 +532,7 @@ final class PetController {
             outline.hide()
             return
         }
-        outline.show(around: target.bounds, color: settings.theme.palette.accent.nsColor, below: window)
+        outline.show(around: target.bounds, color: settings.palette.accent.nsColor, below: window)
     }
 
     /// The window under the pointer, from the window list: owner, layer and frame only. No titles, so no Screen Recording.

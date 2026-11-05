@@ -19,6 +19,17 @@ enum ChatAppearance {
         return p
     }
 
+    /// The window's palette in the material that is shown (ADR-255). Flat: as `palette(theme:sidebar:)`. Glass: the glass palette;
+    /// `surfaceSolid` stays the opaque pane colour for masks, and `surface` stays the frosted tint for floating surfaces.
+    @MainActor static func palette(settings: IslandSettings, sidebar: Bool = false) -> ThemePalette {
+        guard settings.glassShown else { return palette(theme: settings.theme, sidebar: sidebar) }
+        var p = settings.palette
+        let lanes = settings.lanes
+        if sidebar { p.surfaceSolid = lanes.panel.over(lanes.frame) }
+        p.surfaceTop = nil
+        return p
+    }
+
     static func palette(dark: Bool, sidebar: Bool = false) -> ThemePalette {
         var p = dark ? ThemePalette.void : .daylight
         p.surfaceSolid = RGBA(hex: dark ? (sidebar ? 0x000000 : 0x0A0A0A) : (sidebar ? 0xFAFAFA : 0xFCFCFC))
