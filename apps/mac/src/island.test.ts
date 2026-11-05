@@ -1391,6 +1391,27 @@ test("helper.reportsTo saves the lead, sends the helpers list with reportsTo, an
   }
 });
 
+test("agent.create with reportsTo puts the new agent on that lead's team (Team board, 2026-11-05)", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "ark-org-new-"));
+  try {
+    const store = openHelperStore({ path: ":memory:", agentsDir: join(dir, "agents") });
+    const org = createOrgStore(join(dir, "org.json"), () => orgAgentIds(store.list()));
+    const h = islandHarness({ helpers: islandHelpers(store, async () => [], undefined, undefined, undefined, undefined, org) });
+    await tick(5);
+    const [lead] = orgAgentIds(store.list());
+    await h.send({ type: "agent.create", name: "Rumi", role: "Travel planner", kit: "think", personality: "Calm.", howItWorks: "", rules: "", reportsTo: lead! });
+    const rumi = (h.events().at(-1) as HelpersEvent).helpers.find((x) => x.id === "rumi")!;
+    assert.equal(rumi.reportsTo, lead);
+    h.clear();
+    await h.send({ type: "agent.create", name: "Tova", role: "Writer", kit: "think", personality: "Kind.", howItWorks: "", rules: "", reportsTo: "nobody" });
+    assert.ok((h.events()[0] as HelpersEvent).helpers.some((x) => x.id === "tova"), "the list with the new agent comes first");
+    assert.match((h.events()[1] as { message: string }).message, /lead is not on your team/);
+    assert.ok(store.list().some((x) => x.id === "tova"), "the agent exists; it reports to ARK");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("MCP servers in helpers never carry a secret value; mcp.add, mcp.set and mcp.remove (ADR-090)", async () => {
   const { h, store } = helperHarness();
   await tick(5);

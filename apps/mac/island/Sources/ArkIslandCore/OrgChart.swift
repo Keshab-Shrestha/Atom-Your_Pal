@@ -6,7 +6,8 @@ import Foundation
 /// (manager level), one without is a worker. The runtime keeps who reports to whom and checks every change; this mirrors its
 /// rules so the window can refuse a drop before it sends it, and lays the tree out on the canvas. Pure.
 public struct OrgChart: Sendable, Equatable {
-    public enum Level: String, Sendable { case owner = "Owner", ceo = "CEO", lead = "Lead", worker = "Worker" }
+    /// The words Keshab uses (2026-11-05): CEO, managers, agents. A "lead" is a manager.
+    public enum Level: String, Sendable { case owner = "Owner", ceo = "CEO", lead = "Manager", worker = "Agent" }
 
     /// The two fixed nodes above the agents.
     public static let owner = "@you"

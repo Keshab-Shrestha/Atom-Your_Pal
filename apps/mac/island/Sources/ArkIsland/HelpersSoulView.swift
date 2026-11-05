@@ -210,6 +210,9 @@ struct NewAgentPane: View {
                         .foregroundStyle(theme.text.color)
                     Text("Saved as data/agents/<name>/soul.md, which you can also edit in any editor. What it may use is its kit, set here and checked in code; its soul cannot add tools.")
                         .appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
+                    if let lead = model.helpers.newAgentLead, let name = model.helpers.list?.helpers.first(where: { $0.id == lead })?.name {
+                        Label("Joins \(name)'s team", systemImage: "person.2").appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+                    }
                 }
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
                 SoulField(label: "Name", text: draft.projectedValue.name, lines: 1, submit: create)

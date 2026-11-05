@@ -257,10 +257,13 @@ test("parses the helper commands", () => {
     { type: "mcp.test", id: 1 },
     { type: "mcp.remove", id: 1 },
     { type: "agent.create", name: "Rumi", role: "travel planner", kit: "research", personality: "Calm.", howItWorks: "", rules: "" },
+    { type: "agent.create", name: "Rumi", role: "travel planner", kit: "research", personality: "Calm.", howItWorks: "", rules: "", reportsTo: "kame" },
     { type: "agent.remove", id: "rumi" },
   ];
   for (const command of good) assert.deepEqual(parseCommand(JSON.stringify(command)), { command }, JSON.stringify(command));
   assert.deepEqual(parseCommand('{"type":"helpers.list","extra":1}'), { command: { type: "helpers.list" } });
+  assert.deepEqual(parseCommand(JSON.stringify({ type: "agent.create", name: "X", role: "r", kit: "think", personality: "p", reportsTo: "Bad Id" })),
+    { error: 'agent.create needs "reportsTo" to be an agent id.' });
   const soul = { name: "Sid", personality: "x", howItWorks: "", rules: "", lessons: "", tools: ["Bash"] };
   assert.deepEqual(parseCommand(JSON.stringify({ type: "soul.set", helper: "sid", soul })), {
     command: { type: "soul.set", helper: "sid", soul: { name: "Sid", personality: "x", howItWorks: "", rules: "", lessons: "" } },

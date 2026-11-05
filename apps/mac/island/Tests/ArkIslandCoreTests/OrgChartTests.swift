@@ -11,6 +11,7 @@ struct OrgChartTests {
     @Test func levelsFollowWhoReportsToWhom() {
         let org = OrgChart(helpers: [agent("kame"), agent("lyric", reportsTo: "kame"), agent("sid"), agent("tinker", role: "improver")])
         #expect(org.agents == ["kame", "lyric", "sid"], "Tinker is not on the chart")
+        #expect(OrgChart.Level.lead.rawValue == "Manager" && OrgChart.Level.worker.rawValue == "Agent", "Keshab's words")
         #expect(org.level(of: OrgChart.owner) == .owner && org.level(of: OrgChart.ark) == .ceo)
         #expect(org.level(of: "kame") == .lead && org.level(of: "lyric") == .worker && org.level(of: "sid") == .worker)
         #expect(org.children(of: OrgChart.ark) == ["kame", "sid"] && org.children(of: "kame") == ["lyric"])

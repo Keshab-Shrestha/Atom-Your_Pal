@@ -930,9 +930,24 @@ export function runIsland(options: IslandOptions): IslandSession {
         changeHelpers(command.type, (helpers) => helpers.rejectPlan(command.id));
         return;
       case "agent.create":
-        changeHelpers(command.type, (helpers) =>
-          helpers.createAgent({ name: command.name, role: command.role, kit: command.kit, personality: command.personality, howItWorks: command.howItWorks, rules: command.rules }),
-        );
+      {
+        let id: string | void = undefined;
+        changeHelpers(command.type, (helpers) => {
+          id = helpers.createAgent({ name: command.name, role: command.role, kit: command.kit, personality: command.personality, howItWorks: command.howItWorks, rules: command.rules });
+        });
+        // The agent exists now: a manager the chart refuses is reported after the new list (which would clear an earlier error),
+        // so the window shows the agent, reporting to ARK, closes its form, and then shows why (code review, 2026-11-05).
+        if (command.reportsTo && id && options.helpers) {
+          try {
+            if (!options.helpers.setReportsTo) throw new Error("The team chart is unavailable in this runtime.");
+            options.helpers.setReportsTo(id, command.reportsTo);
+            sendHelpers();
+          } catch (error) {
+            const message = describe(error);
+            sendHelpers(() => refuseHelpers(command.type, message));
+          }
+        }
+      }
         return;
       case "agent.pause":
         changeHelpers(command.type, (helpers) => {
@@ -1122,7 +1137,7 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "job.interrupt": {
         const interrupt = options.helpers?.interrupt;
         if (!interrupt) return refuseHelpers(command.type, HELPERS_OFF);
-        interrupt(command.id).then(sendHelpers, (error: unknown) => refuseHelpers(command.type, describe(error)));
+        interrupt(command.id).then(() => sendHelpers(), (error: unknown) => refuseHelpers(command.type, describe(error)));
         return;
       }
       case "job.undo": {
@@ -1167,8 +1182,16 @@ export function runIsland(options: IslandOptions): IslandSession {
   // ADR-081: helpers. Store changes are logged by the runtime (ids and states only); refusals log the command only.
   let helpersWatched = false;
   let helpersQueued = false;
+  /** Work that must reach the window after the next `helpers` list (a refusal it would otherwise clear). */
+  let afterHelpers: (() => void)[] = [];
+  const runAfterHelpers = () => {
+    const run = afterHelpers;
+    afterHelpers = [];
+    for (const f of run) f();
+  };
   /** Sends `helpers` once for any number of changes in the same moment (a command and the change it causes). */
-  function sendHelpers() {
+  function sendHelpers(after?: () => void) {
+    if (after) afterHelpers.push(after);
     if (helpersQueued) return;
     helpersQueued = true;
     void appNames().then((apps) => {
@@ -1176,10 +1199,12 @@ export function runIsland(options: IslandOptions): IslandSession {
       const helpers = options.helpers;
       const agentProblems = helpers?.agentProblems() ?? [];
       send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), skills: helpers.skills(), skillDrafts: helpers.skillDrafts(), skillEdits: helpers.skillEdits(), ...(helpers.hub?.payload() ? { skillHub: helpers.hub.payload() } : {}), testCases: helpers.testCases(), mcp: helpers.mcp(), ...(helpers.usage ? { usage: helpers.usage() } : {}), ...(helpers.paperclip ? { paperclip: helpers.paperclip() } : {}), ...(helpers.plans?.().length ? { plans: helpers.plans() } : {}) } : {}), ...(agentProblems.length ? { agentProblems } : {}), });
+      runAfterHelpers();
     }).catch((error: unknown) => {
       // 2026-10-15: an error here was an unhandled rejection, which ends the app; the flag must also clear or no update ever goes out.
       helpersQueued = false;
       options.log?.warn("helpers.send_failed", { message: describe(error).slice(0, 200) });
+      runAfterHelpers();
     });
   }
   function appNames(): Promise<string[]> {

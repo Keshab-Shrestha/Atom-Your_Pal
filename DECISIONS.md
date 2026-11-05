@@ -4845,7 +4845,9 @@ Keshab wants to see the levels of the team like an office: CEO, managers and wor
 - The runtime keeps the chart in `data/org.json` (`{ version: 1, reportsTo: { agent: lead } }`, owner-only, written whole). The command `helper.reportsTo { helper, lead | null }` changes it. The runtime refuses an unknown agent, an agent that leads itself, a loop, and a chart deeper than 4 levels below ARK. A removed agent's reports move up to its own lead.
 - The `helpers` event carries `reportsTo` for each agent. The window mirrors the rules in `OrgChart.swift`, so it refuses a bad drop before it sends it.
 - Chain of command: when the chart has at least one lead, ARK's system prompt gets one team line and one rule. Work in a lead's area goes through the lead: `plan_work` with a first portion for the lead (split and assign), portions for its people, then a last portion for the lead to review. Small single-step work can go straight to a worker. The text is sorted, so it changes only when the chart changes. An empty chart adds no tokens. A change restarts each open session when it is idle (`restartWhenIdle`).
-- No Manager runs come back. The lead is an ordinary agent that gets portions in a plan.
+- No Manager runs come back. The lead is an ordinary agent that gets portions in a plan. It can still do work itself (Keshab, 2026-11-05: "keep current leads").
+- The window calls the levels CEO, Manager and Agent (Keshab's words). A Manager is a lead.
+- Board > Team manages the team: click an agent to open its panel. The panel sets availability and "Reports to", lists its people with "Move up", has "Add agent to this team", "Edit soul", "Open" and "Remove". Remove asks first and moves the folder to `agents-removed`. `agent.create` takes an optional `reportsTo`; a manager that the chart refuses comes back as the error, and the new agent reports to ARK.
 
 ### Consequences
 

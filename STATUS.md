@@ -6,6 +6,7 @@
 - Flow: the task inspector is 560 pt wide. Drag its left edge to change the width. A button opens the task as a full page.
 - Studio: idle agents past the lounge sit at the free meeting seats before the "+N more" sign shows. The sign no longer sits on the desk row. An empty Needs you board says "All clear".
 - Team levels and chain of command (ADR-261): agents report to ARK or to a lead, stored in `data/org.json`. ARK routes work in a lead's area through the lead.
+- Team management (same day, ADR-261): Board > Team calls the levels CEO, Manager and Agent. Click an agent to open its panel: availability, "Reports to", its people with "Move up", "Add agent to this team", "Edit soul", "Open" and "Remove" (asks first, never deletes).
 - Endless boards (ADR-262): the Team org chart and each workflow are on a pan and zoom board. Workflow nodes are draggable, and ARK saves their places.
 - Verified: `pnpm typecheck`, `pnpm test` (1437 pass, 0 fail) and `pnpm island:test` (960 pass). Fixture renders of Team, Activity, Studio, Workflows and the workflow canvas were checked in dark and light.
 - Not done: no signed app build, and no live check in Keshab's ARK. The routing rule is not yet tested with a real model run.

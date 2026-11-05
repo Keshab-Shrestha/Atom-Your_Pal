@@ -54,6 +54,9 @@ extension IslandGallery {
             // 2026-11-05: the Team org chart on the endless board, and the Activity view.
             model.boardView = .team
             capture("46-team-org-" + name, width: 1440, height: 900)
+            save(BoardTeamView(model: model, initiallySelected: "kame").frame(width: 1440, height: 800)
+                .background(model.settings.theme.palette.surfaceSolid.color).themed(model.settings.theme.palette).environment(\.islandSnapshot, true),
+                 name: "46-team-manage-" + name, to: directory)
             model.boardView = .overview
             capture("46-activity-" + name, width: 1280, height: 900)
             model.boardView = .floor

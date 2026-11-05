@@ -153,7 +153,7 @@ export type IslandCommand =
   | { type: "mcp.remove"; id: number }
   | { type: "mcp.set"; id: number; enabled?: boolean; trusted?: boolean; workers?: string[] }
   | { type: "mcp.test"; id: number }
-  | { type: "agent.create"; name: string; role: string; kit: "research" | "folders" | "think"; personality: string; howItWorks: string; rules: string }
+  | { type: "agent.create"; name: string; role: string; kit: "research" | "folders" | "think"; personality: string; howItWorks: string; rules: string; reportsTo?: string }
   | { type: "agent.remove"; id: string }
   | { type: "agent.pause"; id: string; paused: boolean }
   | { type: "proposal.accept"; id: number }
@@ -568,7 +568,10 @@ export function parseCommand(line: string): ParsedLine {
     if (text("name") === undefined || text("role") === undefined || text("personality") === undefined) return { error: 'agent.create needs "name", "role" and "personality" strings.' };
     const kit = text("kit");
     if (kit !== "research" && kit !== "folders" && kit !== "think") return { error: 'agent.create needs "kit": "research", "folders" or "think".' };
-    return { command: { type, name: text("name")!, role: text("role")!, kit, personality: text("personality")!, howItWorks: text("howItWorks") ?? "", rules: text("rules") ?? "" } };
+    // 2026-11-05: "Add agent to this team" on the Team board: the new agent's lead, checked by the team chart after it exists.
+    const reportsTo = v.reportsTo;
+    if (reportsTo !== undefined && (typeof reportsTo !== "string" || !/^[a-z][a-z0-9-]{0,39}$/.test(reportsTo))) return { error: 'agent.create needs "reportsTo" to be an agent id.' };
+    return { command: { type, name: text("name")!, role: text("role")!, kit, personality: text("personality")!, howItWorks: text("howItWorks") ?? "", rules: text("rules") ?? "", ...(reportsTo ? { reportsTo } : {}) } };
   }
   if (type === "agent.pause") {
     const { id, paused } = value as { id?: unknown; paused?: unknown };

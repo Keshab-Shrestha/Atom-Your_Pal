@@ -197,7 +197,8 @@ public enum IslandCommand: Sendable, Equatable {
     case mcpSet(id: Int, enabled: Bool?, trusted: Bool?, workers: [String]?)
     case mcpTest(id: Int)
     /// ADR-088: add an agent (its soul.md), or remove one Keshab added.
-    case agentCreate(name: String, role: String, kit: String, soul: HelperSoul)
+    /// `reportsTo`: the new agent's manager (Team board's "Add agent to this team"); nil reports to ARK.
+    case agentCreate(name: String, role: String, kit: String, soul: HelperSoul, reportsTo: String? = nil)
     case agentRemove(id: String)
     case agentPause(id: String, paused: Bool)
     case grantRemove(helper: String, path: String)
@@ -522,7 +523,8 @@ public enum IslandCommand: Sendable, Equatable {
             fields["id"] = id
             fields["good"] = good // a real JSON boolean
             if let comment, !comment.isEmpty { fields["comment"] = comment }
-        case .agentCreate(let name, let role, let kit, let soul):
+        case .agentCreate(let name, let role, let kit, let soul, let reportsTo):
+            if let reportsTo { fields["reportsTo"] = reportsTo }
             fields["name"] = name
             fields["role"] = role
             fields["kit"] = kit

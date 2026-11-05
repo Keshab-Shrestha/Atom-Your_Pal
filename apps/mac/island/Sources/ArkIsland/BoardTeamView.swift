@@ -10,6 +10,10 @@ struct BoardTeamView: View {
     @State private var dragging: String?
     @State private var dragAt: CGPoint = .zero
     @State private var pointerAt: CGPoint = .zero
+    /// The agent whose management panel is open (2026-11-05: manage the team from the board).
+    @State private var selected: String?
+    /// The panel open at first (the fixture gallery); nil normally.
+    var initiallySelected: String?
     @Environment(\.theme) private var theme
 
     static let node = CGSize(width: 220, height: 96)
@@ -37,9 +41,19 @@ struct BoardTeamView: View {
             }
         }
         .overlay(alignment: .topLeading) {
-            Text("Drag an agent onto a lead to put it on that team. Drop it on ARK to report to ARK.")
+            Text("Click an agent to manage it. Drag it onto a manager to move it to that team, or onto ARK to report to ARK.")
                 .appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 16).padding(.top, 8)
         }
+        .overlay(alignment: .topTrailing) {
+            if let id = selected, let helper = helpers.first(where: { $0.id == id }) {
+                TeamMemberPanel(model: model, helper: helper, org: org, helpers: helpers, select: { selected = $0 }, close: { selected = nil })
+                    .frame(width: 340).padding(12)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
+        }
+        .animation(.easeOut(duration: 0.18), value: selected)
+        .onExitCommand { selected = nil }
+        .onAppear { if selected == nil { selected = initiallySelected } }
     }
 
     // MARK: - Drag to reassign
@@ -109,8 +123,8 @@ struct BoardTeamView: View {
                 FixedNode(title: "ARK", detail: model.status.isBusy ? model.status.title : "Ready", level: level, lit: model.status.isBusy)
             default:
                 if let helper = helpers.first(where: { $0.id == id }) {
-                    AgentOrgCard(helper: helper, level: level, reports: org.children(of: id).count)
-                        .onTapGesture { model.navigate { model.windowPage = .agents; model.helpers.selectHelper(helper.id) } }
+                    AgentOrgCard(helper: helper, level: level, reports: org.children(of: id).count, selected: selected == id)
+                        .onTapGesture { selected = selected == id ? nil : id }
                 }
             }
         }
@@ -160,6 +174,7 @@ private struct AgentOrgCard: View {
     let helper: Helper
     let level: OrgChart.Level
     let reports: Int
+    var selected = false
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -181,7 +196,7 @@ private struct AgentOrgCard: View {
             } else {
                 Text(helper.paused ? "Paused" : waiting > 0 ? "\(waiting) waiting" : "Idle").appFont(.system(size: 11)).foregroundStyle(theme.text3.color)
             }
-            Text(reports > 0 ? "Leads \(reports)" + (record.map { " · " + $0 } ?? "") : record ?? " ")
+            Text(reports > 0 ? "Manages \(reports)" + (record.map { " · " + $0 } ?? "") : record ?? " ")
                 .appFont(.system(size: 10.5)).monospacedDigit().foregroundStyle(theme.text3.color).lineLimit(1)
         }
         .padding(12)
@@ -189,10 +204,125 @@ private struct AgentOrgCard: View {
         .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(theme.fill1.color))
         .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(theme.surfaceSolid.color)) // solid over the grid
         .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-            .strokeBorder(running != nil ? theme.live.color.opacity(0.6) : theme.separator.color, lineWidth: 1))
+            .strokeBorder(selected ? theme.accent.color : running != nil ? theme.live.color.opacity(0.6) : theme.separator.color, lineWidth: selected ? 2 : 1))
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(helper.name), \(level.rawValue), \(running?.step ?? (helper.paused ? "paused" : "idle"))")
         .accessibilityAddTraits(.isButton)
+    }
+}
+
+/// Manage one agent from the Team board: availability, manager, its people, and the agent's own pages. Every change goes through the
+/// runtime's existing commands (agent.pause, helper.reportsTo, agent.create, agent.remove); removing asks first and moves the folder to
+/// agents-removed, never deletes it.
+private struct TeamMemberPanel: View {
+    let model: IslandModel
+    let helper: Helper
+    let org: OrgChart
+    let helpers: [Helper]
+    let select: (String?) -> Void
+    let close: () -> Void
+    @State private var removing = false
+    @Environment(\.theme) private var theme
+    @Environment(\.islandSnapshot) private var snapshot
+
+    private func leadName(_ lead: String?) -> String { lead.flatMap { id in helpers.first { $0.id == id }?.name } ?? "ARK (CEO)" }
+
+    var body: some View {
+        let level = org.level(of: helper.id)
+        let lead = org.leadOf[helper.id]
+        let people = org.children(of: helper.id)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 10) {
+                HelperBadge(helper: helper, size: 36)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(helper.name).appFont(.system(size: 15, weight: .semibold)).foregroundStyle(theme.text.color).lineLimit(1)
+                    Text(helper.roleTitle).appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color).lineLimit(1)
+                }
+                Spacer(minLength: 4)
+                LevelChip(level: level)
+                IconButton(symbol: "xmark", label: "Close") { close() }
+            }
+            row("Availability") { AgentAvailabilityMenu(model: model, helper: helper) }
+            row("Reports to") {
+                // A snapshot cannot draw a Menu (it renders as a placeholder): the gallery shows its label alone.
+                if snapshot { Text(leadName(lead)).appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color) } else {
+                Menu {
+                    Button { model.send(.helperReportsTo(helper: helper.id, lead: nil)) } label: {
+                        Label("ARK (CEO)", systemImage: lead == nil ? "checkmark" : "building.2")
+                    }
+                    Divider()
+                    ForEach(helpers.filter { $0.id != helper.id && org.canReport(helper.id, to: $0.id) }) { other in
+                        Button { model.send(.helperReportsTo(helper: helper.id, lead: other.id)) } label: {
+                            Label(other.name, systemImage: lead == other.id ? "checkmark" : "person")
+                        }
+                    }
+                } label: {
+                    Text(leadName(lead))
+                        .appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
+                }
+                .menuStyle(.borderlessButton).fixedSize()
+                .accessibilityLabel("\(helper.name) reports to")
+                }
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Text(people.isEmpty ? "Team" : "Team · \(people.count)").appFont(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+                if people.isEmpty {
+                    Text("Nobody reports to \(helper.name) yet. Add an agent, or drag one onto this card.")
+                        .appFont(.system(size: 12)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
+                }
+                ForEach(people, id: \.self) { id in
+                    if let person = helpers.first(where: { $0.id == id }) {
+                        HStack(spacing: 8) {
+                            HelperBadge(helper: person, size: 22)
+                            Button(person.name) { select(id) }.buttonStyle(.plain)
+                                .appFont(.system(size: 12.5)).foregroundStyle(theme.text.color)
+                            Spacer()
+                            // Off this team: up to this manager's own manager (or ARK).
+                            Button("Move up") { model.send(.helperReportsTo(helper: id, lead: lead)) }.buttonStyle(.plain)
+                                .appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+                                .disabled(!org.canReport(id, to: lead))
+                                .help("Report to \(lead.flatMap { l in helpers.first { $0.id == l }?.name } ?? "ARK") instead")
+                        }
+                    }
+                }
+                QuietButton(title: "Add agent to this team", symbol: "person.badge.plus") {
+                    model.navigate { model.windowPage = .agents; model.helpers.openNewAgent(lead: helper.id) }
+                }
+                .disabled(org.depth(of: helper.id) >= OrgChart.maxDepth)
+            }
+            Divider()
+            HStack(spacing: 8) {
+                QuietButton(title: "Edit soul", symbol: "pencil") {
+                    model.navigate { model.windowPage = .agents; model.helpers.selectHelper(helper.id); model.helpers.openSoul() }
+                }
+                QuietButton(title: "Open", symbol: "arrow.up.right") {
+                    model.navigate { model.windowPage = .agents; model.helpers.selectHelper(helper.id) }
+                }
+                Spacer()
+                if helper.custom {
+                    Button("Remove", role: .destructive) { removing = true }.buttonStyle(.plain)
+                        .appFont(.system(size: 12)).foregroundStyle(theme.problem.color)
+                        .confirmationDialog("Remove \(helper.name) from the team?", isPresented: $removing) {
+                            Button("Remove \(helper.name)", role: .destructive) {
+                                model.send(.agentRemove(id: helper.id))
+                                close()
+                            }
+                        } message: {
+                            Text("Its folder moves to agents-removed; nothing is deleted. Its people move up to \(lead.flatMap { l in helpers.first { $0.id == l }?.name } ?? "ARK").")
+                        }
+                }
+            }
+        }
+        .padding(16)
+        .floatingSurface(RoundedRectangle(cornerRadius: theme.radiusCard + 6, style: .continuous))
+    }
+
+    private func row(_ title: String, @ViewBuilder _ content: () -> some View) -> some View {
+        HStack {
+            Text(title).appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
+            Spacer()
+            content()
+        }
     }
 }

@@ -155,7 +155,7 @@ export function islandHelpers(
     updateRoutine: (id, input) => void store.updateRoutine(id, input.helper, input.task, scheduleOf(input), startOf(input), input.notifyTelegram, input.webhook),
     removeRoutine: (id) => store.removeRoutine(id),
     pauseRoutine: (id, paused) => store.pauseRoutine(id, paused),
-    createAgent: (input) => void store.createAgent(input),
+    createAgent: (input) => store.createAgent(input).id,
     removeAgent: (id) => store.removeAgent(id),
     agentProblems: () => store.agentProblems().map(({ id, problem }) => ({ id, problem })),
     retry: (id) => store.retry(id),
