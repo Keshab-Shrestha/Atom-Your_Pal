@@ -391,6 +391,9 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "chat.defaults":
         newChatDefaults = { access: command.access, effort: command.effort };
         return;
+      case "stats.get":
+        if (options.stats) send({ type: "stats", ...options.stats.get() });
+        return;
       case "improvements.get":
         sendImprovements();
         return;

@@ -123,6 +123,14 @@ extension IslandGallery {
         save(HelpersView(model: model).frame(width: 1100, height: 900).environment(\.islandSnapshot, true), name: "43-workspace-connections", to: directory)
         model.settingsPage = .privacy
         save(HelpersView(model: model).frame(width: 1100, height: 900).environment(\.islandSnapshot, true), name: "43-workspace-privacy", to: directory)
+        model.stats = ToolStats(days: 7, turns: 38, avgTurnMs: 4200, slowTurns: 2, totalCalls: 214, totalFailed: 9, tools: [
+            ToolStatRow(name: "computer", calls: 96, failed: 6, avgMs: 640, repeats: 2),
+            ToolStatRow(name: "memory", calls: 51, failed: 0, avgMs: 18, repeats: 0),
+            ToolStatRow(name: "web_search", calls: 34, failed: 3, avgMs: 1900, repeats: 0),
+            ToolStatRow(name: "weather", calls: 12, failed: 0, avgMs: 240, repeats: 0),
+        ])
+        model.settingsPage = .stats
+        save(HelpersView(model: model).frame(width: 1100, height: 900).environment(\.islandSnapshot, true), name: "43-workspace-stats", to: directory)
         model.windowPage = .dashboard
         save(HelpersView(model: model).frame(width: 1440, height: 900).environment(\.islandSnapshot, true), name: "43-workspace-dashboard-wide", to: directory)
         model.windowPage = .scheduled
