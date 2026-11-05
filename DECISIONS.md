@@ -4799,3 +4799,20 @@ The audit (`docs/ui-audit-2026-11-05.md`, items A2 and A3) found six equal tiles
 
 - The first row of Home is about what to do, not about cost.
 - One golden changed (`13-helpers-dashboard`). The Studio goldens also change a little on every run, so they were refreshed with this change.
+
+## ADR-259 — Labels under the rail's icons (2026-11-05)
+
+### Context
+
+The audit (`docs/ui-audit-2026-11-05.md`, item A4) found that the rail showed icons only (ADR from 2026-10-31). A page's name appeared only on hover. Chats, Board and Panels looked alike at a glance.
+
+### Decision
+
+- Each page in the rail has a small caption under its glyph (9.5 pt; semibold and in main text when selected). The rail is 64 pt wide, not 51 pt.
+- The logo and the app tiles keep no caption. An app's name still floats out on hover, and a page shows no hover tag, because its caption already names it.
+
+### Consequences
+
+- The rail reads without hovering.
+- The rail is taller. In a short window its top group scrolls sooner.
+- 34 goldens changed (every shot with the rail).

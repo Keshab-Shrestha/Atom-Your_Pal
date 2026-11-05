@@ -39,7 +39,7 @@ struct WorkspaceNavigationRail: View {
                 .buttonStyle(.plain).help("You").accessibilityLabel("You").padding(.top, 4)
             }
         }
-        .padding(.vertical, 12).frame(width: 51)
+        .padding(.vertical, 12).frame(width: 64)
         .workspaceLane(color: model.settings.lanes.rail)
         // 2026-10-31: the rail shows glyphs only; the hovered button's name floats out to its right, over the next pane.
         .overlayPreferenceValue(RailHoverKey.self) { hovered in
@@ -200,8 +200,30 @@ private struct WorkspaceRailButton: View {
         }
     }
 
+    /// ADR-259: pages carry a small caption under the glyph, so the rail reads without hovering. The logo and app tiles do not
+    /// (an app's name floats out on hover, as before).
+    private var showsCaption: Bool { !appIcon && letter == nil }
+
     var body: some View {
         Button(action: action) {
+            VStack(spacing: 3) {
+                glyph
+                if showsCaption {
+                    Text(caption).appFont(.system(size: 9.5, weight: selected ? .semibold : .medium))
+                        .foregroundStyle(selected ? theme.text.color : theme.text2.color)
+                        .lineLimit(1).fixedSize()
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(WorkspacePressStyle())
+        .onHover { hovering = $0 }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: hovering)
+        .anchorPreference(key: RailHoverKey.self, value: .bounds) { hovering && !showsCaption ? RailHover(title: appIcon ? "Home" : title, anchor: $0) : nil }.accessibilityLabel(badge > 0 ? "\(title), \(badge) need attention" : title)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private var glyph: some View {
             Group {
                 if appIcon {
                     homeIcon.frame(width: Self.homeIconSize, height: Self.homeIconSize).accessibilityHidden(true)
@@ -227,12 +249,6 @@ private struct WorkspaceRailButton: View {
                 }
             }
             .contentShape(RoundedRectangle(cornerRadius: Radius.card))
-        }
-        .buttonStyle(WorkspacePressStyle())
-        .onHover { hovering = $0 }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: hovering)
-        .anchorPreference(key: RailHoverKey.self, value: .bounds) { hovering ? RailHover(title: appIcon ? "Home" : title, anchor: $0) : nil }.accessibilityLabel(badge > 0 ? "\(title), \(badge) need attention" : title)
-        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     @ViewBuilder private var homeIcon: some View {
