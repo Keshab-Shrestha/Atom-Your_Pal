@@ -62,6 +62,7 @@ extension IslandGallery {
         }
         writeSelectText(to: directory)
         writeAgentCursor(to: directory)
+        writeAgentCursorLanes(to: directory)
     }
 
     /// 2026-11-02: Select text's page drawn by an offscreen text view (ImageRenderer cannot draw an NSTextView), and what a copy

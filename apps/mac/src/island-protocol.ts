@@ -49,7 +49,7 @@ export type IslandEvent =
   | { type: "computer.step"; text: string }
   | { type: "computer.decision"; id: string; state: string; criteria: Record<string, string> }
   | { type: "computer.decision.cancel"; id: string }
-  | { type: "computer.cursor"; x: number; y: number }
+  | { type: "computer.cursor"; x: number; y: number; lane?: string }
   /** ADR-054: no step for a while and no approval waiting: the computer work is over, so the island clears its strip. */
   | { type: "computer.end" }
   | { type: "computer.point"; x: number; y: number; w: number; h: number; label: string; shape?: "ring" | "box" | "underline" | "arrow" }

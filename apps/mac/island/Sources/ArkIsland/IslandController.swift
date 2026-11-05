@@ -336,7 +336,9 @@ final class IslandController {
         if case .contextReady(_, let ok, _) = event { contextReady(ok: ok) } // before the status: it opens the microphone
         model.work.apply(event, now: Self.now)
         if case .computerStep(let step) = event, step != "Checking computer readiness" { agentCursor.begin() }
-        if case .computerCursor(let x, let y) = event { agentCursor.move(x: x, y: y) }
+        if case .computerCursor(let x, let y, let lane) = event {
+            if let lane { agentCursor.lane(lane)?.move(x: x, y: y) } else { agentCursor.move(x: x, y: y) }
+        }
         if case .computerEnd = event { agentCursor.end() }
         if case .state(.idle) = event { agentCursor.end() }
         if case .computerPoint(let target) = event {

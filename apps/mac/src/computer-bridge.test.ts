@@ -396,3 +396,12 @@ test("a drawn shape reaches the window with the point, and a plain point has non
   assert.equal(points[0]!.shape, "box");
   assert.equal("shape" in points[1]!, false);
 });
+
+test("a lane's cursor move carries the lane name, a bad name is dropped, and the main lane has none", () => {
+  const { bridge, events } = setup();
+  bridge.cursorMove({ x: 1, y: 2, lane: "a" });
+  bridge.cursorMove({ x: 3, y: 4 });
+  bridge.cursorMove({ x: 5, y: 6, lane: "Bad Name!" });
+  const moves = events.filter((e) => e.type === "computer.cursor") as Array<{ x: number; lane?: string }>;
+  assert.deepEqual(moves.map((m) => m.lane), ["a", undefined, undefined]);
+});

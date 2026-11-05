@@ -10,6 +10,7 @@ if (exitDelay > 0) {
   process.on("SIGTERM", () => setTimeout(() => process.exit(0), exitDelay));
 }
 // CUA_FIXTURE_ENDED: like the real driver, the session "ark" has ended: session tools are rejected until start_session revives it.
+const started = [];
 const ended = new Set(process.env.CUA_FIXTURE_ENDED ? ["ark"] : []);
 const out = (m) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", ...m }) + "\n");
 createInterface({ input: process.stdin }).on("line", (line) => {
@@ -27,7 +28,7 @@ createInterface({ input: process.stdin }).on("line", (line) => {
     const paged = process.env.CUA_FIXTURE_LIST === "paged";
     // CUA_FIXTURE_SESSION: like the real 0.28 driver, some tools take a session, and the driver has its own agent cursor.
     const sessioned = process.env.CUA_FIXTURE_SESSION ? ["echo", "set_agent_cursor_enabled"] : [];
-    if (process.env.CUA_FIXTURE_ENDED && !process.env.CUA_FIXTURE_NO_START && !m.params.cursor) names.push("start_session");
+    if ((process.env.CUA_FIXTURE_ENDED || process.env.CUA_FIXTURE_LANES) && !process.env.CUA_FIXTURE_NO_START && !m.params.cursor) names.push("start_session");
     const tools = [...(paged ? (m.params.cursor ? names.slice(6) : names.slice(0, 6)) : names), ...(m.params.cursor ? [] : sessioned)]
       .map((name) => sessioned.includes(name) ? { name, inputSchema: { type: "object", properties: { session: { type: "string" } } } } : { name });
     return out({ id: m.id, result: { tools, ...(process.env.CUA_FIXTURE_LIST === "endless" || (paged && !m.params.cursor) ? { nextCursor: "more" } : {}) } });
@@ -35,14 +36,14 @@ createInterface({ input: process.stdin }).on("line", (line) => {
   if (m.method !== "tools/call") return out({ id: m.id, error: { code: -32601, message: "no such method" } });
   const { name, arguments: a } = m.params;
   calls.push(name);
-  if (name === "start_session") { ended.delete(a.session); return out({ id: m.id, result: { content: [{ type: "text", text: "started" }], structuredContent: {} } }); }
-  if (a.session && ended.has(a.session) && name !== "set_agent_cursor_enabled") return out({ id: m.id, result: { isError: true, content: [{ type: "text", text: `Could not read: session '${a.session}' has ended; tool call '${name}' was rejected. Call start_session with this id to revive it before issuing further calls.` }], structuredContent: {} } });
+  if (name === "start_session") { for (const e of [...ended]) if (a.session === e || a.session.startsWith(e + "-")) ended.delete(e); started.push(a.session); return out({ id: m.id, result: { content: [{ type: "text", text: "started" }], structuredContent: {} } }); }
+  if (a.session && [...ended].some((e) => a.session === e || a.session.startsWith(e + "-")) && name !== "set_agent_cursor_enabled") return out({ id: m.id, result: { isError: true, content: [{ type: "text", text: `Could not read: session '${a.session}' has ended; tool call '${name}' was rejected. Call start_session with this id to revive it before issuing further calls.` }], structuredContent: {} } });
   const ok = (text, structuredContent = {}) => out({ id: m.id, result: { content: [{ type: "text", text }], structuredContent } });
   if (name === "echo") return ok(String(a.text), { args: a });
   if (name === "set_agent_cursor_enabled") { calls.push(JSON.stringify(a)); return ok("cursor", { session: a.session, enabled: a.enabled }); }
   if (name === "pid") return ok("pid", { pid: process.pid });
-  if (name === "requests") return ok("requests", { calls, methods });
-  if (name === "later") return void setTimeout(() => ok("later"), Number(a.ms ?? 0));
+  if (name === "requests") return ok("requests", { calls, methods, started });
+  if (name === "later") return void setTimeout(() => ok("later", { session: a.session ?? null }), Number(a.ms ?? 0));
   if (name === "env") return ok("env", { mode: process.env.CUA_DRIVER_PERMISSION_MODE, bypass: process.env.CUA_DRIVER_DANGEROUSLY_BYPASS_APPROVALS ?? null, telemetry: process.env.CUA_TELEMETRY_ENABLED, telemetryRs: process.env.CUA_DRIVER_RS_TELEMETRY_ENABLED });
   if (name === "cancelled") return ok("n", { cancelled });
   if (name === "refuse") return out({ id: m.id, result: { isError: true, content: [{ type: "text", text: "not allowed" }], structuredContent: { status: "refused", refusal: { code: "denied", message: "not allowed" } } } });

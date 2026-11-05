@@ -1080,3 +1080,89 @@ test("point may also draw a shape, only a known one, and still clicks nothing", 
   await s.run({ action: "point", element: 6 });
   assert.equal("shape" in pointed[1]!, false, "no shape: only the pointing, as before");
 });
+
+// Lanes (ADR-249): two windows worked in at the same time, each with its own look, session and cursor.
+const notes = { name: "Notes", bundle_id: "com.apple.Notes", pid: 33, running: true };
+const notesWin = { app_name: "Notes", pid: 33, window_id: 9, title: "list", is_on_screen: true };
+const laneHandlers = (delayMs = 0): Record<string, (a: any) => CuaResult> => ({
+  list_apps: () => ok("apps", { apps: [textEdit, notes] }),
+  list_windows: () => ok("wins", { windows: [win, notesWin] }),
+  get_window_state: (a) => ok("state", { pid: a.pid, window_id: a.window_id, app_name: a.pid === 33 ? "Notes" : "TextEdit", window_title: "x", snapshot_id: "s1", elements, tree_markdown: "tree" }),
+});
+
+test("a lane has its own look and its own Cua session; the main lane has none", async () => {
+  const s = setup({ handlers: laneHandlers() });
+  await s.run({ action: "look", app: "TextEdit", lane: "a" });
+  await s.run({ action: "look", app: "Notes", lane: "b" });
+  const states = s.calls.filter((c) => c.name === "get_window_state");
+  assert.deepEqual(states.map((c) => c.args.session), ["ark-a", "ark-b"]);
+  const aClick = await s.run({ action: "click", element: 2, lane: "a" });
+  const bClick = await s.run({ action: "click", element: 2, lane: "b" });
+  assert.equal(aClick.ok && bClick.ok, true);
+  const clicks = s.calls.filter((c) => c.name === "click");
+  assert.deepEqual(clicks.map((c) => [c.args.pid, c.args.session]), [[11, "ark-a"], [33, "ark-b"]], "each lane clicks in its own window");
+  const noLook = await s.run({ action: "click", element: 2 });
+  assert.equal(noLook.ok, false, "the main lane has not looked: lanes do not share a look");
+  await s.run({ action: "look", app: "TextEdit" });
+  assert.equal(s.calls.filter((c) => c.name === "get_window_state").at(-1)!.args.session, undefined, "the main lane carries no session");
+});
+
+test("two lanes cannot work in the same app, and a bad lane name is refused", async () => {
+  const s = setup({ handlers: laneHandlers() });
+  await s.run({ action: "look", app: "TextEdit", lane: "a" });
+  const clash = await s.run({ action: "look", app: "TextEdit", lane: "b" });
+  assert.equal(clash.ok, false);
+  assert.match(clash.text, /Lane "a" is already working in TextEdit/);
+  assert.equal((await s.run({ action: "look", app: "Notes", lane: "Bad Name" })).ok, false);
+  for (const name of ["x1", "x2", "x3"]) await s.run({ action: "look", app: "Notes", lane: name }).catch(() => {});
+  const fourth = await s.run({ action: "look", app: "Notes", lane: "x4" });
+  assert.match(fourth.text, /at most 3 lanes/);
+});
+
+test("parallel runs one step in each lane at the same time and reports each lane", async () => {
+  const slow = (name: string) => async () => { await new Promise((r) => setTimeout(r, 150)); return ok(`${name} done`, { effect: "confirmed" }); };
+  const handlers: Record<string, any> = { ...laneHandlers(), click: (a: any) => slow(a.pid === 33 ? "notes" : "textedit")() };
+  const s = setup({ handlers });
+  await s.run({ action: "look", app: "TextEdit", lane: "a" });
+  await s.run({ action: "look", app: "Notes", lane: "b" });
+  const began = Date.now();
+  const r = await s.run({ action: "parallel", calls: [{ lane: "a", action: "click", element: 2 }, { lane: "b", action: "click", element: 2 }] });
+  const took = Date.now() - began;
+  assert.equal(r.ok, true);
+  assert.match(r.text, /\[lane a\][\s\S]*\[lane b\]/);
+  assert.ok(took < 270, `two 150 ms clicks took ${took} ms: they did not run side by side`);
+});
+
+test("parallel refuses a step that needs the user's OK in its own lane and still runs the other", async () => {
+  const s = setup({ handlers: laneHandlers(), approve: () => true });
+  await s.run({ action: "look", app: "TextEdit", lane: "a" });
+  await s.run({ action: "look", app: "Notes", lane: "b" });
+  const r = await s.run({ action: "parallel", calls: [{ lane: "a", action: "click", element: 3 }, { lane: "b", action: "click", element: 2 }] }); // element 3 is "Send"
+  assert.equal(r.ok, true);
+  assert.match(r.text, /\[lane a\] FAILED: This step needs the user's OK/);
+  assert.match(r.text, /\[lane b\] /);
+  assert.equal(s.asked.length, 0, "no card was shown");
+  assert.equal(s.calls.filter((c) => c.name === "click").length, 1, "only the safe step clicked");
+});
+
+test("parallel takes 2 or 3 steps with their own lanes and only the plain actions", async () => {
+  const s = setup({ handlers: laneHandlers() });
+  await s.run({ action: "look", app: "TextEdit", lane: "a" });
+  for (const calls of [[{ lane: "a", action: "click", element: 2 }], [{ lane: "a", action: "click", element: 2 }, { lane: "a", action: "click", element: 2 }], [{ lane: "a", action: "shortcut" }, { lane: "b", action: "look", app: "Notes" }], "nope"]) {
+    assert.equal((await s.run({ action: "parallel", calls })).ok, false, JSON.stringify(calls).slice(0, 60));
+  }
+});
+
+test("the cursor events name the lane, and the main lane has no name", async () => {
+  const moves: Array<{ lane?: string }> = [];
+  const handlers = { ...laneHandlers(), get_window_state: (a: any) => ok("state", { pid: a.pid, window_id: a.window_id, app_name: a.pid === 33 ? "Notes" : "TextEdit", window_title: "x", snapshot_id: "s1", window_bounds: { x: 0, y: 0, width: 400, height: 300 }, elements, tree_markdown: "tree" }) };
+  const { cua } = fakeCua(handlers);
+  const tool = createComputerTool({ cua, approve: async () => true, onCursorMove: (p) => moves.push(p) });
+  await tool.run({ action: "look", app: "TextEdit", lane: "a" });
+  await tool.run({ action: "click", element: 2, lane: "a" });
+  await tool.run({ action: "look", app: "Notes" });
+  await tool.run({ action: "click", element: 2 });
+  assert.equal(moves.length, 2);
+  assert.equal(moves[0]!.lane, "a");
+  assert.equal("lane" in moves[1]!, false);
+});

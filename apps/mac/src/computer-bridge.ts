@@ -40,7 +40,8 @@ export interface ComputerBridge {
   decisionResult(id: string, answer?: ComputerDecisionAnswer): void;
   beginAction(): void;
   actionFinished(): void;
-  cursorMove(point: { x: number; y: number }): void;
+  /** `lane` names a lane other than the main one (ADR-249): the window draws a cursor for it. */
+  cursorMove(point: { x: number; y: number; lane?: string }): void;
   /** The Settings default for computer input (the island's `computer.mode`). Background until the island says otherwise. */
   setForeground(on: boolean): void;
   /** Passed to the computer tool as `deliveryMode`. */
@@ -269,7 +270,7 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
     actionFinished() { activeActions = Math.max(0, activeActions - 1); if (!activeActions) scheduleEnd(); },
     cursorMove(point) {
       if (Number.isFinite(point.x) && Number.isFinite(point.y) && Math.abs(point.x) <= 100_000 && Math.abs(point.y) <= 100_000)
-        sendEvent?.({ type: "computer.cursor", x: point.x, y: point.y });
+        sendEvent?.({ type: "computer.cursor", x: point.x, y: point.y, ...(point.lane && /^[a-z][a-z0-9-]{0,11}$/.test(point.lane) ? { lane: point.lane } : {}) });
     },
     answer: (id, approved, rememberFile, reviewToken, rememberTask) => settle(id, approved, rememberFile, reviewToken, rememberTask),
     revokeTaskAllows: () => taskAllows.revoke(),
