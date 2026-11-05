@@ -4479,3 +4479,23 @@ ARK's own log showed the computer tool failing with "session 'ark' has ended; to
 
 - A long idle gap no longer breaks the computer tool until restart.
 - If the driver changes the wording of the rejection, the retry does not fire. The test pins the current wording.
+
+## ADR-243 — Remind the model when it repeats a call (2026-11-05)
+
+### Context
+
+A model can call the same tool with the same input again and again, hoping for a new result. Each call costs time and tokens and changes nothing. The deepseek-harness project warns its model in this case. ARK's own log showed the computer tool failing in this way.
+
+### Decision
+
+- The tool engine counts identical calls (same tool name, same input, key order ignored) in one turn. One turn is one abort signal. A call with no signal is not counted.
+- From the third identical call, the result ends with a short reminder: the same input gives the same result unless something changed, so try a different step or tell the user what blocks. The reminder is on failing calls too.
+- The call still runs. The reminder is advice. It blocks nothing.
+- The `tool.call` log line gains `repeat` (the count) from the third call. The ARK notices can use it later.
+- The engine keeps at most 200 distinct calls per turn.
+
+### Consequences
+
+- A loop shows up to the model, and in the log.
+- A legitimate repeat, such as scrolling the same step three times, gets a reminder it can ignore.
+- The model is the only reader. Code does not stop a loop.
