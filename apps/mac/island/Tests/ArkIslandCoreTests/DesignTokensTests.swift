@@ -66,6 +66,28 @@ struct DesignTokensTests {
         #expect(Self.pixels(tokens["--radius-sm"]) == p.radiusControl, "\(selector) --radius-sm")
     }
 
+    /// 2026-11-05: the type scale had three copies (DESIGN.md, tokens.css, `TypeScale`) and they disagreed. `TypeScale` is the source.
+    @Test func theTypeTokensMatchTheTypeScale() throws {
+        let css = try String(contentsOf: Self.tokensURL, encoding: .utf8)
+        let tokens = try #require(Self.blocks(css)[":root"], "tokens.css has a :root block")
+        let sizes = tokens.filter { $0.key.hasPrefix("--text-") }.compactMapValues { Self.pixels($0) }
+        let expected: [String: CGFloat] = [
+            "--text-caption": TypeScale.caption, "--text-body": TypeScale.body, "--text-reading": TypeScale.reading,
+            "--text-title": TypeScale.title, "--text-display": TypeScale.display,
+        ]
+        #expect(sizes == expected, "tokens.css type sizes equal TypeScale")
+        for step in DesignCatalog.typeScale { #expect(expected[step.name] == step.size, "\(step.name) in the catalog") }
+    }
+
+    @Test func aSizeSnapsToTheNearestRoleAndBigNumeralsStay() {
+        #expect([10.5, 11, 11.5].map { TypeScale.snap($0) } == [11, 11, 11])
+        #expect([12, 12.5, 13].map { TypeScale.snap($0) } == [13, 13, 13])
+        #expect([14, 15, 16.5].map { TypeScale.snap($0) } == [15, 15, 15])
+        #expect([18, 20, 23].map { TypeScale.snap($0) } == [20, 20, 20])
+        #expect([26, 28, 30].map { TypeScale.snap($0) } == [28, 28, 28])
+        #expect(TypeScale.snap(48) == 48)
+    }
+
     @Test func spacingIsOnAFourPixelGridAndRadiiStepDown() throws {
         let css = try String(contentsOf: Self.tokensURL, encoding: .utf8)
         let shared = try #require(Self.blocks(css)[":root"])

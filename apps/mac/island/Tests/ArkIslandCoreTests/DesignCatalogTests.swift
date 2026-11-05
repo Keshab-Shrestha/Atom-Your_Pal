@@ -71,7 +71,7 @@ struct DesignCatalogTests {
 
     /// DESIGN.md section 3: one type scale, each size for one role.
     @Test func theTypeScaleIsTheOneInDesignMD() {
-        #expect(DesignCatalog.typeScale.map(\.size) == [11, 12, 13, 15, 18, 26])
+        #expect(DesignCatalog.typeScale.map(\.size) == [11, 13, 15, 20, 28])
         #expect(Set(DesignCatalog.typeScale.map(\.role)).count == DesignCatalog.typeScale.count)
     }
 

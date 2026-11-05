@@ -1,7 +1,6 @@
 /* ARK design tokens. They mirror ThemePalette in apps/mac/island/Sources/ArkIslandCore/Theme.swift for the two flat
  * themes, Void and Daylight. A test (DesignTokensTests.swift) fails when a value here differs from the Swift theme, so
- * change both together. The glass themes (Lantern, Lantern Day, Quiet Native, Luminous, Warm) use blur and are not
- * described here.
+ * change both together. The other seven themes in AppTheme are not described here.
  *
  * Names follow the Open Design semantic-token contract (design-systems/_schema): identity tokens (--bg, --fg, --accent,
  * fonts), then shared tokens (state colours, spacing, radius, elevation, focus, motion), then ARK extensions.
@@ -70,13 +69,13 @@
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
 
-  /* Type scale: one size per role (DESIGN.md section 3). Hierarchy is size, weight and colour level together */
+  /* Type scale: one size per role (DESIGN.md section 3). Hierarchy is size, weight and colour level together.
+   * It equals TypeScale in ArkIslandCore; DesignTokensTests fails when they differ. */
   --text-caption: 11px;
-  --text-secondary: 12px;
   --text-body: 13px;
-  --text-row: 15px;
-  --text-title: 18px;
-  --text-number: 26px;
+  --text-reading: 15px;
+  --text-title: 20px;
+  --text-display: 28px;
 
   /* Spacing on a 4 px grid */
   --space-1: 4px;

@@ -112,6 +112,23 @@ extension RGBA {
     }
 }
 
+/// Five sizes, far apart (taste-skill: "nine nearly equal font sizes" is a tell). Sizes above the scale (big numerals) stay.
+/// The one source of the type scale: `AppFont` snaps to it, `DesignCatalog.typeScale` lists it, and a test ties it to tokens.css.
+public enum TypeScale {
+    public static let caption: CGFloat = 11, body: CGFloat = 13, reading: CGFloat = 15, title: CGFloat = 20, display: CGFloat = 28
+
+    public static func snap(_ size: CGFloat) -> CGFloat {
+        switch size {
+        case ..<12: caption
+        case ..<14: body
+        case ..<17: reading
+        case ..<24: title
+        case ...30: display
+        default: size
+        }
+    }
+}
+
 /// Every token of design/ark-design-system/tokens.css, for one theme.
 public enum DesignCatalog {
     /// DESIGN.md section 3: one size per role.
@@ -122,12 +139,11 @@ public enum DesignCatalog {
     }
 
     public static let typeScale: [TypeStep] = [
-        TypeStep(name: "--text-caption", size: 11, role: "Caption"),
-        TypeStep(name: "--text-secondary", size: 12, role: "Secondary"),
-        TypeStep(name: "--text-body", size: 13, role: "Body"),
-        TypeStep(name: "--text-row", size: 15, role: "Row title"),
-        TypeStep(name: "--text-title", size: 18, role: "Page title"),
-        TypeStep(name: "--text-number", size: 26, role: "Number"),
+        TypeStep(name: "--text-caption", size: TypeScale.caption, role: "Caption"),
+        TypeStep(name: "--text-body", size: TypeScale.body, role: "Body"),
+        TypeStep(name: "--text-reading", size: TypeScale.reading, role: "Row title"),
+        TypeStep(name: "--text-title", size: TypeScale.title, role: "Page title"),
+        TypeStep(name: "--text-display", size: TypeScale.display, role: "Number"),
     ]
 
     /// The 4 pt grid (DESIGN.md section 4).

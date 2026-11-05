@@ -11,10 +11,10 @@ ARK is a tool you leave open all day. It must be quiet. It must show what the as
 
 - **Two themes in this package.** Void is dark and is the default. Daylight is light.
 - **Flat.** A surface is one opaque colour. A 1 px hairline is the edge of a card. No blur, no gradient, no drop shadow, no glow.
-- **One accent.** In Void the accent is white. In Daylight it is indigo. Colour appears otherwise only as status.
+- **One accent.** In Void the accent is light grey. In Daylight it is indigo. Colour appears otherwise only as status.
 - **Status is a small dot.** A dot with a word beside it. A dot alone never carries meaning.
 - **Identifiers are monospaced.** Model names, app names, timings, shortcuts and file paths use the mono font.
-- **Glass themes exist** (Lantern, Lantern Day, Quiet Native, Luminous, Warm). They are not in this package.
+- **Seven more themes exist in the app** (Obsidian & Electric Teal, Royal Plum & Lavender, Graphite & Champagne Gold, Midnight Sapphire, Graphite & Ember, Paper & Teal, Ink & Sage). They are not in this package. `AppTheme` in `Theme.swift` lists all nine.
 
 ## 2. Color Palette & Roles
 
@@ -22,22 +22,22 @@ Use tokens. Do not write a hex value in a view.
 
 | Role | Token | Void | Daylight |
 |---|---|---|---|
-| Window | `--bg` | `#000000` | `#F6F6F8` |
-| Card | `--surface` | `#000000` (edge by hairline) | `#F6F6F8` (edge by hairline) |
-| Track, selected segment | `--surface-2` | `#16181B` | `#ECEEF3` |
-| Stronger fill | `--surface-3` | `#222529` | `#E0E3EB` |
-| Hairline | `--border` | `#292D30` | `#D8DBE3` |
-| Hairline on hover | `--border-hover` | `#6E727A` | `#A3A8B6` |
-| Main text | `--fg` | `#F0F0F0` | `#3F3F50` |
-| Secondary text | `--fg-2` | `#A1A4A5` | `#55555F` |
-| Caption | `--fg-3` | `#878B92` | `#6B6B78` |
-| Accent | `--accent` | `#FFFFFF` | `#5B50E6` |
-| Text on accent | `--accent-on` | `#000000` | `#FFFFFF` |
-| Listening, running | `--live` | `#70B8FF` | `#1D5FD1` |
-| Needs you | `--warn` | `#FFCA16` | `#8F5600` |
-| Problem | `--danger` | `#FF9592` | `#B42318` |
-| Done, ready | `--success` | `#3AD389` | `#167A53` |
-| Identifier | `--identifier` | `#BAA7FF` | `#5B50E6` |
+| Window | `--bg` | `#141414` | `#FEFFFF` |
+| Card | `--surface` | `#141414` (edge by hairline) | `#FEFFFF` (edge by hairline) |
+| Track, selected segment | `--surface-2` | `#202020` | `#F0F1F4` |
+| Stronger fill | `--surface-3` | `#282828` | `#E5E6E9` |
+| Hairline | `--border` | `#272727` | `#EAEBEB` |
+| Hairline on hover | `--border-hover` | `#3E3E3E` | `#D0D1D1` |
+| Main text | `--fg` | `#F2F2F2` | `#0F0F11` |
+| Secondary text | `--fg-2` | `#B4B4B4` | `#525255` |
+| Caption | `--fg-3` | `#8C8C8C` | `#717174` |
+| Accent | `--accent` | `#DEDEDE` | `#4B53C2` |
+| Text on accent | `--accent-on` | `#0F0F0F` | `#FFFFFF` |
+| Listening, running | `--live` | `#79B6F4` | `#1F68BC` |
+| Needs you | `--warn` | `#FABB41` | `#A15700` |
+| Problem | `--danger` | `#FF8880` | `#C52B30` |
+| Done, ready | `--success` | `#67D283` | `#00762C` |
+| Identifier | `--identifier` | `#DEDEDE` | `#4B53C2` |
 
 Rules:
 
@@ -51,11 +51,11 @@ Rules:
 
 - **Sans:** the system font (SF Pro) by default. Settings > Appearance > Typeface also offers Helvetica Neue, Source Sans, Work Sans, Lato, Poppins, Nunito and Mulish (ADR-218). Helvetica Neue comes with macOS. The others are bundled files in `assets/fonts`, each with its SIL Open Font License 1.1 text. **Mono:** SF Mono in every typeface.
 - **Titles:** SF Pro, semibold. **Identifiers and readouts:** mono.
-- The window's sizes today are 10.5, 11, 11.5, 12, 12.5, 13, 18 and 26 pt. Move toward one scale: **11, 12, 13, 15, 18, 26**. Use a size only for its role: caption, secondary, body, row title, page title, number.
+- The scale has five sizes: **11, 13, 15, 20, 28 pt**. Use a size only for its role: caption, body, row title, page title, number. `AppFont` snaps any size a view asks for to this scale. Sizes above 30 pt (big numerals) stay as asked. `TypeScale` in `ArkIslandCore` is the one source. A test keeps `tokens.css` equal to it.
 - Make hierarchy with three things together: size, weight, and colour level. A size alone is not hierarchy.
 - Use two weights in a view: regular and semibold. Do not climb a ladder of weights.
 - Use tabular (monospaced) figures for numbers that line up, such as token counts.
-- The scale is in tokens.css as `--text-caption` to `--text-number`. Settings → Design system shows every token and component in Void and Daylight (ADR-124).
+- The scale is in tokens.css as `--text-caption` to `--text-display`. Settings → Design system shows every token and component in Void and Daylight (ADR-124).
 
 ## 4. Spacing & Layout
 
