@@ -1,7 +1,7 @@
 import AppKit
 
 extension IslandGallery {
-    /// 2026-11-02: the fingertip agent pointer at four times its size on a dark and a light ground, idle and active, with the
+    /// 2026-11-02: the arrow agent pointer at four times its size on a dark and a light ground, idle and active, with the
     /// arrival ring halfway out. A red dot marks `CursorArt.tip`, where ARK acts.
     static func writeAgentCursor(to directory: URL) {
         let scale: CGFloat = 4, size = CursorArt.size
