@@ -34,10 +34,9 @@ struct DashboardPane: View {
                 QuietButton(title: "Open Board", symbol: "rectangle.3.group") { openBoard(.floor) }
             }
             HomeAskBox(model: model).padding(.top, 8).padding(.bottom, 8)
-            ViewThatFits(in: .horizontal) {
-                summaryStrip(usage: usage, attention: attention, columns: 6).frame(minWidth: 900)
-                summaryStrip(usage: usage, attention: attention, columns: 3)
-            }
+            // ADR-258: three tiles for live work, and the usage numbers as one quiet line (they were three more equal tiles).
+            summaryStrip(usage: usage, attention: attention, columns: 3)
+            if let usage { usageLine(usage) }
             HomePanels(model: model)
             HomeNotices(model: model)
             if let list = model.helpers.list, case let hints = TeamHygiene.suggestions(list), !hints.isEmpty {
@@ -55,21 +54,17 @@ struct DashboardPane: View {
 
     private func summaryStrip(usage: TokenUsageSummary?, attention: BoardAttention, columns: Int) -> some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: columns), alignment: .leading, spacing: 12) {
-            workLink(value: model.helpers.list == nil ? nil : attention.total, title: "Need review", symbol: "tray", attention: attention.total > 0) { openBoard(.needsYou) }
-            workLink(value: model.helpers.list == nil ? nil : attention.running, title: "Running", symbol: "arrow.triangle.2.circlepath") { openBoard(.columns) }
+            workLink(value: model.helpers.list == nil ? nil : attention.total, title: "Need you", symbol: "tray", attention: attention.total > 0) { openBoard(.needsYou) }
+            workLink(value: model.helpers.list == nil ? nil : attention.running, title: "Running", symbol: "arrow.triangle.2.circlepath", live: attention.running > 0) { openBoard(.columns) }
             workLink(value: model.helpers.list?.helpers.count, title: "Agents", symbol: "person.2") { openBoard(.floor); model.showsAllAgents = true }
-            summaryValue(usage.map { TokenTotals.short($0.today.io) } ?? "—", title: "Tokens today", symbol: "chart.xyaxis.line")
-            summaryValue(usage.map { String(format: "$%.2f", $0.week.dollars) } ?? "—", title: "API-equivalent · week", symbol: "dollarsign.circle")
-            summaryValue(usage?.week.cacheHitText ?? "—", title: "Cache hits · week", symbol: "arrow.triangle.2.circlepath")
         }
     }
-    private func summaryValue(_ value: String, title: String, symbol: String) -> some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(value).appFont(.system(size: 16, weight: .semibold)).monospacedDigit().foregroundStyle(theme.text.color)
-                Text(title).appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)
-            }
-        }.padding(.vertical, 8).frame(maxWidth: .infinity, alignment: .leading).statTile()
+
+    /// ADR-258: today's tokens, the week's API-equivalent cost and cache hits, as one quiet line under the tiles.
+    private func usageLine(_ usage: TokenUsageSummary) -> some View {
+        let parts = ["\(TokenTotals.short(usage.today.io)) tokens today", String(format: "$%.2f API-equivalent this week", usage.week.dollars), "\(usage.week.cacheHitText) cache hits"]
+        return Text(parts.joined(separator: "  ·  ")).appFont(.system(size: 11.5)).monospacedDigit().foregroundStyle(theme.text3.color)
+            .padding(.horizontal, 4).padding(.top, 2).accessibilityLabel(parts.joined(separator: ", "))
     }
 
     private func usageMetrics(_ usage: TokenUsageSummary, columns: Int) -> some View {
@@ -85,11 +80,12 @@ struct DashboardPane: View {
         model.navigate { model.windowPage = .agents; model.helpers.selectBoard(); model.boardView = view }
     }
 
-    private func workLink(value: Int?, title: String, symbol: String, attention: Bool = false, action: @escaping () -> Void) -> some View {
+    private func workLink(value: Int?, title: String, symbol: String, attention: Bool = false, live: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                // Needs attention: a small dot, not a coloured icon (unslop: stat cards are numbers).
+                // Needs attention: a small dot, not a coloured icon (unslop: stat cards are numbers). Work in progress: a live dot.
                 if attention { StatusDot(color: theme.attention.color, size: 6) }
+                if live { StatusDot(color: theme.live.color, size: 6, glows: true) }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(value.map(String.init) ?? "—").appFont(.system(size: 16, weight: .semibold)).monospacedDigit().foregroundStyle(theme.text.color)
                     Text(title).appFont(.system(size: 10.5)).foregroundStyle(theme.text2.color)

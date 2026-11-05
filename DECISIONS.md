@@ -4781,3 +4781,21 @@ The Flow (ADR-256) showed the work, but a task could only start in chat or in th
 
 - The Board covers the whole loop: give a task, watch it run, answer what it asks, read what it did.
 - Two new tests (`BoardComposerTargetTests`). Four Studio goldens changed.
+
+## ADR-258 — Home: three tiles for live work and one usage line (2026-11-05)
+
+### Context
+
+The audit (`docs/ui-audit-2026-11-05.md`, items A2 and A3) found six equal tiles on Home. Three of them were usage numbers that rarely need a click. The trend chart also had a gradient fill, which DESIGN.md forbids in a flat theme. The dashboard's segmented control drew its selected pill in `fill1`, which is almost clear in dark glass (ADR-255).
+
+### Decision
+
+- Home keeps three tiles for live work: Need you (an amber dot when something waits), Running (a live dot while work runs) and Agents.
+- Today's tokens, the week's API-equivalent cost and cache hits become one quiet line under the tiles.
+- The trend chart's fill is a flat tint in a flat theme. Glass keeps the soft fade.
+- The segmented control's selected pill uses `fill3` in dark themes, so it shows in glass.
+
+### Consequences
+
+- The first row of Home is about what to do, not about cost.
+- One golden changed (`13-helpers-dashboard`). The Studio goldens also change a little on every run, so they were refreshed with this change.

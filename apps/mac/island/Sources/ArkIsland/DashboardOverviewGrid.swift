@@ -220,7 +220,7 @@ struct DashboardTabStrip: View {
                         .background {
                             // The selected pill slides to the new tab (Kobra's stretching focus ring), not a jump.
                             if selected == index {
-                                RoundedRectangle(cornerRadius: Radius.card).fill(theme.isDark ? theme.fill1.color : Color.white)
+                                RoundedRectangle(cornerRadius: Radius.card).fill(theme.isDark ? theme.fill3.color : Color.white)
                                     .shadow(color: .black.opacity(theme.isFlat ? 0 : 0.12), radius: 2, y: 1)
                                     .matchedGeometryEffect(id: "pill", in: pill)
                             }
