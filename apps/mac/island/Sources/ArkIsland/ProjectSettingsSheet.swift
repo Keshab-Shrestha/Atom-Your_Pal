@@ -90,7 +90,7 @@ struct ProjectSettingsSheet: View {
             }
         }
         .padding(20).frame(width: 480, alignment: .leading).foregroundStyle(theme.text.color)
-        .background(theme.surfaceSolid.color)
+        .floatingSurface()
         .confirmationDialog("Remove this project?", isPresented: $confirmingRemoval, titleVisibility: .visible) {
             Button("Remove project, keep chats") { if let project { model.sendProject(.projectRemove(id: project.id, deleteChats: false)) } }
             Button("Also delete its chats", role: .destructive) { if let project { model.sendProject(.projectRemove(id: project.id, deleteChats: true)) } }

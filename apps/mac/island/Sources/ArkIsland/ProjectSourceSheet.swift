@@ -113,7 +113,7 @@ struct ProjectSourceSheet: View {
             }
         }
         .padding(24).frame(width: 500, alignment: .leading).foregroundStyle(theme.text.color)
-        .background(theme.surfaceSolid.color).buttonStyle(SnapshotBorderlessButtonStyle())
+        .floatingSurface().buttonStyle(SnapshotBorderlessButtonStyle())
         .interactiveDismissDisabled(busy)
         .onAppear { if !snapshot { searchFocused = true } }
         .onDisappear { if busy { model.cancelProjectSource() } }

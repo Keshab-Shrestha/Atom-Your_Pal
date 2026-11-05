@@ -181,7 +181,7 @@ final class IslandController {
         model.permissions.refresh()
         shortcuts.start()
         watchSettings()
-        panel.hasShadow = model.settings.theme.palette.usesShadows // Void has no drop shadow (ADR-086)
+        panel.hasShadow = model.settings.palette.usesShadows // Void has no drop shadow (ADR-086)
         pet.setEnabled(model.settings.petEnabled)
         dictation.warmUp() // skips the microphone if launched while locked
         refresh()
@@ -346,7 +346,7 @@ final class IslandController {
         if case .computerEnd = event { agentCursor.end() }
         if case .state(.idle) = event { agentCursor.end() }
         if case .computerPoint(let target) = event {
-            if let shape = target.shape { drawOverlay.show(target, shape: shape, palette: model.settings.theme.palette) } else { drawOverlay.hide() }
+            if let shape = target.shape { drawOverlay.show(target, shape: shape, palette: model.settings.palette) } else { drawOverlay.hide() }
             startPointing(target)
         }
         if case .settingsOpen = event { // ADR-071: as if the user opened Settings by hand
@@ -393,7 +393,7 @@ final class IslandController {
     func refresh() {
         if !pet.isShown, let anchor = menuIcon.anchor { agentCursor.setHome(CGPoint(x: anchor.midX, y: Self.menuBarBottom(of: anchor.screen) - 12)) }
         agentCursor.setEnabled(runtimeReady && model.computerOn && !sleep.paused)
-        menuIcon.update(model.status.kind, title: model.status.title, flat: !model.settings.theme.palette.usesGlow)
+        menuIcon.update(model.status.kind, title: model.status.title, flat: !model.settings.palette.usesGlow)
         shortcuts.setBusy(model.status.isBusy || talking || dictating)
         updateStrip()
         voicePill.update(listening: [.listening, .transcribing].contains(model.status.kind)) // 2026-11-02: the voice pill

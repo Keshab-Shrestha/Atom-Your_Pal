@@ -40,7 +40,7 @@ struct WorkspaceNavigationRail: View {
             }
         }
         .padding(.vertical, 12).frame(width: 51)
-        .workspaceLane(color: WorkspaceColors.for(model.settings.theme).rail)
+        .workspaceLane(color: model.settings.lanes.rail)
         // 2026-10-31: the rail shows glyphs only; the hovered button's name floats out to its right, over the next pane.
         .overlayPreferenceValue(RailHoverKey.self) { hovered in
             GeometryReader { proxy in

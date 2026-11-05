@@ -95,7 +95,7 @@ struct ChatModelPicker: View {
             }
         }
         .frame(width: 400, height: 410)
-        .background(theme.surfaceSolid.color)
+        .floatingSurface()
         .onAppear { if !snapshot { focused = .search } }
         .onExitCommand(perform: close)
         .onChange(of: query) { cursor = 0 }

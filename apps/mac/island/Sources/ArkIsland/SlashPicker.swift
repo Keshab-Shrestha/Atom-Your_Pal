@@ -22,7 +22,7 @@ struct SlashPicker: View {
         }
         .animation(Motion.snap(reduceMotion), value: selected)
         .padding(4)
-        .background(RoundedRectangle(cornerRadius: theme.radiusControl + 4, style: .continuous).fill(theme.surfaceSolid.color))
+        .floatingSurface(RoundedRectangle(cornerRadius: theme.radiusControl + 4, style: .continuous))
         .shadow(color: .black.opacity(theme.isFlat ? 0 : theme.isDark ? 0.3 : 0.1), radius: 10, y: 4)
         .overlay(RoundedRectangle(cornerRadius: theme.radiusControl + 4, style: .continuous)
             .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: 1))
@@ -75,7 +75,7 @@ struct MentionPicker: View {
         }
         .animation(Motion.snap(reduceMotion), value: selected)
         .padding(4)
-        .background(RoundedRectangle(cornerRadius: theme.radiusControl + 4, style: .continuous).fill(theme.surfaceSolid.color))
+        .floatingSurface(RoundedRectangle(cornerRadius: theme.radiusControl + 4, style: .continuous))
         .shadow(color: .black.opacity(theme.isFlat ? 0 : theme.isDark ? 0.3 : 0.1), radius: 10, y: 4)
         .overlay(RoundedRectangle(cornerRadius: theme.radiusControl + 4, style: .continuous)
             .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: 1))

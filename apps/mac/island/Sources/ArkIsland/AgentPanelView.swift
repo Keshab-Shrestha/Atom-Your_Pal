@@ -43,7 +43,7 @@ struct AgentPanelView: View {
         }
         .frame(width: 360)
         .frame(maxHeight: .infinity)
-        .background(theme.surfaceSolid.color)
+        .floatingSurface()
         .overlay(alignment: .leading) { Rectangle().fill(theme.separator.color).frame(width: 1) }
         .shadow(color: .black.opacity(0.18), radius: 24, x: -6)
     }

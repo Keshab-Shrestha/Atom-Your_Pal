@@ -20,7 +20,7 @@ struct ChatWorkspaceLayout<Header: View>: View {
                     ConversationTab(model: model)
                         .frame(maxWidth: .infinity)
                 }
-                    .workspaceLane(color: theme.surfaceSolid)
+                    .workspaceLane(color: model.settings.lanes.work)
                     .padding(.trailing, shown && layout.split ? layout.pane + WorkspacePaneLayout.divider : 0)
                     .opacity(covering ? 0 : 1).allowsHitTesting(!covering).accessibilityHidden(covering)
                 if shown {
@@ -30,7 +30,7 @@ struct ChatWorkspaceLayout<Header: View>: View {
                                              preview: { dragWidth = $0 }, commit: { model.settings.workspaceWidth = $0; dragWidth = nil })
                         }
                         ProjectWorkspaceView(model: model).frame(width: layout.pane)
-                            .workspaceLane(color: WorkspaceColors.for(model.settings.theme).workspace)
+                            .workspaceLane(color: model.settings.lanes.workspace)
                     }
                     .transition(reduceMotion ? .opacity : .move(edge: .trailing).combined(with: .opacity))
                 }
@@ -56,7 +56,7 @@ private struct WorkspaceDivider: View {
             .frame(width: 1).frame(maxHeight: .infinity)
             // Paint the existing generous drag target as pane content, never as an empty gutter.
             .frame(width: WorkspacePaneLayout.divider)
-            .background(theme.surfaceSolid.color)
+            .background(theme.isFlat ? theme.surfaceSolid.color : Color.clear)
             .contentShape(Rectangle())
             .onHover { hovering = $0; ($0 ? NSCursor.resizeLeftRight : NSCursor.arrow).set() }
             .gesture(DragGesture(minimumDistance: 1, coordinateSpace: .global).onChanged { value in

@@ -106,7 +106,7 @@ struct WorkStripView: View {
 
     var body: some View {
         let asking = model.approval.pending != nil
-        let palette = model.settings.theme.palette
+        let palette = model.settings.palette
         // Void asks on the panel's own radius (24), its buttons 16 at the 8 pt corner gap (ADR-086).
         let askingRadius = palette.isFlat ? palette.radiusSurface : Self.askingRadius
         let shape = RoundedRectangle(cornerRadius: asking ? askingRadius : Self.cornerRadius, style: .continuous)

@@ -17,16 +17,17 @@ struct HelpersView: View {
 
     var body: some View {
         let chat = model.windowPage == .chat
-        let palette = ChatAppearance.palette(theme: model.settings.theme)
+        let palette = ChatAppearance.palette(settings: model.settings)
+        let lanes = model.settings.lanes
         let sidebarHidden = model.settings.sidebarHidden || (model.windowPage != .chat && model.windowPage != .settings)
         HStack(spacing: 0) {
             WorkspaceNavigationRail(model: model)
-                .themed(WorkspaceColors.for(model.settings.theme).navigationPalette)
+                .themed(lanes.navigationPalette)
                 .overlay(alignment: .trailing) { Rectangle().fill(contrast == .increased ? palette.text3.color : palette.separator.color).frame(width: contrast == .increased ? 1.5 : 1) }
             if !sidebarHidden {
                 HelperSidebar(model: model).frame(width: 236)
-                    .themed(ChatAppearance.palette(theme: model.settings.theme, sidebar: true))
-                    .workspaceLane(color: WorkspaceColors.for(model.settings.theme).panel)
+                    .themed(ChatAppearance.palette(settings: model.settings, sidebar: true))
+                    .workspaceLane(color: lanes.panel)
                     .overlay(alignment: .trailing) { Rectangle().fill(contrast == .increased ? palette.text3.color : palette.separator.color).frame(width: contrast == .increased ? 1.5 : 1) }
                     .transition(reduceMotion ? .opacity : .move(edge: .leading).combined(with: .opacity))
             }
@@ -37,14 +38,14 @@ struct HelpersView: View {
                     topBar
                     pageContent.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 }
-                .workspaceLane(color: palette.surfaceSolid)
+                .workspaceLane(color: lanes.work)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             // 2026-10-31: what runs in the background, by agent (the reference app's right panel).
             if model.activityShown {
                 ActivityPanel(model: model).frame(width: 300)
-                    .themed(ChatAppearance.palette(theme: model.settings.theme, sidebar: true))
-                    .workspaceLane(color: WorkspaceColors.for(model.settings.theme).panel)
+                    .themed(ChatAppearance.palette(settings: model.settings, sidebar: true))
+                    .workspaceLane(color: lanes.panel)
                     .overlay(alignment: .leading) { Rectangle().fill(contrast == .increased ? palette.text3.color : palette.separator.color).frame(width: contrast == .increased ? 1.5 : 1) }
                     .transition(reduceMotion ? .opacity : .move(edge: .trailing).combined(with: .opacity))
             }
@@ -54,7 +55,7 @@ struct HelpersView: View {
         .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
             .strokeBorder(contrast == .increased ? palette.text3.color : palette.separator.color, lineWidth: contrast == .increased ? 1.5 : 0.5))
         .padding(.horizontal, 8).padding(.bottom, 8).padding(.top, 32)
-        .background(WorkspaceColors.for(model.settings.theme).frame.color.ignoresSafeArea())
+        .background { backdrop(lanes) }
         .background { if !snapshot { WindowDragArea() } }
         .background(DesktopWindowAppearance(palette: palette))
         .animation(Motion.workspace(reduceMotion), value: sidebarHidden)
@@ -96,7 +97,17 @@ struct HelpersView: View {
                                    context: inspected.map { ChatDetailsFacts(info: $0).percentText })
     }
 
+    /// ADR-255: the window's backdrop. Glass: the ambient light, in ARK's mood. Flat: the frame colour, as before.
+    @ViewBuilder private func backdrop(_ lanes: WorkspaceColors) -> some View {
+        if model.settings.glassShown {
+            AmbientBackdrop(theme: model.settings.theme, mood: model.ambientMood)
+        } else {
+            lanes.frame.color.ignoresSafeArea()
+        }
+    }
+
     private var topBar: some View {
+        let palette = ChatAppearance.palette(settings: model.settings)
         let page = Self.page(model)
         let ownBack = model.windowPage == .agents && (model.helpers.isCreatingAgent || model.helpers.openJobId != nil
             || (!model.helpers.showsBoard && model.helpers.selectedHelper != nil && model.helpers.isSoulOpen))
@@ -110,7 +121,7 @@ struct HelpersView: View {
                 if model.windowPage == .chat {
                     Button { model.toggleWorkspace() } label: {
                         Glyph(systemName: "sidebar.right").frame(width: 30, height: 30)
-                            .foregroundStyle(model.workspace.shown ? model.settings.theme.palette.accent.color : model.settings.theme.palette.text2.color)
+                            .foregroundStyle(model.workspace.shown ? palette.accent.color : palette.text2.color)
                     }.buttonStyle(WorkspacePressStyle()).appFont(.system(size: 13))
                         .accessibilityLabel(model.workspace.shown ? "Close workspace" : "Open workspace")
                         .help("Toggle workspace (⌥⌘R)")
@@ -235,7 +246,7 @@ private struct HelperSidebar: View {
         .frame(maxHeight: .infinity, alignment: .top)
         // Darker than the window: the list sits back, the chosen helper comes forward. Void: one black, the hairline
         // between them is enough.
-        .background((desktopDesign ? theme.surfaceSolid.color : theme.isFlat ? Color.clear : theme.isDark ? Color.black.opacity(0.2) : theme.fill1.color).ignoresSafeArea())
+        .background((desktopDesign ? (theme.isFlat ? theme.surfaceSolid.color : Color.clear) : theme.isFlat ? Color.clear : theme.isDark ? Color.black.opacity(0.2) : theme.fill1.color).ignoresSafeArea())
     }
 
 }

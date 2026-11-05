@@ -127,6 +127,39 @@ struct SurfaceBackground<S: InsettableShape>: View {
     }
 }
 
+/// ADR-255: a floating surface (a menu, a picker, a sheet, a popover, a tooltip). Flat: the opaque `surfaceSolid`, as before.
+/// Glass: frosted (the system material blurs what is under it) with the theme's tint, a lit edge and a soft shadow. A snapshot
+/// cannot draw the material, so it uses the opaque colour there and stays readable.
+struct FloatingSurface<S: InsettableShape>: View {
+    let shape: S
+    @Environment(\.theme) private var theme
+    @Environment(\.islandSnapshot) private var snapshot
+
+    var body: some View {
+        if theme.isFlat {
+            shape.fill(theme.surfaceSolid.color)
+        } else {
+            ZStack {
+                if snapshot {
+                    shape.fill(theme.surfaceSolid.color)
+                } else {
+                    shape.fill(theme.isDark ? Material.ultraThin : Material.thin)
+                    shape.fill(theme.surface.color)
+                }
+                shape.strokeBorder(LinearGradient(colors: [theme.rim.color, theme.border.color], startPoint: .top, endPoint: .bottom), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(theme.isDark ? 0.35 : 0.12), radius: 18, y: 8)
+        }
+    }
+}
+
+extension View {
+    /// A floating surface's background (ADR-255): flat or frosted, in `shape`.
+    func floatingSurface<S: InsettableShape>(_ shape: S) -> some View { background(FloatingSurface(shape: shape)) }
+    /// A floating surface with square corners (sheets).
+    func floatingSurface() -> some View { background(FloatingSurface(shape: Rectangle())) }
+}
+
 /// A key hint such as "esc" beside a button's word: quiet rounded type, no key-cap box (ADR-084).
 struct KeyHint: View {
     let text: String

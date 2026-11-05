@@ -62,6 +62,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let trace = self.trace
         let settings = IslandSettings()
+        // ADR-255: the system's Reduce Transparency turns glass into flat, now and whenever it changes.
+        settings.reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
+                                                          object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { settings.reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency }
+        }
         for action in settings.unreadableShortcuts {
             log.warn("settings.shortcut_unreadable", ["action": action.rawValue])
         }

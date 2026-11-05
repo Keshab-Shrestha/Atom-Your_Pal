@@ -80,7 +80,7 @@ struct ForegroundRecoveryView: View {
                 }.appFont(.system(size: 12)).frame(maxWidth: .infinity, alignment: .leading).padding(4)
             }
         }
-        .padding(16).frame(width: 720, height: 600).background(theme.surfaceSolid.color).foregroundStyle(theme.text.color)
+        .padding(16).frame(width: 720, height: 600).floatingSurface().foregroundStyle(theme.text.color)
         .alert("Dismiss this recovery copy?", isPresented: Binding(get: { dismissID != nil }, set: { if !$0 { dismissID = nil } })) {
             Button("Keep", role: .cancel) { dismissID = nil }
             Button("Dismiss", role: .destructive) { if let id = dismissID { model.dismissForeground(id) }; dismissID = nil }

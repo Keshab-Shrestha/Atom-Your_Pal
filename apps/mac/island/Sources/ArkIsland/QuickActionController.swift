@@ -45,7 +45,7 @@ final class QuickActionController: NSObject, NSWindowDelegate {
                                    replace: { [weak self] text in await self?.replace(text, in: target) ?? "" },
                                    draft: { [weak self] text in self?.showReply(text, target: target) },
                                    close: { [weak self] in self?.close() })
-            .themed(model.settings.theme.palette).appTypography(model.settings)
+            .themed(model.settings.palette).appTypography(model.settings)
         present(view, width: 440)
     }
 
@@ -56,7 +56,7 @@ final class QuickActionController: NSObject, NSWindowDelegate {
         present(ReplyDraftPane(session: session, source: text, close: { [weak self] in self?.close() },
                                insertTarget: target.name, insertRunning: { target.app.map { !$0.isTerminated } ?? false },
                                insert: { [weak self] draft in await self?.insertDraft(draft, in: target) ?? "" })
-            .themed(model.settings.theme.palette).appTypography(model.settings), width: 560, height: 580)
+            .themed(model.settings.palette).appTypography(model.settings), width: 560, height: 580)
     }
 
     private func present<Content: View>(_ view: Content, width: CGFloat, height: CGFloat? = nil) {
@@ -70,7 +70,7 @@ final class QuickActionController: NSObject, NSWindowDelegate {
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
         panel.delegate = self
-        let palette = model.settings.theme.palette
+        let palette = model.settings.palette
         panel.appearance = NSAppearance(named: palette.isDark ? .darkAqua : .aqua)
         panel.backgroundColor = palette.surfaceSolid.nsColor
         panel.contentView = hosting

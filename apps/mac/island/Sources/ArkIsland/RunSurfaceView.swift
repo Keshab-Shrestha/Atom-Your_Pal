@@ -13,7 +13,8 @@ struct RunSurfaceView: View {
             panel: "run", label: "Run",
             data: work.map { WebPanelData(revision: revision, payload: RunPanelPayload.make($0)) },
             resetKey: model.chats?.current ?? "",
-            background: WorkspaceColors.for(model.settings.theme).workspace
+            // A web view needs an opaque colour: the workspace pane over the backdrop (the pane itself in flat).
+            background: model.settings.lanes.workspace.over(model.settings.lanes.frame)
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // The page ignores a revision that is not higher, so each new snapshot raises it.
