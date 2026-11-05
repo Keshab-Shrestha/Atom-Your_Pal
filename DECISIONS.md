@@ -4701,3 +4701,22 @@ ADR-248 put the apps ARK made in the sidebar, under the agents. That sidebar is 
 - The rail has more items. In a short window the top group of the rail scrolls, so the last apps and the `+` can sit below the fold.
 - Four goldens changed (`13-helpers-agent-panel`, `13-helpers-chat-table` and the two Daylight versions), because the chat pane no longer lists apps. The gallery window is short, so no shot shows the rail apps.
 - Not checked in a shot: the rail with apps at full window height. Check it in the running app.
+
+## ADR-254 — The agent list leaves the chat pane (2026-11-05)
+
+### Context
+
+ADR-228 put the agents in the chat pane (`SidebarAgents`), with a live dot each: waiting, working, idle, paused. After ADR-253 moved the apps to the rail, the user asked if the agent list still has a purpose: the agents are also in the Board and behind the agent button at the top right.
+
+### Decision
+
+- The agent list is removed from the chat pane. `SidebarAgents.swift` is deleted.
+- Kept: the "All agents" list (Board, Tasks and the dashboard open it), `AgentPresence` (the agent panel shows it) and the Board button's badge for agents that wait for the user.
+- The rail's "New app" button uses the `plus.app` symbol. A bare `+` under the pages could be read as "new chat".
+
+### Consequences
+
+- The chat pane is the chat list only, and the list now gets the full height.
+- Lost: seeing which agents work while in Chats. The Board badge counts only agents that wait for the user. If this is missed, a small dot on the Board button when any agent works is the cheap way back.
+- Lost: a one-click jump to one agent. Use the Board or the agent panel.
+- 32 goldens changed by less than 1% of their pixels: the chat pane shots lose the agent list, and every shot with a tall rail gains the "New app" button (ADR-253).
