@@ -23,11 +23,21 @@ export interface Tool<Out extends string | ToolOutput = string> {
 export interface ToolEngineOptions {
   tools: Array<Tool<string | ToolOutput>>;
   /** Called after every call, including refused ones, for the log. Never receives tool output. */
-  onCall?: (event: { name: string; ok: boolean; reason?: string; ms: number }) => void;
+  onCall?: (event: { name: string; ok: boolean; reason?: string; ms: number; repeat?: number }) => void;
   /** Longest result handed back to the model. Longer output is cut and says so. */
   maxResultChars?: number;
   now?: () => number;
 }
+
+/** The model made the same call this many times in one turn: from now on each result carries a reminder (2026-11-05, idea from deepseek-harness). */
+export const REPEAT_REMINDER_AT = 3;
+const MAX_TRACKED_CALLS = 200;
+const stable = (value: unknown): string =>
+  Array.isArray(value) ? `[${value.map(stable).join(",")}]`
+  : value !== null && typeof value === "object" ? `{${Object.keys(value).sort().map((k) => `${JSON.stringify(k)}:${stable((value as Record<string, unknown>)[k])}`).join(",")}}`
+  : JSON.stringify(value) ?? "null";
+export const repeatReminder = (name: string, count: number) =>
+  `\n[Reminder: this is call ${count} to "${name}" with the same input in this turn. If nothing changed since the last one, the result will not change. Try a different step, or tell the user what blocks you.]`;
 
 /**
  * Tool Engine: the one place model-chosen tool calls are validated and run (SECURITY.md: tool arguments
@@ -38,14 +48,28 @@ export function createToolEngine(options: ToolEngineOptions): ToolRunner {
   const { tools, onCall, maxResultChars = 8000, now = Date.now } = options;
   const byName = new Map(tools.map((t) => [t.spec.name, t]));
   if (byName.size !== tools.length) throw new Error("Two tools share a name");
+  // Identical calls per turn. A turn is one abort signal; a call with no signal is not counted.
+  const perTurn = new WeakMap<AbortSignal, Map<string, number>>();
+  const countCall = (call: ToolCall, signal?: AbortSignal): number => {
+    if (!signal) return 1;
+    let seen = perTurn.get(signal);
+    if (!seen) perTurn.set(signal, (seen = new Map()));
+    const key = `${call.name}:${stable(call.input)}`;
+    const count = (seen.get(key) ?? 0) + 1;
+    if (seen.size >= MAX_TRACKED_CALLS && !seen.has(key)) seen.clear();
+    seen.set(key, count);
+    return count;
+  };
 
   return {
     specs: () => tools.map((t) => t.spec),
 
     async run(call: ToolCall, signal?: AbortSignal): Promise<ToolResult> {
       const started = now();
-      const finish = (content: string, ok: boolean, reason?: string, images?: ToolImage[]): ToolResult => {
-        onCall?.({ name: call.name, ok, ...(reason ? { reason } : {}), ms: now() - started });
+      const repeat = countCall(call, signal);
+      const finish = (words: string, ok: boolean, reason?: string, images?: ToolImage[]): ToolResult => {
+        onCall?.({ name: call.name, ok, ...(reason ? { reason } : {}), ms: now() - started, ...(repeat >= REPEAT_REMINDER_AT ? { repeat } : {}) });
+        const content = repeat >= REPEAT_REMINDER_AT ? words + repeatReminder(call.name, repeat) : words;
         if (!ok) return { callId: call.id, content, isError: true };
         return images?.length ? { callId: call.id, content, images } : { callId: call.id, content };
       };
