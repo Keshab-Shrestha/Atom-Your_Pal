@@ -4814,5 +4814,5 @@ The audit (`docs/ui-audit-2026-11-05.md`, item A4) found that the rail showed ic
 ### Consequences
 
 - The rail reads without hovering.
-- The rail is taller. In a short window its top group scrolls sooner.
+- Captions show only when the window is tall enough for every rail item with its caption (59 pt each, plus 130 pt for the rest of the rail). A shorter window gets the glyphs alone with names on hover, as before, so no page scrolls out of sight.
 - 34 goldens changed (every shot with the rail).
