@@ -27,6 +27,37 @@ public enum ChatWorkText {
         }
     }
 
+    /// The glyph in a call's tile (2026-11-05, after affectUI's Tool Call Card, MIT): one per kind of work.
+    public static func symbol(tool: String) -> String {
+        switch tool {
+        case "Read", "NotebookRead": "doc.text"
+        case "Write", "Edit", "MultiEdit", "NotebookEdit": "pencil"
+        case "Bash", "BashOutput": "terminal"
+        case "Grep", "Glob", "LS": "magnifyingglass"
+        case "WebSearch": "globe"
+        case "WebFetch": "link"
+        case "Agent", "Task": "person.2"
+        case "TodoWrite": "checklist"
+        default: "wrench.and.screwdriver"
+        }
+    }
+
+    /// The thinking pill's words (after affectUI's Thinking Loader, MIT), from what ARK really does now: the newest running
+    /// call ("Reading a file"), else "Thinking". Never a made-up phase on a timer.
+    public static func phase(_ work: ChatWorkSnapshot?) -> String {
+        guard let running = work?.calls.last(where: { $0.state == "started" }) else { return "Thinking" }
+        return label(tool: running.tool, running: true)
+    }
+
+    /// A short time: "4s", "1m 15s", "2h 05m" (after affectUI's `took`).
+    public static func duration(ms: Double) -> String {
+        let s = max(0, Int(ms / 1000))
+        if s < 60 { return "\(s)s" }
+        let m = s / 60
+        if m < 60 { return "\(m)m \(s % 60)s" }
+        return "\(m / 60)h " + String(format: "%02dm", m % 60)
+    }
+
     /// One call's row text: what it does while running, what it did once it ended.
     public static func label(tool: String, running: Bool) -> String {
         let k = kind(tool)

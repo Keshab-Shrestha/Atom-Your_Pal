@@ -1,5 +1,10 @@
 # ARK Project Status
 
+## Thinking pill and tool call rows — 5 November 2026
+
+- ADR-263: the chat's "Thinking" dots are now a pill with a spinner. Its label says what ARK does now ("Reading a file"). The work log's tool calls sit in one card, a row each, with a glyph, the plain words, the tool name, and a live timer, a check with the time, "Failed" or "Unknown". Ported from affectUI (MIT) as SwiftUI.
+- Verified: `pnpm island:test` and fixture renders in dark and light. Not checked by hand in a live chat.
+
 ## Hand check fixes, team levels and endless boards — 5 November 2026
 
 - Hand check fixes: the Home logo has a caption, and the page is called Home. The Board's top bar says Board only. A plan portion's title "P1" shows its task too. Activity's Today shows the tokens and says when Claude has not reported the plan's use.

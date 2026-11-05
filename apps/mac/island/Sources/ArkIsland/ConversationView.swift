@@ -852,11 +852,9 @@ struct TurnView: View {
                 }
                 switch turn.outcome {
                 case .inProgress where turn.reply == nil:
-                    HStack(spacing: 8) {
-                        ThinkingDots()
-                        Text("Thinking").appFont(.system(size: 12)).foregroundStyle(theme.text3.color)
-                    }
-                    .padding(.vertical, 4)
+                    // 2026-11-05 (after affectUI's Thinking Loader, MIT): a pill that says what ARK does now.
+                    ThinkingPill(label: ChatWorkText.phase(turn.work))
+                        .padding(.vertical, 2)
                 case .notice(let message):
                     outcomeLine(message, symbol: "hand.raised.fill", color: theme.attention.color)
                 case .failed(let message):
@@ -1014,25 +1012,6 @@ private struct Breathing: ViewModifier {
         } else {
             content
         }
-    }
-}
-
-struct ThinkingDots: View {
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 15)) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
-            HStack(spacing: 4) {
-                ForEach(0..<3) { i in
-                    Circle()
-                        .fill(theme.statusDots ? theme.idColor(theme.text2) : theme.text2.color) // Void: thinking is violet
-                        .frame(width: 5, height: 5)
-                        .opacity(0.3 + 0.7 * max(0, sin((t * 4) - Double(i) * 0.7)))
-                }
-            }
-        }
-        .accessibilityLabel("Thinking")
     }
 }
 
