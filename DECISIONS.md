@@ -4479,3 +4479,24 @@ ARK's own log showed the computer tool failing with "session 'ark' has ended; to
 
 - A long idle gap no longer breaks the computer tool until restart.
 - If the driver changes the wording of the rejection, the retry does not fire. The test pins the current wording.
+
+## ADR-244 — Allow a repeated step for the rest of the task (2026-11-05)
+
+### Context
+
+One task can ask the same question many times: press Return in Mail five times, type text with a line break again. The user must answer each card. The atticus-mac project lets the user allow a kind of step for the task.
+
+### Decision
+
+- A card can show a quiet button "Allow for this task". The runtime sets `allowTask` on the card only when the caller names a `taskKey` and the call has a task signal.
+- Only two kinds of step name a key: a Return key or a chord that can send or confirm (`key:<app>:<keys>`), and typing text with a line break (`linebreak:<app>`). Clicks, Delete, Quit, Spotlight and Force Quit always ask.
+- The user's answer travels as `approval.answer.rememberTask`. Code in `computer-bridge.ts` stores the key against the task's abort signal. The next ask with the same key and the same signal returns yes with no card.
+- A new task (a new signal) asks again. A stopped task allows nothing. A decline with the box set remembers nothing.
+- Taint forgets all of it. When a session reads web text, a browser page, imported notes or outside data, `native-safety.ts` calls `onTaint`, and the runtime calls `revokeTaskAllows()`. This is blunt on purpose: it fails safe.
+- Telegram's card has no such button. The model cannot set the answer.
+
+### Consequences
+
+- Fewer cards for a loop of the same safe step. A step in another app or with another key still asks.
+- The user trusts the app at the click. The taint rule keeps web text from riding on that trust.
+- A single-line Return after typing already needed no card (ADR-054). That is unchanged.

@@ -543,6 +543,7 @@ enum IslandGallery {
         let thinking = #"{"type":"state","state":"thinking"}"#
         let step = #"{"type":"computer.step","text":"Typing in TextEdit"}"#
         let ask = #"{"type":"approval.request","id":"a1","summary":"Click \"Send\" in Mail","reason":"it may send, buy, delete or change something"}"#
+        let askTask = #"{"type":"approval.request","id":"a4","summary":"Press return in Mail","reason":"it uses the Return key, which can send or confirm","allowTask":true}"#
         let askLong = #"{"type":"approval.request","id":"a2","summary":"Click \"Delete this project and all of the files inside it permanently\" in Finder","reason":"it may send, buy, delete or change something"}"#
         let askFile = #"{"type":"approval.request","id":"a3","summary":"Kame wants to change the file ~/Documents/Cedar/announcement.txt","reason":"a copy of the file is kept so you can undo it","rememberFile":true}"#
         let idle = #"{"type":"state","state":"idle"}"#
@@ -557,6 +558,7 @@ enum IslandGallery {
         let sheet = VStack(alignment: .leading, spacing: 16) {
             strip("Working on the Mac", [thinking, step])
             strip("Asks before a risky action", [thinking, step, ask])
+            strip("A step that repeats may be allowed for the task", [thinking, step, askTask])
             strip("Long wording is held to two lines", [thinking, askLong])
             HStack(alignment: .top, spacing: 20) {
                 VStack(alignment: .leading, spacing: 16) {

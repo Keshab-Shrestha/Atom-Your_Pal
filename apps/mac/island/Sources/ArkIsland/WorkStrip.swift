@@ -112,7 +112,7 @@ struct WorkStripView: View {
         let shape = RoundedRectangle(cornerRadius: asking ? askingRadius : Self.cornerRadius, style: .continuous)
         ZStack(alignment: .topLeading) {
             if let request = model.approval.pending {
-                AskingView(request: request, onReview: { model.openFileReview() }) { approved, remember in model.answerApproval(approved, rememberFile: remember) }
+                AskingView(request: request, onReview: { model.openFileReview() }) { approved, remember, task in model.answerApproval(approved, rememberFile: remember, rememberTask: task) }
                     .transition(.opacity)
             } else {
                 StepRow(model: model).transition(.opacity)
@@ -190,7 +190,7 @@ private struct StepRow: View {
 private struct AskingView: View {
     let request: ApprovalRequest
     let onReview: () -> Void
-    let onAnswer: (Bool, Bool) -> Void
+    let onAnswer: (Bool, Bool, Bool) -> Void
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -228,7 +228,7 @@ private struct AskingView: View {
             Spacer(minLength: 8)
             HStack(spacing: 8) {
                 Spacer(minLength: 0)
-                Button { onAnswer(false, false) } label: {
+                Button { onAnswer(false, false, false) } label: {
                     HStack(spacing: 8) {
                         Text("Decline").appFont(.system(size: 12.5, weight: .medium))
                         KeyHint(text: "esc")
@@ -242,13 +242,20 @@ private struct AskingView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Decline")
                 if request.rememberFile && request.fileReview == nil {
-                    Button("Allow for chat") { onAnswer(true, true) }
+                    Button("Allow for chat") { onAnswer(true, true, false) }
                         .buttonStyle(.plain)
                         .foregroundStyle(theme.attention.color)
                         .help("Allow future edits to this file in this chat, including after a restart. Say ‘Forget file permissions for this chat’ to revoke.")
                         .accessibilityLabel("Allow this file for this chat")
                 }
-                Button { if request.fileReview != nil { onReview() } else { onAnswer(true, false) } } label: {
+                if request.allowTask && !request.rememberFile && request.fileReview == nil && !request.accessChange {
+                    Button("Allow for this task") { onAnswer(true, false, true) }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(theme.attention.color)
+                        .help("ARK will not ask again for this same step in this task. Reading a web page ends it.")
+                        .accessibilityLabel("Allow this step for the rest of this task")
+                }
+                Button { if request.fileReview != nil { onReview() } else { onAnswer(true, false, false) } } label: {
                     // Void: a ghost button with an amber hairline and label (ADR-086); elsewhere the one fill.
                     Text(request.accessChange ? "Enable Full access" : request.fileReview != nil ? "Review changes…" : request.rememberFile ? "Allow for task" : "Allow").appFont(.system(size: 12.5, weight: .semibold))
                         .foregroundStyle(theme.isGhost ? theme.attention.color : theme.onAttention.color)

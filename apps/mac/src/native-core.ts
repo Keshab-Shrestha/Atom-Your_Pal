@@ -186,6 +186,8 @@ export interface NativeCore extends Core {
 export type ChatContextPart = ContextPart & { memorySelection?: MemorySelection };
 
 export interface NativeCoreDeps {
+  /** Told when a session becomes tainted (see NativeScope.onTaint). */
+  onTaint?(): void;
   accessFor?(chat: string): ChatAccessMode;
   approveAccess?: AccessApproval;
   /** Phase N2: sub-agents. Without it the main thread has no Agent tool. */
@@ -386,6 +388,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
     const board = team && boardRecorder(team.helpers, chat, { beforeReport: (job) => gate?.fileReadback?.(job), onEnd: (job) => gate?.agentEnded(job), ...(deps.log ? { log: deps.log } : {}) });
     gate = nativeGate({
       accessSignal: () => entry?.signal,
+      ...(deps.onTaint ? { onTaint: deps.onTaint } : {}),
       access: chatAccessPolicy(access, () => deps.accessFor?.(chat) ?? "checked", deps.approveAccess),
       tools,
       ...(files ? { files } : {}),

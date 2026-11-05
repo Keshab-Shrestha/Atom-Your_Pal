@@ -849,6 +849,7 @@ export function createRuntime(
     const models = new Map<string, ReturnType<typeof createGateway>>();
     const routers = new Map<string, ReturnType<typeof createCodexToolRouter>>();
     const native = createNativeCore({
+            onTaint: () => computer.revokeTaskAllows(),
             accessFor: (chat) => memory?.chats.access(taskContextChat(chat)) ?? "checked",
             approveAccess: (request, signal) => computer.approve(request, signal),
             claudePath: keys[CLAUDE_PLAN] ?? "",

@@ -654,8 +654,8 @@ final class IslandModel {
     }
 
     /// The user clicked Allow or Decline on the approval card.
-    func answerApproval(_ approved: Bool, rememberFile: Bool = false) {
-        guard let command = approval.answer(approved: approved, rememberFile: rememberFile) else { return }
+    func answerApproval(_ approved: Bool, rememberFile: Bool = false, rememberTask: Bool = false) {
+        guard let command = approval.answer(approved: approved, rememberFile: rememberFile, rememberTask: rememberTask) else { return }
         send(command)
     }
 
