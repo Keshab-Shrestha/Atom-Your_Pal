@@ -1,6 +1,7 @@
 // Island mode (`main.ts --island`): ARK Island drives the voice loop with JSON-line commands on
 // stdin and receives JSON-line events on stdout. Specification: docs/island-protocol.md.
 
+import { workflowNextAt } from "./workflows.ts";
 import type { HubCommands } from "./hub-commands.ts";
 import { randomUUID } from "node:crypto";
 import { SOURCE_DATA_MARKER } from "./brain-source-context.ts";
@@ -1277,7 +1278,8 @@ export function runIsland(options: IslandOptions): IslandSession {
   const stopAppUpdates = options.apps?.onChange(() => sendApps());
   const stopWatchFires = options.watches?.onFire((event) => send({ type: "watchFired", ...event }));
   function sendWorkflows(problem?: string) {
-    send({ type: "workflows", workflows: options.workflows?.list() ?? [], ...(problem ? { problem } : {}) });
+    const now = new Date();
+    send({ type: "workflows", workflows: (options.workflows?.list() ?? []).map((w) => { const nextAt = workflowNextAt(w, now); return nextAt ? { ...w, nextAt } : w; }), ...(problem ? { problem } : {}) });
   }
   const stopWorkflowUpdates = options.workflows?.onChange(() => sendWorkflows());
   const stopBriefUpdates = options.dailyBrief?.onChange(() => {

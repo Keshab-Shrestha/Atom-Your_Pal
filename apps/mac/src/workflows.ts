@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { randomUUID } from "node:crypto";
-import { checkSchedule, isDue, type Schedule } from "@ark/helpers";
+import { checkSchedule, isDue, nextDue, type Schedule } from "@ark/helpers";
 
 /**
  * 2026-11-02 (Keshab's "Agent CRM workspace" reference, its Workflows page): a trigger, then steps, each an agent's task. A run is one
@@ -64,6 +64,12 @@ export function checkWorkflow(input: unknown, agents: readonly string[], now = n
 export function dueWorkflows(list: readonly Workflow[], now: Date): Workflow[] {
   return list.filter((w) => w.enabled && w.trigger.kind === "schedule" &&
     isDue({ schedule: w.trigger.schedule, createdAt: new Date(w.createdAt), ...(w.lastRunAt ? { lastAt: new Date(w.lastRunAt) } : {}) }, now));
+}
+
+/** When a published schedule workflow runs next (ISO time), or undefined for a draft, a manual or an event workflow. The window uses it to wake the Mac (ADR-246). */
+export function workflowNextAt(w: Workflow, now: Date): string | undefined {
+  if (!w.enabled || w.trigger.kind !== "schedule") return undefined;
+  return nextDue(w.trigger.schedule, new Date(w.createdAt), now).toISOString();
 }
 
 /** The published workflows a Board task's end starts. */

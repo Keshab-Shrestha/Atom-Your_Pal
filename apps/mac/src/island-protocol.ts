@@ -78,7 +78,7 @@ export type IslandEvent =
   /** Remembering by itself: whether suggestions are made, and the ones that wait (at most 3). Sent after `suggestions.get` and after each change. */
   | { type: "suggestions"; enabled: boolean; items: SuggestionItem[]; /** Facts ARK kept by itself in the last 10 minutes, for the "Remembered" row with Undo. */ kept: { id: number; text: string }[] }
   /** 2026-11-02: the workflows, after `workflows.list` and each change; `problem` is the reason a save, delete or run was refused. */
-  | { type: "workflows"; workflows: import("./workflows.ts").Workflow[]; problem?: string }
+  | { type: "workflows"; workflows: Array<import("./workflows.ts").Workflow & { nextAt?: string }>; problem?: string }
   /** 2026-11-02: the panels, after `panels.list` and each change; `problem` is why a save or delete was refused. */
   | { type: "panels"; panels: import("./panels.ts").Panel[]; problem?: string }
   /** 2026-11-05: ARK notices: the notes about what goes wrong in ARK (counts and short reasons, never chat text), after `improvements.get` and each change. */

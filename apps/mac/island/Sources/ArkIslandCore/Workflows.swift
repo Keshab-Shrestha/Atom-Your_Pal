@@ -34,9 +34,13 @@ public struct Workflow: Codable, Sendable, Equatable, Identifiable {
     public var steps: [Step]
     public var createdAt: String?
     public var lastRunAt: String?
+    /// When a published schedule workflow runs next (from the runtime; not saved back). The Mac wakes for it (ADR-246).
+    public var nextAt: Date?
 
-    public init(id: String = "", name: String, enabled: Bool = false, trigger: Trigger = Trigger(kind: "manual"), steps: [Step], createdAt: String? = nil, lastRunAt: String? = nil) {
-        self.id = id; self.name = name; self.enabled = enabled; self.trigger = trigger; self.steps = steps; self.createdAt = createdAt; self.lastRunAt = lastRunAt
+    private enum CodingKeys: String, CodingKey { case id, name, enabled, trigger, steps, createdAt, lastRunAt }
+
+    public init(id: String = "", name: String, enabled: Bool = false, trigger: Trigger = Trigger(kind: "manual"), steps: [Step], createdAt: String? = nil, lastRunAt: String? = nil, nextAt: Date? = nil) {
+        self.id = id; self.name = name; self.enabled = enabled; self.trigger = trigger; self.steps = steps; self.createdAt = createdAt; self.lastRunAt = lastRunAt; self.nextAt = nextAt
     }
 
     public static let maxSteps = 8
@@ -66,7 +70,16 @@ public struct Workflow: Codable, Sendable, Equatable, Identifiable {
 
     public static func list(from value: Any?) -> [Workflow] {
         guard let value, let data = try? JSONSerialization.data(withJSONObject: value) else { return [] }
-        return (try? JSONDecoder().decode([Workflow].self, from: data)) ?? []
+        var list = (try? JSONDecoder().decode([Workflow].self, from: data)) ?? []
+        let raw = value as? [[String: Any]] ?? []
+        let fractional = ISO8601DateFormatter(); fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let plain = ISO8601DateFormatter()
+        if raw.count == list.count {
+            for index in list.indices {
+                if let text = raw[index]["nextAt"] as? String { list[index].nextAt = fractional.date(from: text) ?? plain.date(from: text) }
+            }
+        }
+        return list
     }
 }
 

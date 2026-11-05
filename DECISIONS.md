@@ -4479,3 +4479,23 @@ ARK's own log showed the computer tool failing with "session 'ark' has ended; to
 
 - A long idle gap no longer breaks the computer tool until restart.
 - If the driver changes the wording of the rejection, the retry does not fire. The test pins the current wording.
+
+## ADR-246 — Wake the Mac for a scheduled workflow (2026-11-05)
+
+### Context
+
+ADR-236 added a macOS LaunchAgent that opens ARK a minute before the next routine. A published workflow with a schedule trigger (ADR-217 era Workflows page) runs only while ARK runs, the same as a routine did. The atticus-mac project wakes the Mac for its workflows.
+
+### Decision
+
+- The runtime adds `nextAt` to each published schedule workflow in the `workflows` event. `workflowNextAt` (workflows.ts) computes it with the same `nextDue` the routines use. A draft, a manual workflow and an event workflow have none.
+- The window keeps `nextAt` on the workflow but does not save it back (it is not in the saved fields).
+- `refreshWake` gives the LaunchAgent the routine times and the workflow times together. The agent still holds one calendar time: the earliest.
+- The window asks for the workflows once at start, without opening their page, when the switch is on. The workflows event also refreshes the wake time.
+- The switch keeps its setting key. Its label now says "routines and workflows".
+
+### Consequences
+
+- A scheduled workflow starts on time with ARK closed, as a routine does. ARK's own clock still starts the run.
+- A workflow that is overdue when ARK opens runs once, as before.
+- Not tried live: the file is written, but a real wake needs the app run from a signed `.app` and time to pass.

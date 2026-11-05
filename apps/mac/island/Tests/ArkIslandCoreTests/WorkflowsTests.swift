@@ -23,4 +23,15 @@ struct WorkflowsTests {
         #expect(SidebarLayout.standard.top.contains(.workflows))
         #expect(SidebarLayout(top: [.dashboard], bottom: [.settings]).top.contains(.workflows), "a saved layout gets the new page back")
     }
+
+    @Test func theNextRunComesFromTheRuntimeAndIsNotSavedBack() throws {
+        let list = Workflow.list(from: [
+            ["id": "a", "name": "Daily", "enabled": true, "trigger": ["kind": "schedule", "schedule": ["kind": "daily", "minute": 480]], "steps": [], "nextAt": "2026-11-06T08:00:00.000Z"],
+            ["id": "b", "name": "By hand", "enabled": true, "trigger": ["kind": "manual"], "steps": []],
+        ])
+        #expect(list.count == 2)
+        #expect(list[0].nextAt == ISO8601DateFormatter().date(from: "2026-11-06T08:00:00Z"))
+        #expect(list[1].nextAt == nil)
+        #expect(list[0].jsonObject["nextAt"] == nil, "the runtime refuses fields it did not make")
+    }
 }

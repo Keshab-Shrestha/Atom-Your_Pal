@@ -1,6 +1,6 @@
 import Foundation
 
-// Routines while ARK is closed (2026-11-04, idea from atticus-mac "launchd routines"). A routine runs only while ARK runs. With the
+// Routines and published schedule workflows while ARK is closed (2026-11-04, idea from atticus-mac "launchd routines"; workflows ADR-246). A routine runs only while ARK runs. With the
 // switch on, a macOS LaunchAgent opens ARK in the background a minute before the next routine is due; ARK's own clock then starts it.
 // This file holds the plain parts (when to wake, what the agent file says), so they are unit-tested. Writing the file and running
 // launchctl is the app's job (WakeInstaller).
