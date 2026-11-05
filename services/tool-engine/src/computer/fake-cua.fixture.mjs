@@ -9,6 +9,8 @@ if (exitDelay > 0) {
   setInterval(() => {}, 1000); // stay alive after stdin closes
   process.on("SIGTERM", () => setTimeout(() => process.exit(0), exitDelay));
 }
+// CUA_FIXTURE_ENDED: like the real driver, the session "ark" has ended: session tools are rejected until start_session revives it.
+const ended = new Set(process.env.CUA_FIXTURE_ENDED ? ["ark"] : []);
 const out = (m) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", ...m }) + "\n");
 createInterface({ input: process.stdin }).on("line", (line) => {
   const m = JSON.parse(line);
@@ -25,6 +27,7 @@ createInterface({ input: process.stdin }).on("line", (line) => {
     const paged = process.env.CUA_FIXTURE_LIST === "paged";
     // CUA_FIXTURE_SESSION: like the real 0.28 driver, some tools take a session, and the driver has its own agent cursor.
     const sessioned = process.env.CUA_FIXTURE_SESSION ? ["echo", "set_agent_cursor_enabled"] : [];
+    if (process.env.CUA_FIXTURE_ENDED && !process.env.CUA_FIXTURE_NO_START && !m.params.cursor) names.push("start_session");
     const tools = [...(paged ? (m.params.cursor ? names.slice(6) : names.slice(0, 6)) : names), ...(m.params.cursor ? [] : sessioned)]
       .map((name) => sessioned.includes(name) ? { name, inputSchema: { type: "object", properties: { session: { type: "string" } } } } : { name });
     return out({ id: m.id, result: { tools, ...(process.env.CUA_FIXTURE_LIST === "endless" || (paged && !m.params.cursor) ? { nextCursor: "more" } : {}) } });
@@ -32,6 +35,8 @@ createInterface({ input: process.stdin }).on("line", (line) => {
   if (m.method !== "tools/call") return out({ id: m.id, error: { code: -32601, message: "no such method" } });
   const { name, arguments: a } = m.params;
   calls.push(name);
+  if (name === "start_session") { ended.delete(a.session); return out({ id: m.id, result: { content: [{ type: "text", text: "started" }], structuredContent: {} } }); }
+  if (a.session && ended.has(a.session) && name !== "set_agent_cursor_enabled") return out({ id: m.id, result: { isError: true, content: [{ type: "text", text: `Could not read: session '${a.session}' has ended; tool call '${name}' was rejected. Call start_session with this id to revive it before issuing further calls.` }], structuredContent: {} } });
   const ok = (text, structuredContent = {}) => out({ id: m.id, result: { content: [{ type: "text", text }], structuredContent } });
   if (name === "echo") return ok(String(a.text), { args: a });
   if (name === "set_agent_cursor_enabled") { calls.push(JSON.stringify(a)); return ok("cursor", { session: a.session, enabled: a.enabled }); }

@@ -4461,3 +4461,21 @@ Phase 1 notes a problem (ADR-239). Phase 2 lets a note start a fix on a branch t
 - The loop closes: log, note, Fix it, branch, review, push, merge, update, then the log decides. A fix that does not work shows as a note that stays open.
 - "Fixed" means the problem was not logged for at least 2 days after the fix started. It does not prove the cause was fixed: a rare problem may simply not have happened. The line says what the log says, nothing more.
 - The model plays no part in judging. Counts do.
+
+## ADR-242 — Start the Cua session again when the driver has ended it (2026-11-05)
+
+### Context
+
+ARK's own log showed the computer tool failing with "session 'ark' has ended; tool call 'get_window_state' was rejected. Call start_session with this id to revive it". It happened 5 times in a few days. ADR-213 era code (the single-pointer change of 2026-11-02) puts the session label `ark` on every driver call. The driver ends a session name after a while. It never revives an ended name on an ordinary action. ARK never called `start_session`, so every computer call failed until the driver process restarted (the idle stop after 120 s).
+
+### Decision
+
+- `cua-client.ts` notes whether the driver offers `start_session`.
+- When a call comes back as an error that says the session has ended, ARK calls `start_session` for `ark`, hides the driver cursor again, and sends the same call one more time.
+- One retry is safe. The driver rejected the call before it ran, so no action repeats. The transport still never replays a call that failed in any other way.
+- A driver without `start_session` gets the error as before.
+
+### Consequences
+
+- A long idle gap no longer breaks the computer tool until restart.
+- If the driver changes the wording of the rejection, the retry does not fire. The test pins the current wording.
