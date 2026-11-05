@@ -225,7 +225,6 @@ private struct HelperSidebar: View {
                         ChatsList(model: model)
                     }
                         .frame(maxHeight: .infinity)
-                    SidebarAgents(model: model)
                 }
                 if !model.searchQuery.isEmpty { Spacer(minLength: 0) }
             }

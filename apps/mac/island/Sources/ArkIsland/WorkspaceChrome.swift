@@ -76,7 +76,7 @@ struct WorkspaceNavigationRail: View {
                 model.navigate { model.windowPage = .apps; model.openAppPage(app.id) }
             }
         }
-        railButton("New app", symbol: "plus", selected: false) { model.askForApp() }
+        railButton("New app", symbol: "plus.app", selected: false) { model.askForApp() }
     }
 
     @ViewBuilder private func pages(_ items: [SidebarItem], bottom: Bool) -> some View {
