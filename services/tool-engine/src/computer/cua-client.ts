@@ -73,6 +73,8 @@ interface Connection {
   proc: Proc;
   /** Tools whose input takes a `session`: CUA_SESSION_LABEL is added to their calls. */
   sessionTools: Set<string>;
+  /** The driver offers `start_session`, which revives an ended session name. */
+  canStart?: boolean;
   generation: number;
   ready: Promise<void>;
   startupMs: number;
@@ -86,6 +88,8 @@ interface Connection {
  */
 export const CUA_SESSION_LABEL = "ark";
 const REQUIRED_TOOLS = ["list_apps", "list_windows", "get_window_state", "launch_app", "click", "type_text", "press_key", "hotkey", "scroll", "set_value", "get_screen_size", "get_desktop_state"];
+const ENDED_SESSION = /session '[^']*' has ended/i;
+const textOf = (result: any): string => (result?.content ?? []).filter((item: any) => item.type === "text").map((item: any) => item.text).join("\n");
 const elapsed = (start: number) => Math.max(0, Math.round(performance.now() - start));
 class StaleSession extends Error {}
 
@@ -180,14 +184,32 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
         const result = await request(c, "tools/list", cursor ? { cursor } : {}, initializeTimeoutMs);
         for (const tool of Array.isArray(result?.tools) ? result.tools : []) {
           if (typeof tool?.name === "string" && tool.inputSchema?.properties?.session) c.sessionTools.add(tool.name);
+          if (tool?.name === "start_session") c.canStart = true;
         }
         cursor = typeof result?.nextCursor === "string" && result.nextCursor ? result.nextCursor : undefined;
         if (!cursor) break;
       }
-      if (c.sessionTools.has("set_agent_cursor_enabled")) {
-        await request(c, "tools/call", { name: "set_agent_cursor_enabled", arguments: { session: CUA_SESSION_LABEL, enabled: false } }, initializeTimeoutMs);
-      }
+      await hideCursor(c);
     } catch { /* The driver's cursor may show; every action still works. */ }
+  }
+
+  async function hideCursor(c: Connection) {
+    if (c.sessionTools.has("set_agent_cursor_enabled")) {
+      await request(c, "tools/call", { name: "set_agent_cursor_enabled", arguments: { session: CUA_SESSION_LABEL, enabled: false } }, initializeTimeoutMs);
+    }
+  }
+
+  /**
+   * The driver ends a session name after a while and never revives it on an ordinary action (seen live: "session 'ark' has ended ...
+   * Call start_session"). Every later computer call failed until ARK restarted. Start it again, hide the cursor again, and report whether it worked.
+   */
+  async function revive(c: Connection): Promise<boolean> {
+    if (!c.canStart) return false;
+    try {
+      await request(c, "tools/call", { name: "start_session", arguments: { session: CUA_SESSION_LABEL } }, initializeTimeoutMs);
+      await hideCursor(c).catch(() => {});
+      return true;
+    } catch { return false; }
   }
 
   function touch(c: Connection) {
@@ -240,7 +262,9 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
         let ok = false;
         try {
           const args = c.sessionTools.has(name) && !("session" in callArgs) ? { ...callArgs, session: CUA_SESSION_LABEL } : callArgs;
-          const result = await request(c, "tools/call", { name, arguments: args });
+          let result = await request(c, "tools/call", { name, arguments: args });
+          // A call the driver rejected for an ended session did not run, so one retry after reviving the session cannot repeat an action.
+          if (result?.isError && ENDED_SESSION.test(textOf(result)) && await revive(c)) result = await request(c, "tools/call", { name, arguments: args });
           const structured = (result?.structuredContent ?? {}) as Record<string, any>;
           const images = (result?.content ?? []).filter((item: any) => item.type === "image" && ["image/png", "image/jpeg"].includes(item.mimeType)
             && typeof item.data === "string" && item.data.length > 0 && item.data.length <= 12 * 1024 * 1024 && /^[A-Za-z0-9+/]+={0,2}$/.test(item.data))

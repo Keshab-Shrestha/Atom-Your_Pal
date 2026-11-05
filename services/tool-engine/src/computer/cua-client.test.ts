@@ -297,3 +297,31 @@ test("on connect ARK hides the driver's own cursor for its session and sends its
     assert.ok(!(await plain.call("requests", {})).data.calls.includes("set_agent_cursor_enabled"));
   } finally { await plain.close(); }
 });
+
+test("a session the driver ended is started again and the rejected call is retried once", async () => {
+  const cua = make({ env: { ...process.env, CUA_FIXTURE_SESSION: "1", CUA_FIXTURE_ENDED: "1" } });
+  try {
+    const r = await cua.call("echo", { text: "hi" });
+    assert.equal(r.isError, false, "the retry after start_session worked");
+    assert.equal(r.text, "hi");
+    const audit = await cua.call("requests", {});
+    const calls: string[] = audit.data.calls;
+    assert.equal(calls.filter((c) => c === "echo").length, 2, "rejected once, then run once");
+    assert.equal(calls.filter((c) => c === "start_session").length, 1);
+    assert.ok(calls.indexOf("start_session") < calls.lastIndexOf("echo"));
+    assert.equal(calls.filter((c) => c === "set_agent_cursor_enabled").length, 2, "the cursor is hidden again after the session starts again");
+  } finally {
+    await cua.close();
+  }
+});
+
+test("a driver without start_session reports the ended session and does not retry", async () => {
+  const cua = make({ env: { ...process.env, CUA_FIXTURE_SESSION: "1", CUA_FIXTURE_ENDED: "1", CUA_FIXTURE_NO_START: "1" } });
+  try {
+    const r = await cua.call("echo", { text: "hi" });
+    assert.equal(r.isError, true);
+    assert.match(r.text, /has ended/);
+  } finally {
+    await cua.close();
+  }
+});
