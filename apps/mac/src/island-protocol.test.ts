@@ -426,3 +426,8 @@ test("computer decision settings/results accept only closed metadata, never cred
     { type: "computer.decision.result", id, answer: { ...answer, choice: "run_shell" } },
   ]) assert.ok("error" in parseCommand(JSON.stringify(command)));
 });
+
+test("stats.get takes no fields", () => {
+  assert.deepEqual(parseCommand('{"type":"stats.get"}'), { command: { type: "stats.get" } });
+  assert.ok("error" in parseCommand('{"type":"stats.get","x":1}'));
+});

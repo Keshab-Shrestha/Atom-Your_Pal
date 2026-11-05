@@ -69,6 +69,8 @@ export interface IslandWatches {
 
 export interface IslandOptions {
   improvements?: IslandImprovements;
+  /** 2026-11-05: the Stats page (stats.ts). Absent when there is no log file. */
+  stats?: { get(): import("./stats.ts").Stats };
   apps?: IslandApps;
   watches?: IslandWatches;
   workflows?: IslandWorkflows;

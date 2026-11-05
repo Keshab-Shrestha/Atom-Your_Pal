@@ -100,6 +100,7 @@ import { createImproveSkillTool, createProposeSkillTool, createSearchChatsTool }
 import { nativeSteering, nativeRetryStarter, retrySourceChat, routeWake, routineStarter, taskStarter } from "./native-entry.ts";
 import { createPanelStore, createPanelTool } from "./panels.ts";
 import { SUGGEST_INSTRUCTION, createImproveStore, createImprover } from "./improve.ts";
+import { statsFromLog } from "./stats.ts";
 import { createAppStore, createAppTool, createBridge } from "./ark-apps.ts";
 import { createWatchRunner, createWatchStore, createWatchTool } from "./watches.ts";
 import { readPublicPage } from "./public-page.ts";
@@ -133,6 +134,7 @@ export interface Runtime {
   panels?: import("./island-types.ts").IslandPanels;
   /** 2026-11-05: ARK notices (improve.ts). */
   improvements?: import("./island-types.ts").IslandImprovements;
+  stats?: { get(): import("./stats.ts").Stats };
   /** 2026-11-05: apps that run in the window's sandbox (ark-apps.ts). */
   apps?: import("./island-types.ts").IslandApps;
   /** 2026-11-04: pages ARK watches (watches.ts). */
@@ -1420,6 +1422,7 @@ export function createRuntime(
     ...(watches ? { watches } : {}),
     ...(apps ? { apps } : {}),
     ...(improvements ? { improvements } : {}),
+    ...(config.log.file ? { stats: { get: () => statsFromLog(config.log.file!) } } : {}),
     ...(workflows ? { workflows } : {}),
     config,
     log,
