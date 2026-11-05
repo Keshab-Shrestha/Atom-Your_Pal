@@ -25,6 +25,7 @@ struct WorkspaceNavigationRail: View {
                         model.navigate { model.windowPage = .chat }
                     }
                     pages(model.settings.sidebar.top, bottom: false)
+                    railApps
                 }
             }
             Spacer(minLength: 0)
@@ -57,6 +58,25 @@ struct WorkspaceNavigationRail: View {
         }
         .zIndex(1)
         .accessibilityElement(children: .contain).accessibilityLabel("Main navigation")
+        .onAppear { if !snapshot, model.apps == nil { model.send(.appsList) } }
+    }
+
+    /// The most apps shown in the rail. The Apps page lists them all.
+    private static let appsShown = 5
+
+    /// 2026-11-05 (Keshab): the apps ARK made sit in the rail under the pages, a lettered tile each, with a + to ask for one.
+    /// A new app shows here as soon as you approve it. Removing an app stays on the Apps page.
+    @ViewBuilder private var railApps: some View {
+        let apps = model.apps ?? []
+        if !apps.isEmpty { Rectangle().fill(theme.hairline(true)).frame(width: 20, height: 1).accessibilityHidden(true) }
+        ForEach(apps.prefix(Self.appsShown)) { app in
+            WorkspaceRailButton(title: app.name, symbol: "app.dashed",
+                                selected: model.windowPage == .apps && model.openApp?.id == app.id, badge: 0,
+                                letter: app.name.first.map { String($0).uppercased() }) {
+                model.navigate { model.windowPage = .apps; model.openAppPage(app.id) }
+            }
+        }
+        railButton("New app", symbol: "plus", selected: false) { model.askForApp() }
     }
 
     @ViewBuilder private func pages(_ items: [SidebarItem], bottom: Bool) -> some View {
@@ -118,7 +138,7 @@ struct WorkspaceNavigationRail: View {
         case .scheduled: ("Scheduled", "calendar", model.windowPage == .scheduled)
         case .workflows: ("Workflows", "point.3.connected.trianglepath.dotted", model.windowPage == .workflows)
         case .panels: ("Panels", "square.grid.2x2", model.windowPage == .panels)
-        case .apps: ("Apps", "app.dashed", model.windowPage == .apps)
+        case .apps: ("Apps", "app.dashed", model.windowPage == .apps && model.openApp == nil)
         case .brain: ("Second brain", "brain.head.profile", model.windowPage == .brain)
         case .plugins: ("Plugins", "puzzlepiece.extension", model.windowPage == .plugins)
         case .settings: ("Settings", "gearshape", model.windowPage == .settings)
@@ -163,6 +183,8 @@ private struct WorkspaceRailButton: View {
     let selected: Bool
     let badge: Int
     var appIcon = false
+    /// An app's first letter, drawn in a small outlined tile in place of the symbol.
+    var letter: String?
     let action: () -> Void
     @Environment(\.theme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -183,6 +205,11 @@ private struct WorkspaceRailButton: View {
             Group {
                 if appIcon {
                     homeIcon.frame(width: Self.homeIconSize, height: Self.homeIconSize).accessibilityHidden(true)
+                } else if let letter {
+                    Text(letter).font(.system(size: 13, weight: selected ? .semibold : .medium))
+                        .frame(width: 22, height: 22)
+                        .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(lineWidth: 1.2))
+                        .accessibilityHidden(true)
                 } else {
                     Glyph(systemName: symbol)
                         .font(.system(size: 15, weight: selected ? .semibold : .medium))

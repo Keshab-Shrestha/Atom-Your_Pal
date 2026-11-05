@@ -4680,3 +4680,24 @@ An audit of the UI (`docs/ui-audit-2026-11-05.md`) found that the design package
 - A change to the type scale now needs one edit in Swift and one in `tokens.css`. A test catches a miss.
 - Not done: DESIGN.md section 4 still describes a 224 pt sidebar. The shipped window shows a narrow icon rail. Check it before changing it.
 - Not done: `design/current-ui.html` is a stale preview (2026-10-28, ATOM name). Keep or retire it: Keshab decides.
+
+## ADR-253 — Apps in the left rail, not in the chat pane (2026-11-05)
+
+### Context
+
+ADR-248 put the apps ARK made in the sidebar, under the agents. That sidebar is the second pane: it belongs to Chats. The user wanted the apps in the leftmost pane, the rail with the logo, Chats, Board, Schedule and Workflows.
+
+### Decision
+
+- Each app shows in the rail under the pages: a small outlined tile with the app's first letter. The name shows on hover, as for the other rail buttons.
+- A click opens the app in the window. The tile of the open app is selected, and the Apps page button is not.
+- A `+` button under the apps asks ARK to make an app.
+- The rail shows at most 5 apps. The Apps page lists all of them and is where an app is removed.
+- The Apps list is removed from the chat pane. `SidebarApps.swift` is deleted.
+
+### Consequences
+
+- The apps stay in view on every page, not only in Chats.
+- The rail has more items. In a short window the top group of the rail scrolls, so the last apps and the `+` can sit below the fold.
+- Four goldens changed (`13-helpers-agent-panel`, `13-helpers-chat-table` and the two Daylight versions), because the chat pane no longer lists apps. The gallery window is short, so no shot shows the rail apps.
+- Not checked in a shot: the rail with apps at full window height. Check it in the running app.
