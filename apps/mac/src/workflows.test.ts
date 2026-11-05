@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { checkWorkflow, createWorkflowStore, dueWorkflows, eventWorkflows, workflowPrompt, MAX_STEPS } from "./workflows.ts";
+import { checkWorkflow, createWorkflowStore, dueWorkflows, eventWorkflows, workflowNextAt, workflowPrompt, MAX_STEPS } from "./workflows.ts";
 
 const agents = ["sid", "quill"];
 const base = { name: "Morning digest", enabled: true, trigger: { kind: "manual" }, steps: [{ helper: "sid", task: "Collect the news" }, { helper: "quill", task: "Write a summary" }] };
@@ -52,4 +52,14 @@ test("the store keeps workflows owner-only, replaces by id, removes and marks ru
     store.remove(saved!.id);
     assert.deepEqual(JSON.parse(readFileSync(path, "utf8")), { version: 1, workflows: [] });
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("workflowNextAt gives the next run of a published schedule workflow only", () => {
+  const base = { id: "w1", name: "n", steps: [{ helper: "a", task: "t" }], createdAt: "2026-11-01T00:00:00.000Z" };
+  const now = new Date("2026-11-05T12:00:00.000Z");
+  const hourly = { ...base, enabled: true, trigger: { kind: "schedule" as const, schedule: { kind: "hours" as const, every: 6 } } };
+  assert.equal(workflowNextAt(hourly, now), "2026-11-05T12:00:00.000Z".replace("12", "18"), "every 6 hours from the creation time");
+  assert.equal(workflowNextAt({ ...hourly, enabled: false }, now), undefined, "a draft does not wake the Mac");
+  assert.equal(workflowNextAt({ ...base, enabled: true, trigger: { kind: "manual" as const } }, now), undefined);
+  assert.equal(workflowNextAt({ ...base, enabled: true, trigger: { kind: "event" as const, event: "task.failed" as const } }, now), undefined);
 });
