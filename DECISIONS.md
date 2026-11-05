@@ -4653,3 +4653,30 @@ Live test of the cursor lanes (ADR-249): lane a typed in TextEdit while lane b p
 - Looking or pointing in a lane shows only the work, not a stray pointer.
 - Checked live: lane a showed its coral pointer in TextEdit, Pal and the ring were at the link, and nothing stood at Pal's home.
 - A lane's `point` step does not move that lane's pointer. Not built: moving the lane's pointer to the pointed place.
+
+## ADR-252 — One type scale, and design docs that match the code (2026-11-05)
+
+### Context
+
+An audit of the UI (`docs/ui-audit-2026-11-05.md`) found that the design package disagreed with the app.
+
+- DESIGN.md gave Void as `#000000`. The code and `tokens.css` use `#141414`. Most other colours in the DESIGN.md table were also old.
+- The type scale had three copies. DESIGN.md and `tokens.css` said 11, 12, 13, 15, 18, 26. `TypeScale` in the app said 11, 13, 15, 20, 28. `AppFont` already snaps every size to the Swift scale, so the app was right.
+- `DesignTokensTests` checked colours and radii. It did not check type.
+- DESIGN.md named five glass themes that are no longer in `AppTheme`.
+
+### Decision
+
+- `TypeScale` moves to `ArkIslandCore` and is the one source: 11, 13, 15, 20, 28.
+- `tokens.css` uses five tokens: `--text-caption`, `--text-body`, `--text-reading`, `--text-title`, `--text-display`. `--text-secondary` and `--text-row` are removed, and `--text-number` is now `--text-display`.
+- `DesignCatalog.typeScale` lists the same five steps.
+- A new test fails when `tokens.css` differs from `TypeScale`. A second test checks `snap`.
+- DESIGN.md takes its colour table and type scale from `tokens.css`, and names the seven other themes that `AppTheme` has.
+- Void stays `#141414`. The audit brief asked for `#0a0a0a`. Main text on `#141414` is already above 15:1, and a change would break the colour test.
+
+### Consequences
+
+- No pixel in the app changes. Two goldens of the Design system page changed (`22-design-showcase`, `22-design-tokens-daylight`), because the type list has five rows, not six.
+- A change to the type scale now needs one edit in Swift and one in `tokens.css`. A test catches a miss.
+- Not done: DESIGN.md section 4 still describes a 224 pt sidebar. The shipped window shows a narrow icon rail. Check it before changing it.
+- Not done: `design/current-ui.html` is a stale preview (2026-10-28, ATOM name). Keep or retire it: Keshab decides.

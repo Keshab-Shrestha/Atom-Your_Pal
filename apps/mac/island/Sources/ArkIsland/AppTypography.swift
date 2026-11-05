@@ -23,22 +23,6 @@ struct AppFont {
     func font(at size: AppTextSize, face: AppTypeface = .system) -> Font { resolve(size.scale, face) }
 }
 
-/// Five sizes, far apart (taste-skill: "nine nearly equal font sizes" is a tell). Sizes above the scale (big numerals) stay.
-enum TypeScale {
-    static let caption: CGFloat = 11, body: CGFloat = 13, reading: CGFloat = 15, title: CGFloat = 20, display: CGFloat = 28
-
-    static func snap(_ size: CGFloat) -> CGFloat {
-        switch size {
-        case ..<12: caption
-        case ..<14: body
-        case ..<17: reading
-        case ..<24: title
-        case ...30: display
-        default: size
-        }
-    }
-}
-
 /// The typefaces behind `AppFont` (Settings > Appearance > Typeface). Monospaced text stays SF Mono in every face.
 /// The bundled faces are files in `assets/fonts` (SIL OFL), registered for this process at launch; a face whose file
 /// is missing falls back to the system font, so text never disappears.
