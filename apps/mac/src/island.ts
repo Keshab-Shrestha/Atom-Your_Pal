@@ -1180,7 +1180,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     });
   }
   function refuseHelpers(command: string, message: string) {
-    options.log?.warn("helpers.refused", { command });
+    options.log?.warn("helpers.refused", { command, message: message.slice(0, 200) });
     send({ type: "error", stage: "settings", message });
   }
   function changeHelpers(command: string, change: (helpers: IslandHelpers) => void) {
