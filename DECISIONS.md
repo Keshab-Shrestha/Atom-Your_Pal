@@ -4575,3 +4575,23 @@ The `point` action flies Pal to a place and shows a label. A small figure beside
 - The user can see which button ARK means.
 - Checked live: the demo (`ARK_POINT_DEMO` with `|ring`) drew a ring over its place on the real screen, with Pal beside it. Not checked: a shape on a second display, and the model choosing a shape by itself.
 - Not built: free drawing, a pen, or text on the screen.
+
+## ADR-248 — Apps in the sidebar (2026-11-05)
+
+### Context
+
+An app ARK makes (ADR-238) showed only on the Apps page. The user had to open that page to reach it. Agents already list in the sidebar, each a click away.
+
+### Decision
+
+- The sidebar of the window lists the apps under the agents: up to 5 rows, then "All N apps", which opens the Apps page. A "+" asks ARK to make an app (it starts a chat, as the Apps page does).
+- A row opens the app in the window. The row of the open app is marked.
+- A new app shows in the list as soon as the user approves it, because the runtime sends the `apps` event after each change. The window asks for the list once when the sidebar first shows, if it has none.
+- The Apps page stays. It removes an app.
+- No runtime change.
+
+### Consequences
+
+- One click from the sidebar to an app.
+- The sidebar has one more section, so its chat list has less height. The section has a header and "+" even with no app.
+- Four golden shots changed (the sidebar of the chat and agent panel shots, dark and daylight).
