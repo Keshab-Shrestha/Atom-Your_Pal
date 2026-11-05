@@ -104,6 +104,10 @@ struct BoardPane: View {
             // ADR-256: the Flow when the pane is wide enough for four lanes; the stacked list (or Needs you) when it is not.
             ViewThatFits(in: .horizontal) {
                 VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .center, spacing: 16) {
+                        BoardComposer(model: model).frame(maxWidth: 560)
+                        Spacer(minLength: 0)
+                    }
                     TeamStrip(model: model)
                     BoardFlow(model: model, board: board)
                 }

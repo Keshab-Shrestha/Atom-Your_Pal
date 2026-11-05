@@ -178,3 +178,64 @@ struct TeamStrip: View {
         }
     }
 }
+
+/// ADR-257: give the team a task from the Board. One line: the task, the agent it goes to (a free one is chosen first), and Send.
+/// It sends what the agent panel sends (`jobAdd`); the task then shows in the To do or Running lane.
+struct BoardComposer: View {
+    let model: IslandModel
+    @State private var text = ""
+    @State private var chosen: String?
+    @Environment(\.theme) private var theme
+    @Environment(\.islandSnapshot) private var snapshot
+
+    var body: some View {
+        let takers = TeamRoster.takers(model.helpers.list)
+        let target = TeamRoster.taskTarget(takers, chosen: chosen)
+        let empty = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        HStack(spacing: 10) {
+            Glyph(systemName: "plus.bubble").appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text3.color)
+            Group {
+                if snapshot { Text("Give the team a task…").foregroundStyle(theme.text3.color).frame(maxWidth: .infinity, alignment: .leading) }
+                else { TextField("Give the team a task…", text: $text).textFieldStyle(.plain).onSubmit { send(target) } }
+            }
+            .appFont(.system(size: 13))
+            if let target {
+                // A snapshot cannot draw a Menu: it shows the label alone.
+                if snapshot { agentLabel(target) } else {
+                    Menu {
+                        ForEach(takers) { helper in
+                            Button(TeamRoster.isWorking(helper) ? "\(helper.name) (working)" : "\(helper.name), \(helper.roleTitle)") { chosen = helper.id }
+                        }
+                    } label: { agentLabel(target) }
+                    .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                    .help("The agent this task goes to").accessibilityLabel("Agent: \(target.name)")
+                }
+            }
+            Button { send(target) } label: {
+                Glyph(systemName: "arrow.up").appFont(.system(size: 12, weight: .semibold)).foregroundStyle(theme.onAccent.color)
+                    .frame(width: 26, height: 26).background(Circle().fill(empty || target == nil ? theme.text3.color : theme.accent.color))
+            }
+            .buttonStyle(.plain).disabled(empty || target == nil)
+            .accessibilityLabel(target.map { "Give the task to \($0.name)" } ?? "No agent can take a task")
+        }
+        .padding(.leading, 14).padding(.trailing, 8).padding(.vertical, 8)
+        .floatingSurface(Capsule())
+    }
+
+    private func agentLabel(_ target: Helper) -> some View {
+        HStack(spacing: 6) {
+            HelperBadge(helper: target, size: 18)
+            Text(target.name).appFont(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
+            Glyph(systemName: "chevron.down").appFont(.system(size: 9, weight: .semibold)).foregroundStyle(theme.text3.color)
+        }
+        .padding(.leading, 4).padding(.trailing, 8).padding(.vertical, 3)
+        .background(Capsule().fill(theme.fill2.color))
+    }
+
+    private func send(_ target: Helper?) {
+        let task = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let target, !task.isEmpty else { return }
+        text = ""
+        model.send(.jobAdd(helper: target.id, task: task))
+    }
+}

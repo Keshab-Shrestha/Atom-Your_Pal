@@ -4765,3 +4765,19 @@ Keshab asked for a makeover of the app outside the glass, and to rethink the Boa
 - What needs you, what runs and what comes next are on one screen. The first answer is one click away.
 - Seven goldens changed (Board and Studio shots). One Core test was updated for the new tab name.
 - Not done: a way to give the team a task from the Board itself. Today a task starts in chat or the agent panel.
+
+## ADR-257 — Give the team a task from the Board, and a calm roster (2026-11-05)
+
+### Context
+
+The Flow (ADR-256) showed the work, but a task could only start in chat or in the agent panel. The audit (`docs/ui-audit-2026-11-05.md`, item A1) also found that the Studio roster drew a green "Ready" pill for every idle agent. Five green pills outweighed the one amber "need you".
+
+### Decision
+
+- **Board composer** (`BoardComposer`): one frosted line above the team, with the task, the agent it goes to, and Send. It sends what the agent panel sends (`jobAdd`). The agent is the one you choose, else the first free agent, else the first (`TeamRoster.taskTarget`). Unavailable agents and the reviewer (Tinker) take no task (`TeamRoster.takers`).
+- **Calm roster:** Ready is the usual state, so it is a quiet word with no colour and no box. Only Paused gets a symbol and a box. Edit is an icon button with a hover state and a help tip, not a text link.
+
+### Consequences
+
+- The Board covers the whole loop: give a task, watch it run, answer what it asks, read what it did.
+- Two new tests (`BoardComposerTargetTests`). Four Studio goldens changed.
