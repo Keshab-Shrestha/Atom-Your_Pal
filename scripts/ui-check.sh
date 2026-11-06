@@ -32,7 +32,10 @@ for golden in tests/ui-golden/*.png; do
   name="$(basename "$golden")"
   if [ "${UPDATE:-0}" = "1" ]; then cp "$dir/$name" "$golden"; echo "updated golden: $name"; continue; fi
   result="$(swift scripts/png-diff.swift "$golden" "$dir/$name" "$dir/diff-$name")" || { echo "FAIL $name: $result (diff: $dir/diff-$name)"; exit 1; }
-  awk -v p="${result%% *}" 'BEGIN { exit !(p > 1.0) }' && { echo "FAIL $name changed in ${result%% *}% of its pixels (diff: $dir/diff-$name; UPDATE=1 keeps the new look)"; exit 1; }
+  # 42-studio-compact: the Studio floor's rail and pals differ by up to 1.5% between two renders of the same code
+  # (it failed once at 1.02% on the same commit that passed before), so it gets 3%; every other shot keeps 1%.
+  limit=1.0; [ "$name" = "42-studio-compact.png" ] && limit=3.0
+  awk -v p="${result%% *}" -v l="$limit" 'BEGIN { exit !(p > l) }' && { echo "FAIL $name changed in ${result%% *}% of its pixels (diff: $dir/diff-$name; UPDATE=1 keeps the new look)"; exit 1; }
   echo "ok golden: $name ${result%% *}% changed"
 done
 
