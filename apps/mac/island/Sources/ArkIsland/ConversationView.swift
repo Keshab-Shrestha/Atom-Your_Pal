@@ -12,6 +12,7 @@ import ArkIslandCore
 /// and each chat keeps its own unsent words and files. ADR-126: "@" lists helpers (the message goes to the one chosen),
 /// Second brain notes (sent with it as files) and "A file…". ADR-127: while ARK answers, Return makes the message wait
 /// for the answer. ADR-142: messages stay separate; ⌘Return sends the oldest queued message now.
+/// ADR-274: Tab queues too; queued rows reorder by drag or ⌥↑/⌥↓ and each can go now; Catch me up and Workers sit above the box.
 struct Composer: View {
     let model: IslandModel
     private let galleryDraft: State<String>
@@ -72,7 +73,7 @@ struct Composer: View {
                         .buttonStyle(.plain).accessibilityLabel("Dismiss settings error")
                 }
             }
-            if readOnly == nil { queueControls }
+            if readOnly == nil { queueControls; statusRow }
             if !snapshot { recoveryControls }
             if !attached.wrappedValue.isEmpty || attached.wrappedValue.notice != nil {
                 AttachedFilesRow(files: attached.wrappedValue.files, notes: attached.wrappedValue.notes, notice: attached.wrappedValue.notice,
@@ -103,7 +104,7 @@ struct Composer: View {
                             .onKeyPress(.return, phases: .down) { press in newLine(press) }
                             .onKeyPress(.upArrow) { movePick(-1) == .handled ? .handled : recallMessage(older: true) }
                             .onKeyPress(.downArrow) { movePick(1) == .handled ? .handled : recallMessage(older: false) }
-                            .onKeyPress(.tab) { pickRow() }
+                            .onKeyPress(.tab, phases: .down) { press in pickRow() == .handled ? .handled : queueWithTab(press) }
                             .onKeyPress(.escape) { closeMenu() }
                             .accessibilityLabel("Message to ARK")
                     }
@@ -134,8 +135,9 @@ struct Composer: View {
                     }
                 }
             }
-            if !snapshot, readOnly == nil, model.queue.awaitingStart || model.queue.running {
-                Text(model.queue.awaitingStart ? "Sending… · Return: queue another message" : "Return: queue message · ⌘Return: send next now")
+            // ADR-274: the placeholder names the keys while the box is empty; this line names them once the words hide it.
+            if !snapshot, readOnly == nil, model.queue.running, !empty {
+                Text(model.queue.awaitingStart ? "Sending… · \(Self.busyHint)" : Self.busyHint)
                     .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
             }
         }
@@ -158,10 +160,12 @@ struct Composer: View {
         .onAppear {
             guard !snapshot else { return }
             paste.wrappedValue.start(attach: { attached.wrappedValue.add($0) }, text: pasteText)
+            model.chatViewStarted()
         }
         .onDisappear {
             guard !snapshot else { return }
             paste.wrappedValue.stop()
+            model.chatViewEnded()
         }
         .background {
             if !snapshot { WindowProbe { paste.wrappedValue.window = $0 } }
@@ -200,16 +204,18 @@ struct Composer: View {
         if !model.queue.messages.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Queued (\(model.queue.messages.count))").appFont(.system(size: 11, weight: .semibold)).foregroundStyle(theme.text2.color)
-                ArkScrollView(.vertical, showsIndicators: true) {
-                    VStack(spacing: 4) {
-                        ForEach(Array(model.queue.messages.enumerated()), id: \.element.id) { index, message in
-                            QueuedRow(message: message, position: index + 1, canEdit: model.composerEmpty, canSend: !model.queue.awaitingStart,
-                                      edit: { model.editWaitingInput(message.id) }, remove: { model.discardWaitingInput(message.id) },
-                                      sendNow: index == 0 ? { model.sendQueuedNow() } : nil)
-                        }
+                let rows = VStack(spacing: 4) {
+                    ForEach(Array(model.queue.messages.enumerated()), id: \.element.id) { index, message in
+                        QueuedRow(message: message, position: index + 1, canEdit: model.composerEmpty, canSend: !model.queue.awaitingStart,
+                                  edit: { model.editWaitingInput(message.id) }, remove: { model.discardWaitingInput(message.id) },
+                                  sendNow: { model.sendQueuedNow(message.id) },
+                                  move: { model.moveWaitingInput($0, to: $1) }, count: model.queue.messages.count)
                     }
                 }
-                .frame(height: CGFloat(min(3, model.queue.messages.count)) * 35)
+                // Up to three rows sit in the box; more scroll. ImageRenderer cannot draw a scroll view, so the gallery gets the rows.
+                if snapshot || model.queue.messages.count <= 3 { rows } else {
+                    ArkScrollView(.vertical, showsIndicators: true) { rows }.frame(height: 3 * 34)
+                }
             }
         }
     }
@@ -252,7 +258,35 @@ struct Composer: View {
 
     private var talkHint: String? { model.settings.shortcut(for: .talk).map { "Hold \($0.display) to talk" } }
     private var placeholder: String {
-        "Message ARK…"
+        model.queue.running ? Self.busyHint : "Message ARK…"
+    }
+    /// ADR-274: Return keeps ADR-127's behaviour while ARK answers (the message waits); Tab does the same; ⌘Return sends now.
+    static let busyHint = "Return or Tab to queue · ⌘Return to send now"
+
+    /// ADR-274: Tab queues a draft while ARK answers. An empty box, Shift-Tab or an idle chat leave Tab to focus navigation.
+    private func queueWithTab(_ press: KeyPress) -> KeyPress.Result {
+        guard model.queue.running, !empty, press.modifiers.isEmpty, !FieldEditor.composing else { return .ignored }
+        send(now: false)
+        return .handled
+    }
+
+    /// ADR-274: Workers in this chat and Catch me up, above the box. The queue rows carry their own count, so no Queued chip.
+    @ViewBuilder private var statusRow: some View {
+        let working = ChatAgentWork.rows(helpers: model.helpers.list?.helpers ?? [], chat: model.chats?.current).filter { $0.state.isActive }.count
+        let catchUp = model.catchUpSince != nil && !model.queue.running
+        if working > 0 || catchUp {
+            HStack(spacing: 8) {
+                if working > 0 {
+                    ComposerChip(symbol: "person.2", title: "Workers \(working)", help: "Show the Workers card in this chat") { model.workersScrollTick += 1 }
+                        .accessibilityLabel("Workers, \(working) working. Show the Workers card")
+                }
+                Spacer(minLength: 0)
+                if catchUp, let since = model.catchUpSince {
+                    ComposerChip(symbol: "sparkles", title: "Catch me up", help: "Ask ARK what happened in this chat since \(since.formatted(date: .omitted, time: .shortened))",
+                                 prominent: true) { model.catchUp() }
+                }
+            }
+        }
     }
 
     /// Nothing to send: no words, files or notes.
@@ -522,7 +556,9 @@ private struct ComposerToolsMenu: View {
 
 }
 
-/// One FIFO or held entry. Actions address its stable id; only the live head offers Send next now.
+/// One FIFO or held entry (ADR-274 look: design reference Ghostex, MIT; redrawn in ARK's tokens). A grip to drag it, its first
+/// line, and its actions on hover or keyboard focus: Edit, Send now, Remove. Actions address its stable id. Held entries have no
+/// grip and no Send now. Keys on a focused row: Return sends now, E edits, Delete removes, ⌥↑/⌥↓ move it.
 private struct QueuedRow: View {
     let message: QueuedMessage
     var position = 1
@@ -532,25 +568,83 @@ private struct QueuedRow: View {
     let edit: () -> Void
     let remove: () -> Void
     var sendNow: (() -> Void)? = nil
+    /// Live entries: move an id to an index. Nil for held entries.
+    var move: ((String, Int) -> Void)? = nil
+    var count = 1
+    @State private var hovering = false
+    @State private var dropping = false
+    @FocusState private var focused: Bool
     @Environment(\.theme) private var theme
+    @Environment(\.islandSnapshot) private var snapshot
+
+    /// The gallery cannot hover: it draws the head row as hovered, so the actions show in a still shot.
+    private var revealed: Bool { hovering || focused || (snapshot && position == 1 && !held) }
 
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous)
         HStack(spacing: 8) {
-            Text(held ? "\(position)" : position == 1 ? "Next" : "\(position)")
-                .appFont(.system(size: 11, weight: .semibold)).foregroundStyle(theme.text2.color)
-            Text(summary).appFont(.system(size: 12)).foregroundStyle(theme.text.color).lineLimit(1).truncationMode(.tail)
+            if move != nil {
+                Glyph(systemName: "line.3.horizontal").appFont(.system(size: 10, weight: .medium)).foregroundStyle(theme.text3.color)
+                    .frame(width: 14, height: 24).contentShape(Rectangle())
+                    .modifier(QueueDragHandle(id: message.id, summary: summary))
+                    .help("Drag to reorder")
+            } else {
+                Text("\(position)").appFont(.system(size: 11, weight: .semibold)).monospacedDigit().foregroundStyle(theme.text3.color)
+            }
+            Text(summary).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color).lineLimit(1).truncationMode(.tail)
             Spacer(minLength: 8)
-            Button("Edit", action: edit).disabled(!canEdit).help("Move this message to an empty composer; submitting it again adds it at the end")
-            Button(held ? "Discard" : "Remove", action: remove).help("Remove only this unsent message")
-            if let sendNow {
-                Button("Send next now", action: sendNow).disabled(!canSend).help("Stop the current answer and send this message; the remaining entries keep their order")
+            if revealed {
+                HStack(spacing: 2) {
+                    action("pencil", "Edit", help: "Move this message to an empty box; sending it again puts it at the end", enabled: canEdit, edit)
+                    if let sendNow {
+                        action("arrow.up", "Send now", help: "Stop the current answer and send this message; the others keep their order",
+                               enabled: canSend, sendNow)
+                    }
+                    action("xmark", held ? "Discard" : "Remove", help: "Remove only this unsent message", enabled: true, remove)
+                }
+                .transition(.opacity)
             }
         }
-        .buttonStyle(.plain).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color)
-        .padding(.horizontal, 12).frame(height: 30)
-        .background(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous).fill(theme.fill2.color))
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(held ? "Unsent" : "Queued") message \(position): \(summary)")
+        .padding(.leading, 8).padding(.trailing, 4).frame(height: 30)
+        .background(shape.fill(hovering || focused ? theme.fill3.color : theme.fill1.color))
+        .overlay(shape.strokeBorder(dropping || focused ? theme.accent.color : theme.separator.color, lineWidth: dropping || focused ? 1 : 0.5))
+        .contentShape(shape)
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: revealed)
+        .modifier(QueueKeys(enabled: !snapshot, focused: $focused, keys: keys))
+        .modifier(QueueDropTarget(enabled: move != nil && !snapshot, dropping: $dropping) { id in move?(id, position - 1) })
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(held ? "Unsent" : "Queued") message \(position) of \(count): \(summary)")
+        .accessibilityAction(named: "Edit") { if canEdit { edit() } }
+        .accessibilityAction(named: held ? "Discard" : "Remove", remove)
+        .accessibilityAction(named: "Send now") { if canSend { sendNow?() } }
+        .accessibilityAction(named: "Move up") { move?(message.id, position - 2) }
+        .accessibilityAction(named: "Move down") { move?(message.id, position) }
+    }
+
+    private func action(_ symbol: String, _ title: String, help: String, enabled: Bool, _ run: @escaping () -> Void) -> some View {
+        Button(action: run) {
+            Glyph(systemName: symbol).appFont(.system(size: 11, weight: .medium))
+                .foregroundStyle(enabled ? theme.text2.color : theme.text3.color.opacity(0.5))
+                .frame(width: 24, height: 24).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain).disabled(!enabled)
+        .help(help).accessibilityLabel(title)
+    }
+
+    private func keys(_ press: KeyPress) -> KeyPress.Result {
+        if press.modifiers.contains(.option), let move {
+            if press.key == .upArrow { move(message.id, position - 2); return .handled }
+            if press.key == .downArrow { move(message.id, position); return .handled }
+        }
+        guard press.modifiers.isEmpty else { return .ignored }
+        switch press.key {
+        case .return: if canSend, let sendNow { sendNow(); return .handled }
+        case .delete, .deleteForward: remove(); return .handled
+        case KeyEquivalent("e"): if canEdit { edit(); return .handled }
+        default: break
+        }
+        return .ignored
     }
 
     private var summary: String {
@@ -560,6 +654,77 @@ private struct QueuedRow: View {
         return [line, files].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 }
+
+/// ImageRenderer cannot draw focus, drag or drop: the gallery gets the plain row.
+private struct QueueKeys: ViewModifier {
+    let enabled: Bool
+    var focused: FocusState<Bool>.Binding
+    let keys: (KeyPress) -> KeyPress.Result
+    func body(content: Content) -> some View {
+        if enabled { content.focusable().focused(focused).focusEffectDisabled().onKeyPress(phases: .down, action: keys) } else { content }
+    }
+}
+
+private struct QueueDragHandle: ViewModifier {
+    let id: String
+    let summary: String
+    @Environment(\.islandSnapshot) private var snapshot
+    func body(content: Content) -> some View {
+        if snapshot { content } else {
+            content.draggable(QueueDragPrefix + id) { Text(summary).lineLimit(1).padding(6) }
+        }
+    }
+}
+
+/// Only drags that start on a queue row's grip carry this prefix, so dropped text never moves an entry.
+private let QueueDragPrefix = "ark-queue:"
+
+private struct QueueDropTarget: ViewModifier {
+    let enabled: Bool
+    @Binding var dropping: Bool
+    let drop: (String) -> Void
+    func body(content: Content) -> some View {
+        if !enabled { content } else {
+            content.dropDestination(for: String.self) { items, _ in
+                guard let item = items.first, item.hasPrefix(QueueDragPrefix) else { return false }
+                drop(String(item.dropFirst(QueueDragPrefix.count)))
+                return true
+            } isTargeted: { dropping = $0 }
+        }
+    }
+}
+
+/// ADR-274: a small chip above the box (Workers n, Catch me up). Prominent: the accent tone, for the one thing that asks to be read.
+private struct ComposerChip: View {
+    let symbol: String
+    let title: String
+    let help: String
+    var prominent = false
+    let action: () -> Void
+    @State private var hovering = false
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous)
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Glyph(systemName: symbol).appFont(.system(size: 10.5, weight: .medium))
+                    .foregroundStyle(prominent ? theme.accent.color : theme.text2.color)
+                Text(title).appFont(.system(size: 11.5, weight: .medium)).monospacedDigit().foregroundStyle(theme.text.color)
+            }
+            .padding(.horizontal, 10).frame(height: 24)
+            .background(shape.fill(hovering ? theme.fill3.color : theme.fill1.color))
+            .overlay(shape.strokeBorder(prominent ? theme.accent.color.opacity(0.55) : theme.separator.color, lineWidth: prominent ? 1 : 0.5))
+            .contentShape(shape)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .help(help)
+    }
+}
+
+/// ADR-274: the Workers card's place in the transcript, for the Workers chip.
+private let ChatAgentWorkAnchor = "chat-workers-card"
 
 /// The composer's stop button: a filled square in a circle, in the place of the microphone while ARK answers.
 private struct StopReplyButton: View {
@@ -737,7 +902,7 @@ struct ConversationTab: View {
                                          computerStep: model.conversation.isLatest(turn) ? model.status.currentStep : nil).id(turn.id)
                                     .transition(Motion.arrival(reduceMotion))
                             }
-                            ChatAgentWorkView(model: model) // the agents this chat started, under its latest turn
+                            ChatAgentWorkView(model: model).id(ChatAgentWorkAnchor) // the agents this chat started, under its latest turn
                         }
                         .animation(Motion.arrive(reduceMotion), value: model.conversation.turns.count)
                         .frame(maxWidth: ChatAppearance.readingWidth)
@@ -746,6 +911,9 @@ struct ConversationTab: View {
                         .padding(.vertical, 12)
                     }
                     .id(model.chats?.current ?? "")
+                    .onChange(of: model.workersScrollTick) { _, _ in // ADR-274: the Workers chip
+                        withAnimation(Motion.arrive(reduceMotion)) { proxy.scrollTo(ChatAgentWorkAnchor, anchor: .bottom) }
+                    }
                     .onChange(of: model.chatFindScrollTick) { _, _ in
                         guard let match else { return }
                         let request = model.chatFindScrollTick

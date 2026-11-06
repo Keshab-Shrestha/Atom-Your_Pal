@@ -35,6 +35,11 @@ enum IslandGallery {
             writeWorkers(to: directory)
             return
         }
+        if ArkEnv.read("ARK_ISLAND_GALLERY_ONLY") == "composer" {
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            writeComposer(to: directory)
+            return
+        }
         if ArkEnv.read("ARK_ISLAND_GALLERY_ONLY") == "chat" {
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             writeChatDesign(to: directory)
@@ -104,6 +109,7 @@ enum IslandGallery {
         writeWorkspace(to: directory)
         writeWorkspaceDesign(to: directory)
         writeWorkers(to: directory)
+        writeComposer(to: directory)
         writeProjects(to: directory)
         writeBrain(to: directory)
         writeMcpPaste(to: directory)

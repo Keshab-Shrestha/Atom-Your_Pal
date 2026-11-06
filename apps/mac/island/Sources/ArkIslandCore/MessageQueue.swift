@@ -113,6 +113,21 @@ public struct MessageQueue: Sendable, Equatable {
         return messages.isEmpty ? nil : messages.removeFirst()
     }
 
+    /// ADR-274: drag or ⌥↑/⌥↓ puts one entry at a new place; the others keep their order. False when the id is not queued.
+    @discardableResult public mutating func move(id: String, to index: Int) -> Bool {
+        guard let from = messages.firstIndex(where: { $0.id == id }) else { return false }
+        let message = messages.remove(at: from)
+        messages.insert(message, at: min(max(0, index), messages.count))
+        return true
+    }
+
+    /// ADR-274: the saved list in the live queue's order. Held entries keep their places; live entries fill the live slots.
+    public func ordered(_ saved: [QueuedMessage]) -> [QueuedMessage] {
+        let live = Dictionary(messages.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        var next = messages.filter { message in saved.contains { $0.id == message.id } }.makeIterator()
+        return saved.map { live[$0.id] == nil ? $0 : next.next() ?? $0 }
+    }
+
     /// The persisted copies remain held for review; they are never automatically requeued.
     @discardableResult public mutating func takeAll() -> [QueuedMessage] {
         let held = messages

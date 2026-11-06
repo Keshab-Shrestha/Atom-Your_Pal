@@ -5130,3 +5130,34 @@ Pure logic is in `ArkIslandCore/JobTree.swift`: tree order, worker counts, age t
 - The chat sidebar lists chats, not jobs, so it has no tree.
 - A manager's ARK prompt does not learn about a quiet worker yet. A later batch can decide whether to tell the manager and what that costs.
 - Gallery scenes: `ARK_ISLAND_GALLERY_ONLY=workers` renders 51-workers-card-dark, 51-workers-card-light, 51-workers-tree-flow and 51-workers-tree-list.
+
+
+## ADR-274 — Chat UX from Ghostex, batch 2: queue rows, Tab to queue, Catch me up (2026-11-06)
+
+Follows ADR-273. Extends ADR-127 and ADR-142.
+
+### Context
+
+ADR-142 put queued messages above the composer as text-button rows. Only the first row could go now, and the order could not change. A chat that changed while the owner was away (new replies, agent reports, Board jobs that moved) gave no sign of it when the owner came back.
+
+Design reference: Ghostex (github.com/maddada/Ghostex, MIT): its queue rows, its "Tab to queue" hint and its "Catch me up" button. ARK uses no Ghostex code, assets or pixel layouts. Each pattern is drawn again with ARK's tokens, type scale, square cards, UIcons and tone steps (ADR-214).
+
+### Decision
+
+1. Queue rows. Each queued message is one compact row in the composer card: a grip, the first line (truncated), and three icon actions on hover or keyboard focus: Edit, Send now, Remove. Drag the grip onto another row to put the message at that place. A row with keyboard focus takes Return (send now), E (edit), Delete (remove), ⌥↑ and ⌥↓ (move). VoiceOver gets the same actions by name. The saved copies follow the new order. Held messages (after a stop or a restart) keep their own rows with Edit and Discard, and have no grip and no Send now.
+2. Send now works on every row, not only the first. It uses the existing path: the runtime's `text.send` stops the current answer ("typing over an answer stops it"), then sends this message. The other rows keep their order. No new interrupt or steer mechanism was added.
+3. Return and Tab. While ARK answers, Return still queues the message (ADR-127). Tab now queues it too. ⌘Return still sends now. Tab queues only with words in the box, no modifier and no open "/" or "@" menu. In other cases Tab moves focus as before. While ARK answers, the empty box says "Return or Tab to queue · ⌘Return to send now". With words in the box, the same line shows under it.
+4. Catch me up. Each chat remembers on this Mac what it held when it was last on screen: the chat list's message count and the Board state of each job the chat started (`ark.chat.seen` in UserDefaults, at most 200 chats, no message text). When a composer shows the chat again, `ChatActivity.isNew` compares once. More messages, or a job of this chat that is new or has another state, shows "Catch me up" above the box. While the chat stays on screen, new activity is seen, not news. A chat seen for the first time shows nothing. A click sends one fixed request through the normal send path: "Catch me up: summarise in a few lines what happened in this chat since 14:05." The button shows only while ARK does not answer. The draft in the box stays.
+5. Workers chip. Above the box, "Workers n" counts this chat's running and queued Board jobs. A click scrolls the transcript to the Workers card (ADR-273). There is no "Queued n" chip: the queue rows show their count once, in their header.
+
+### Stays ARK's own
+
+- ADR-127 and ADR-142: Return queues while ARK answers, the 20-message limit, held messages after a stop or a restart, one send at a time.
+- No new runtime command, wire field or model call. `ChatActivity` and the queue order are deterministic code in ArkIslandCore.
+
+### Consequences
+
+- The Ghostex wording "Enter to send · Tab to queue" was not used: Return queues while ARK answers, so that line would be wrong.
+- The last view is recorded when the composer appears, disappears or the chat changes. Moving to another app while the ARK window stays open does not count as leaving.
+- When the Board list arrives after the chat, its job changes are compared once when it arrives.
+- Gallery scenes: `ARK_ISLAND_GALLERY_ONLY=composer` renders 52-composer-queue-dark, 52-composer-queue-light, 52-composer-catch-up-dark and 52-composer-catch-up-light.

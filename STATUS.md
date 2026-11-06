@@ -1,5 +1,12 @@
 # ARK Project Status
 
+## Queue rows, Tab to queue and Catch me up — 6 November 2026
+
+- ADR-274 (design reference: Ghostex, MIT): each queued message is a compact row with a grip, its first line and Edit, Send now and Remove on hover or keyboard focus. Drag a row, or press ⌥↑ or ⌥↓, to change the order. Send now works on every row: it stops the answer through the existing text-send path, then sends.
+- While ARK answers, Return and Tab queue the message and ⌘Return sends now. The empty box says so. Tab with an empty box still moves focus.
+- "Catch me up" shows when a chat has new messages or Board job changes since it was last on screen. It sends one fixed request through the normal send path. "Workers n" above the box scrolls to the Workers card.
+- Verified: TypeScript tests (1482 pass, 11 skipped) and typecheck, Swift tests (983 pass), fixture renders of the new `composer` gallery group, UI check with no golden change (live step not run). Not checked by hand in the running app.
+
 ## Workers card, job tree and stuck dot — 6 November 2026
 
 - ADR-273 (design reference: Ghostex, MIT): a chat shows one Workers card for the Board jobs it started. A worker sits under its manager. Each row has a state glyph, the short title and one line of its latest step or report. A click opens the task. Past 5 rows the card folds.
