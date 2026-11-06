@@ -68,7 +68,8 @@ const SECRET_FILE_PATH = /(^|[\s/="'])\.env(\.[\w.-]+)?(?=$|[\s"'])|data\/api-to
 export const touchesSecretFile = (text: string) => SECRET_FILE_PATH.test(text);
 
 /** ARK's own databases (2026-10-15): they hold MCP secrets and every chat, so no agent opens them, whatever folder it was granted. */
-const OWN_DATABASE_FILE = /(^|\/)(data\/(helpers|memory)\.db(-wal|-shm)?|config\/island\.json|logs\/ark\.log)$/;
+// ADR-267: data/youtube.json holds the YouTube refresh token.
+const OWN_DATABASE_FILE = /(^|\/)(data\/(helpers|memory)\.db(-wal|-shm)?|data\/youtube\.json|config\/island\.json|logs\/ark\.log)$/;
 
 const SECRET_FILE_NAMES = new Set([".npmrc", ".netrc", ".git-credentials", ".pypirc", ".dockercfg"]);
 

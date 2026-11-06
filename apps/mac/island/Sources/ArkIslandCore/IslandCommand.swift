@@ -17,6 +17,8 @@ public enum IslandCommand: Sendable, Equatable {
     case panelsList
     /// The pages ARK watches (and their changes from then on); stop watching one.
     case watchesGet
+    /// ADR-267: the Studio card.
+    case studioStatus, studioYouTubeSignIn, studioYouTubeSignOut, studioOpen
     /// Apps: the list, one app's page, remove one, and one call from a running app (already checked by `AppBridge.parse`).
     case appsList
     /// ARK notices: the notes (and their changes from then on), look again now, the switch, and dismiss one.
@@ -245,6 +247,10 @@ public enum IslandCommand: Sendable, Equatable {
         case .chatDefaults: "chat.defaults"
         case .panelsList: "panels.list"
         case .watchesGet: "watches.get"
+        case .studioStatus: "studio.status"
+        case .studioYouTubeSignIn: "studio.youtube.signIn"
+        case .studioYouTubeSignOut: "studio.youtube.signOut"
+        case .studioOpen: "studio.open"
         case .appsList: "apps.list"
         case .statsGet: "stats.get"
         case .improvementsGet: "improvements.get"

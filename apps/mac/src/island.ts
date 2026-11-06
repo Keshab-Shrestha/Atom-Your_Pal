@@ -442,6 +442,20 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "watches.get":
         sendWatches();
         return;
+      case "studio.status":
+        void sendStudio();
+        return;
+      case "studio.youtube.signIn":
+        if (!options.studio) return send({ type: "error", stage: "settings", message: "Studio is unavailable in this runtime." });
+        void options.studio.signIn().then(() => sendStudio(), (error: unknown) => sendStudio(describe(error)));
+        return;
+      case "studio.youtube.signOut":
+        options.studio?.signOut();
+        void sendStudio();
+        return;
+      case "studio.open":
+        options.studio?.openFolder();
+        return;
       case "watch.remove":
         options.watches?.remove(command.id);
         sendWatches();
@@ -1303,6 +1317,15 @@ export function runIsland(options: IslandOptions): IslandSession {
     send({ type: "panels", panels: options.panels?.list() ?? [], ...(problem ? { problem } : {}) });
   }
   const stopPanelUpdates = options.panels?.onChange(() => sendPanels());
+  async function sendStudio(problem?: string) {
+    if (!options.studio) return;
+    try {
+      const s = await options.studio.status();
+      send({ type: "studio", ...s, ...(problem ? { problem: problem.slice(0, 300) } : {}) });
+    } catch (error) {
+      send({ type: "studio", gemini: false, ffmpeg: false, youtube: { configured: false, connected: false }, folder: "", problem: describe(error).slice(0, 300) });
+    }
+  }
   function sendWatches() {
     send({ type: "watches", watches: (options.watches?.list() ?? []).map((w) => ({ id: w.id, url: w.url, mode: w.mode, ...(w.text ? { text: w.text } : {}), everyMinutes: w.everyMinutes, state: w.state, ...(w.message ? { message: w.message } : {}), ...(w.lastCheckAt ? { lastCheckAt: w.lastCheckAt } : {}) })) });
   }

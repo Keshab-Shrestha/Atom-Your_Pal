@@ -59,6 +59,15 @@ export interface IslandApps {
 }
 
 /** 2026-11-04: pages ARK watches for the user (watches.ts). */
+/** ADR-267: Studio for the window's card. */
+export interface IslandStudio {
+  status(): Promise<{ gemini: boolean; ffmpeg: boolean; youtube: { configured: boolean; connected: boolean; channel?: string }; folder: string }>;
+  /** Opens Google's sign-in in the browser and waits for it (the user signs in; ARK never sees the password). */
+  signIn(): Promise<void>;
+  signOut(): void;
+  openFolder(): void;
+}
+
 export interface IslandWatches {
   list(): import("./watches.ts").Watch[];
   remove(id: string): void;
@@ -73,6 +82,7 @@ export interface IslandOptions {
   stats?: { get(): import("./stats.ts").Stats };
   apps?: IslandApps;
   watches?: IslandWatches;
+  studio?: IslandStudio;
   workflows?: IslandWorkflows;
   panels?: IslandPanels;
   localBackup?: ReturnType<typeof import("./local-backup.ts").createLocalBackup>;

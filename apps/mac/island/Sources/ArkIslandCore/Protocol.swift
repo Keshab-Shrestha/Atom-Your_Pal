@@ -49,6 +49,8 @@ public enum IslandEvent: Sendable, Equatable {
     case panels(PanelList)
     /// 2026-11-04: the pages ARK watches (after `watches.get`, and after each change), and a notice when one fires or stops.
     case watches([WatchItem])
+    /// ADR-267: what Studio can do now (whether each key is set, never the key).
+    case studio(StudioStatus)
     /// 2026-11-05: the apps (after `apps.list`, and after each change), an app's page after `app.open`, and the answer to a bridge call.
     case apps([AppItem])
     /// 2026-11-05: the Stats page (after `stats.get`).
@@ -140,6 +142,7 @@ public enum IslandEvent: Sendable, Equatable {
         case .workflows: "workflows"
         case .panels: "panels"
         case .watches: "watches"
+        case .studio: "studio"
         case .apps: "apps"
         case .stats: "stats"
         case .improvements: "improvements"
@@ -307,6 +310,11 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .appReply(AppReply(app: try f.string("app"), req: try f.string("req"), ok: try f.bool("ok"), valueJSON: json, error: f.optionalString("error")))
     case "watches":
         return .watches(WatchItem.list(from: f.values["watches"]))
+    case "studio":
+        let yt = f.values["youtube"] as? [String: Any] ?? [:]
+        return .studio(StudioStatus(gemini: f.values["gemini"] as? Bool ?? false, ffmpeg: f.values["ffmpeg"] as? Bool ?? false,
+                                    youtubeConfigured: yt["configured"] as? Bool ?? false, youtubeConnected: yt["connected"] as? Bool ?? false,
+                                    channel: yt["channel"] as? String, folder: f.values["folder"] as? String ?? "", problem: f.values["problem"] as? String))
     case "watchFired":
         return .watchFired(WatchNotice(id: try f.string("id"), stopped: (try? f.string("kind")) == "stopped", message: try f.string("message")))
     case "workflows":
@@ -1204,4 +1212,21 @@ public struct ChatHistoryResult: Sendable, Equatable {
         let chats = count == 1 ? "1 chat" : "\(count) chats"
         return action == "export" ? "Exported \(chats) to \(folder.map { ($0 as NSString).abbreviatingWithTildeInPath } ?? "the folder")." : "Deleted \(chats)."
     }
+}
+
+/// ADR-267: the Studio card's state: whether the Gemini key and ffmpeg are there, and the YouTube account.
+public struct StudioStatus: Sendable, Equatable {
+    public var gemini: Bool
+    public var ffmpeg: Bool
+    public var youtubeConfigured: Bool
+    public var youtubeConnected: Bool
+    public var channel: String?
+    public var folder: String
+    public var problem: String?
+    public init(gemini: Bool, ffmpeg: Bool, youtubeConfigured: Bool, youtubeConnected: Bool, channel: String?, folder: String, problem: String?) {
+        self.gemini = gemini; self.ffmpeg = ffmpeg; self.youtubeConfigured = youtubeConfigured; self.youtubeConnected = youtubeConnected
+        self.channel = channel; self.folder = folder; self.problem = problem
+    }
+    /// Ready to make videos (posting needs YouTube too).
+    public var canMake: Bool { gemini && ffmpeg }
 }

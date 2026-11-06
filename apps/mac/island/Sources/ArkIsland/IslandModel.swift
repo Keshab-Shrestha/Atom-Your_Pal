@@ -204,6 +204,8 @@ final class IslandModel {
     /// 2026-11-02: the panels the runtime keeps (panels.ts), once asked for.
     var panels: PanelList?
     var watches: [WatchItem] = []
+    /// ADR-267: the Studio card; nil until the runtime answers.
+    var studio: StudioStatus?
     /// 2026-11-05: the apps the runtime keeps (ark-apps.ts), once asked for; the one that is open; and where a bridge answer goes.
     var apps: [AppItem]?
     /// 2026-11-05: ARK notices (improve.ts), once asked for.
@@ -1158,6 +1160,8 @@ final class IslandModel {
             panels = list
         case .watches(let list):
             watches = list
+        case .studio(let value):
+            studio = value
         case .stats(let value):
             stats = value
         case .improvements(let state):

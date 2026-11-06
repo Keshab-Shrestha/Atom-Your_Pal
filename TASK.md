@@ -1,5 +1,10 @@
 # ARK Task Plan
 
+## Studio phase 1: AI video and YouTube — 6 November 2026
+
+- ADR-267: two tools make a vertical video from a script (Gemini Omni Flash footage, ARK's voice, ffmpeg) and post it to YouTube. Each step waits for an Allow card. Plugins > Studio shows the setup. The steps are in `docs/studio-setup.md`.
+- Verified: unit tests with fake APIs and the real ffmpeg (TypeScript 1464, Swift 964). Not run against the real Gemini or YouTube API; that needs Keshab's keys.
+
 ## Fewer places: Automations, one Apps page, Back to Home — 6 November 2026
 
 - ADR-265: Scheduled and Workflows are one page, Automations, in the workflow card style, with filters. Panels and Apps are one Apps page, and each one gets a tile in the rail. Back goes up out of a sub-page, otherwise Home, and from Home to Chats.

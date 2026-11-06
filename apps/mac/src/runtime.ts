@@ -40,6 +40,8 @@ import {
   type TimerInfo,
 } from "@ark/tool-engine";
 import { createTrashTool } from "./trash-tool.ts";
+import { createStudioTools } from "./studio-tools.ts";
+import { fileTokenStore, signIn as youtubeSignIn, signOut as youtubeSignOut, status as youtubeStatus, type YouTubeClient } from "./studio-youtube.ts";
 import { createGateway, createProviderAdapter, createSwitchableModel, createCodexSessionAdapter, listCodexModels, listPlanModels, runBrief, runChatDigest, runEdit, type ChatSession, type ChatSessions, type PlanUsage } from "@ark/llm-gateway";
 import { createCodexToolRouter } from "./codex-tools.ts";
 import { createNoteModel, createNotes } from "./notes.ts";
@@ -47,11 +49,13 @@ import { createChatUsageRecorder, createOverheadRecorder } from "./usage-report.
 import { makePrivate, ownFolders } from "./private-files.ts";
 import { createNativeCore, type NativeCore, type ChatContextPart } from "./native-core.ts";
 import { randomUUID } from "node:crypto";
+import { execFile } from "node:child_process";
+import { mkdirSync } from "node:fs";
 import { createTinkerRun } from "./tinker.ts";
 import { startTinkerRunner, TINKER_TIME_LIMIT_MS, type TinkerRunner } from "./tinker-runner.ts";
 import { agentModel, createAgentTool } from "./native-agents.ts";
 import { browserServer } from "./browser.ts";
-import { CLAUDE_PLAN, createLogger, readEnv, type Config, type LlmChoice, type Logger, type LogFields, type ProviderKeys } from "@ark/shared";
+import { CLAUDE_PLAN, createLogger, findProgram, readEnv, type Config, type LlmChoice, type Logger, type LogFields, type ProviderKeys } from "@ark/shared";
 import {
   createMemoryTools,
   DEFAULT_MAX_EPISODES,
@@ -140,6 +144,8 @@ export interface Runtime {
   apps?: import("./island-types.ts").IslandApps;
   /** 2026-11-04: pages ARK watches (watches.ts). */
   watches?: import("./island-types.ts").IslandWatches;
+  /** ADR-267: Studio's card. */
+  studio?: import("./island-types.ts").IslandStudio;
   islandLocalBackup?: IslandOptions["localBackup"];
   islandSourceAnalysis?: IslandOptions["sourceAnalysis"];
   config: Config;
@@ -242,6 +248,17 @@ export function createRuntime(
   // 2026-11-02: images Codex makes in a chat are kept next to the memory file (data/images), owner-only. None for an in-memory test run.
   const memoryFile = options.memoryPath ?? readEnv(process.env, "ARK_MEMORY_FILE") ?? "data/memory.db";
   const generatedImages = memoryFile === ":memory:" ? undefined : join(dirname(resolve(memoryFile)), "images");
+  // ADR-267: Studio. Keys come from .env only; no key, no tool (it explains what to add).
+  const studioDir = generatedImages ? join(dirname(generatedImages), "studio") : undefined;
+  const studioKey = readEnv(process.env, "ARK_STUDIO_GEMINI_KEY")?.trim();
+  const youtubeClientId = readEnv(process.env, "ARK_YOUTUBE_CLIENT_ID")?.trim();
+  const youtubeClientSecret = readEnv(process.env, "ARK_YOUTUBE_CLIENT_SECRET")?.trim();
+  const youtubeClient: YouTubeClient | undefined = youtubeClientId && youtubeClientSecret ? { clientId: youtubeClientId, clientSecret: youtubeClientSecret } : undefined;
+  const youtubeTokens = studioDir ? fileTokenStore(join(dirname(studioDir), "youtube.json")) : undefined;
+  const ffmpegPath = findProgram("ffmpeg", "ARK_FFMPEG_PATH"), ffprobePath = findProgram("ffprobe", "ARK_FFPROBE_PATH");
+  let studioVoice: ReturnType<typeof createKokoroSynthesizer> | undefined;
+  const studioLog = (event: string, fields: Record<string, unknown>) => log.info(event, fields as LogFields);
+  const youtubeDeps = youtubeClient && youtubeTokens ? { client: youtubeClient, tokens: youtubeTokens, fetch, log: studioLog } : undefined;
   // 2026-11-02: panels (panels.ts), kept next to the memory file; the window and the create_panel tool share this store.
   const panelStore = generatedImages ? createPanelStore(join(dirname(generatedImages), "panels.json")) : undefined;
   // 2026-11-04: learned computer shortcuts (services/tool-engine computer/learned-shortcuts.ts), kept next to the panels. Button labels and expected text only.
@@ -596,6 +613,21 @@ export function createRuntime(
     // ADR-060: Calendar and Reminders when the helper is there (inside ARK.app). ARK_CALENDAR=0 turns it off.
     ...(calendarHelper ? createCalendarTools({ run: calendarRunner(calendarHelper) }) : []),
     createTrashTool(), // 2026-11-01: agents' deletes go to the Trash after Keshab allows them
+    // ADR-267: Studio's two tools, each behind the Allow card (the cost before a video, the post before an upload).
+    ...(studioDir ? createStudioTools({
+      outDir: studioDir,
+      ...(studioKey && ffmpegPath && ffprobePath ? { video: {
+        apiKey: studioKey, fetch, ffmpeg: ffmpegPath, ffprobe: ffprobePath, log: studioLog,
+        synthesize: async (text: string) => {
+          studioVoice ??= createKokoroSynthesizer({ voice: config.tts.voice, dtype: config.tts.dtype });
+          await studioVoice.load();
+          return studioVoice.synthesize(text);
+        },
+      } } : {}),
+      ...(youtubeDeps ? { youtube: youtubeDeps } : {}),
+      approve: (request, signal) => computer.approve(request, signal),
+      log: studioLog,
+    }) : []),
     ...(memory
       ? createMemoryTools({
           store: memory,
@@ -1427,7 +1459,20 @@ export function createRuntime(
     onChange: (listener) => { watchChanged.add(listener); return () => watchChanged.delete(listener); },
     onFire: (listener) => { watchFired.add(listener); return () => watchFired.delete(listener); },
   };
+  const studio: import("./island-types.ts").IslandStudio | undefined = studioDir ? {
+    status: async () => ({
+      gemini: Boolean(studioKey), ffmpeg: Boolean(ffmpegPath && ffprobePath), folder: studioDir,
+      youtube: youtubeDeps ? { configured: true, ...(await youtubeStatus(youtubeDeps).catch(() => ({ connected: false as const }))) } : { configured: false, connected: false },
+    }),
+    signIn: async () => {
+      if (!youtubeDeps) throw new Error("Add ARK_YOUTUBE_CLIENT_ID and ARK_YOUTUBE_CLIENT_SECRET to ARK's .env, then restart ARK.");
+      await youtubeSignIn({ ...youtubeDeps, openUrl: (url) => { execFile("open", [url], () => {}); } });
+    },
+    signOut: () => { if (youtubeTokens) youtubeSignOut({ tokens: youtubeTokens, fetch }); },
+    openFolder: () => { mkdirSync(studioDir, { recursive: true, mode: 0o700 }); execFile("open", [studioDir], () => {}); },
+  } : undefined;
   return {
+    ...(studio ? { studio } : {}),
     ...(panels ? { panels } : {}),
     ...(watches ? { watches } : {}),
     ...(apps ? { apps } : {}),

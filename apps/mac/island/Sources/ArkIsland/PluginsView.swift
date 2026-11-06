@@ -26,6 +26,7 @@ struct PluginsPane: View {
                     }
                 }
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
+                StudioCard(model: model)
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         PluginsSectionLabel(title: "MCP servers", count: list?.mcp.count)
@@ -303,5 +304,59 @@ private struct PluginCardModifier: ViewModifier {
             .background(theme.fill1.a > 0 ? theme.fill1.color : theme.fill2.color.opacity(0.5), in: shape)
             .overlay(shape.strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
             .hoverLift(radius: 14)
+    }
+}
+
+/// ADR-267: Studio, ARK's own video maker and poster. What is set up, what is missing and how to add it, YouTube sign-in, and the
+/// folder the videos go to. Keys are never shown or typed here: they live in ARK's .env, which Keshab edits himself.
+struct StudioCard: View {
+    let model: IslandModel
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let s = model.studio
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                PluginsSectionLabel(title: "Studio", count: nil)
+                Spacer()
+                if let s, !s.folder.isEmpty { QuietButton(title: "Open folder", symbol: "folder") { model.send(.studioOpen) } }
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                Text("ARK makes short vertical videos (AI footage, its voice) and posts them to YouTube. You approve every video and every post first.")
+                    .appFont(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
+                if let s {
+                    line(s.gemini, "AI footage", s.gemini ? "Gemini key is set" : "Add ARK_STUDIO_GEMINI_KEY to ARK's .env, then restart ARK")
+                    line(s.ffmpeg, "Video editing", s.ffmpeg ? "ffmpeg found" : "Install ffmpeg: brew install ffmpeg")
+                    HStack(spacing: 8) {
+                        line(s.youtubeConnected, "YouTube",
+                             s.youtubeConnected ? "Signed in as \(s.channel ?? "your channel")"
+                             : s.youtubeConfigured ? "Not signed in" : "Add ARK_YOUTUBE_CLIENT_ID and ARK_YOUTUBE_CLIENT_SECRET to ARK's .env")
+                        Spacer()
+                        if s.youtubeConfigured {
+                            if s.youtubeConnected { QuietButton(title: "Sign out") { model.send(.studioYouTubeSignOut) } }
+                            else { QuietButton(title: "Sign in to YouTube", symbol: "person.badge.key") { model.send(.studioYouTubeSignIn) } }
+                        }
+                    }
+                    if let problem = s.problem { ProblemLine(text: problem) }
+                } else {
+                    LoadingStateView(text: "Checking Studio…", retry: { model.send(.studioStatus) })
+                }
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).fill(theme.fill1.color))
+            .overlay(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).strokeBorder(theme.border.color, lineWidth: 1))
+        }
+        .onAppear { model.send(.studioStatus) }
+    }
+
+    private func line(_ ok: Bool, _ title: String, _ detail: String) -> some View {
+        HStack(spacing: 8) {
+            Glyph(systemName: ok ? "checkmark.circle.fill" : "circle.dashed").appFont(.system(size: 12))
+                .foregroundStyle(ok ? theme.success.color : theme.text3.color)
+            Text(title).appFont(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color)
+            Text(detail).appFont(.system(size: 12)).foregroundStyle(theme.text2.color).lineLimit(2)
+        }
+        .accessibilityElement(children: .combine)
     }
 }

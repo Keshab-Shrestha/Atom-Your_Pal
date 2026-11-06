@@ -92,6 +92,8 @@ export type IslandEvent =
   /** 2026-11-05: the answer to one bridge call (`req` is the page's own id for it). */
   | { type: "appReply"; app: string; req: string; ok: boolean; value?: unknown; error?: string }
   /** 2026-11-04: the pages ARK watches (never page text), after `watches.get` and each change. */
+  /** ADR-267: what Studio can do now. Never a key or a token: only whether each is set. */
+  | { type: "studio"; gemini: boolean; ffmpeg: boolean; youtube: { configured: boolean; connected: boolean; channel?: string }; folder: string; problem?: string }
   | { type: "watches"; watches: { id: string; url: string; mode: string; text?: string; everyMinutes: number; state: string; message?: string; lastCheckAt?: string }[] }
   /** 2026-11-04: a watch fired or stopped: the island shows a macOS notice. */
   | { type: "watchFired"; id: string; kind: "fired" | "stopped"; message: string }

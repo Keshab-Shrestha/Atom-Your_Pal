@@ -30,6 +30,11 @@ export type IslandCommand =
   | { type: "panels.list" }
   /** 2026-11-04: pages ARK watches: the list (and its changes from then on), and stop watching one. */
   | { type: "watches.get" }
+  /** ADR-267: the Studio card: its state, YouTube sign-in and sign-out, and its folder in Finder. */
+  | { type: "studio.status" }
+  | { type: "studio.youtube.signIn" }
+  | { type: "studio.youtube.signOut" }
+  | { type: "studio.open" }
   /** 2026-11-05: apps. List them; open one (its page comes back as `appOpened`); remove one; and the bridge: one call from a running app. */
   | { type: "stats.get" }
   | { type: "improvements.get" }
@@ -217,6 +222,10 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "chat.defaults",
   "panels.list",
   "watches.get",
+  "studio.status",
+  "studio.youtube.signIn",
+  "studio.youtube.signOut",
+  "studio.open",
   "stats.get",
   "improvements.get",
   "improvements.run",
@@ -469,6 +478,9 @@ export function parseCommand(line: string): ParsedLine {
       if (v[k] !== undefined && (typeof v[k] !== "string" || (v[k] as string).length > max * 3)) return { error: `Invalid app call: ${k}.` };
     }
     return { command: { type, app: v.app, req: v.req, op: v.op, ...(v.key !== undefined ? { key: v.key as string } : {}), ...(v.value !== undefined ? { value: v.value as string } : {}), ...(v.prompt !== undefined ? { prompt: v.prompt as string } : {}) } };
+  }
+  if (type === "studio.status" || type === "studio.youtube.signIn" || type === "studio.youtube.signOut" || type === "studio.open") {
+    return Object.keys(value as object).length === 1 ? { command: { type } } : { error: `${type} takes no fields.` };
   }
   if (type === "watches.get") return Object.keys(value as object).length === 1 ? { command: { type } } : { error: "Invalid watches request." };
   if (type === "watch.remove") {

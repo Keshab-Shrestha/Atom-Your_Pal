@@ -4933,3 +4933,28 @@ Keshab found too many places that overlap. Panels and Apps were both "make me a 
 - The rail has 7 pages instead of 10: Home, Chats, Board, Automations, Apps, Brain, Plugins, then Settings.
 - Back no longer reopens old places. To return to a Board tab, use the rail.
 - A stuck chat shows on Home within a day of use, not when Keshab notices it.
+
+## ADR-267 — Studio phase 1: AI video and YouTube posting (2026-11-06)
+
+### Context
+
+Keshab wants ARK to research a topic, make a video and post it. He chose all four platforms, AI-generated footage, and an Allow card before every post. The work comes in phases. Phase 1 is the video and YouTube.
+
+### Decision
+
+- Two tools for the main agent, in ARK's own tool server:
+  - `studio_make_video` turns a title, a script and 1 to 6 scene prompts into a vertical MP4 of up to 60 s. The footage comes from Gemini Omni Flash through the Gemini API (`studio-video.ts`); Google shut down Veo there on 2026-10-22. ARK's own voice (Kokoro) reads the script, and ffmpeg cuts the video at 1080x1920. The default is 720p footage. A caption file (`.srt`) is written next to the video, because the installed ffmpeg has no text filter.
+  - `studio_publish_youtube` uploads a Studio video as a Short to the signed-in channel (`studio-youtube.ts`). It uses a resumable upload, OAuth with PKCE and a loopback sign-in.
+- The Allow card comes first, every time.
+  - Making a video shows the cost estimate. A video above $5 is refused before any call.
+  - Posting shows the title, the description and the privacy.
+  - On No, nothing is spent or sent.
+- Only an `.mp4` inside the Studio folder (`data/studio`) can be posted. No other file on the Mac can be uploaded.
+- Keys come only from `.env`: `ARK_STUDIO_GEMINI_KEY`, `ARK_YOUTUBE_CLIENT_ID` and `ARK_YOUTUBE_CLIENT_SECRET`. The YouTube refresh token is in `data/youtube.json` (mode 0600). Access tokens stay in memory. No key or token is logged or sent to the window.
+- Plugins > Studio shows what is set up, what is missing and how to add it. It also has the YouTube Sign in and Sign out buttons and Open folder. `docs/studio-setup.md` gives the steps.
+
+### Consequences
+
+- ARK can make and post a YouTube Short from one chat, after Keshab adds the keys and signs in.
+- Facebook, Instagram (phase 2) and TikTok (phase 3) come later. Automations do not run Studio steps yet: the main agent calls the tools in a chat.
+- Nothing has run against the real Gemini or YouTube API yet. The first real run is a hand check.
