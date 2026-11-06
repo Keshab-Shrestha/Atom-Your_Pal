@@ -28,15 +28,6 @@ struct JobTreeTests {
         #expect(JobTree.workersText(3) == "3 workers")
     }
 
-    @Test("age reads now, minutes, hours, days")
-    func ageText() {
-        #expect(JobTree.age(since: now.addingTimeInterval(-59), now: now) == "now")
-        #expect(JobTree.age(since: now.addingTimeInterval(-120), now: now) == "2m")
-        #expect(JobTree.age(since: now.addingTimeInterval(-3_700), now: now) == "1h")
-        #expect(JobTree.age(since: now.addingTimeInterval(-200_000), now: now) == "2d")
-        #expect(JobTree.age(since: nil, now: now) == nil)
-    }
-
     @Test("a detail becomes one line, cut with an ellipsis")
     func truncates() {
         #expect(JobTree.line("Found\n three   flights") == "Found three flights")

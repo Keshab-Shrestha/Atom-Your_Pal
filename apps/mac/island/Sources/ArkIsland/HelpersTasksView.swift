@@ -173,6 +173,8 @@ struct BoardCard: View {
     var workers = 0
     /// The Flow's card has its own clock line, so it leaves the manager's age out.
     var showsAge = true
+    /// A Flow card nested under its parent leaves "for #<parent>" out.
+    var showsParent = true
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -191,8 +193,8 @@ struct BoardCard: View {
                     if job.comments > 0 {
                         Label("\(job.comments)", systemImage: "text.bubble").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                     }
-                    if depth == 0, let parent = job.parentId { Text("for #\(parent)").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color) }
-                    if workers > 0 { ManagerMark(workers: workers, age: showsAge ? JobTree.age(since: job.createdAt) : nil) }
+                    if depth == 0, showsParent, let parent = job.parentId { Text("for #\(parent)").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color) }
+                    if workers > 0 { ManagerMark(workers: workers, age: showsAge ? job.createdAt.map { ChatWorkText.duration(ms: Date().timeIntervalSince($0) * 1000) } : nil) }
                 }
                 if job.state == .running, let step = job.step {
                     Text(step).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text2.color).lineLimit(1)

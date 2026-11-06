@@ -40,7 +40,7 @@ struct BoardFlow: View {
                             VStack(spacing: 8) {
                                 ForEach(JobTree.ordered(items, id: \.id, parent: \.job.parentId), id: \.item.id) { entry in
                                     let item = entry.item
-                                    FlowCard(model: model, item: item, selected: chosen?.id == item.id, workers: workers[item.id] ?? 0) {
+                                    FlowCard(model: model, item: item, selected: chosen?.id == item.id, workers: workers[item.id] ?? 0, nested: entry.depth > 0) {
                                         inspected = inspected == item.id ? nil : item.id
                                     }
                                     .padding(.leading, CGFloat(entry.depth) * 16)
@@ -171,6 +171,7 @@ private struct FlowCard: View {
     let item: BoardItem
     let selected: Bool
     var workers = 0
+    var nested = false
     let choose: () -> Void
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
@@ -180,7 +181,7 @@ private struct FlowCard: View {
         Button(action: choose) {
             VStack(alignment: .leading, spacing: 0) {
                 // The lane indents the whole card; the card's own clock line gives the time.
-                BoardCard(model: model, item: item, workers: workers, showsAge: false)
+                BoardCard(model: model, item: item, workers: workers, showsAge: false, showsParent: !nested)
                 footer.padding(.horizontal, 16).padding(.bottom, 10).padding(.top, -4)
             }
                 .background(shape.fill(selected ? theme.fill3.color : theme.fill2.color))

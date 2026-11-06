@@ -1605,6 +1605,7 @@ export function createRuntime(
       api?.stop();
       tinker?.close();
       void decisions.close();
+      jobQuiet?.stop();
     },
     record: (handlers) => startRecording(config.audio, handlers),
     async micName() {

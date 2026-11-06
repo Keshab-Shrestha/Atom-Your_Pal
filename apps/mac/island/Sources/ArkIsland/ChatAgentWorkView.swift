@@ -123,7 +123,7 @@ private struct WorkerRowView: View {
         }
         .buttonStyle(.plain)
         .help("Open the task")
-        .accessibilityLabel("\(row.task), \(row.agent), \(row.mark.title)\(row.quietSince != nil ? ", no new output for 8 minutes" : ""), \(row.line ?? "")")
+        .accessibilityLabel("\(row.task), \(row.agent)\(row.workers > 0 ? ", manager, \(JobTree.workersText(row.workers))" : ""), \(row.mark.title)\(row.quietSince != nil ? ", no new output for 8 minutes" : ""), \(row.line ?? "")")
     }
 
     /// How long it has run, or ran.
@@ -133,7 +133,7 @@ private struct WorkerRowView: View {
     }
 }
 
-/// ADR-273: a worker's state as one glyph: a spinner while it runs, "?" in the accent when it needs Keshab, then how it ended.
+/// ADR-273: a worker's state as one glyph: a spinner while it runs, "?" in the attention colour when it needs Keshab, then how it ended.
 struct WorkerMarkGlyph: View {
     let mark: WorkerMark
     @Environment(\.theme) private var theme
@@ -141,7 +141,7 @@ struct WorkerMarkGlyph: View {
     var body: some View {
         switch mark {
         case .running: WorkingGlyph()
-        case .needsYou: Glyph(systemName: "questionmark").appFont(.system(size: 10, weight: .bold)).foregroundStyle(theme.accent.color)
+        case .needsYou: Glyph(systemName: "questionmark").appFont(.system(size: 10, weight: .bold)).foregroundStyle(theme.attention.color)
         case .queued: Glyph(systemName: "clock").appFont(.system(size: 10)).foregroundStyle(theme.text3.color)
         case .done: Glyph(systemName: "checkmark").appFont(.system(size: 10, weight: .semibold)).foregroundStyle(theme.success.color)
         case .failed: Glyph(systemName: "exclamationmark").appFont(.system(size: 10, weight: .semibold)).foregroundStyle(theme.problem.color)
@@ -150,12 +150,13 @@ struct WorkerMarkGlyph: View {
     }
 }
 
-/// ADR-273: the stuck dot. A red dot on a running job with no tool call or progress for 8 minutes.
+/// ADR-273: the stuck dot. A hollow ring in the attention colour on a running job with no tool call or progress for 8 minutes.
+/// Red stays for a failed job.
 struct QuietDot: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        Circle().fill(theme.problem.color).frame(width: 6, height: 6)
+        Circle().strokeBorder(theme.attention.color, lineWidth: 1.5).frame(width: 7, height: 7)
             .help(JobTree.quietTip)
             .accessibilityLabel(JobTree.quietTip)
     }

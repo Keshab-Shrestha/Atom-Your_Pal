@@ -1,9 +1,9 @@
 import Foundation
 
 /// ADR-273 (design reference: Ghostex, MIT, its threads list): Board jobs as a tree. Each child sits right under the job that
-/// started it, a manager shows how many workers it started and how old it is, and a quiet job gets a red dot.
+/// started it, a manager shows how many workers it started and how old it is, and a quiet job gets a hollow ring.
 public enum JobTree {
-    /// The quiet dot's tip; the runtime marks a job quiet after 8 minutes (`QUIET_AFTER_MS` in job-quiet.ts).
+    /// The quiet ring's tip; the runtime marks a job quiet after 8 minutes (`QUIET_AFTER_MS` in job-quiet.ts).
     public static let quietTip = "No new output for 8 min"
     /// The deepest level drawn; ADR-272 allows 4, so this only stops a bad loop.
     static let maxDepth = 8
@@ -38,16 +38,6 @@ public enum JobTree {
 
     /// "1 worker", "3 workers".
     public static func workersText(_ n: Int) -> String { n == 1 ? "1 worker" : "\(n) workers" }
-
-    /// A short age: "now" under a minute, then "2m", "1h", "3d".
-    public static func age(since: Date?, now: Date = Date()) -> String? {
-        guard let since else { return nil }
-        let s = max(0, Int(now.timeIntervalSince(since)))
-        if s < 60 { return "now" }
-        if s < 3600 { return "\(s / 60)m" }
-        if s < 86_400 { return "\(s / 3600)h" }
-        return "\(s / 86_400)d"
-    }
 
     /// One line of at most `max` characters: line breaks and runs of spaces become one space, and a cut ends in "…".
     public static func line(_ text: String?, max: Int = 120) -> String? {

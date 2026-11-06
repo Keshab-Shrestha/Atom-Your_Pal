@@ -4,7 +4,7 @@ import { openHelperStore } from "@ark/helpers";
 import { QUIET_AFTER_MS, quietWatch } from "./job-quiet.ts";
 import { islandHelpers } from "./island-helpers.ts";
 
-test("a running native job with no output for 8 minutes is marked quiet once, and its next step clears the mark", () => {
+test("a running native job with no output for 8 minutes is marked quiet once, and its next step clears its mark and its manager's", () => {
   const store = openHelperStore({ path: ":memory:" });
   let clock = 1_000_000;
   const logs: { event: string; fields: Record<string, unknown> }[] = [];
@@ -33,13 +33,38 @@ test("a running native job with no output for 8 minutes is marked quiet once, an
   assert.equal(logs.length, 2);
   assert.equal(changes, 1);
 
-  store.step(child.id, "Reading 2 of 5 notes");
+  store.step(child.id, "Reading 2 of 5 notes"); // a worker's move is also its manager's move
   assert.equal(watch.since(child.id), undefined);
+  assert.equal(watch.since(parent.id), undefined);
   assert.equal(changes, 2);
   clock += QUIET_AFTER_MS - 1;
   watch.sweep();
   assert.equal(watch.since(child.id), undefined);
-  assert.ok(watch.since(parent.id));
+  assert.equal(watch.since(parent.id), undefined);
+  watch.stop();
+  store.close();
+});
+
+test("a manager whose worker's worker moves is never quiet, but a worker is quiet when only its manager moves", () => {
+  const store = openHelperStore({ path: ":memory:" });
+  let clock = 0;
+  const watch = quietWatch(store, { now: () => clock, sweepMs: 0 });
+  const lead = store.addNativeJob("kame", "Lead the fictional launch", { chatId: "cedar" });
+  const mid = store.addNativeJob("sid", "Plan the fictional pages", { chatId: "cedar", parentId: lead.id });
+  const leaf = store.addNativeJob("kame", "Write the fictional copy", { chatId: "cedar", parentId: mid.id });
+  watch.sweep();
+  for (let minute = 1; minute <= 20; minute++) {
+    clock += 60_000;
+    store.step(leaf.id, `Writing part ${minute}`);
+    watch.sweep();
+  }
+  assert.deepEqual([lead, mid, leaf].map((j) => watch.since(j.id)), [undefined, undefined, undefined]);
+  clock += QUIET_AFTER_MS;
+  store.step(lead.id, "Waiting for the pages");
+  watch.sweep();
+  assert.equal(watch.since(lead.id), undefined);
+  assert.ok(watch.since(mid.id));
+  assert.ok(watch.since(leaf.id));
   watch.stop();
   store.close();
 });

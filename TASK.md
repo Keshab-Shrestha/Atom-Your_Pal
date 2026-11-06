@@ -11,7 +11,7 @@
 
 - ADR-273 (design reference: Ghostex, MIT): a chat shows one Workers card for the Board jobs it started. A worker sits under its manager. Each row has a state glyph, the short title and one line of its latest step or report. A click opens the task. Past 5 rows the card folds.
 - The Board's Flow lanes and stacked list show a child job under its parent. A manager shows a crown, its worker count and its age.
-- A running agent with no tool call or progress for 8 minutes gets a red dot ("No new output for 8 min") and one `job.quiet` log line. Its next move clears the dot. Nothing goes to the model.
+- A running agent with no tool call or progress for 8 minutes gets a hollow amber ring ("No new output for 8 min") and one `job.quiet` log line. Its next move clears the ring. A worker's move also counts for its manager. Nothing goes to the model.
 - Verified: TypeScript tests (1482 pass, 11 skipped) and typecheck, Swift tests (977 pass), fixture renders of the new `workers` gallery group, UI check with no golden change (live step not run). Not checked by hand in the running app.
 
 ## Agents call agents, work goes through managers — 6 November 2026

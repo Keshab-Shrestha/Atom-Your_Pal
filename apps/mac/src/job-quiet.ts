@@ -3,6 +3,8 @@ import type { HelperChange, HelperStore } from "@ark/helpers";
 /**
  * ADR-273: the stuck dot. A running native Board job (one a chat's agent call made) with no tool call and no progress for
  * QUIET_AFTER_MS is marked quiet once and logged `job.quiet`. Its next step, tool call or state change clears the mark.
+ * A move of a job is also a move of each job above it (its parent, that job's parent...): a manager that waits on a moving
+ * worker is not quiet.
  * The mark lives in memory only: after a restart each running job starts a fresh count. Nothing goes to the model.
  */
 export const QUIET_AFTER_MS = 8 * 60_000;
@@ -21,7 +23,7 @@ export interface QuietWatch {
 const MOVES = new Set<HelperChange["action"]>(["step", "toolCall", "job"]);
 
 export function quietWatch(
-  store: Pick<HelperStore, "list" | "onChange">,
+  store: Pick<HelperStore, "list" | "onChange" | "get">,
   options: { now?: () => number; log?: (event: string, fields: Record<string, unknown>) => void; sweepMs?: number } = {},
 ): QuietWatch {
   const now = options.now ?? Date.now;
@@ -32,8 +34,14 @@ export function quietWatch(
 
   const unsubscribe = store.onChange((change) => {
     if (!MOVES.has(change.action) || !("job" in change)) return;
-    lastMove.set(change.job, now());
-    if (quiet.delete(change.job)) changed();
+    let cleared = false;
+    // ponytail: walks up with get(); ADR-272 caps the depth at 4, the seen set only stops a bad parent loop.
+    for (let id: number | undefined = change.job, seen = new Set<number>(); id !== undefined && !seen.has(id); id = store.get(id)?.parentId) {
+      seen.add(id);
+      lastMove.set(id, now());
+      if (quiet.delete(id)) cleared = true;
+    }
+    if (cleared) changed();
   });
 
   const sweep = () => {
