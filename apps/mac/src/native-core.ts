@@ -27,6 +27,7 @@ import { RECALL_SOURCES, type FilePermissions, type MemorySelection, type Recall
 import type { FileApproval, FileEditReview } from "./computer-bridge.ts";
 import { denyRead } from "./folder-run.ts";
 import { BUILT_IN_AGENTS, addressedAgent, agentDefinitions, nativeMembers } from "./native-agents.ts";
+import { handBackLine, handBackNeed } from "./org.ts";
 import { boardRecorder, type BoardRecorder, type BoardStore } from "./native-board.ts";
 import { nativeGate, type NativeGate, type TeamScope } from "./native-safety.ts";
 import { planBook, withPlanTools, type PlanBook, type PlanStore } from "./native-plan.ts";
@@ -169,6 +170,21 @@ export interface NativeTeamDeps {
   reportsTo?(): Readonly<Record<string, string>>;
   /** A reply the session gave by itself (an agent reported). `saved`: it is already in the open chat's turns. */
   onWake?(chatId: string, text: string, saved: boolean): void;
+}
+
+/** ADR-272: the host's "handed back" lines for these finished jobs; "" when none ended its report with "Hand back:". */
+export function handBackLines(team: Pick<NativeTeamDeps, "helpers" | "reportsTo">, jobs: readonly number[]): string {
+  try {
+    const members = team.helpers.list();
+    const name = (id: string) => members.find((m) => m.id === id)?.name;
+    return jobs.flatMap((job) => {
+      const need = handBackNeed(team.helpers.report(job)?.body ?? "");
+      const helper = team.helpers.get(job)?.helper;
+      return need && helper ? [handBackLine(name(helper) ?? helper, need, team.reportsTo?.() ?? {}, name)] : [];
+    }).join("\n");
+  } catch {
+    return ""; // a missing report row never blocks the wake
+  }
 }
 
 /** ADR-272: the chart for the agent definitions: each agent's team line and whether it gets the Agent tool. */
@@ -465,7 +481,13 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
           try { deps.log?.("agent.stopped_summary", { chatId: chat, updates: tasks.length }); }
           catch { /* Diagnostics must not discard the corrected notice. */ }
         }
-        woke(chat, summary ?? text, () => handle);
+        // ADR-272: an agent that ended its report with "Hand back:" left the choice of agent to ARK. Code writes the line.
+        const handBacks = handBackLines(team, tasks.flatMap((task) => {
+          const job = task.status === "completed" ? board?.knownJobOfTask?.(task.id) : undefined;
+          return job !== undefined ? [job] : [];
+        }));
+        if (handBacks && entry) entry.missed = [...(entry.missed ?? []), { role: "assistant", content: handBacks }];
+        woke(chat, handBacks ? `${summary ?? text}\n\n${handBacks}` : summary ?? text, () => handle);
       } } : {}),
       ...(files ? { cwd: files.cwd } : {}),
       ...(resume ? { resume } : {}),

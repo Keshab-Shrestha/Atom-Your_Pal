@@ -5,7 +5,7 @@ import { sdkConfig } from "./mcp-servers.ts";
 import { BROWSER_SERVER } from "./browser.ts";
 import { TOOL_SERVER } from "@ark/llm-gateway";
 import { TRASH_TOOL } from "./trash-tool.ts";
-import { teamLine, type ReportsTo } from "./org.ts";
+import { HAND_BACK_RULE, teamLine, type ReportsTo } from "./org.ts";
 
 /**
  * ADR-110 (Phase N2): ARK's agents as Claude Code sub-agents. Every available worker (built-in or a soul.md agent)
@@ -141,9 +141,10 @@ export function agentDefinition(member: HelperView, scope: AgentScope, servers: 
   const mcpServers = [...mcp.map((s) => ({ [s.name]: sdkConfig(s) as Record<string, unknown> })), ...(browser ? [{ [BROWSER_SERVER]: browser }] : [])];
   const skills = scope.skillsPlugin && member.skills.length ? member.skills.map((s) => `${scope.skillsPlugin}:${s}`) : [];
   const team = scope.team ? teamLine(member.id, scope.team.reportsTo, scope.team.agentIds, scope.team.name) : "";
+  const handBack = scope.team ? HAND_BACK_RULE : "";
   return {
     description: description.length > DESCRIPTION_CHARS ? `${description.slice(0, DESCRIPTION_CHARS - 1)}…` : description,
-    prompt: `${instructionsFor(member.soul, member.role)}\n${full ? FULL_CONTRACT(project) : KIT_CONTRACT[member.kit](project)}${team ? `\n${team}` : ""}`,
+    prompt: `${instructionsFor(member.soul, member.role)}\n${full ? FULL_CONTRACT(project) : KIT_CONTRACT[member.kit](project)}${team ? `\n${team}` : ""}${handBack ? `\n${handBack}` : ""}`,
     // MCP servers by server-level name; the hooks check each call against the same grants. Their tools are deferred
     // (ENABLE_TOOL_SEARCH=force), so ToolSearch comes with them.
     tools: [...kitTools(member.kit, project, full), ...mcpServers.map((s) => `mcp__${Object.keys(s)[0]}`), ...(mcpServers.length ? ["ToolSearch"] : []), ...(team ? ["Agent"] : [])],

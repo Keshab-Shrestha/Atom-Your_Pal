@@ -15,7 +15,7 @@ import { CODEX_SKILL_BUDGET, CODEX_SKILL_CHARS, codexWorkerCapabilities, codexWo
 import { boardRecorder } from "./native-board.ts";
 import { nativeGate, type NativeGate } from "./native-safety.ts";
 import { planBook, withPlanTools, type PlanBook } from "./native-plan.ts";
-import type { NativeTeamDeps } from "./native-core.ts";
+import { handBackLines, type NativeTeamDeps } from "./native-core.ts";
 import { withHistoryTools } from "./chat-history.ts";
 import { SKILL_NAME } from "./skills.ts";
 import { readPublicPage } from "./public-page.ts";
@@ -496,7 +496,8 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
       }
       if (controller.signal.aborted) throw new Error("The task was stopped before completion was recorded.");
       entry.board.onEvent({ type: "system", subtype: "task_notification", task_id: id, status: "completed", summary: reply.text });
-      return result(call, `${member.name}'s report (task ${job}):\n${reply.text}${verificationNote}`);
+      const handBack = handBackLines(team, [job]); // ADR-272: same host line as a Claude chat
+      return result(call, `${member.name}'s report (task ${job}):\n${reply.text}${verificationNote}${handBack ? `\n\n${handBack}` : ""}`);
     } catch (error) {
       await advisory.close();
       entry.board.onEvent({ type: "system", subtype: "task_notification", task_id: id, status: controller.signal.aborted ? "stopped" : "failed", summary: redact(error instanceof Error ? error.message : "Codex task failed.") });

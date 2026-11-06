@@ -70,13 +70,41 @@ export function resolveOrg(raw: ReportsTo, agentIds: readonly string[]): Record<
  * so it changes only when the chart or a name changes. `name` maps an agent id to its name.
  */
 export function orgPrompt(map: ReportsTo, name: (id: string) => string | undefined): string {
+  const teams = orgTeams(map, name);
+  if (!teams) return "";
+  return `Team: ${teams}.\n` +
+    "Give work for an agent with a lead to that lead (or plan it with plan_work); the lead hands parts to its people. Call such an agent directly only when the user named it.\n" +
+    `A report that ends with "${HAND_BACK}" means its agent left the choice to you: pick the agent for that need and start it.`;
+}
+
+/** "Kame leads Lyra, Pk; Sid leads Kame", sorted; "" when no agent has a lead. */
+function orgTeams(map: ReportsTo, name: (id: string) => string | undefined): string {
   const teams = new Map<string, string[]>();
   for (const agent of Object.keys(map).sort()) teams.set(map[agent]!, [...(teams.get(map[agent]!) ?? []), agent]);
-  if (!teams.size) return "";
   const label = (id: string) => name(id) ?? id;
-  const lines = [...teams.keys()].sort().map((lead) => `${label(lead)} leads ${teams.get(lead)!.map(label).join(", ")}`);
-  return `Team: ${lines.join("; ")}.\n` +
-    "Give work for an agent with a lead to that lead (or plan it with plan_work); the lead hands parts to its people. Call such an agent directly only when the user named it.";
+  return [...teams.keys()].sort().map((lead) => `${label(lead)} leads ${teams.get(lead)!.map(label).join(", ")}`).join("; ");
+}
+
+/**
+ * ADR-272 (Keshab, 2026-11-06): an agent may leave the choice of agent to ARK. It ends its report with this line; code finds
+ * it and writes the line ARK reads. The model gives only the need: one line, at most HAND_BACK_CHARS.
+ */
+export const HAND_BACK = "Hand back:";
+export const HAND_BACK_CHARS = 300;
+export const HAND_BACK_RULE = `When the work needs an agent you should not pick yourself (you are not sure who, or no agent you may call has the tools), end your turn and make the last line of your report "${HAND_BACK} <what is needed>". ARK then chooses the agent.`;
+
+/** The need in a report whose last non-empty line starts with "Hand back:"; undefined otherwise. One line, no control characters. */
+export function handBackNeed(report: string): string | undefined {
+  const last = report.split("\n").map((line) => line.trim()).filter(Boolean).at(-1) ?? "";
+  if (!last.toLowerCase().startsWith(HAND_BACK.toLowerCase())) return undefined;
+  const need = last.slice(HAND_BACK.length).replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]+/gu, " ").replace(/\s+/g, " ").trim();
+  return need ? need.slice(0, HAND_BACK_CHARS) : undefined;
+}
+
+/** The host's line for a handed-back report. Code writes it; only `need` (handBackNeed) comes from the model. */
+export function handBackLine(agent: string, need: string, map: ReportsTo, name: (id: string) => string | undefined): string {
+  const teams = orgTeams(map, name);
+  return `${agent} handed back to ARK: ${need}. Choose the agent for it${teams ? ` (the chart: ${teams})` : ""}; the usual rules apply.`;
 }
 
 /** ADR-272: the most agents one task from the main thread may start below it, at every level together. */
