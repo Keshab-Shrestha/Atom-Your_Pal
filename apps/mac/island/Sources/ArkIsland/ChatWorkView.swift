@@ -7,13 +7,17 @@ struct ChatWorkView: View {
     let work: ChatWorkSnapshot
     /// The computer step in progress, shown while the work runs (the island's detail line, which the window did not show).
     var step: String? = nil
+    /// The newest turn: its steps stay open after the answer arrives (2026-11-06); older turns fold to one line.
+    var keepOpen = false
     /// Nil follows the work: open while it runs, folded once it ends. A click keeps the reader's choice.
     @State private var opened: Bool?
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
 
     private var working: Bool { work.state == "working" }
-    private var expanded: Bool { opened ?? working }
+    /// Nothing to open for a turn that only thought: no tools, no questions.
+    private var hasSteps: Bool { !work.calls.isEmpty || work.omitted > 0 || !work.questions.isEmpty }
+    private var expanded: Bool { hasSteps && (opened ?? (working || keepOpen)) }
     /// While it runs, only the latest rows, so a long turn does not push the reply away.
     private static let liveRows = 6
 
@@ -97,7 +101,7 @@ struct ChatWorkView: View {
         case "ok":
             HStack(spacing: 4) {
                 Glyph(systemName: "checkmark").appFont(.system(size: 9.5, weight: .bold)).foregroundStyle(theme.accent.color)
-                if let ms = call.ms { Text(ChatWorkText.duration(ms: ms)).monospacedDigit() }
+                if let ms = call.ms { Text(ms < 1000 ? "<1s" : ChatWorkText.duration(ms: ms)).monospacedDigit() }
             }
             .foregroundStyle(theme.text3.color)
         case "error":
@@ -108,9 +112,9 @@ struct ChatWorkView: View {
     }
 
     private var toggle: some View {
-        Button { opened = !expanded } label: {
+        Button { if hasSteps { opened = !expanded } } label: {
             HStack(spacing: 8) {
-                Glyph(systemName: "chevron.right").rotationEffect(.degrees(expanded ? 90 : 0))
+                if hasSteps { Glyph(systemName: "chevron.right").rotationEffect(.degrees(expanded ? 90 : 0)) }
                 Text(label).monospacedDigit()
                 if working, let step { Text("· \(step)").lineLimit(1).truncationMode(.tail) }
                 else if !working, !work.calls.isEmpty { Text("· \(ChatWorkText.summary(work.calls))").lineLimit(1).truncationMode(.tail) }
@@ -120,7 +124,7 @@ struct ChatWorkView: View {
             .help("What ARK did in this turn. The time includes thinking, tools and waiting for your answers. A missing result means the outcome is unknown, not that nothing happened. This log is not kept in saved history.")
     }
     private var label: String {
-        let prefix = work.state == "working" ? "Working for" : work.state == "completed" ? "Worked for" : work.state == "failed" ? "Failed after" : work.state == "interrupted" ? "Interrupted after" : "Stopped after"
+        let prefix = work.state == "working" ? "Working for" : work.state == "completed" ? (hasSteps ? "Worked for" : "Thought for") : work.state == "failed" ? "Failed after" : work.state == "interrupted" ? "Interrupted after" : "Stopped after"
         return "\(prefix) \(ChatWorkText.duration(ms: work.elapsed()))"
     }
 }
