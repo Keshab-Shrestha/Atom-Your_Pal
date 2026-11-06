@@ -142,7 +142,7 @@ struct PalStanceMotionTests {
 @Suite("AI tools found")
 struct AiToolTests {
     @Test func infoCarriesTheToolsFound() throws {
-        guard case .info(let info) = try decodeEvent(#"{"type":"info","provider":"claude-plan","model":"claude-sonnet-5-5","providers":[{"id":"claude-plan","name":"Claude (my plan)","available":true,"models":[]}],"tools":[{"id":"codex","name":"Codex","found":true,"signedIn":true,"provider":"codex","note":"Signed in"},{"id":"ollama","name":"Ollama","found":true,"note":"Found: local models are not used by ARK"},{"bad":1}]}"#) else {
+        guard case .info(let info) = try decodeEvent(#"{"type":"info","provider":"claude-plan","model":"claude-sonnet-5-5","providers":[{"id":"claude-plan","name":"Claude","available":true,"models":[]}],"tools":[{"id":"codex","name":"Codex","found":true,"signedIn":true,"provider":"codex","note":"Signed in"},{"id":"ollama","name":"Ollama","found":true,"note":"Found: local models are not used by ARK"},{"bad":1}]}"#) else {
             Issue.record("not info"); return
         }
         #expect(info.tools.map(\.id) == ["codex", "ollama"])

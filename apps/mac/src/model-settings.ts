@@ -31,6 +31,14 @@ const SIGN_IN: Record<keyof typeof PROVIDERS, { missing: string; todo: string }>
     missing: "the Gemini CLI was not found or is not signed in (run `gemini` and sign in with Google)",
     todo: "Install the Gemini CLI, run `gemini` and sign in with Google",
   },
+  copilot: {
+    missing: "the Copilot CLI was not found or is not signed in (run `copilot login`)",
+    todo: "Install the GitHub Copilot CLI and run `copilot login`",
+  },
+  opencode: {
+    missing: "OpenCode was not found or has no provider signed in (run `opencode auth login`)",
+    todo: "Install OpenCode and run `opencode auth login`",
+  },
 };
 
 /** What is missing for a provider, as a clause: its program, found and signed in. */
@@ -173,7 +181,7 @@ export function createModelSettings(options: ModelSettingsOptions): ModelSetting
       const levels = found?.reasoningLevels ?? [];
       const fallback = provider === "codex" ? "low" : "off";
       return { provider, model, levels: [...levels], default: found?.defaultReasoning ?? fallback,
-        ...(!levels.length ? { note: provider === "gemini-cli" ? "This provider does not expose thinking controls in ARK." : "Thinking levels are unavailable for this model. Refresh the model catalog in Settings." }
+        ...(!levels.length ? { note: provider !== "claude-plan" && provider !== "codex" ? "This provider does not expose thinking controls in ARK." : "Thinking levels are unavailable for this model. Refresh the model catalog in Settings." }
           : levels.length === 1 && levels[0] === "off" ? { note: "This model does not expose adjustable thinking in ARK." } : {}) };
     },
 

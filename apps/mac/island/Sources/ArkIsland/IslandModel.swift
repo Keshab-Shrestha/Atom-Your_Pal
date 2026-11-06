@@ -64,6 +64,10 @@ final class IslandModel {
     var capabilities: [CapabilityItem]?
     /// Claude plan usage (ADR-076), merged from `plan.usage` events. Nil until one arrives: no meters.
     var planUsage: PlanUsage?
+    /// ADR-269: the AI programs on this Mac; nil until the first scan arrives.
+    var aiPrograms: AiProgramsState?
+    /// ADR-269: a rescan was asked for and has not come back.
+    var scanningPrograms = false
     /// ADR-091: Keshab's chats and the one ARK is in; nil until the window asks.
     var chats: ChatList?
     /// The skill open in Plugins → Skills (its whole SKILL.md), the last answer to `skillGet` or `skillSave`.
@@ -1213,6 +1217,9 @@ final class IslandModel {
             send(.chatWorkWatch) // ADR-156: only a UI that can render cards opts into waiting for an answer
             refreshForegroundRecovery()
             if helpersWindowOpen { send(.commandsList) } // the "/" picker (ADR-117)
+        case .aiPrograms(let state):
+            aiPrograms = state
+            scanningPrograms = false
         case .info(let info):
             modelInfo = info
             syncChatModelName()

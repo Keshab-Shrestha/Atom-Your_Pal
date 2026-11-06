@@ -130,6 +130,7 @@ function start(config: Config) {
     ...(runtime.telegram ? { telegram: runtime.telegram } : {}),
     ...(runtime.api ? { api: runtime.api } : {}),
     settings: runtime.settings,
+    aiPrograms: runtime.aiPrograms,
     ...(runtime.workflows ? { workflows: runtime.workflows } : {}),
     ...(runtime.panels ? { panels: runtime.panels } : {}),
     ...(runtime.watches ? { watches: runtime.watches } : {}),
