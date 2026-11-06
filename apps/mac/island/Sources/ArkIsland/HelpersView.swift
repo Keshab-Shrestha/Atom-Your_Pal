@@ -57,7 +57,8 @@ struct HelpersView: View {
         .padding(.horizontal, 8).padding(.bottom, 8).padding(.top, 32)
         .background { backdrop(lanes) }
         .background { if !snapshot { WindowDragArea() } }
-        .background(DesktopWindowAppearance(palette: palette))
+        // ADR-277: not in a snapshot, where an AppKit view draws a placeholder that a translucent backdrop lets show.
+        .background { if !snapshot { DesktopWindowAppearance(palette: palette, translucent: model.settings.translucentShown) } }
         .animation(Motion.workspace(reduceMotion), value: sidebarHidden)
         .ignoresSafeArea(edges: .top)
         .alert("Discard changes?", isPresented: Binding(get: { model.asksDiscard }, set: { if !$0 { model.keepEditing() } })) {
@@ -100,8 +101,11 @@ struct HelpersView: View {
     }
 
     /// ADR-255: the window's backdrop. Glass: the ambient light, in ARK's mood. Flat: the frame colour, as before.
+    /// ADR-277: with a translucent window, the desktop (blurred by the system) and a tint, in place of ARK's own light.
     @ViewBuilder private func backdrop(_ lanes: WorkspaceColors) -> some View {
-        if model.settings.glassShown {
+        if model.settings.translucentShown {
+            TranslucentBackdrop(theme: model.settings.theme, strength: model.settings.translucencyStrength)
+        } else if model.settings.glassShown {
             AmbientBackdrop(theme: model.settings.theme, mood: model.ambientMood)
         } else {
             lanes.frame.color.ignoresSafeArea()

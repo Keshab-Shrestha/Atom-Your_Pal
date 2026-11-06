@@ -44,6 +44,8 @@ public final class IslandSettings {
     static let typefaceKey = "ark.look.typeface"
     static let themeKey = "ark.look.theme"
     static let glassKey = "ark.look.glass"
+    static let translucentKey = "ark.look.translucent"
+    static let translucencyStrengthKey = "ark.look.translucencyStrength"
     static let sidebarKey = "ark.window.sidebar"
     static let projectFilterKey = "ark.window.projectFilter"
     static let workspaceWidthKey = "ark.window.workspaceWidth"
@@ -181,7 +183,17 @@ public final class IslandSettings {
     public var glassShown: Bool { glass && !reduceTransparency }
     /// The palette and the window's panes for the theme in the material that is shown.
     public var palette: ThemePalette { theme.palette(glass: glassShown) }
-    public var lanes: WorkspaceColors { WorkspaceColors.for(theme, glass: glassShown) }
+    public var lanes: WorkspaceColors {
+        translucentShown ? WindowTranslucency.lanes(theme, strength: translucencyStrength) : WorkspaceColors.for(theme, glass: glassShown)
+    }
+    /// Translucent window (ADR-277): with glass, the desktop shows through the window, blurred and tinted. Default off.
+    public var translucentWindow: Bool { didSet { defaults.set(translucentWindow, forKey: Self.translucentKey) } }
+    /// How much of the desktop shows through. Default medium.
+    public var translucencyStrength: TranslucencyStrength { didSet { store(translucencyStrength.rawValue, Self.translucencyStrengthKey) } }
+    /// The system's Increase Contrast, set by the app. Not stored: while it is on, the window stays opaque.
+    public var increaseContrast = false
+    /// The window is translucent: chosen, glass is drawn (so not Reduce Transparency), and the system does not ask for more contrast.
+    public var translucentShown: Bool { translucentWindow && glassShown && !increaseContrast }
 
     // Settings → Defaults (2026-11-02). The runtime applies the first two to a chat started in the ARK window.
     public var newChatAccess: ChatAccessMode { didSet { saveText(newChatAccess.rawValue, Self.newChatAccessKey) } }
@@ -332,6 +344,8 @@ public final class IslandSettings {
         typeface = Self.choice(defaults, Self.typefaceKey, .system)
         theme = Self.choice(defaults, Self.themeKey, .void)
         glass = defaults.object(forKey: Self.glassKey) as? Bool ?? true
+        translucentWindow = defaults.bool(forKey: Self.translucentKey)
+        translucencyStrength = Self.choice(defaults, Self.translucencyStrengthKey, .medium)
         sidebar = SidebarLayout(storage: defaults.string(forKey: Self.sidebarKey))
         sidebarHidden = defaults.bool(forKey: Self.sidebarHiddenKey)
         projectFilter = defaults.string(forKey: Self.projectFilterKey)
@@ -429,6 +443,8 @@ public final class IslandSettings {
     public func resetAppearance() {
         theme = .void
         glass = true
+        translucentWindow = false
+        translucencyStrength = .medium
         textSize = .standard
         typeface = .system
     }

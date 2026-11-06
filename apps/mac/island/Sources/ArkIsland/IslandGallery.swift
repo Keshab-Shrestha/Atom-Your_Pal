@@ -29,6 +29,11 @@ enum IslandGallery {
             writeArkVisuals(to: directory)
             return
         }
+        if ArkEnv.read("ARK_ISLAND_GALLERY_ONLY") == "translucent" { // ADR-277
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            writeTranslucent(to: directory)
+            return
+        }
         if ArkEnv.read("ARK_ISLAND_GALLERY_ONLY") == "management" {
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             writeManagement(to: directory)
@@ -113,6 +118,7 @@ enum IslandGallery {
         writeModelPicker(to: directory)
         writeReplyMedia(to: directory)
         writeArkVisuals(to: directory)
+        writeTranslucent(to: directory)
         writeGitWorkspace(to: directory)
         writeProjectSources(to: directory)
         writeAdaptation(to: directory)
