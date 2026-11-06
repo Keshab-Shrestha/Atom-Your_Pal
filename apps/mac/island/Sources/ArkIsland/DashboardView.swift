@@ -37,6 +37,7 @@ struct DashboardPane: View {
             // ADR-258: three tiles for live work, and the usage numbers as one quiet line (they were three more equal tiles).
             summaryStrip(usage: usage, attention: attention, columns: 3)
             if let usage { usageLine(usage) }
+            HomeActivity(model: model)
             HomePanels(model: model)
             HomeNotices(model: model)
             if let list = model.helpers.list, case let hints = TeamHygiene.suggestions(list), !hints.isEmpty {

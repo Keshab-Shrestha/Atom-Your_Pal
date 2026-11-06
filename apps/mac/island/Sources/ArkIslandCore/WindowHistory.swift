@@ -10,7 +10,8 @@ public enum WindowPage: Equatable, Sendable {
 /// pages; they live here now (2026-10-15 for the last two, which freed room in the sidebar for Projects and Chats). Failed
 /// tasks are part of Needs you: they wait for him (ADR-116).
 public enum BoardView: String, CaseIterable, Sendable {
-    case needsYou, overview, floor, columns, team
+    // 2026-11-06: Activity (`overview`) moved to Home; a saved "overview" opens the Flow.
+    case needsYou, floor, columns, team
 
     /// The name the switch shows.
     public var title: String {
@@ -18,7 +19,6 @@ public enum BoardView: String, CaseIterable, Sendable {
         case .needsYou: "Needs you"
         case .floor: "Studio"
         case .columns: "Flow"
-        case .overview: "Activity"
         case .team: "Team"
         }
     }
@@ -31,7 +31,7 @@ public enum BoardView: String, CaseIterable, Sendable {
     /// are not Board views.
     public init?(storedPage: String) {
         switch storedPage {
-        case "overview": self = .overview
+        case "overview": self = .columns
         case "inbox": self = .needsYou
         case "issues": self = .needsYou // failed tasks are part of Needs you
         default: return nil

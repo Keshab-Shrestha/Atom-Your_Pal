@@ -196,8 +196,7 @@ enum IslandGallery {
         let setting = model(theme)
         setting.windowPage = .settings
         let overviewing = model(theme)
-        overviewing.helpers.selectBoard()
-        overviewing.boardView = .overview
+        overviewing.windowPage = .dashboard // 2026-11-06: Activity lives on Home
         let inboxing = model(theme, failed: true)
         inboxing.helpers.selectBoard() // Needs you is a Board view now
         inboxing.boardView = .needsYou

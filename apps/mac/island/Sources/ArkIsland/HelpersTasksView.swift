@@ -803,9 +803,7 @@ extension BoardPane {
 
     /// The Board's other views, and the Tasks list stacked by status on a narrow pane.
     @ViewBuilder func boardContent(board: [(column: BoardColumn, items: [BoardItem])], label: String?) -> some View {
-            if model.boardView == .overview {
-                OverviewPane(model: model)
-            } else if model.boardView == .team {
+            if model.boardView == .team {
                 BoardTeamView(model: model)
             } else if model.boardView == .needsYou {
                 NeedsYouPane(model: model, embedded: true)
@@ -926,7 +924,6 @@ extension BoardPane {
             ViewChoice(title: "Flow", symbol: "rectangle.split.3x1", selected: model.boardView.isFlow, badge: waiting, compact: compact) { model.boardView = .columns }
             ViewChoice(title: "Studio", symbol: "building.2", selected: model.boardView == .floor, compact: compact) { model.boardView = .floor }
             ViewChoice(title: "Team", symbol: "person.2", selected: model.boardView == .team, compact: compact) { model.boardView = .team }
-            ViewChoice(title: "Activity", symbol: "chart.bar", selected: model.boardView == .overview, compact: compact) { model.boardView = .overview }
         }
     }
 }

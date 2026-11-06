@@ -1,45 +1,30 @@
 import SwiftUI
 import ArkIslandCore
 
-/// ADR-090: progress at a glance: the board's counts, who is at work on what, the goals and how far they are, the
-/// plan's use, and what came in. Every row opens its task.
-struct OverviewPane: View {
+/// ADR-090's Activity, on Home since 2026-11-06 (Keshab: "one more trim"; it was a Board tab whose counts repeated Home's tiles):
+/// who is at work on what, the goals and how far they are, and what came in. Every row opens its task. Nothing shows when the team
+/// is quiet and nothing came in yet.
+struct HomeActivity: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let list = model.helpers.list
-        let overview = list.map { TeamOverview(list: $0) }
-        Scrollable {
-            VStack(alignment: .leading, spacing: 24) {
-                Text("What the team is doing, how far it has got, and what came in.").appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
-                if let overview {
-                    HStack(spacing: 12) {
-                        StatTile(value: overview.running, label: "Running", dot: theme.live.color)
-                        StatTile(value: overview.needsYou, label: "Needs you", dot: overview.needsYou > 0 ? theme.attention.color : nil)
-                        StatTile(value: overview.toDo, label: "To do", dot: nil)
-                        StatTile(value: overview.doneToday, label: "Ended today", dot: theme.success.color)
-                    }
-                    section("At work") {
-                        if overview.atWork.isEmpty { quiet("Nobody is working right now.") }
-                        ForEach(overview.atWork) { item in AtWorkRow(model: model, item: item) }
+        if let list = model.helpers.list {
+            let overview = TeamOverview(list: list)
+            if !overview.atWork.isEmpty || !overview.goals.isEmpty || !overview.recent.isEmpty {
+                VStack(alignment: .leading, spacing: 16) {
+                    if !overview.atWork.isEmpty {
+                        section("At work") { ForEach(overview.atWork) { item in AtWorkRow(model: model, item: item) } }
                     }
                     if !overview.goals.isEmpty {
                         section("Goals") { ForEach(overview.goals) { GoalRow(goal: $0) } }
                     }
-                    section("Today") { TodayMeters(model: model) }
-                    section("Just in") {
-                        if overview.recent.isEmpty { quiet("No results yet.") }
-                        ForEach(overview.recent) { item in RecentRow(model: model, item: item) }
+                    if !overview.recent.isEmpty {
+                        section("Just in") { ForEach(overview.recent) { item in RecentRow(model: model, item: item) } }
                     }
-                } else {
-                    LoadingStateView(text: "Loading the overview…", retry: { model.send(.helpersList) })
                 }
+                .padding(.top, 8)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, Spacing.panel)
-            .padding(.top, 28)
-            .padding(.bottom, Spacing.panel)
         }
     }
 
@@ -51,31 +36,6 @@ struct OverviewPane: View {
                 .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
                     .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
         }
-    }
-
-    private func quiet(_ text: String) -> some View {
-        Text(text).appFont(.system(size: 12.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 16).padding(.vertical, 16)
-    }
-}
-
-private struct StatTile: View {
-    let value: Int
-    let label: String
-    let dot: Color?
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("\(value)").appFont(theme.appIdentifierFont(.system(size: 24, weight: .semibold), size: 22)).foregroundStyle(theme.text.color)
-            HStack(spacing: 8) {
-                if let dot { StatusDot(color: dot, size: 6) }
-                Text(label).appFont(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(1).minimumScaleFactor(0.8)
-            }
-        }
-        .padding(.horizontal, 16).padding(.vertical, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
-            .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
     }
 }
 
@@ -135,47 +95,6 @@ private struct GoalRow: View {
     }
 }
 
-/// The plan's five-hour window.
-private struct TodayMeters: View {
-    let model: IslandModel
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if let five = model.planUsage?.fiveHour {
-                meter("Claude plan, 5 hours", value: min(1, five), text: "\(Int((five * 100).rounded()))% used", warn: five >= NoticeWatcher.warnAt)
-            }
-            // Tokens come from ARK's own count, the plan meter from Claude: say both, so Home's "tokens today" and this agree
-            // (hand check 2026-11-05: "No plan use reported yet" beside 3.5K tokens on Home read as a contradiction).
-            if let usage = model.helpers.list?.usage {
-                Text("\(TokenTotals.short(usage.today.io)) tokens today").appFont(.system(size: 12.5)).monospacedDigit().foregroundStyle(theme.text.color)
-            }
-            if model.planUsage?.fiveHour == nil {
-                Text("Claude has not reported the plan's 5-hour use yet.").appFont(.system(size: 12)).foregroundStyle(theme.text3.color)
-            }
-        }
-        .padding(.horizontal, 16).padding(.vertical, 12)
-    }
-
-    private func meter(_ title: String, value: Double?, text: String, warn: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(title).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color)
-                Spacer()
-                Text(text).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(warn ? theme.attention.color : theme.text2.color)
-            }
-            if let value {
-                GeometryReader { proxy in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(theme.fill2.color)
-                        Capsule().fill(warn ? theme.attention.color : theme.success.color).frame(width: max(4, proxy.size.width * value))
-                    }
-                }
-                .frame(height: 4)
-            }
-        }
-    }
-}
 
 private struct RecentRow: View {
     let model: IslandModel
