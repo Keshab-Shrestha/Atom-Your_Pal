@@ -1,11 +1,12 @@
 # ARK Project Status
 
-## Board Activity moves to Home — 6 November 2026
-
-- ADR-266: Board > Activity is removed. Home shows At work, Goals and Just in under its tiles. The Board has Flow, Studio and Team.
 ## The work log stays after the answer — 6 November 2026
 
 - ADR-268: the newest answer keeps its steps open, older ones fold to one line, and a thinking-only turn shows "Thought for 4s". The video Studio is parked; its branch is kept.
+
+## Board Activity moves to Home — 6 November 2026
+
+- ADR-266: Board > Activity is removed. Home shows At work, Goals and Just in under its tiles. The Board has Flow, Studio and Team.
 
 ## Fewer places: Automations, one Apps page, Back to Home — 6 November 2026
 
