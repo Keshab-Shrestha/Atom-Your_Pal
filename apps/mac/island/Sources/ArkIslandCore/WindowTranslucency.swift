@@ -79,7 +79,7 @@ public enum WindowTranslucency {
                 return RGBA.contrast(p.text, behind) >= mainTextContrast && RGBA.contrast(p.text2, behind) >= secondaryTextContrast
             }
         }
-        // ponytail: linear search in 0.02 steps (at most 50 tries per pane); fine for six panes per settings change.
+        // ponytail: linear search in 0.02 steps (at most 50 tries per pane); fine for six panes; `settings.lanes` runs it on each read, so it stays cheap.
         while a < 1, !passes(a) { a = min(1, a + 0.02) }
         return pane.with(alpha: a)
     }

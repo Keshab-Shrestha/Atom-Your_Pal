@@ -193,7 +193,9 @@ public final class IslandSettings {
     /// The system's Increase Contrast, set by the app. Not stored: while it is on, the window stays opaque.
     public var increaseContrast = false
     /// The window is translucent: chosen, glass is drawn (so not Reduce Transparency), and the system does not ask for more contrast.
-    public var translucentShown: Bool { translucentWindow && glassShown && !increaseContrast }
+    public var translucentShown: Bool { translucentWindow && translucentAvailable }
+    /// The switch works only with Ambient glass and while the system does not ask for less transparency or more contrast.
+    public var translucentAvailable: Bool { glassShown && !increaseContrast }
 
     // Settings → Defaults (2026-11-02). The runtime applies the first two to a chat started in the ARK window.
     public var newChatAccess: ChatAccessMode { didSet { saveText(newChatAccess.rawValue, Self.newChatAccessKey) } }

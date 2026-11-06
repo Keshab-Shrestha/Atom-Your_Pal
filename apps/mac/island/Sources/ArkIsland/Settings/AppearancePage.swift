@@ -58,6 +58,8 @@ struct AppearanceSection: View {
         Card("Window", footer: Self.translucencyFooter(settings)) {
             Row(title: "Translucent window", detail: "The desktop shows through the window, blurred and tinted") {
                 ThemedSwitch(isOn: settings.translucentWindow, set: { settings.translucentWindow = $0 }, label: "Translucent window")
+                    .disabled(!settings.translucentAvailable)
+                    .opacity(settings.translucentAvailable ? 1 : 0.5)
             }
             if settings.translucentWindow {
                 RowDivider()

@@ -62,7 +62,9 @@ struct WindowTranslucencyTests {
         let reloaded = IslandSettings(defaults: defaults)
         #expect(reloaded.translucentWindow && reloaded.translucencyStrength == .high, "both choices are stored")
 
+        #expect(s.translucentAvailable, "the switch works")
         s.reduceTransparency = true
+        #expect(!s.translucentAvailable, "the switch is off when the system asks for less transparency")
         #expect(!s.translucentShown && s.lanes.work == WorkspaceColors.for(s.theme).work, "Reduce Transparency: flat and opaque")
         s.reduceTransparency = false
         s.increaseContrast = true
