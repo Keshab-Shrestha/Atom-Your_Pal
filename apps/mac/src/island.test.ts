@@ -636,8 +636,8 @@ test("model.set refusals are settings errors with the fix, and nothing changes (
     { type: "model.set", provider: "claude-plan", model: "gpt 9!" }, // ADR-097: any well-formed id is a custom model; this one is not well-formed
   );
   assert.deepEqual(h.events(), [
-    { type: "error", stage: "settings", message: 'Unknown AI provider "gemini". Choose Claude (my plan) or Codex (my ChatGPT plan) or Gemini CLI (my Google sign-in) or Copilot CLI (my GitHub sign-in) or OpenCode (my sign-ins).' },
-    { type: "error", stage: "settings", message: 'Unknown AI provider "claude". Choose Claude (my plan) or Codex (my ChatGPT plan) or Gemini CLI (my Google sign-in) or Copilot CLI (my GitHub sign-in) or OpenCode (my sign-ins).' },
+    { type: "error", stage: "settings", message: 'Unknown AI provider "gemini". Choose Claude or Codex or Gemini CLI or GitHub Copilot or OpenCode.' },
+    { type: "error", stage: "settings", message: 'Unknown AI provider "claude". Choose Claude or Codex or Gemini CLI or GitHub Copilot or OpenCode.' },
     { type: "error", stage: "settings", message: '"gpt 9!" is not a model id: use 1 to 100 letters, digits, ".", "_", ":" or "-".' },
   ]);
   assert.equal(existsSync(h.path), false);
@@ -651,10 +651,10 @@ test("without the claude program, model.set says to install it and sign in", asy
   await tick(2);
   h.clear();
   await h.send({ type: "model.set", provider: "claude-plan", model: "claude-opus-5-5" });
-  assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: "Install Claude Code and run `claude auth login` to use Claude (my plan), then restart ARK." }]);
+  assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: "Install Claude Code and run `claude auth login` to use Claude, then restart ARK." }]);
   h.clear();
   await h.send({ type: "model.set", provider: "codex", model: "codex-default" });
-  assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: "Install Codex and run `codex login` to use Codex (my ChatGPT plan), then restart ARK." }]);
+  assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: "Install Codex and run `codex login` to use Codex, then restart ARK." }]);
 });
 
 test("a malformed model.set is a protocol error", async () => {

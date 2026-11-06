@@ -51,14 +51,14 @@ import Testing
         var status = IslandStatus()
         status.apply(try decodeEvent(#"{"type":"ready","protocol":1,"provider":"claude-plan","model":"claude-opus-5-5","microphone":"Mac mini Microphone","voice":true}"#))
         let info = ModelInfo(provider: "claude-plan", model: "claude-opus-5-5", providers: [
-            ProviderOption(id: "claude-plan", name: "Claude (my plan)", available: true, models: [ModelOption(id: "claude-opus-5-5", name: "Claude Opus 5.5")]),
+            ProviderOption(id: "claude-plan", name: "Claude", available: true, models: [ModelOption(id: "claude-opus-5-5", name: "Claude Opus 5.5")]),
         ])
         status.apply(.info(info))
         status.apply(try decodeEvent(#"{"type":"turn.complete","speechMs":2400,"transcriptionMs":610,"modelMs":1840,"firstSoundMs":2710}"#))
         status.apply(try decodeEvent(#"{"type":"error","stage":"model","kind":"network","message":"Could not reach Claude. Check the connection.","retryable":true}"#))
         let facts = NowFacts(status: status, info: info, usage: PlanUsage(fiveHour: 0.42, sevenDay: 0.86))
 
-        #expect(facts.provider == "Claude (my plan)")
+        #expect(facts.provider == "Claude")
         #expect(facts.model == "Claude Opus 5.5")
         #expect(facts.microphone == "Mac mini Microphone")
         #expect(facts.voice == "Voice ready" && facts.voiceLoaded)

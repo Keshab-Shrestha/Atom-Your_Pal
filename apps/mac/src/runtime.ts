@@ -574,7 +574,7 @@ export function createRuntime(
   const cua = computerOn ? createCuaTransport({ onTiming: (timing) => log.info("computer.transport", { ...timing }) }) : undefined;
   const calendarHelper = findCalendarHelper();
   log.info("calendar.helper", { available: Boolean(calendarHelper) });
-  // The tools ARK can use. Built before the model because "Claude (my plan)" runs the tool loop itself and
+  // The tools ARK can use. Built before the model because "Claude" runs the tool loop itself and
   // needs them; the other providers get them from the Core.
   const tools = [
     // Task 3.16: only with Keshab's own Paperclip on this Mac. Approvals are answered only after his OK on the card.

@@ -24,7 +24,7 @@ export const OPENCODE = "opencode";
 export const PROVIDERS = {
   "claude-plan": {
     // Its "key" is the path of the `claude` program (ARK_CLAUDE_PATH, or found automatically), not a secret.
-    name: "Claude (my plan)",
+    name: "Claude",
     keyVar: "ARK_CLAUDE_PATH",
     defaultModel: "claude-sonnet-5-5",
     models: [
@@ -34,7 +34,7 @@ export const PROVIDERS = {
     ],
   },
   codex: {
-    name: "Codex (my ChatGPT plan)",
+    name: "Codex",
     keyVar: "ARK_CODEX_PATH",
     defaultModel: "codex-default",
     // ADR-097: a known list (Codex gives no list to other programs), plus a custom model id in Settings.
@@ -47,7 +47,7 @@ export const PROVIDERS = {
     ],
   },
   "gemini-cli": {
-    name: "Gemini CLI (my Google sign-in)",
+    name: "Gemini CLI",
     keyVar: "ARK_GEMINI_PATH",
     defaultModel: "gemini-default",
     models: [
@@ -58,7 +58,7 @@ export const PROVIDERS = {
   },
   // ADR-270: model ids from https://docs.github.com/en/copilot/reference/cli-command-reference ("Supported models").
   copilot: {
-    name: "Copilot CLI (my GitHub sign-in)",
+    name: "GitHub Copilot",
     keyVar: "ARK_COPILOT_PATH",
     defaultModel: "copilot-default",
     models: [
@@ -74,7 +74,7 @@ export const PROVIDERS = {
   },
   // ADR-270: provider/model ids from https://opencode.ai/docs/models/ ; "OpenCode's own model" is its configured default.
   opencode: {
-    name: "OpenCode (my sign-ins)",
+    name: "OpenCode",
     keyVar: "ARK_OPENCODE_PATH",
     defaultModel: "opencode-default",
     models: [
@@ -92,7 +92,7 @@ export type LlmProvider = keyof typeof PROVIDERS;
 type Env = Record<string, string | undefined>;
 
 /**
- * The signed-in `claude` program that "Claude (my plan)" runs. ARK_CLAUDE_PATH wins and is never second-guessed:
+ * The signed-in `claude` program that "Claude" runs. ARK_CLAUDE_PATH wins and is never second-guessed:
  * if it is wrong the answer is "not found", not some other copy. Otherwise the usual install places, then PATH.
  */
 export function findClaudeProgram(

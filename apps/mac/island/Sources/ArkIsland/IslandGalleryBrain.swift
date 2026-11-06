@@ -151,7 +151,7 @@ extension IslandGallery {
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         let palette = theme.palette
-        let info = #"{"type":"info","provider":"claude-plan","model":"claude-sonnet-5-5","providers":[{"id":"claude-plan","name":"Claude (my plan)","available":true,"models":[{"id":"claude-opus-5-5","name":"Claude Opus 5.5"},{"id":"claude-sonnet-5-5","name":"Claude Sonnet 5.5"},{"id":"claude-haiku-4-5-20251001","name":"Claude Haiku 4.5"}]}]}"#
+        let info = #"{"type":"info","provider":"claude-plan","model":"claude-sonnet-5-5","providers":[{"id":"claude-plan","name":"Claude","available":true,"models":[{"id":"claude-opus-5-5","name":"Claude Opus 5.5"},{"id":"claude-sonnet-5-5","name":"Claude Sonnet 5.5"},{"id":"claude-haiku-4-5-20251001","name":"Claude Haiku 4.5"}]}]}"#
         let helpers = #"{"type":"helpers","apps":[],"teamTasks":[],"helpers":[],"managers":[],"allowLarge":false,"models":[{"id":"claude-haiku-4-5","name":"Claude Haiku 4.5","tier":"small"},{"id":"claude-sonnet-4-5","name":"Claude Sonnet 4.5","tier":"medium"},{"id":"claude-opus-5-5","name":"Claude Opus 5.5","tier":"large"}]}"#
         let m = IslandModel(settings: IslandSettings(defaults: defaults))
         m.settings.theme = theme

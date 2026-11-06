@@ -94,14 +94,14 @@ struct EverydayProtocolTests {
 
 @Suite("Everyday polish: switch provider on a rate limit (ADR-076)")
 struct RateLimitSwitchTests {
-    static let info = #"{"type":"info","provider":"claude-plan","model":"claude-opus-5-5","providers":[{"id":"claude","name":"Claude","available":false,"models":[{"id":"claude-sonnet-5-5","name":"Claude Sonnet 5.5"}]},{"id":"claude-plan","name":"Claude (my plan)","available":true,"models":[{"id":"claude-opus-5-5","name":"Claude Opus 5.5"}]},{"id":"gemini","name":"Gemini","available":true,"models":[{"id":"gemini-3.8-flash","name":"Gemini 3.8 Flash"},{"id":"gemini-3.6-flash","name":"Gemini 3.6 Flash"}]}]}"#
+    static let info = #"{"type":"info","provider":"claude-plan","model":"claude-opus-5-5","providers":[{"id":"claude","name":"Claude","available":false,"models":[{"id":"claude-sonnet-5-5","name":"Claude Sonnet 5.5"}]},{"id":"claude-plan","name":"Claude","available":true,"models":[{"id":"claude-opus-5-5","name":"Claude Opus 5.5"}]},{"id":"gemini","name":"Gemini","available":true,"models":[{"id":"gemini-3.8-flash","name":"Gemini 3.8 Flash"},{"id":"gemini-3.6-flash","name":"Gemini 3.6 Flash"}]}]}"#
     static let limit = #"{"type":"error","stage":"model","kind":"rate_limit","message":"Your Claude plan limit is reached. It resets at 3 pm.","retryable":true}"#
 
     @Test func offersTheOtherUsableProviderWithItsFirstModel() throws {
         var status = IslandStatus()
         status.apply(try decodeEvent(Self.info))
         status.apply(try decodeEvent(Self.limit))
-        #expect(status.failure == PlainFailure(sentence: "Claude (my plan) has reached its limit for now.", button: "Switch to Gemini",
+        #expect(status.failure == PlainFailure(sentence: "Claude has reached its limit for now.", button: "Switch to Gemini",
                                                action: .switchModel(provider: "gemini", model: "gemini-3.8-flash")))
         #expect(IslandCommand.modelSet(provider: "gemini", model: "gemini-3.8-flash").type == "model.set")
     }
