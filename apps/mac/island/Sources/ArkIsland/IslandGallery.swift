@@ -24,6 +24,11 @@ enum IslandGallery {
             return
         }
 
+        if ArkEnv.read("ARK_ISLAND_GALLERY_ONLY") == "visuals" { // ADR-276
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            writeArkVisuals(to: directory)
+            return
+        }
         if ArkEnv.read("ARK_ISLAND_GALLERY_ONLY") == "management" {
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             writeManagement(to: directory)
@@ -107,6 +112,7 @@ enum IslandGallery {
         writeChatDesign(to: directory)
         writeModelPicker(to: directory)
         writeReplyMedia(to: directory)
+        writeArkVisuals(to: directory)
         writeGitWorkspace(to: directory)
         writeProjectSources(to: directory)
         writeAdaptation(to: directory)

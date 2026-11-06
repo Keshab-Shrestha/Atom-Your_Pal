@@ -1,5 +1,13 @@
 # ARK Task Plan
 
+## Result cards and plan notes — 6 November 2026
+
+- ADR-276 (design reference: Ghostex, MIT): a reply can hold an `ark-visual` block. The window draws stat tiles, bar rows, a line chart and tables in one card, with Copy (Markdown tables) and Source (the JSON). docs/chat-visuals.md gives the format.
+- The parser is strict and pure. An invalid block shows as code. VoiceOver reads the title, each stat and the shape of each chart.
+- The chat prompts carry one sentence and one small example for the block.
+- Each plan portion has Note: Looks good, Clarify or Needs tests, with optional words. Send notes puts numbered feedback in the chat box and does not send it. Notes stay on this Mac, per plan.
+- Verified: TypeScript tests (1486 pass, 11 skipped) and typecheck, Swift tests (1004 pass), fixture renders of the new `visuals` gallery group, UI check with no golden change (live step not run). Not done: notes on a text selection inside a plan; notes on a plan-first job's plan.
+
 ## Worked header, diff card and questions card — 6 November 2026
 
 - ADR-275 (design reference: Ghostex, MIT): each turn's work row is one header: chevron, the time in bold, the tool summary, and "3 tool calls" and "1 question" pills. The newest turn keeps its steps open. There is no "files changed" pill: tool rows carry no paths.

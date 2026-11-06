@@ -35,6 +35,8 @@ struct PlanDots: View {
 struct PlanCard: View {
     let model: IslandModel
     let plan: WorkPlanItem
+    /// ADR-276: the portion whose note editor is open.
+    @State var editing: Int? = nil
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -67,7 +69,11 @@ struct PlanCard: View {
             }
             ForEach(plan.portions) { portion in
                 Rectangle().fill(theme.separator.color).frame(height: theme.isFlat ? 1 : 0.5)
-                PlanPortionRow(model: model, plan: plan, portion: portion)
+                PlanPortionRow(model: model, plan: plan, portion: portion, editing: $editing)
+            }
+            if !model.planNotes(plan).isEmpty {
+                Rectangle().fill(theme.separator.color).frame(height: theme.isFlat ? 1 : 0.5)
+                PlanNotesList(model: model, plan: plan)
             }
         }
         .background(shape.fill(theme.fill1.color))
@@ -81,9 +87,24 @@ private struct PlanPortionRow: View {
     let model: IslandModel
     let plan: WorkPlanItem
     let portion: PlanPortion
+    @Binding var editing: Int?
     @Environment(\.theme) private var theme
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            row
+            if editing == portion.n {
+                PlanNoteEditor(portion: portion, add: { note in
+                    model.setPlanNotes(model.planNotes(plan) + [note], for: plan)
+                    editing = nil
+                }, cancel: { editing = nil })
+                .padding(.leading, 36)
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 8)
+    }
+
+    private var row: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text("P\(portion.n)").appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color).frame(width: 24, alignment: .leading)
             VStack(alignment: .leading, spacing: 2) {
@@ -100,6 +121,8 @@ private struct PlanPortionRow: View {
                 }
             }
             Spacer(minLength: 8)
+            QuietButton(title: "Note", symbol: "text.bubble") { editing = editing == portion.n ? nil : portion.n }
+                .help("Mark this step Looks good, Clarify or Needs tests, or add words")
             if let result = portion.resultJob {
                 QuietButton(title: "Retry report") { model.navigate { model.sendHelpers(model.helpers.openThread(result)) } }
                 if let original = portion.job {
@@ -109,7 +132,6 @@ private struct PlanPortionRow: View {
                 QuietButton(title: portion.recoveryState.needsReview ? "Review" : portion.state == .done ? "Report" : "Open") { model.navigate { model.sendHelpers(model.helpers.openThread(job)) } }
             }
         }
-        .padding(.horizontal, 16).padding(.vertical, 8)
     }
 }
 

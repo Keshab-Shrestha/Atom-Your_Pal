@@ -48,6 +48,11 @@ const MEDIA_RULE =
   'When the user asks for a chart or graph, write a ```chart block of JSON instead of a table: {"type":"bar"|"line"|"pie","title":"…",' +
   '"labels":["…"],"series":[{"name":"…","values":[1,2]}]}, one value per label, at most 6 series and 50 labels; a pie has one series. ' +
   "To show a picture, put a Markdown image on its own line: ![what it shows](an https address, or the absolute path of an image file on this Mac). " +
+  // ADR-276: a result card for numbers, comparisons and test results (docs/chat-visuals.md).
+  "For results with numbers (test runs, comparisons, measurements), write one ```ark-visual block of JSON: " +
+  '{"title":"Tests","blocks":[{"type":"stats","items":[{"label":"Failed","value":"2","tone":"bad"}]},' +
+  '{"type":"bar","unit":"ms","data":[{"label":"api","value":420}]}]}; blocks are stats, bar, line (data of label and value) ' +
+  'and table (columns, rows of text), at most 6 blocks and 40 points. ' +
   "For a logo, icon or simple drawing, write a ```svg block: one <svg> with a viewBox, using shapes, paths, gradients and text only, with no scripts, links or images. " +
   // 2026-11-02: a drawing went to an agent, which asked to write a file and stopped when the card expired.
   "Write charts and drawings yourself, in your reply: do not hand them to an agent or save them to a file unless the user asks for a file.";

@@ -708,6 +708,7 @@ test("every chat prompt describes the chart block and the image line", () => {
     assert.match(prompt, /write a ```chart block of JSON instead of a table: \{"type":"bar"\|"line"\|"pie"/);
     assert.match(prompt, /put a Markdown image on its own line/);
     assert.match(prompt, /For a logo, icon or simple drawing, write a ```svg block/);
+    assert.match(prompt, /write one ```ark-visual block of JSON: \{"title":"Tests","blocks":\[\{"type":"stats"/); // ADR-276
     assert.match(prompt, /Write charts and drawings yourself, in your reply: do not hand them to an agent/);
   }
   assert.match(CODEX_SYSTEM_PROMPT, /use your image generation tool; ARK shows the image under your reply/);

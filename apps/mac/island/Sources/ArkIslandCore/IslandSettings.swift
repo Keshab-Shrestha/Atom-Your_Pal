@@ -56,6 +56,7 @@ public final class IslandSettings {
     static let tourDoneKey = "ark.tourDone"
     static let ownerNameKey = "ark.owner.name"
     static let chatSeenKey = "ark.chat.seen"
+    static let planNotesKey = "ark.plan.notes"
 
     @ObservationIgnored private let defaults: UserDefaults
     /// Mirrors what is stored, so views observe changes.
@@ -138,6 +139,11 @@ public final class IslandSettings {
     /// ADR-274: what each chat held when it was last on screen, for Catch me up. No message text; this Mac only.
     public var chatSeen: [String: ChatSeen] {
         didSet { if chatSeen != oldValue { defaults.set(try? JSONEncoder().encode(chatSeen), forKey: Self.chatSeenKey) } }
+    }
+
+    /// ADR-276: the owner's notes on each work plan, until Send notes puts them in the composer. This Mac only.
+    public var planNotes: PlanNoteBook {
+        didSet { if planNotes != oldValue { defaults.set(try? JSONEncoder().encode(planNotes), forKey: Self.planNotesKey) } }
     }
 
     /// Local picker bookmarks only. They do not select a provider/model or grant access.
@@ -332,6 +338,7 @@ public final class IslandSettings {
         workspaceWidth = WorkspacePaneLayout.preference(defaults.object(forKey: Self.workspaceWidthKey) as? Double ?? 420)
         workspaceSurface = defaults.string(forKey: Self.workspaceSurfaceKey).flatMap(WorkspaceSurface.init(rawValue:))?.rawValue ?? "home"
         chatSeen = defaults.data(forKey: Self.chatSeenKey).flatMap { try? JSONDecoder().decode([String: ChatSeen].self, from: $0) } ?? [:]
+        planNotes = defaults.data(forKey: Self.planNotesKey).flatMap { try? JSONDecoder().decode(PlanNoteBook.self, from: $0) } ?? PlanNoteBook()
         favoriteModels = Set((defaults.stringArray(forKey: Self.favoriteModelsKey) ?? []).prefix(128).filter { $0.count <= 256 })
         dictationMode = (defaults.string(forKey: Self.dictationModeKey)).flatMap(DictationMode.init(rawValue:)) ?? .automatic
         livePreview = defaults.object(forKey: Self.livePreviewKey) as? Bool ?? true

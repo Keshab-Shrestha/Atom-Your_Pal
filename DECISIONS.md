@@ -5194,3 +5194,36 @@ Design reference: Ghostex (github.com/maddada/Ghostex, MIT): its "Worked 9s" row
 - The file review's segmented picker and scroll view are AppKit views and do not render in a snapshot. The gallery shows the diff card on its own.
 - "Review all" from Ghostex was not added: one ARK file review holds one file, and the review is already the place to review it.
 - Gallery scenes: `ARK_ISLAND_GALLERY_ONLY=transcript` renders 53-worked-header, 53-diff-card and 53-questions-card, each dark and light.
+
+## ADR-276 — Chat UX from Ghostex, batch 4: result cards and plan notes (2026-11-06)
+
+Follows ADR-275. Extends the reply chart (2026-11-02) and work plans (ADR-111).
+
+### Context
+
+ARK drew a `chart` block with one chart. A test run or a comparison needs several numbers together: counts, a ranking and the failures. Agents wrote these as several Markdown tables. A work plan on the Board had no place for the owner's feedback on each step. The owner typed the feedback by hand.
+
+Design reference: Ghostex (github.com/maddada/Ghostex, MIT): its `visual` result cards and its plan annotations. ARK uses no Ghostex code, assets or pixel layouts. Each pattern is drawn again with ARK's tokens, type scale and square cards (ADR-214).
+
+### Decision
+
+1. Result card. A reply can hold a fenced block with the language `ark-visual`. The block holds one JSON object: a `title` and 1 to 6 blocks of type `stats`, `bar`, `line` or `table`. docs/chat-visuals.md gives the grammar and the limits.
+2. Strict parser. `ArkVisual.parse` in ArkIslandCore is pure and never throws. It refuses unknown keys, unknown types, wrong types, repeated chart labels, short table rows and any text or count over its limit. A refused block shows as code. A streaming block shows "Drawing a card…".
+3. Drawing. Stat tiles use the theme's good and bad colours for the tone. A line chart uses Swift Charts. Bars are plain SwiftUI rows (label, accent bar, value), because Swift Charts drew hairline bars on a category axis in the offscreen renderer. All bars and lines use the one accent colour.
+4. Header. An icon, the title, Source (shows the JSON) and Copy (the numbers as Markdown tables, with an HTML flavour). Select text shows the card as its tables.
+5. VoiceOver. The card is one element. Its label is the title, each stat, and for each chart its kind, its count and its largest value. Copy and Show source are actions.
+6. Prompt. The chat media rule (native-core.ts) gives one sentence and one small example. All four chat prompts carry it.
+7. Plan notes. Each portion row of a plan card has Note. The editor has three marks (Looks good, Clarify, Needs tests) and optional words. A note needs a mark or words. The notes list shows them in portion order with Remove, Clear and Send notes.
+8. Portion level, not text selection. Plan text is a SwiftUI Text. A selection in it cannot be read back, so a note belongs to a portion. The portion number is the line number in the message.
+9. Send notes. `PlanNotes.message` writes `Notes on the plan "<goal>":` and one numbered line for each note: `1. [Clarify] P2 — "<step, at most 160 characters>": <words>`. The message goes after the current chat's draft. ARK does not send it. The notes then clear.
+10. Storage. Settings keeps the notes per plan in UserDefaults (`ark.plan.notes`): at most 50 notes for each plan and the 40 newest plans. Each set keeps its goal; a plan number with another goal starts empty. No message text is stored.
+
+### Stays ARK's own
+
+- No scripts, no network, no HTML in a card. No new dependency, runtime command or wire field.
+- The owner sends the notes. The model does not see them before that.
+
+### Consequences
+
+- A card with a bad key shows as code. Agents must follow the grammar exactly.
+- Gallery scenes: `ARK_ISLAND_GALLERY_ONLY=visuals` renders 54-ark-visual and 54-plan-notes, each dark and light.
