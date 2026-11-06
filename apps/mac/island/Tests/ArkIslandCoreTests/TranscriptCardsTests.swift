@@ -46,12 +46,64 @@ struct TranscriptCardsTests {
     func hunkGrouping() {
         let old = (1...30).map { "l\($0)" }.joined(separator: "\n")
         let far = old.replacingOccurrences(of: "l2\n", with: "x\n").replacingOccurrences(of: "l28\n", with: "y\n")
-        #expect(UnifiedDiff.make(old: old, new: far).hunks.count == 2)
+        let two = UnifiedDiff.make(old: old, new: far).hunks
+        #expect(two.count == 2)
+        #expect(two[0].header == "@@ -1,5 +1,5 @@")
+        #expect(two[1].header == "@@ -25,6 +25,6 @@")
+        #expect(two[1].lines.map(\.kind) == [.context, .context, .context, .removed, .added, .context, .context, .note])
+        #expect(two[1].lines[0].old == 25 && two[1].lines[0].new == 25 && two[1].lines[0].text == "l25")
+        #expect(two[1].lines[3].old == 28 && two[1].lines[3].text == "l28" && two[1].lines[4].new == 28 && two[1].lines[4].text == "y")
+        #expect(two[1].lines[6].old == 30 && two[1].lines[6].new == 30, "the file has no final newline, so a note follows l30")
         let near = old.replacingOccurrences(of: "l2\n", with: "x\n").replacingOccurrences(of: "l7\n", with: "y\n")
         #expect(UnifiedDiff.make(old: old, new: near).hunks.count == 1)
         let created = UnifiedDiff.make(old: "", new: "a\nb\n")
         #expect(created.hunks.first?.header == "@@ -0,0 +1,2 @@" && created.added == 2 && created.removed == 0)
         #expect(UnifiedDiff.make(old: "same\n", new: "same\n").hunks.isEmpty)
+    }
+
+    @Test("a change to only the final newline shows the line as changed, with a no-newline note")
+    func finalNewline() {
+        let dropped = UnifiedDiff.make(old: "a\nb\n", new: "a\nb")
+        #expect(dropped.added == 1 && dropped.removed == 1)
+        #expect(dropped.hunks.first?.header == "@@ -1,2 +1,2 @@")
+        #expect(dropped.hunks.first?.lines.map(\.kind) == [.context, .removed, .added, .note])
+        #expect(dropped.hunks.first?.lines.last?.text == UnifiedDiff.noNewline)
+        let added = UnifiedDiff.make(old: "a\nb", new: "a\nb\n")
+        #expect(added.hunks.first?.lines.map(\.kind) == [.context, .removed, .note, .added])
+        #expect(UnifiedDiff.make(old: "a\nb", new: "a\nb").hunks.isEmpty)
+    }
+
+    @Test("a removed line and its added pair mark only the changed characters")
+    func changedRanges() {
+        #expect(UnifiedDiff.changedRanges("Date: Thursday", "Date: Thursday 10:00") == (nil, 14..<20))
+        #expect(UnifiedDiff.changedRanges("let rate = 10", "let rate = 15") == (12..<13, 12..<13))
+        #expect(UnifiedDiff.changedRanges("abc", "xyz") == (0..<3, 0..<3))
+        #expect(UnifiedDiff.changedRanges("aa", "aaa") == (nil, 2..<3), "a repeated character is not counted twice")
+        let diff = UnifiedDiff.make(old: "x\nlet rate = 10\nlet name = a\ny\n", new: "x\nlet rate = 15\ny\n")
+        let lines = diff.hunks[0].lines
+        #expect(lines.map(\.kind) == [.context, .removed, .removed, .added, .context])
+        #expect(lines[1].changed == 12..<13 && lines[3].changed == 12..<13, "pairs by position in the change")
+        #expect(lines[2].changed == nil, "a removed line with no added pair is not marked")
+    }
+
+    @Test("hidden characters become visible marks; tabs and emoji stay as they are")
+    func visibleMarks() {
+        let bidi = UnifiedDiff.segments("ab\u{202E}c", changed: nil)
+        #expect(bidi == [.init(text: "ab", changed: false, mark: false), .init(text: "⟨U+202E⟩", changed: false, mark: true),
+                         .init(text: "c", changed: false, mark: false)])
+        #expect(UnifiedDiff.segments("a\r", changed: 1..<2) == [.init(text: "a", changed: false, mark: false), .init(text: "␍", changed: true, mark: true)])
+        #expect(UnifiedDiff.segments("x\u{200B}\u{0}\u{7F}", changed: nil).map(\.text) == ["x", "⟨U+200B⟩␀␡"])
+        #expect(UnifiedDiff.segments("\tok 👨‍👩‍👧", changed: nil) == [.init(text: "\tok 👨‍👩‍👧", changed: false, mark: false)])
+        #expect(UnifiedDiff.segments("abc", changed: 1..<2).map(\.changed) == [false, true, false])
+    }
+
+    @Test("a question card never shows control or invisible bidi characters")
+    func questionTextClean() throws {
+        let json = #"{"chat":"c","turn":"\#(UUID().uuidString)","startedAt":"","elapsedMs":0,"state":"working","omitted":0,"calls":[],"#
+            + #""questions":[{"id":"\#(UUID().uuidString)","prompt":"Del\u202Eete\u200B it?\u0007\nWhy","choices":["Ye\u2066s\uFEFF","\u200F","N\u0000o"],"state":"pending"}]}"#
+        let question = try JSONDecoder().decode(ChatWorkSnapshot.self, from: Data(json.utf8)).questions[0]
+        #expect(question.prompt == "Delete it?\nWhy")
+        #expect(question.choices == ["Yes", "No"])
     }
 
     @Test("the mini squares follow the counts; the path splits into name and folder")

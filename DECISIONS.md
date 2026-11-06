@@ -5195,6 +5195,20 @@ Design reference: Ghostex (github.com/maddada/Ghostex, MIT): its "Worked 9s" row
 - "Review all" from Ghostex was not added: one ARK file review holds one file, and the review is already the place to review it.
 - Gallery scenes: `ARK_ISLAND_GALLERY_ONLY=transcript` renders 53-worked-header, 53-diff-card and 53-questions-card, each dark and light.
 
+### Checker fixes (2026-11-06)
+
+An independent checker reviewed this batch. These changes follow:
+
+1. Return in a note does not send the card. Only "Send answers" and ⌘↩ send.
+2. ⌘↩ sends the card only while focus is in the card (an `onKeyPress` on the card, not a window shortcut). In the message box, ⌘↩ keeps its ADR-274 meaning. This is checked by the build only, not by hand in the running app.
+3. The card waits 90 s for each question: four questions wait up to 360 s.
+4. VoiceOver reads the work header with its summary or current step.
+5. A change to only the final newline shows the last line as removed and added, with a "\ No newline at end of file" row, as `diff -u` writes it.
+6. In a change, a removed line and the added line at the same place mark the changed characters with a stronger tint (common prefix and suffix trimmed). A control character shows as its Control Pictures glyph (␍, ␀). A bidi, zero-width or other format character shows as "⟨U+202E⟩". A tab stays a tab, and the joiners in an emoji stay.
+7. The runtime (`chat-work.ts`) and the card (`ChatWorkSnapshot.Question` decoding) remove control characters and the characters U+200B–U+200F, U+202A–U+202E, U+2066–U+2069 and U+FEFF from prompts and choices. A prompt keeps its line breaks. A prompt with only such characters is refused.
+
+Known limit: when an answer cannot be saved, the card shows the error, but the answers that were already saved for the earlier questions stay saved. The card can then show a mismatch between what it shows and what was saved. This is not fixed.
+
 ## ADR-276 — Chat UX from Ghostex, batch 4: result cards and plan notes (2026-11-06)
 
 Follows ADR-275. Extends the reply chart (2026-11-02) and work plans (ADR-111).

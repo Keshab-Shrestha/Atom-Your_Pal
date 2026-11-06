@@ -136,7 +136,7 @@ struct ChatWorkView: View {
             }.appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
             .contentShape(Rectangle())
         }.buttonStyle(.plain)
-            .accessibilityLabel(([label] + chips).joined(separator: ", "))
+            .accessibilityLabel(([label, working ? step : work.calls.isEmpty ? nil : ChatWorkText.summary(work.calls)].compactMap { $0 } + chips).joined(separator: ", "))
             .accessibilityValue(hasSteps ? (expanded ? "Expanded" : "Collapsed") : "")
             .help("What ARK did in this turn. The time includes thinking, tools and waiting for your answers. A missing result means the outcome is unknown, not that nothing happened. This log is not kept in saved history.")
     }

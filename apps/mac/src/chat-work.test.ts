@@ -59,3 +59,40 @@ test("bad question input is refused with a reason the model can act on", async (
   assert.ok(await refuse({ question: "A?", choices: "x".repeat(161) }), "a choice is at most 160 characters");
   assert.equal(last().questions.length, 0);
 });
+
+test("a card waits 90 s per question; at expiry the given answers stay and the rest expire", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const { work, tools, last } = setup();
+  const pending = tools.run({ id: "c1", name: "ask_user", input: { questions: JSON.stringify([{ question: "A?" }, { question: "B?" }]) } });
+  const [first] = last().questions;
+  work.answer("cedar", last().turn, first.id, "Yes");
+  work.answer("cedar", last().turn, first.id, "No");
+  t.mock.timers.tick(90_000);
+  assert.deepEqual(last().questions.map((q) => q.state), ["pending", "pending"], "two questions wait 180 s, not 90 s");
+  t.mock.timers.tick(90_000);
+  const answers = JSON.parse((await pending).content).answers;
+  assert.deepEqual(answers, [{ question: "A?", userAnswer: "Yes" }, { question: "B?", unanswered: true }], "the second answer to A is ignored");
+  assert.deepEqual(last().questions.map((q) => q.state), ["answered", "expired"]);
+});
+
+test("Stop on a card with several questions keeps the given answers and skips the rest", async () => {
+  const { work, tools, last } = setup();
+  const stop = new AbortController();
+  const pending = tools.run({ id: "c1", name: "ask_user", input: { questions: JSON.stringify([{ question: "A?" }, { question: "B?" }, { question: "C?" }]) } }, stop.signal);
+  work.answer("cedar", last().turn, last().questions[1].id, "Later");
+  stop.abort();
+  const answers = JSON.parse((await pending).content).answers;
+  assert.deepEqual(answers.map((a: { userAnswer?: string }) => a.userAnswer), [undefined, "Later", undefined]);
+  assert.deepEqual(last().questions.map((q) => q.state), ["skipped", "answered", "skipped"]);
+});
+
+test("control and invisible bidi/format characters are removed from prompts and choices", async () => {
+  const { work, tools, last } = setup();
+  const pending = tools.run({ id: "c1", name: "ask_user", input: { question: "Del‮ete​ the\u0007 file?\nWhy", choices: "Ye⁦s﻿\n‏\nN\u0000o" } });
+  const [row] = last().questions;
+  assert.equal(row.prompt, "Delete the file?\nWhy");
+  assert.deepEqual(row.choices, ["Yes", "No"]);
+  work.answer("cedar", last().turn, row.id, "Yes");
+  await pending;
+  assert.ok((await tools.run({ id: "c2", name: "ask_user", input: { question: "‮​" } })).isError, "a prompt of only hidden characters is refused");
+});

@@ -28,6 +28,9 @@ const questionSpec: ToolSpec = {
     questions: { type: "string", description: "Optional, instead of question: a JSON array of 2–4 objects {\"question\": string, \"choices\": newline-separated string}, with the same limits" },
   } },
 };
+/** Control characters (a prompt keeps its line breaks) and the invisible bidi/format characters that could hide or reorder text. */
+const hidden = /[\u0000-\u0009\u000B-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g;
+const clean = (text: string) => text.replace(hidden, "").trim();
 /** ADR-275: one question, or 2–4 from the `questions` JSON string. A string is the refusal to send back. */
 function parseQuestions(input: Record<string, unknown>): { prompt: string; choices: string[] }[] | string {
   const keys = Object.keys(input);
@@ -43,11 +46,11 @@ function parseQuestions(input: Record<string, unknown>): { prompt: string; choic
   for (const item of raw) {
     if (!item || typeof item !== "object" || Object.keys(item).some((key) => !["question", "choices"].includes(key))) return "Each question is an object with question and optional choices.";
     const { question: prompt, choices: suggestions } = item as Record<string, unknown>;
-    if (typeof prompt !== "string" || !prompt.trim() || prompt.length > 600
+    if (typeof prompt !== "string" || !clean(prompt) || prompt.length > 600
         || (suggestions !== undefined && (typeof suggestions !== "string" || suggestions.length > 643))) return "Use questions of at most 600 characters and up to four short newline-separated choices.";
-    const choices = typeof suggestions === "string" ? suggestions.split("\n").map((s) => s.trim()).filter(Boolean) : [];
+    const choices = typeof suggestions === "string" ? suggestions.split("\n").map(clean).filter(Boolean) : [];
     if (choices.length > 4 || choices.some((c) => c.length > 160) || new Set(choices).size !== choices.length) return "Use at most four distinct choices per question, each at most 160 characters.";
-    out.push({ prompt: prompt.trim(), choices });
+    out.push({ prompt: clean(prompt), choices });
   }
   return out;
 }
@@ -136,7 +139,8 @@ export function createChatWork(options: { persistAnswer?(turn: string, card: str
         return new Promise((resolve) => {
           const given = new Map<string, string | undefined>();
           const stop = () => take();
-          const timer = setTimeout(() => take(undefined, undefined, true), 90_000); timer.unref?.();
+          // 90 s per question: four questions wait up to 360 s.
+          const timer = setTimeout(() => take(undefined, undefined, true), 90_000 * rows.length); timer.unref?.();
           const settle = (expired: boolean) => {
             clearTimeout(timer); signal?.removeEventListener("abort", stop); run.finishQuestion = undefined;
             for (const row of rows) {

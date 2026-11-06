@@ -3,7 +3,8 @@ import ArkIslandCore
 
 // ADR-275 (design reference: Ghostex, MIT; redrawn in ARK's tokens): the questions ARK waits on, as one card above the composer.
 // Each question has a numbered pill, its options as radio rows (a, b, c … pick them; ↑ ↓ move), an "Other / none of these"
-// row and an optional note. One "Send answers" (⌘↩) sends every question; a blank one goes as unanswered.
+// row and an optional note. One "Send answers" (⌘↩ while focus is in the card) sends every question; a blank one goes as
+// unanswered. Return in a note does not send.
 
 struct ChatQuestionsCard: View {
     let model: IslandModel
@@ -33,6 +34,13 @@ struct ChatQuestionsCard: View {
         .overlay(shape.strokeBorder(theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.5))
         .clipShape(shape)
         .disabled(sent)
+        // ⌘↩ sends only while focus is in this card (a pick list or a note); in the message box it keeps ADR-274's meaning.
+        // Return in a note does nothing, so a half-written card is never sent by accident.
+        .onKeyPress(.return, phases: .down) { press in
+            guard press.modifiers.contains(.command), !sent else { return .ignored }
+            send()
+            return .handled
+        }
         .onAppear { if picks.isEmpty { picks = preset } }
         .onChange(of: work) { _, _ in if work.questions.contains(where: { $0.error != nil }) { sent = false } }
         .accessibilityElement(children: .contain)
@@ -64,7 +72,7 @@ struct ChatQuestionsCard: View {
             }
             if let error = question.error { Text(error).appFont(.system(size: 11)).foregroundStyle(theme.attention.color) }
             if !options.isEmpty { optionList(question: question, options: options, number: index + 1) }
-            SoulField(label: options.isEmpty ? "Your answer" : "Note (optional)", text: noteBinding(question.id), lines: 1, submit: send)
+            SoulField(label: options.isEmpty ? "Your answer" : "Note (optional)", text: noteBinding(question.id), lines: 1)
                 .accessibilityLabel(options.isEmpty ? "Answer to question \(index + 1)" : "Note for question \(index + 1)")
         }
         .padding(.horizontal, 12).padding(.vertical, 12)
@@ -144,8 +152,7 @@ struct ChatQuestionsCard: View {
                 if sent { Text("Waiting for confirmation…").appFont(.system(size: 11)).foregroundStyle(theme.text3.color) }
                 Text("⌘↩").appFont(.system(size: 11)).foregroundStyle(theme.text3.color).accessibilityHidden(true)
                 PillButton(title: "Send answers", symbol: "paperplane", prominent: true, action: send)
-                    .keyboardShortcut(.return, modifiers: .command)
-                    .accessibilityHint("Command Return")
+                    .accessibilityHint("Command Return while focus is in this card")
             }
             Text("Answers give clarification, not file or system permission. Do not enter passwords or secrets. The message box queues a new message instead.")
                 .appFont(.system(size: 11)).foregroundStyle(theme.text3.color)

@@ -21,7 +21,7 @@ extension IslandGallery {
             FileHandle.standardError.write(Data("gallery: transcript fixture did not decode\n".utf8)); return
         }
         let before = "# Cedar launch\n\nDate: Thursday\nAudience: small teams\n\n## Steps\n1. Announce\n2. Walk through\n3. Follow up\n"
-        let after = before.replacingOccurrences(of: "Date: Thursday\n", with: "Date: Thursday 10:00\nOwner: launch team\n")
+        let after = before.replacingOccurrences(of: "Date: Thursday\n", with: "Date: Thursday 10:00\nOwner: launch\u{200B} team\n") // a hidden character shows as a mark
             .replacingOccurrences(of: "3. Follow up\n", with: "3. Collect questions\n4. Follow up\n")
         let review = #"{"type":"approval.request","id":"r1","summary":"Change ~/Documents/Cedar/launch.md","reason":"a copy of the file is kept so you can undo it","fileReview":{"path":"/Users/example/Documents/Cedar/launch.md","before":\#(jsonString(before)),"after":\#(jsonString(after)),"token":"\#(id())"}}"#
         do { model.apply(try decodeEvent(review)) }

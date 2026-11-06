@@ -3,8 +3,8 @@ import ArkIslandCore
 
 // ADR-275 (design reference: Ghostex, MIT; redrawn in ARK's tokens): a file change as a card. A header with a pencil tile, the
 // file count and "+N −M" with five mini squares; then one section per file (chevron, name in bold, folder dim) with
-// its hunks: a tinted "@@" line, then the lines with old and new numbers, added lines green and removed lines red. Plain text,
-// never Markdown or code that runs. "Reveal in Finder" is ARK's file action (ProjectFileNavigation): it never opens the file.
+// its hunks: a tinted "@@" line, then the lines with old and new numbers, added lines green and removed lines red, the changed
+// characters of a paired line in a stronger tint and hidden characters as marks. Plain text, never Markdown or code that runs. "Reveal in Finder" is ARK's file action (ProjectFileNavigation): it never opens the file.
 
 struct FileDiffCard: View {
     struct File: Identifiable {
@@ -116,13 +116,16 @@ struct FileDiffCard: View {
         let (sign, tint): (String, Color?) = switch line.kind {
         case .added: ("+", theme.success.color)
         case .removed: ("−", theme.problem.color)
-        case .context: (" ", nil)
+        case .context, .note: (" ", nil)
         }
         return HStack(alignment: .firstTextBaseline, spacing: 0) {
             Text(line.old.map(String.init) ?? "").frame(width: 34, alignment: .trailing)
             Text(line.new.map(String.init) ?? "").frame(width: 34, alignment: .trailing)
             Text(sign).frame(width: 18).foregroundStyle(tint ?? theme.text3.color)
-            Text(verbatim: line.text.isEmpty ? " " : line.text).foregroundStyle(theme.text.color)
+            Group {
+                if line.kind == .note { Text(verbatim: line.text).italic().foregroundStyle(theme.text3.color) }
+                else { Text(styled(line, tint: tint)).foregroundStyle(theme.text.color) }
+            }
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -130,7 +133,20 @@ struct FileDiffCard: View {
         .padding(.vertical, 1).padding(.trailing, 12)
         .background(tint.map { $0.opacity(theme.isDark ? 0.16 : 0.10) } ?? .clear)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(line.kind == .added ? "Added" : line.kind == .removed ? "Removed" : "Line") \(line.new ?? line.old ?? 0): \(line.text)")
+        .accessibilityLabel(line.kind == .note ? line.text
+            : "\(line.kind == .added ? "Added" : line.kind == .removed ? "Removed" : "Line") \(line.new ?? line.old ?? 0): \(UnifiedDiff.segments(line.text, changed: nil).map(\.text).joined())")
+    }
+
+    /// The changed characters get a stronger tint; a hidden character shows as a dim mark (`UnifiedDiff.segments`).
+    private func styled(_ line: UnifiedDiff.Line, tint: Color?) -> AttributedString {
+        var out = AttributedString()
+        for segment in UnifiedDiff.segments(line.text, changed: line.changed) {
+            var piece = AttributedString(segment.text)
+            if segment.changed, let tint { piece.backgroundColor = tint.opacity(theme.isDark ? 0.42 : 0.30) }
+            if segment.mark { piece.foregroundColor = theme.attention.color }
+            out += piece
+        }
+        return out.characters.isEmpty ? AttributedString(" ") : out
     }
 
     private func reveal(_ path: String) {
