@@ -11,13 +11,13 @@
 ---
 
 <p align="center">
-  <img src="docs/images/ark-chat-window.png" width="820" alt="The ARK window: the chat list and a chat">
-  <br><sub><b>Chat.</b> Your chats on the left, the conversation on the right. Pick the model, the thinking level and the access for each chat under the message field.</sub>
+  <img src="docs/images/ark-chat-window.png" width="820" alt="The ARK window in the Daylight theme: the rail, the chat list and a chat with the model, thinking and access pickers">
+  <br><sub><b>Chat.</b> The rail at the left, your chats, then the conversation. Pick the model, the thinking level and the access for each chat under the message field.</sub>
 </p>
 
 <p align="center">
-  <img src="docs/images/ark-studio.png" width="820" alt="The Board's Studio as a navy blueprint with agents at desks">
-  <br><sub><b>Studio.</b> Working agents sit at a desk with their current step. Idle agents wait in Recharge.</sub>
+  <img src="docs/images/ark-studio.png" width="820" alt="The Board in the Studio view: a navy blueprint with agents at desks, the Flow, Studio and Team tabs, and the agent list">
+  <br><sub><b>Studio.</b> The Board's Studio view: working agents sit at a desk with their current step, and idle agents wait in Recharge. The agent list is at the right.</sub>
 </p>
 
 <p align="center">
@@ -27,8 +27,8 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/ark-workers-card.png" width="820" alt="The Workers card: a manager's job with three worker jobs under it, each with its state and latest step">
-  <br><sub><b>Workers card.</b> A manager splits the task. Its workers show under it, with their state and latest step.</sub>
+  <img src="docs/images/ark-workers-card.png" width="820" alt="The Workers card: a manager's job with the jobs of its agents under it, each with its state and latest step">
+  <br><sub><b>Workers card.</b> A manager splits the task. The jobs of its agents show under it, with their state and latest step.</sub>
 </p>
 
 <p align="center">
@@ -103,18 +103,19 @@ All features: [docs/features.md](docs/features.md).
 
 ## Safety
 
-- Agents work in your home folder and on external drives. `~/Library`, hidden folders, secrets and ARK's own data are protected.
-- A change to an existing file asks first, except in Full access. ARK keeps a copy for Undo.
-- Network commands, sudo, system settings, git pushes and git history rewrites ask first.
+- ARK asks before it uses `~/Library`, hidden folders, secrets, ARK's data, or bank, tax or medical files. Full access skips this question.
+- A change to an existing file and a move to the Trash ask first, except in Full access. ARK keeps a copy of each changed file for Undo.
+- A git push asks first, except in Full access. ARK pushes only the task's own branch, never with force.
+- Network commands, sudo, system settings and git history rewrites ask first. Full access skips this question, except after an agent reads web text.
 - ARK always refuses permanent deletes, remote changes and keychain reads.
-- After an agent reads web text, risky actions ask again, also in Full access.
+- After an agent reads web text, outside-sandbox commands, MCP calls and lasting changes ask again, also in Full access.
 - Logs hold ids, states and timings, never your words. ARK never reads your provider logins.
 
 Details: [SECURITY.md](SECURITY.md). Every decision: [DECISIONS.md](DECISIONS.md).
 
 ## Install
 
-ARK is built on your Mac from this repository. Each option ends with the same build: `scripts/setup.sh` installs the packages, makes a local signing identity ("ARK Local Signing", so macOS keeps ARK's permissions across rebuilds), builds `ARK.app` and opens it.
+You build ARK on your Mac from this repository. Each option ends with `scripts/setup.sh`. This script installs the packages and makes a local signing identity, "ARK Local Signing". With this identity, macOS keeps ARK's permissions across rebuilds. Then the script builds `ARK.app` and opens it.
 
 **Option 1: the installer file.** Download **Install-ARK.command** from the [latest release](https://github.com/Keshab-Shrestha/Atom-Your_Pal/releases/latest). In Finder, right-click it and choose **Open** (macOS blocks a double-click the first time). Answer the questions in Terminal.
 
@@ -161,7 +162,7 @@ The installer checks each required item and asks before it installs one with Hom
 | ffmpeg and whisper.cpp | No | The fallback for speech to text | `brew install ffmpeg whisper-cpp` |
 | Cua Driver | No | Computer control | [github.com/trycua/cua](https://github.com/trycua/cua), then `cua-driver permissions grant` |
 
-The voice (Kokoro) and dictation (Parakeet) models download the first time you use them. macOS asks for each permission the first time ARK needs it: Microphone, Input Monitoring, Accessibility, Automation, Calendar and Reminders, Notifications, and Screen Recording for computer control.
+The voice (Kokoro) and dictation (Parakeet) models download the first time you use them. macOS asks for each permission the first time that ARK needs it. ARK uses Microphone, Input Monitoring, Accessibility, Automation, Calendar, Reminders and Notifications. Computer control also needs Screen Recording.
 
 ## Use ARK from other tools
 
@@ -171,7 +172,9 @@ Turn on Settings → General → Local API. Then add the MCP server to Claude Co
 claude mcp add ark -- node /path/to/ark/apps/mac/src/mcp-serve.ts
 ```
 
-The tools are `ark_give_goal`, `ark_goal_status`, `ark_chat`, `ark_list_tasks`, `ark_task_report`, `ark_needs_you` and `ark_answer_need`. The local API listens on `http://127.0.0.1:4790` (`ARK_API_PORT` changes the port). Each request needs the bearer token from `data/api-token`. The token can read saved memory facts, Second brain note previews and shared chat history, approve or reject plans, and retry tasks. It cannot answer risky-action cards, skill installs or soul changes. Turn the API off when you do not use it. Settings → General → "Regenerate" replaces the token.
+The tools are `ark_give_goal`, `ark_goal_status`, `ark_chat`, `ark_list_tasks`, `ark_task_report`, `ark_needs_you` and `ark_answer_need`.
+
+The local API listens on `http://127.0.0.1:4790`. `ARK_API_PORT` changes the port. Each request needs the bearer token from `data/api-token`. The token can read saved memory facts, Brain note previews and shared chat history. It can approve or reject plans and retry tasks. It cannot answer risky-action cards, skill installs or soul changes. Turn the API off when you do not use it. Settings → General → "Regenerate" replaces the token.
 
 Telegram: [docs/telegram.md](docs/telegram.md). Phone with Tailscale: [docs/mobile.md](docs/mobile.md).
 
@@ -182,7 +185,7 @@ Telegram: [docs/telegram.md](docs/telegram.md). Phone with Tailscale: [docs/mobi
 | `ARK.app` (Swift) | The window, the island, Pal, notifications, push-to-talk and dictation (Parakeet) |
 | Runtime (Node.js, TypeScript) | Requests, chats, tools, memory, policy and approvals |
 | Speech | Parakeet in the app, Whisper as the runtime fallback, Kokoro for the voice |
-| Helpers | Agents, souls, tasks, the org chart, routines and grants (SQLite) |
+| `services/helpers` | Agents, souls, jobs, the org chart, routines and grants (SQLite) |
 | LLM Gateway | Claude Code, Codex (with checked host tools), Gemini CLI, Copilot CLI and OpenCode |
 | Policy | Folder checks, approvals, the sandbox and the agent-call rules, all in code |
 
@@ -194,7 +197,7 @@ The app and the runtime talk in line-delimited JSON ([docs/island-protocol.md](d
 |---|---|
 | `apps/mac/src/` | The Node.js runtime (TypeScript) |
 | `apps/mac/island/` | The Swift app (`ARK.app`) and its tests |
-| `services/` | Core, helpers, LLM gateway, memory, tool engine, decision engine |
+| `services/` | `core`, `helpers`, `llm-gateway`, `memory`, `tool-engine`, `decision-engine` |
 | `packages/` | Shared contracts and utilities (`@ark/*`) |
 | `data/agents/` | One `soul.md` for each agent |
 | `docs/` | Protocol, features, design notes and images |
@@ -235,4 +238,4 @@ The smoke tests start the runtime in a temporary folder with a clean environment
 
 ## Status
 
-ARK is in active development. You build it from source on your Mac. There is no signed, packaged app for other Macs yet. Many new features have tests but no live check yet. [STATUS.md](STATUS.md) gives the current state. The repository has no license file yet.
+You build ARK from source on your Mac. There is no signed, packaged app for other Macs yet. Many new features have tests but no live check yet. The install commands download the `main` branch. Some features on this page reach `main` when their pull requests merge. [STATUS.md](STATUS.md) gives the current state. The repository has no license file yet.

@@ -50,7 +50,7 @@ Questions and the queue:
 - Questions card (ADR-275): ARK can ask one to four numbered questions in one card. Each question has options with letter keys, a "Recommended" pill, "Other / none of these" and a note. "Send answers" (⌘↩) sends all answers. A blank question goes as unanswered.
 - Queue (ADR-274): while ARK answers, Return or Tab puts your message in the queue. ⌘Return sends the next queued message now. Each queued message is a row: drag it to change the order, or use Edit, Send now and Remove.
 - Catch me up (ADR-274): when a chat changed while you were away, "Catch me up" shows above the box. A click asks ARK for a short summary of what happened.
-- Workers card (ADR-273): under the latest turn, one card lists each Board job that the chat started. A worker sits under the job that started it. A manager has a crown. A quiet job gets a hollow ring after 8 minutes with no output. Click a row to open the task. The "Workers n" chip above the box scrolls to the card.
+- Workers card (ADR-273): under the latest turn, one card lists each Board job that the chat started. An agent's job sits under the job that started it. A manager's job has a crown. A quiet job gets a hollow ring after 8 minutes with no output. Click a row to open the job. The "Workers n" chip above the box scrolls to the card.
 
 Text and commands:
 
@@ -69,7 +69,10 @@ Text and commands:
 - Home has an "Ask ARK anything…" box that starts a chat, and your pinned panels.
 - Home has three tiles: Need you, Running and Agents. One line under them shows today's tokens, the week's API-equivalent cost and cache hits.
 - Home lists At work, Goals and Just in when they have rows (ADR-266).
-- "ARK noticed": once a day ARK counts what goes wrong in its own log. Home shows up to three notes, for example a tool that keeps failing, a crash, a slow answer or chats that often end without an answer. "Fix it" starts a coding agent on a branch of ARK's own source. You review the diff and push it. ARK never merges. ARK never pushes a branch that changes permission, approval, update or dependency files. When the problem stops in the log, Home says "Fixed". If it comes back, the note comes back. Settings → Privacy turns this off.
+- "ARK noticed": once a day ARK counts the problems in its own log. Home shows up to three notes, for example a tool that keeps failing, a crash, a slow answer or chats that often end without an answer.
+- "Fix it" starts a coding agent on a branch of ARK's own source. You review the diff and push it.
+- ARK never merges. ARK never pushes a branch that changes permission, approval, update or dependency files.
+- When the problem stops in the log, Home says "Fixed". If the problem comes back, the note comes back. Settings → Privacy turns this off.
 - ⌘K command palette: one search box for actions, pages, Board views, your newest chats, agents, projects, Settings pages and themes.
 - ⌘J "Ask an agent": a panel on any page. Pick an agent, see its latest tasks and give it a new task.
 - The You page shows your name, what ARK remembers, your setup, your activity and your connections.
@@ -78,7 +81,7 @@ Text and commands:
 ## Projects
 
 - A project is a folder or a git repository: local, a Git URL or GitHub.
-- Project chats get file tools, commands and an isolated git worktree for each agent task.
+- Project chats get file tools, commands and an isolated git worktree for each agent job.
 - Workspace pane (⌥⌘R): Files, Changes (with Undo), Git, Browser, Terminal, Run and Details. ⌥⌘1 to ⌥⌘7 open each one.
 
 ## Voice
@@ -100,22 +103,22 @@ Agents:
 - Kits: research (the web), folders (files) and think (no tools). In a Full access chat every agent has the tools of every kit.
 - ARK answers known topics itself. It gives work to an agent only when you name one, ask for sources, change files or need many lookups.
 - ARK makes a new agent when no agent fits. You approve it on a card.
-- Plans: ARK splits a big job into portions, one agent for each. A plan card shows each handoff between portions.
+- Plans: ARK splits a big task into portions, one agent for each. A plan card shows each handoff between portions.
 - Plan notes (ADR-276): each portion has Note with Looks good, Clarify or Needs tests, and optional words. "Send notes" puts numbered feedback in the chat box. ARK does not send it for you.
 - The same team rules apply in Claude chats and in Codex chats.
 
 The team and its chain of command (ADR-261, ADR-272):
 
 - Any agent can report to another agent, its manager. ARK is the CEO. The chart goes at most 4 levels below ARK.
-- Work goes through managers: ARK gives a task for a worker to the worker's manager, and the manager assigns it. Exceptions: you name the agent, or the agent reports to ARK.
+- Work goes through managers: ARK gives a task for an agent to that agent's manager. The manager assigns it. Exceptions: you name the agent, or the agent reports to ARK.
 - Agents call agents: an agent can give part of its task to a direct report or a peer. Code checks each call: no call to itself or up the chart, no loop, at most 4 levels deep and at most 6 agents below one task.
 - The same agent can run many jobs at the same time. In a Git project each job gets its own worktree.
-- A child job shows under its parent on the Board. Its report goes back to its caller. Stopping a task stops its children.
+- A child job shows under its parent on the Board. Its report goes back to its caller. Stopping a job stops its child jobs.
 - Hand back: an agent that should not pick the next agent ends its report with "Hand back: <need>". ARK then picks the agent.
 
 The Board has three views:
 
-- Flow: four lanes, Needs you, Running, To do and Done. Answer questions and approvals in the Needs you lane. A card opens an inspector. A manager's card shows its workers under it. On a narrow pane the Flow is a stacked list. A box above the team gives a task to an agent (ADR-257).
+- Flow: four lanes, Needs you, Running, To do and Done. Answer questions and approvals in the Needs you lane. A card opens an inspector. A manager's card shows the jobs of its agents under it. On a narrow pane the Flow is a stacked list. A box above the team gives a task to an agent (ADR-257).
 - Studio: the agents at their desks, drawn as a blueprint. Idle agents wait in Recharge. The light bulb switches between a navy print and a pale print.
 - Team: the org chart on an endless board (ADR-262). Drag an agent onto a manager to move it to that team. Click an agent to set its availability, its manager, its soul, or to remove it.
 
@@ -154,7 +157,7 @@ The Apps page (ADR-265) holds simple apps (panels) and custom apps in one grid. 
 
 ## Memory and everyday tools
 
-- ARK remembers facts that you ask it to keep. It also keeps lasting facts that you state in a chat, with no question. A "Remembered" row with Undo shows for 10 minutes. See, edit or forget each fact in Second brain. Settings → Privacy has the switch.
+- ARK remembers facts that you ask it to keep. It also keeps lasting facts that you state in a chat, without asking. A "Remembered" row with Undo shows for 10 minutes. See, edit or forget each fact on the Brain page. Settings → Privacy has the switch.
 - ARK recovers earlier parts of a long chat.
 - Brain: notes, links and source folders that ARK can read.
 - Calendar, reminders, timers, weather, notes, music, opening apps, and "what is this page?" for the browser in front.
@@ -183,14 +186,15 @@ The Apps page (ADR-265) holds simple apps (panels) and custom apps in one grid. 
 
 ## Safety
 
-- Files: agents work in your home folder and on external drives. ARK protects `~/Library`, hidden folders, secrets, ARK's data, git's own files and identity, and bank, tax and medical documents.
-- A change to an existing file asks once for each file, except in Full access. ARK keeps a copy of each changed file for Undo.
-- Network commands, sudo, system settings and git history rewrites ask first. Then they run outside the sandbox.
-- A git push asks first. Then ARK pushes the task's own branch to origin, never with force.
-- ARK always refuses permanent deletes (files go to the Trash), remote changes and keychain reads.
-- After an agent reads web text, lasting changes, MCP calls and outside-sandbox commands ask again, also in Full access.
+- ARK asks before it uses `~/Library`, hidden folders, secrets, ARK's data, git's own files, or bank, tax or medical files. Full access skips this question.
+- A change to an existing file asks once for each file. Full access skips this question. ARK keeps a copy of each changed file for Undo.
+- A delete moves the item to the Trash and asks first. Full access skips this question.
+- A git push asks first, except in Full access. ARK pushes only the task's own branch to origin, never with force.
+- Network commands, installs, sudo, system settings and git history rewrites ask first. Then they run outside the sandbox. Full access skips this question, except after an agent reads web text.
+- ARK always refuses permanent deletes (`rm` and similar), remote changes, system-changing commands and keychain reads.
+- After an agent reads web text, outside-sandbox commands, MCP calls and lasting changes ask again, also in Full access.
 - An approval card that gets no answer expires. ARK tells the agent. ARK does not count it as a refusal.
-- Agent calls to other agents follow code rules, not model choices (ADR-272).
+- Code checks each call from one agent to another agent (ADR-272). The model does not decide.
 - Secrets in the activity timeline show as `[hidden]`. Logs hold ids, states and timings, never your words.
 - ARK uses your signed-in Claude Code, Codex, Gemini CLI, Copilot CLI and OpenCode. It never reads their logins. It removes API keys and GitHub tokens from the environment of these programs.
 
