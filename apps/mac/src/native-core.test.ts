@@ -380,6 +380,18 @@ test("org: the team line joins the team prompt only when set; a chart change rea
   store.close();
 });
 
+test("ADR-272: with a chart, each agent with a report or peer gets the Agent tool and its team line", async () => {
+  const { sdk, queries } = fakeSdk();
+  const store = openHelperStore({ path: ":memory:" });
+  const core = make(sdk, { team: { helpers: store, approve: async () => false, worktrees: "/tmp/ark-org-wt", reportsTo: () => ({ kame: "sid", puff: "sid", quill: "sid", hana: "penny" }) } });
+  await core.handle({ text: "hello", source: "voice" });
+  const agents = queries[0]!.options.agents as Record<string, { tools: string[]; prompt: string }>;
+  assert.ok(agents.sid!.tools.includes("Agent"));
+  assert.match(agents.sid!.prompt, /Your reports: Kame \(kame\), Puff \(puff\), Quill \(quill\)\.\nYour peers: Penny \(penny\)\./);
+  assert.equal(agents.hana!.tools.includes("Agent"), false, "Hana has no report and no peer: no Agent tool");
+  store.close();
+});
+
 test("N2: a new agent restarts the session with resume only at a turn when no background task runs", async () => {
   const { sdk, queries } = backgroundSdk();
   const { store: chatSessions } = sessions();

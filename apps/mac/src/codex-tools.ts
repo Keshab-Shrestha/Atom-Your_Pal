@@ -462,8 +462,8 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
     const adapter = createCodexSessionAdapter({ program: options.program, model: workerModel, runner: () => runner, ...options.session, ...(options.onUsage ? { onUsage: (u, r, model) => options.onUsage!(u, { ...r, context: { ...r.context, sessionId: req.context.sessionId, requestId: `job:${job}` } }, model) } : {}) });
     try {
       if (verdict.updatedInput.isolation === "worktree") {
-        const hook = (entry.gate.hooks.WorktreeCreate as { hooks: (() => Promise<any>)[] }[])[0]!.hooks[0]!;
-        worker.cwd = (await hook()).hookSpecificOutput.worktreePath;
+        const hook = (entry.gate.hooks.WorktreeCreate as { hooks: ((input: Record<string, unknown>) => Promise<any>)[] }[])[0]!.hooks[0]!;
+        worker.cwd = (await hook({ name: `ark-job-${job}` })).hookSpecificOutput.worktreePath; // keyed by job (ADR-272)
       }
       const declared = team.helpers.latestPlan(req.context.sessionId)?.portions.find((p) => p.job === job);
       const fileChecks = taskFileChecks(declared?.fileChecks);

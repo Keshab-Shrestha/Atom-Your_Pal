@@ -165,8 +165,16 @@ export interface NativeTeamDeps {
   readAssignedSkill?(name: string): { name: string; description: string; body: string } | undefined;
   /** 2026-11-05 (org.ts): the team line and routing rule for the main agent's prompt; "" when no agent has a lead. */
   org?(): string;
+  /** ADR-272: who reports to whom (org.ts), for the code checks of Agent calls and each agent's team line. */
+  reportsTo?(): Readonly<Record<string, string>>;
   /** A reply the session gave by itself (an agent reported). `saved`: it is already in the open chat's turns. */
   onWake?(chatId: string, text: string, saved: boolean): void;
+}
+
+/** ADR-272: the chart for the agent definitions: each agent's team line and whether it gets the Agent tool. */
+function teamScope(team: NativeTeamDeps) {
+  const members = nativeMembers(team.helpers.list());
+  return { reportsTo: team.reportsTo?.() ?? {}, agentIds: members.map((m) => m.id), name: (id: string) => members.find((m) => m.id === id)?.name };
 }
 
 export interface NativeCore extends Core {
@@ -409,6 +417,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
               ...(team.filePermissions ? { permissions: team.filePermissions.forChat(chat) } : {}),
               ...(team.chooseModel ? { chooseModel: team.chooseModel } : {}),
               worktrees: team.worktrees,
+              ...(team.reportsTo ? { reportsTo: team.reportsTo } : {}),
               ...(project ? { project } : {}),
               ...(deps.log ? { log: deps.log } : {}),
             },
@@ -416,7 +425,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
         : {}),
     });
     const skills = team?.skills?.(chat);
-    const agents = team ? agentDefinitions(team.helpers, { ...(project ? { project } : {}), ...(team.browser ? { browser: team.browser } : {}), ...(skills ? { skillsPlugin: skills.plugin } : {}), ...(access === "full" ? { fullAccess: true } : {}) }) : undefined;
+    const agents = team ? agentDefinitions(team.helpers, { ...(project ? { project } : {}), ...(team.browser ? { browser: team.browser } : {}), ...(skills ? { skillsPlugin: skills.plugin } : {}), ...(access === "full" ? { fullAccess: true } : {}), ...(team.reportsTo ? { team: teamScope(team) } : {}) }) : undefined;
     let handle: ChatSessionHandle;
     handle = await openChatSession({
       chatId: chat,
@@ -517,7 +526,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
   }
 
   /** "Sid, …" (ADR-081 in native form) or "@Sid" (ADR-126): a fixed line asks the main agent to hand the request to Sid as it is. */
-  function addressed(text: string): string | undefined {
+  function addressedMember(text: string): HelperView | undefined {
     if (!deps.team) return undefined;
     const names = [ADDRESSED.exec(text)?.[1], ...[...text.matchAll(MENTIONED)].map((m) => m[1])]
       .filter((n): n is string => !!n)
@@ -535,6 +544,9 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
         return undefined;
       }
     })();
+    return member;
+  }
+  function addressed(member: HelperView | undefined): string | undefined {
     return member ? `The user spoke to ${member.name} directly: delegate this request to ${member.name} as it is, with the Agent tool (subagent_type "${member.id}").` : undefined;
   }
 
@@ -591,7 +603,9 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
       if (!entry) entry = await open(chat, model, prompt, tools, files, key, resume, readOnly, reasoning, access, signal);
       else if (entry.handle.model !== model) await entry.handle.setModel(model); // ADR-097: background tasks still run, so switch live
       entry.signal = signal;
-      entry.gate.newAnswer(files);
+      // ADR-272: the agent the user spoke to by name may get this request directly, even when it has a lead.
+      const spokenTo = chatOnly ? undefined : addressedMember(text);
+      entry.gate.newAnswer(files, spokenTo?.id);
       // A new session without a resumable one gets the conversation so far as a transcript.
       let replayNote = opened && !resume ? selected.notice : undefined;
       let history: RecallPayload["history"] = opened && !resume
@@ -614,7 +628,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
       const opening = opened && !chatOnly ? await openingContext(chat, text) : [];
       const typed = deps.screenReplies && input.source === "text" ? TYPED_NOTE : undefined;
       const continuityNote = continuity && (opened || entry.continuityKey !== continuity.key) ? continuity.text : undefined;
-      const parts = [...opening, ...requiredPart("user.addressed-worker", chatOnly ? undefined : addressed(text)),
+      const parts = [...opening, ...requiredPart("user.addressed-worker", addressed(spokenTo)),
         ...requiredPart("response.format", typed), ...extra, ...requiredPart("history.replay-notice", replayNote),
         ...requiredPart("history.continuity", continuityNote)];
       const ctx = composeContext(parts, context);

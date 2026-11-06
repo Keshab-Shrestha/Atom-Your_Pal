@@ -4837,7 +4837,7 @@ The audit (`docs/ui-audit-2026-11-05.md`, item A5) found that the window's top b
 
 ### Context
 
-Keshab wants to see the levels of the team like an office: CEO, managers and workers. He chose two things: the Board shows the levels, and the levels change how ARK routes work. ADR-095 had Manager files. ADR-110 N5 removed Manager runs for token cost, and ARK no longer reads those files. The Claude Agent SDK does not let a sub-agent start another sub-agent.
+Keshab wants to see the levels of the team like an office: CEO, managers and workers. He chose two things: the Board shows the levels, and the levels change how ARK routes work. ADR-095 had Manager files. ADR-110 N5 removed Manager runs for token cost, and ARK no longer reads those files. (Correction, ADR-272: the Claude Agent SDK lets a sub-agent start another sub-agent when the Agent tool is in its definition.)
 
 ### Decision
 
@@ -5046,3 +5046,53 @@ ARK goes to other developers for free. ARK's own prompts, refusals and screens u
 - No fixed owner name is left in a runtime prompt, message or screen text. Code comments, tests and gallery fixtures keep a sample name.
 - A tool description is made at runtime start. After the first-run sheet, a few descriptions (for example trash_file) say "the user" until the next start. Refusals and prompts that are built per call use the new name at once.
 - Prompts change when the name changes, so their cache prefix changes once.
+
+## ADR-272 — Agents call agents, work goes through managers, one agent runs many times (2026-11-06)
+
+Amends ADR-261.
+
+### Context
+
+Keshab: "I will be talking to ARK and ARK will be providing the task to the agents; before going to the agents it will be going through the managers. But the agents will be able to call other agents. And the same agents will be able to work multiple times at the same time."
+
+Before this change, only a prompt line routed work through a lead. No code read the chart. Only the main thread had the Agent tool. Unplanned file work ran one task at a time in a chat, also in its own worktree. ARK paired worktrees with jobs in call order (FIFO), and it guessed the job of an unlinked agent.
+
+ADR-261 says that the SDK does not let a sub-agent start another sub-agent. That is wrong. A live probe on 2026-11-06 (SDK 0.3.287, CLI 2.1.287) showed this: a sub-agent with "Agent" in its tools started another sub-agent. The child's `task_started` had `spawn_depth: 2`. The PreToolUse hook of the nested call had the caller's `agent_id` and `agent_type`. The child ran in the foreground, and its result came back to its caller.
+
+### Decision
+
+C. The same agent many times at once:
+
+- The gate decides `isolated` (a worktree in a Git project) before the per-chat file hold. Work in its own worktree skips the hold. Work in the home folder or in a plain folder keeps the hold.
+- `PLAN_PARALLEL` stays a constant (2). ARK has no cheap setting path for it now.
+- Claude Code names an agent's worktree `agent-<agent id>`. The WorktreeCreate hook keeps that name with the job. When two parallel calls get each other's worktree, the gate swaps the two jobs' worktrees before it checks the agent's first file call. The folder and branch keep the other job's number. The host file readback of a swapped worktree is not used. A host adapter names its job (`ark-job-<n>`) and gets that job's worktree.
+- `jobOfAgent` uses the SDK task link first. Before the link, it guesses only when the agent has exactly one open job. With two or more, the gate refuses the call: "Make the same call again."
+
+B1. Agents call agents:
+
+- An agent with a report or a peer gets the Agent tool and a team line in its prompt. The line names its reports and peers and says that it reports only by ending its turn. An agent with no one to call gets neither.
+- The definitions no longer set `background: true`, because that also puts an agent's own child in the background. The gate sets `run_in_background: true` on each main-thread call and `false` on each nested call. The caller waits, and the child's report comes back to it.
+- The gate identifies the caller by the hook's `agent_id` and `agent_type` (the agent type is the ARK agent id), and by the Board job of that agent. It never reads the model's text for this.
+- Code policy (`delegationProblem` in `org.ts` and the gate): the target is a direct report, or a peer (the same lead, or both report to ARK). The caller may not call itself or one of its leads. The target may not already work on the task above the caller (no loops). A task may go at most 4 levels deep (`MAX_ORG_DEPTH`). One root task may start at most 6 agents below it (`MAX_TEAM_CHILDREN`), at all levels together. A paused agent is refused. A plan-first caller must have its plan approved first. The file hold applies as for the main thread.
+- A nested call passes only `description`, `prompt` and `subagent_type`. Plan portions ("P<n>") belong to the main thread only.
+- The child's Board job has `parentId` (the caller's job), so the Board shows it in its parent's envelope. Stopping a task stops its native children and their children.
+- Taint (ADR-123): the child gets the caller's taint. When the child ends, its taint goes to its caller, not to the main thread.
+- Each refusal is one or two short sentences and tells the model what to do instead.
+- "Report only at turn end": a child has no tool to message its caller or ARK while it works. SendMessage, ask_user and ARK's own tools stay refused, and `name` and `team_name` never pass on.
+
+A1. Work goes through managers:
+
+- On the main thread, a call with no plan portion to an agent whose lead is another agent is refused: "<X> reports to <Lead>. Give the task to <Lead> (subagent_type "<lead>"); <Lead> assigns it."
+- Exceptions: the user named the agent in this message (native-core's addressed agent, passed to the gate with `newAnswer`, not read from text by the gate), a retry chat, and an agent that reports to ARK.
+- Planned portions for a worker with a lead stay allowed. The plan already names the lead's portions.
+- The prompt rule in `orgPrompt` is now one line that matches the code.
+
+Not done: the stall flag (a running job with no tool call or progress for 8 minutes). It needs a timer per job. It is a follow-up.
+
+### Consequences
+
+- Token cost: each agent with someone to call carries the Agent tool and its agent list, about 1,000 tokens more for each sub-agent run. A child run costs its own model calls. The cap of 6 children for each root task limits the cost.
+- A child in a Git project works in its own worktree, not in its caller's worktree. The caller reads the child's report, not its files. To read the child's files, the caller asks for approval.
+- In a home-folder chat, a folders child waits while other file work runs, also its folders caller's work. The hold refuses the call, and the caller does the work itself.
+- Design reference: Ghostex (MIT, maddada/Ghostex) for "a worker reports only at the end of its turn" and for coordinator ideas. ARK uses no Ghostex code.
+

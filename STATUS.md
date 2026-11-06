@@ -1,5 +1,12 @@
 # ARK Project Status
 
+## Agents call agents, work goes through managers — 6 November 2026
+
+- ADR-272: an agent can give a part of its task to its report or its peer with the Agent tool. Code checks each call: no call to itself or up the chart, no loop, at most 4 levels deep, at most 6 agents below one task. The child shows in its parent's envelope on the Board, and its report comes back to the caller. Stopping a task stops its children.
+- On the main thread, work for an agent with a lead goes to the lead. A direct call is refused, except when the user named the agent.
+- The same agent can run many times at once when each run has its own worktree. Worktrees now go to the right job when two calls run in parallel.
+- Verified: TypeScript tests (1474 pass, 10 skipped) and typecheck. Not checked by hand in the running app. Not done: the 8-minute stall flag.
+
 ## Owner name and two provider icons — 6 November 2026
 
 - ADR-271: on first run ARK asks "What should ARK call you?". The name is kept in the island settings, can be changed in Settings > General, and goes to the runtime with `owner.set` (saved in `config/owner.json`). ARK's prompts, refusals, Home's greeting, the You page and the Team's owner card use it. No fixed owner name is left in runtime or screen text.
