@@ -702,13 +702,20 @@ test("the prompts with tools tell ARK to state facts plainly and name the source
   }
 });
 
+/** Keep equal to ArkVisualTests.promptExample (apps/mac/island/Tests/ArkIslandCoreTests/ArkVisualTests.swift). */
+const ARK_VISUAL_EXAMPLE =
+  '{"title":"Tests","blocks":[{"type":"stats","items":[{"label":"Failed","value":"2","tone":"bad"}]},' +
+  '{"type":"bar","unit":"ms","data":[{"label":"api","value":420}]}]}';
+
 // 2026-11-02: a chart came back as a Markdown table; the window now draws a chart block and shows image lines.
 test("every chat prompt describes the chart block and the image line", () => {
   for (const prompt of [NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT, CODEX_SYSTEM_PROMPT, PLAIN_SYSTEM_PROMPT]) {
     assert.match(prompt, /write a ```chart block of JSON instead of a table: \{"type":"bar"\|"line"\|"pie"/);
     assert.match(prompt, /put a Markdown image on its own line/);
     assert.match(prompt, /For a logo, icon or simple drawing, write a ```svg block/);
-    assert.match(prompt, /write one ```ark-visual block of JSON: \{"title":"Tests","blocks":\[\{"type":"stats"/); // ADR-276
+    // ADR-276: the example card is the literal ArkVisualTests.promptExample parses, so the prompt never teaches a card that falls back to code.
+    assert.ok(prompt.includes("write one ```ark-visual block of JSON: " + ARK_VISUAL_EXAMPLE + "; "));
+    assert.match(prompt, /line \(data: points with only label and value, each label different\).*any block may have a title/);
     assert.match(prompt, /Write charts and drawings yourself, in your reply: do not hand them to an agent/);
   }
   assert.match(CODEX_SYSTEM_PROMPT, /use your image generation tool; ARK shows the image under your reply/);

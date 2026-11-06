@@ -51,9 +51,11 @@ struct ArkVisualCard: View {
 
     @ViewBuilder private func blockView(_ block: ArkVisual.Block) -> some View {
         switch block {
-        case .stats(let items):
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 132), spacing: 8, alignment: .topLeading)], alignment: .leading, spacing: 8) {
-                ForEach(Array(items.enumerated()), id: \.offset) { _, stat in tile(stat) }
+        case .stats(let title, let items):
+            section(title) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 132), spacing: 8, alignment: .topLeading)], alignment: .leading, spacing: 8) {
+                    ForEach(Array(items.enumerated()), id: \.offset) { _, stat in tile(stat) }
+                }
             }
         case .bar(let title, let unit, let data):
             section(title) { bars(data, unit: unit) }

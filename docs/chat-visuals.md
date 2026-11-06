@@ -41,12 +41,12 @@ Each block has a `type` and the keys of its type. Any other key makes the block 
 
 | Type | Keys | Rules |
 |---|---|---|
-| `stats` | `items` | 1 to 12 items. Each item: `label` (text), `value` (text or number), `note` (text, optional), `tone` (`good`, `bad` or `neutral`, optional). |
+| `stats` | `title?`, `items` | 1 to 12 items. Each item: `label` (text), `value` (text or number), `note` (text, optional), `tone` (`good`, `bad` or `neutral`, optional). |
 | `bar` | `title?`, `unit?`, `data` | 1 to 40 points. Each point: `label` (text) and `value` (number). Labels are all different. |
 | `line` | `title?`, `unit?`, `data` | The same rules as `bar`. |
 | `table` | `title?`, `columns`, `rows` | 1 to 8 columns (text). 1 to 200 rows. Each row has one cell for each column. A cell is text or a number. |
 
-Text limits: a title, label, column, unit, value or note has at most 80 characters. A table cell has at most 200 characters. Text has no line breaks. The whole block has at most 64,000 bytes.
+Text limits: a title, label, column, unit, value or note has at most 80 characters. A table cell has at most 200 characters. Text has no line breaks and no hidden characters (for example U+202E). The whole block has at most 64,000 bytes.
 
 ## When the block is not valid
 

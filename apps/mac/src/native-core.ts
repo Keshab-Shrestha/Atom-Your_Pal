@@ -51,8 +51,8 @@ const MEDIA_RULE =
   // ADR-276: a result card for numbers, comparisons and test results (docs/chat-visuals.md).
   "For results with numbers (test runs, comparisons, measurements), write one ```ark-visual block of JSON: " +
   '{"title":"Tests","blocks":[{"type":"stats","items":[{"label":"Failed","value":"2","tone":"bad"}]},' +
-  '{"type":"bar","unit":"ms","data":[{"label":"api","value":420}]}]}; blocks are stats, bar, line (data of label and value) ' +
-  'and table (columns, rows of text), at most 6 blocks and 40 points. ' +
+  '{"type":"bar","unit":"ms","data":[{"label":"api","value":420}]}]}; blocks are stats, bar, line (data: points with only label ' +
+  "and value, each label different) and table (columns, rows of text); any block may have a title; at most 6 blocks and 40 points. " +
   "For a logo, icon or simple drawing, write a ```svg block: one <svg> with a viewBox, using shapes, paths, gradients and text only, with no scripts, links or images. " +
   // 2026-11-02: a drawing went to an agent, which asked to write a file and stopped when the card expired.
   "Write charts and drawings yourself, in your reply: do not hand them to an agent or save them to a file unless the user asks for a file.";

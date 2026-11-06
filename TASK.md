@@ -7,6 +7,7 @@
 - The chat prompts carry one sentence and one small example for the block.
 - Each plan portion has Note: Looks good, Clarify or Needs tests, with optional words. Send notes puts numbered feedback in the chat box and does not send it. Notes stay on this Mac, per plan.
 - Verified: TypeScript tests (1486 pass, 11 skipped) and typecheck, Swift tests (1004 pass), fixture renders of the new `visuals` gallery group, UI check with no golden change (live step not run). Not done: notes on a text selection inside a plan; notes on a plan-first job's plan.
+- Checker fixes (ADR-276): a `stats` block can have a title; hidden characters make a card show as code; "Add note" stops at 50 notes; Send notes keeps the notes when the draft cannot be saved and is off with no chat open.
 
 ## Worked header, diff card and questions card — 6 November 2026
 

@@ -17,7 +17,7 @@ public struct ArkVisual: Equatable, Sendable {
         public let label: String, value: Double
     }
     public enum Block: Equatable, Sendable {
-        case stats([Stat])
+        case stats(title: String?, items: [Stat])
         case bar(title: String?, unit: String?, data: [Point])
         case line(title: String?, unit: String?, data: [Point])
         case table(title: String?, columns: [String], rows: [[String]])
@@ -43,7 +43,8 @@ public struct ArkVisual: Equatable, Sendable {
     private static func block(_ b: [String: Any]) -> Block? {
         switch b["type"] as? String {
         case "stats":
-            guard Set(b.keys).isSubset(of: ["type", "items"]), let raw = b["items"] as? [Any], (1...maxStats).contains(raw.count) else { return nil }
+            guard Set(b.keys).isSubset(of: ["type", "title", "items"]), let title = optional(b["title"]),
+                  let raw = b["items"] as? [Any], (1...maxStats).contains(raw.count) else { return nil }
             var items: [Stat] = []
             for entry in raw {
                 guard let s = entry as? [String: Any], Set(s.keys).isSubset(of: ["label", "value", "note", "tone"]),
@@ -54,7 +55,7 @@ public struct ArkVisual: Equatable, Sendable {
                 if s["tone"] == nil { tone = .neutral } else { guard let t = (s["tone"] as? String).flatMap(Tone.init) else { return nil }; tone = t }
                 items.append(Stat(label: label, value: value, note: note, tone: tone))
             }
-            return .stats(items)
+            return .stats(title: title, items: items)
         case let kind? where kind == "bar" || kind == "line":
             guard Set(b.keys).isSubset(of: ["type", "title", "unit", "data"]), let title = optional(b["title"]), let unit = optional(b["unit"]),
                   let raw = b["data"] as? [Any], (1...maxPoints).contains(raw.count) else { return nil }
@@ -87,8 +88,12 @@ public struct ArkVisual: Equatable, Sendable {
 
     /// A one-line text within `maxShort`.
     private static func short(_ value: Any?) -> String? {
-        guard let s = value as? String, s.count <= maxShort, !s.contains(where: \.isNewline) else { return nil }
+        guard let s = value as? String, s.count <= maxShort, plain(s) else { return nil }
         return s
+    }
+    /// One line with no hidden characters (a U+202E would reverse what the card shows).
+    private static func plain(_ s: String) -> Bool {
+        !s.contains(where: \.isNewline) && HiddenCharacters.strip(s).removed == 0
     }
     /// An absent title or unit is fine (`.some(nil)`); a present one must be valid, else nil.
     private static func optional(_ value: Any?) -> String?? {
@@ -102,7 +107,7 @@ public struct ArkVisual: Equatable, Sendable {
     }
     /// A table cell or stat value: text, or a number written as ARK writes numbers.
     private static func cell(_ value: Any?, limit: Int) -> String? {
-        if let s = value as? String { return s.count <= limit && !s.contains(where: \.isNewline) ? s : nil }
+        if let s = value as? String { return s.count <= limit && plain(s) ? s : nil }
         return number(value).map(ReplyChart.number)
     }
 }
@@ -121,9 +126,9 @@ extension ArkVisual {
     /// Each block as rows, for Copy and for the Select text page.
     public func table(of block: Block) -> (title: String?, header: [String], rows: [[String]]) {
         switch block {
-        case .stats(let items):
+        case .stats(let title, let items):
             let notes = items.contains { $0.note != nil }
-            return (nil, notes ? ["Stat", "Value", "Note"] : ["Stat", "Value"],
+            return (title, notes ? ["Stat", "Value", "Note"] : ["Stat", "Value"],
                     items.map { notes ? [$0.label, $0.value, $0.note ?? ""] : [$0.label, $0.value] })
         case .bar(let title, let unit, let data), .line(let title, let unit, let data):
             return (title, ["Label", unit.map { "Value (\($0))" } ?? "Value"], data.map { [$0.label, ReplyChart.number($0.value)] })
@@ -136,8 +141,8 @@ extension ArkVisual {
     public var accessibilitySummary: String {
         let parts = blocks.map { block -> String in
             switch block {
-            case .stats(let items):
-                return items.map { "\($0.label) \($0.value)" + ($0.note.map { ", \($0)" } ?? "") }.joined(separator: ". ")
+            case .stats(let title, let items):
+                return (title.map { "\($0): " } ?? "") + items.map { "\($0.label) \($0.value)" + ($0.note.map { ", \($0)" } ?? "") }.joined(separator: ". ")
             case .bar(let title, let unit, let data):
                 return chart("Bar chart", title, data.count == 1 ? "1 bar" : "\(data.count) bars", data.max { $0.value < $1.value }, unit)
             case .line(let title, let unit, let data):

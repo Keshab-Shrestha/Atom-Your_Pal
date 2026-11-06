@@ -15,7 +15,7 @@ public struct PlanNote: Codable, Equatable, Sendable, Identifiable {
         }
     }
 
-    public static let maxText = 1_000, maxQuote = 160
+    public static let maxText = 1_000, maxQuote = 160, maxGoal = 80
 
     public var id: UUID
     /// The portion number (P1, P2, ...).
@@ -79,11 +79,11 @@ public enum PlanNotes {
         let ordered = notes.enumerated().sorted { ($0.element.portion, $0.offset) < ($1.element.portion, $1.offset) }.map(\.element)
         let lines = ordered.enumerated().map { index, note -> String in
             let mark = note.mark.map { "[\($0.title)] " } ?? ""
-            let quote = tasks[note.portion].map { " — \"\(Self.quote($0))\"" } ?? ""
-            let words = note.text.isEmpty ? "" : ": " + note.text.replacingOccurrences(of: "\n", with: " ")
+            let quote = tasks[note.portion].map { " — \"\(Self.quote($0, limit: PlanNote.maxQuote))\"" } ?? ""
+            let words = note.text.isEmpty ? "" : ": " + oneLine(note.text)
             return "\(index + 1). \(mark)P\(note.portion)\(quote)\(words)"
         }
-        return (["Notes on the plan \"\(oneLine(goal))\":"] + lines).joined(separator: "\n")
+        return (["Notes on the plan \"\(quote(goal, limit: PlanNote.maxGoal))\":"] + lines).joined(separator: "\n")
     }
 
     /// The draft with the message after it; an existing draft keeps its text and gets a blank line first.
@@ -92,9 +92,10 @@ public enum PlanNotes {
         return draft + separator + message + "\n"
     }
 
-    private static func quote(_ task: String) -> String {
-        let line = oneLine(task).replacingOccurrences(of: "\"", with: "'")
-        return line.count <= PlanNote.maxQuote ? line : String(line.prefix(PlanNote.maxQuote - 1)) + "…"
+    /// One line, double quotes made single, at most `limit` characters.
+    private static func quote(_ text: String, limit: Int) -> String {
+        let line = oneLine(text).replacingOccurrences(of: "\"", with: "'")
+        return line.count <= limit ? line : String(line.prefix(limit - 1)) + "…"
     }
 
     private static func oneLine(_ text: String) -> String {

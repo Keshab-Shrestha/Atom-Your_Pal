@@ -11,20 +11,30 @@ extension IslandModel {
         settings.planNotes = settings.planNotes.saving(notes, plan: plan.id, goal: plan.goal)
     }
 
+    /// Send notes needs an open chat that takes input.
+    var canSendPlanNotes: Bool { chats.map { $0.currentReadOnlyNotice == nil } ?? false }
+
     /// Puts every note in the current chat's composer after any draft, opens the chat, and clears the notes. Never sends.
-    func sendPlanNotes(_ plan: WorkPlanItem) {
-        guard chats?.currentReadOnlyNotice == nil,
-              let message = PlanNotes.message(goal: plan.goal, notes: planNotes(plan), portions: plan.portions) else { return }
-        composerText = PlanNotes.appending(message, to: composerText)
+    /// False when the draft could not be saved: the draft goes back to what it was and the notes stay.
+    @discardableResult
+    func sendPlanNotes(_ plan: WorkPlanItem) -> Bool {
+        guard canSendPlanNotes,
+              let message = PlanNotes.message(goal: plan.goal, notes: planNotes(plan), portions: plan.portions) else { return false }
+        let draft = composerText
+        composerText = PlanNotes.appending(message, to: draft)
+        guard saveInput() else { composerText = draft; return false }
         setPlanNotes([], for: plan)
         navigate { self.windowPage = .chat }
         composerFocusTick += 1
+        return true
     }
 }
 
 /// The note editor under a portion: one of the three marks and optional words; Add needs a mark or words.
 struct PlanNoteEditor: View {
     let portion: PlanPortion
+    /// The plan has `PlanNoteBook.maxNotesPerPlan` notes: Add is off.
+    var isFull = false
     let add: (PlanNote) -> Void
     let cancel: () -> Void
     @State private var mark: PlanNote.Mark?
@@ -53,10 +63,11 @@ struct PlanNoteEditor: View {
             }
             .appFont(.system(size: 12.5))
             HStack(spacing: 6) {
+                if isFull { Text("\(PlanNoteBook.maxNotesPerPlan) notes max").appFont(.system(size: 11.5)).foregroundStyle(theme.text3.color) }
                 Spacer()
                 QuietButton(title: "Cancel", action: cancel)
                 QuietButton(title: "Add note", symbol: "plus", action: save)
-                    .disabled(PlanNote(portion: portion.n, mark: mark, text: text) == nil)
+                    .disabled(isFull || PlanNote(portion: portion.n, mark: mark, text: text) == nil)
             }
         }
         .padding(10)
@@ -67,7 +78,7 @@ struct PlanNoteEditor: View {
     }
 
     private func save() {
-        guard let note = PlanNote(portion: portion.n, mark: mark, text: text) else { return }
+        guard !isFull, let note = PlanNote(portion: portion.n, mark: mark, text: text) else { return }
         add(note)
     }
 }
@@ -76,6 +87,7 @@ struct PlanNoteEditor: View {
 struct PlanNotesList: View {
     let model: IslandModel
     let plan: WorkPlanItem
+    @State private var sendFailed = false
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -87,9 +99,12 @@ struct PlanNotesList: View {
                     Spacer()
                     QuietButton(title: "Clear") { model.setPlanNotes([], for: plan) }
                         .help("Remove every note on this plan")
-                    QuietButton(title: "Send notes", symbol: "text.append") { model.sendPlanNotes(plan) }
-                        .disabled(model.chats?.currentReadOnlyNotice != nil)
+                    QuietButton(title: "Send notes", symbol: "text.append") { sendFailed = !model.sendPlanNotes(plan) }
+                        .disabled(!model.canSendPlanNotes)
                         .help("Put the notes in the chat box as numbered feedback. Nothing is sent until you send it.")
+                }
+                if sendFailed {
+                    Text("The chat box could not be saved. The notes stay here.").appFont(.system(size: 11)).foregroundStyle(theme.problem.color)
                 }
                 ForEach(Array(notes.enumerated()), id: \.element.id) { index, note in row(index + 1, note) }
             }

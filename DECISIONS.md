@@ -5240,4 +5240,20 @@ Design reference: Ghostex (github.com/maddada/Ghostex, MIT): its `visual` result
 ### Consequences
 
 - A card with a bad key shows as code. Agents must follow the grammar exactly.
-- Gallery scenes: `ARK_ISLAND_GALLERY_ONLY=visuals` renders 54-ark-visual and 54-plan-notes, each dark and light.
+- Gallery scenes: `ARK_ISLAND_GALLERY_ONLY=visuals` renders 54-ark-visual and 54-plan-notes, each dark and light. It also renders 54-plan-notes-full-dark: a plan at the 50-note limit.
+
+### Checker fixes (2026-11-06)
+
+An independent checker reviewed this batch. These changes follow:
+
+1. A `stats` block can have an optional `title`. The card shows it above the tiles, as for the other blocks. Copy and VoiceOver use it.
+2. The prompt now says that chart points have only `label` and `value`, that each label is different, and that any block can have a title.
+3. A title, label, unit, column, value, note or cell with a hidden character (for example U+202E) is refused. The whole card then shows as code.
+4. At 50 notes, the note editor turns off "Add note" and shows "50 notes max". Before, the 51st note was lost with no message.
+5. A note line in the message is one line: `\r`, `\r\n`, U+2028 and U+2029 become spaces.
+6. The goal in `Notes on the plan "<goal>":` is one line, with double quotes made single, at most 80 characters.
+7. Send notes clears the notes only after the chat box draft is saved. If the save fails, the draft goes back to what it was, the notes stay, and the list shows a short error line.
+8. Send notes is off when no chat is open.
+9. Tests: the byte limit uses a valid card padded past 64,000 bytes; `1e400` and 200 levels of nesting show as code; the prompt's example card parses. `ArkVisualTests.promptExample` and `ARK_VISUAL_EXAMPLE` in native-core.test.ts hold the same text, and the TypeScript test checks that the prompt holds it.
+
+Intended: a plan number that comes back with the same goal shows its old notes again. The key is the plan number and the goal, so this is the same plan to the owner.

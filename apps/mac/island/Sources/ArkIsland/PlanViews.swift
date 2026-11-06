@@ -94,7 +94,7 @@ private struct PlanPortionRow: View {
         VStack(alignment: .leading, spacing: 8) {
             row
             if editing == portion.n {
-                PlanNoteEditor(portion: portion, add: { note in
+                PlanNoteEditor(portion: portion, isFull: model.planNotes(plan).count >= PlanNoteBook.maxNotesPerPlan, add: { note in
                     model.setPlanNotes(model.planNotes(plan) + [note], for: plan)
                     editing = nil
                 }, cancel: { editing = nil })

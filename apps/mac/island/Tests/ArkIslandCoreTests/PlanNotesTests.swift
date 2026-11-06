@@ -40,6 +40,18 @@ struct PlanNotesTests {
         #expect(message.contains("\"" + String(repeating: "x", count: PlanNote.maxQuote - 1) + "…\""))
     }
 
+    @Test func everyLineBreakAndQuoteStaysOnOneLine() throws {
+        let note = try #require(PlanNote(portion: 1, mark: nil, text: "a\rb\u{2028}c\r\nd"))
+        let goal = "The \"big\"\ngoal " + String(repeating: "g", count: 200)
+        let message = try #require(PlanNotes.message(goal: goal, notes: [note], portions: Self.portions))
+        let lines = message.split(whereSeparator: \.isNewline)
+        #expect(lines.count == 2)
+        #expect(lines[1] == "1. P1 — \"Collect the sources\": a b c d")
+        #expect(lines[0].hasPrefix("Notes on the plan \"The 'big' goal ggg"))
+        #expect(lines[0].count == "Notes on the plan \"\":".count + PlanNote.maxGoal)
+        #expect(lines[0].hasSuffix("…\":"))
+    }
+
     @Test func theMessageGoesAfterTheDraft() {
         #expect(PlanNotes.appending("N", to: "") == "N\n")
         #expect(PlanNotes.appending("N", to: "Hi") == "Hi\n\nN\n")
