@@ -5100,3 +5100,33 @@ Not done: the stall flag (a running job with no tool call or progress for 8 minu
 - Codex chats (2026-11-06): the Codex gate gets the chart (`reportsTo`) and the agent the user named in the message (`addressedAgent` in `native-agents.ts`, shared with native-core). So A1 and the gate's checks apply there too. A Codex worker has no Agent tool: it consults another worker only through the advisory path (ConsultWorker). Codex now links each started task by its call id, not by the agent type, so two runs of the same agent at once get the right jobs.
 - Review fixes (2026-11-06): the gate takes a child slot before its first await, so parallel calls cannot pass the cap of 6. A failed admission gives the slot back. After a worktree swap, a job that still waits for a worktree takes the other job's place and folder number, so two agents never share a worktree.
 
+## ADR-273 — Chat UX from Ghostex, batch 1 (2026-11-06)
+
+Follows ADR-272. Closes its follow-up: the stall flag.
+
+### Context
+
+ADR-272 lets agents call agents. A chat can now start a tree of Board jobs: a manager's job and its workers. The chat showed these jobs as a flat "Agents" list, and the Board showed each child apart from its parent ("for #20"). Nothing showed a worker that stopped making progress.
+
+Design reference: Ghostex (github.com/maddada/Ghostex, MIT). Its thread list shows sub-agents under their coordinator, a state glyph for each, and a short status line. ARK uses no Ghostex code, assets or pixel layouts. Each pattern is drawn again with ARK's tokens, type scale, square cards, UIcons and tone steps (ADR-214).
+
+### Decision
+
+1. Workers card in the chat. Under the latest turn, one card lists each Board job that the chat started. One row shows: the state glyph (a spinner while it runs, "?" in the accent when it needs the owner, a check when done, "!" when failed, a square when stopped, a clock when queued), the job's short title, the agent's name and one line of its latest step or report. A worker sits under the job that started it, with a guide line. A manager gets a crown. The header folds the card. Past 5 rows, "Show all" and "Show fewer" fold the rest. A click on a row opens the task. The card replaces the "Agents" list, so the chat shows each job once.
+2. Tree on the Board. In the Flow lanes and in the stacked list, a child job sits under its parent when both are in the same group. A manager shows a crown, its worker count and its age ("3 workers · 15m"). The Flow card already has a clock line, so there the age is left out. "for #<parent>" shows only when the parent is not directly above.
+3. Stuck dot. `apps/mac/src/job-quiet.ts` watches running native jobs (jobs with a chat). Each step, tool call or state change of a job is a move. A sweep each minute marks a job quiet when it has not moved for `QUIET_AFTER_MS` (8 minutes). It logs `job.quiet` once (job id and parent id). The next move clears the mark. The mark lives in memory only; after a restart each running job starts a new count. The island job item carries `quietSince` (ISO time of the last move). A quiet job gets a red dot in the Workers card and on the Board, with the tip "No new output for 8 min".
+4. No extra tokens. Nothing about a quiet job goes to the model in this batch, also when the job has a parent.
+
+Pure logic is in `ArkIslandCore/JobTree.swift`: tree order, worker counts, age text, one-line text, the row glyph (`WorkerMark`) and the fold (`WorkersFold`).
+
+### Stays ARK's own
+
+- The Board, its lanes, the inspector and the task page. A row opens ARK's own task view.
+- ARK's state words, colours and the tone steps of ADR-214. The crown and "?" glyphs come from UIcons, with SF Symbols as the fallback.
+- The rules of ADR-272: who may call whom, the depth and child caps, and "Hand back".
+
+### Consequences
+
+- The chat sidebar lists chats, not jobs, so it has no tree.
+- A manager's ARK prompt does not learn about a quiet worker yet. A later batch can decide whether to tell the manager and what that costs.
+- Gallery scenes: `ARK_ISLAND_GALLERY_ONLY=workers` renders 51-workers-card-dark, 51-workers-card-light, 51-workers-tree-flow and 51-workers-tree-list.

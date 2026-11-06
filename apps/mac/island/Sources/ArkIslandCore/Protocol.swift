@@ -663,7 +663,8 @@ private struct Fields {
                          rating: j["rating"] as? String, reviews: (j["reviews"] as? NSNumber)?.intValue,
                          autoRetries: (j["autoRetries"] as? NSNumber)?.intValue ?? 0, subAgents: Self.subAgents(j["subAgents"]),
                          labels: (j["labels"] as? [Any] ?? []).compactMap { $0 as? String }, recoveryNeeded: Self.flag(j["recoveryNeeded"]),
-                         retryOf: (j["retryOf"] as? NSNumber)?.intValue, retriedAs: (j["retriedAs"] as? NSNumber)?.intValue, advisory: Self.flag(j["advisory"]), chatId: j["chatId"] as? String)
+                         retryOf: (j["retryOf"] as? NSNumber)?.intValue, retriedAs: (j["retriedAs"] as? NSNumber)?.intValue, advisory: Self.flag(j["advisory"]), chatId: j["chatId"] as? String,
+                         quietSince: (j["quietSince"] as? String).flatMap(Self.date))
     }
 
     /// ADR-098: search results of one kind; a malformed one is left out. Chat ids are strings, task ids numbers.

@@ -34,12 +34,16 @@ struct BoardFlow: View {
                             .padding(.horizontal, 12).padding(.top, 4).frame(maxWidth: .infinity, alignment: .leading)
                         Spacer(minLength: 0)
                     } else {
+                        // ADR-273: a job an agent started sits under that agent's job when both are in this lane.
+                        let workers = JobTree.workerCounts(model.helpers.list?.everyTask.map(\.job) ?? [])
                         Scrollable {
                             VStack(spacing: 8) {
-                                ForEach(items) { item in
-                                    FlowCard(model: model, item: item, selected: chosen?.id == item.id) {
+                                ForEach(JobTree.ordered(items, id: \.id, parent: \.job.parentId), id: \.item.id) { entry in
+                                    let item = entry.item
+                                    FlowCard(model: model, item: item, selected: chosen?.id == item.id, workers: workers[item.id] ?? 0) {
                                         inspected = inspected == item.id ? nil : item.id
                                     }
+                                    .padding(.leading, CGFloat(entry.depth) * 16)
                                 }
                             }
                             .padding(.horizontal, 8).padding(.bottom, 8)
@@ -166,6 +170,7 @@ private struct FlowCard: View {
     let model: IslandModel
     let item: BoardItem
     let selected: Bool
+    var workers = 0
     let choose: () -> Void
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
@@ -174,7 +179,8 @@ private struct FlowCard: View {
         let shape = RoundedRectangle(cornerRadius: theme.radiusCard + 2, style: .continuous)
         Button(action: choose) {
             VStack(alignment: .leading, spacing: 0) {
-                BoardCard(model: model, item: item)
+                // The lane indents the whole card; the card's own clock line gives the time.
+                BoardCard(model: model, item: item, workers: workers, showsAge: false)
                 footer.padding(.horizontal, 16).padding(.bottom, 10).padding(.top, -4)
             }
                 .background(shape.fill(selected ? theme.fill3.color : theme.fill2.color))

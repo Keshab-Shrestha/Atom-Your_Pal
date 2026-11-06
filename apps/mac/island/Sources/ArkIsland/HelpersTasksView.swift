@@ -142,13 +142,18 @@ struct BoardWell: View {
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
+        // ADR-273: a job an agent started sits under that agent's job when both are in this group.
+        let tree = JobTree.ordered(items, id: \.id, parent: \.job.parentId)
+        let workers = JobTree.workerCounts(model.helpers.list?.everyTask.map(\.job) ?? [])
         VStack(spacing: 0) {
-            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+            ForEach(Array(tree.enumerated()), id: \.element.item.id) { index, entry in
+                let item = entry.item
                 if index > 0 { Rectangle().fill(theme.separator.color).frame(height: theme.isFlat ? 1 : 0.5) }
                 Button {
                     if let choose { choose(item.id) } else { model.navigate { model.sendHelpers(model.helpers.openThread(item.id)) } }
                 } label: {
-                    BoardCard(model: model, item: item).hoverRow().background(item.id == selected ? theme.fill2.color : .clear)
+                    BoardCard(model: model, item: item, depth: entry.depth, workers: workers[item.id] ?? 0)
+                        .hoverRow().background(item.id == selected ? theme.fill2.color : .clear)
                 }
                 .buttonStyle(.pressable)
             }
@@ -163,6 +168,11 @@ struct BoardWell: View {
 struct BoardCard: View {
     let model: IslandModel
     let item: BoardItem
+    /// ADR-273: how deep it sits under the job that started it, and how many jobs it started (a manager).
+    var depth = 0
+    var workers = 0
+    /// The Flow's card has its own clock line, so it leaves the manager's age out.
+    var showsAge = true
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -170,15 +180,19 @@ struct BoardCard: View {
         HStack(alignment: .top, spacing: 12) {
             JobDot(job: job).padding(.top, 4)
             VStack(alignment: .leading, spacing: 4) {
-                Text(job.title ?? job.task).appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
-                    .multilineTextAlignment(.leading)
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(job.title ?? job.task).appFont(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    if job.state == .running, job.quietSince != nil { QuietDot() }
+                }
                 HStack(spacing: 8) {
                     Text(item.helperName).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2))
                     Text("#\(job.id)").appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color)
                     if job.comments > 0 {
                         Label("\(job.comments)", systemImage: "text.bubble").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                     }
-                    if let parent = job.parentId { Text("for #\(parent)").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color) }
+                    if depth == 0, let parent = job.parentId { Text("for #\(parent)").appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color) }
+                    if workers > 0 { ManagerMark(workers: workers, age: showsAge ? JobTree.age(since: job.createdAt) : nil) }
                 }
                 if job.state == .running, let step = job.step {
                     Text(step).appFont(theme.appIdentifierFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text2.color).lineLimit(1)
@@ -196,8 +210,29 @@ struct BoardCard: View {
             Glyph(systemName: "chevron.right").appFont(.system(size: 10, weight: .semibold)).foregroundStyle(theme.text3.color).padding(.top, 4)
         }
         .padding(.horizontal, 16)
+        .padding(.leading, CGFloat(depth) * 20)
         .padding(.vertical, 12)
+        .overlay(alignment: .leading) {
+            if depth > 0 { Rectangle().fill(theme.separator.color).frame(width: 1).padding(.leading, 20 + CGFloat(depth - 1) * 20).padding(.vertical, 6) }
+        }
         .contentShape(Rectangle())
+    }
+}
+
+/// ADR-273: a manager's job: a crown, how many workers it started, and how old it is ("2 workers · 2m").
+struct ManagerMark: View {
+    let workers: Int
+    let age: String?
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Glyph(systemName: "crown").appFont(.system(size: 10)).foregroundStyle(theme.text2.color)
+            Text([JobTree.workersText(workers), age].compactMap { $0 }.joined(separator: " · "))
+                .appFont(.system(size: 10.5)).monospacedDigit().foregroundStyle(theme.text2.color)
+        }
+        .help("Manager: started \(JobTree.workersText(workers))")
+        .accessibilityElement(children: .combine)
     }
 }
 

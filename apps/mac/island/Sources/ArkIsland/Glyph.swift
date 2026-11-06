@@ -80,5 +80,6 @@ enum UIcons {
         "hourglass": 0xF7CA,
         "mic": 0xF944, "mic.fill": 0xF944,
         "calendar": 0xF339, "bell": 0xF239, "house": 0xF7B8,
+        "crown": 0xF4F9, "questionmark": 0xFAF3,
     ]
 }

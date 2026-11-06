@@ -30,6 +30,11 @@ enum IslandGallery {
             writeWorkspace(to: directory) // Include split/cover captures for joined-pane review.
             return
         }
+        if ArkEnv.read("ARK_ISLAND_GALLERY_ONLY") == "workers" {
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            writeWorkers(to: directory)
+            return
+        }
         if ArkEnv.read("ARK_ISLAND_GALLERY_ONLY") == "chat" {
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             writeChatDesign(to: directory)
@@ -98,6 +103,7 @@ enum IslandGallery {
         writeStudio(to: directory)
         writeWorkspace(to: directory)
         writeWorkspaceDesign(to: directory)
+        writeWorkers(to: directory)
         writeProjects(to: directory)
         writeBrain(to: directory)
         writeMcpPaste(to: directory)
