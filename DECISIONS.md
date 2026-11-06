@@ -4933,3 +4933,18 @@ Keshab found too many places that overlap. Panels and Apps were both "make me a 
 - The rail has 7 pages instead of 10: Home, Chats, Board, Automations, Apps, Brain, Plugins, then Settings.
 - Back no longer reopens old places. To return to a Board tab, use the rail.
 - A stuck chat shows on Home within a day of use, not when Keshab notices it.
+
+## ADR-266 — Board's Activity tab moves to Home (2026-11-06)
+
+### Context
+
+The rating found that Home and Board > Activity showed the same live counts. Keshab asked for one more trim.
+
+### Decision
+
+- Board > Activity is removed. The Board has three views: Flow, Studio and Team. A saved "overview" view opens the Flow.
+- Home shows Activity's three lists under its tiles: At work, Goals and Just in. A list shows only when it has rows. Activity's counts duplicated Home's tiles, and its plan meter is already on Home's usage panel, so both are removed.
+
+### Consequences
+
+- One place for "what is going on": Home. The Board is for doing work.

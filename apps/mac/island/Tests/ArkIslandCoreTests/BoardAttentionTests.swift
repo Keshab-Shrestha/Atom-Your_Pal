@@ -27,7 +27,7 @@ struct BoardAttentionTests {
         #expect(BoardAttention(asks: 1).view(whenOpening: .floor) == .needsYou)
         #expect(BoardAttention(failed: 1).view(whenOpening: .columns) == .needsYou, "a failed task waits for Keshab too")
         #expect(BoardAttention(running: 3).view(whenOpening: .columns) == .columns, "nothing waits: the view in use stays")
-        #expect(BoardAttention().view(whenOpening: .overview) == .overview)
+        #expect(BoardAttention().view(whenOpening: .team) == .team)
     }
 
     @Test func itReadsTheListAndAnApprovalAsk() {

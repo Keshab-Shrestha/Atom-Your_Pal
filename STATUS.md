@@ -1,5 +1,9 @@
 # ARK Project Status
 
+## Board Activity moves to Home — 6 November 2026
+
+- ADR-266: Board > Activity is removed. Home shows At work, Goals and Just in under its tiles. The Board has Flow, Studio and Team.
+
 ## Fewer places: Automations, one Apps page, Back to Home — 6 November 2026
 
 - ADR-265: Scheduled and Workflows are one page, Automations, in the workflow card style, with filters. Panels and Apps are one Apps page, and each one gets a tile in the rail. Back goes up out of a sub-page, otherwise Home, and from Home to Chats.
