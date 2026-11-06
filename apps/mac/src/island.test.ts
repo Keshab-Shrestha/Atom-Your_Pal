@@ -70,6 +70,7 @@ function islandHarness(
     info: IslandOptions["info"];
     api: IslandOptions["api"];
     chatTurns: IslandOptions["chatTurns"];
+    aiPrograms: IslandOptions["aiPrograms"];
   }> = {},
 ) {
   const input = new PassThrough();
@@ -138,6 +139,7 @@ function islandHarness(
     ...(over.onPlanUsage ? { onPlanUsage: over.onPlanUsage } : {}),
     ...(over.api ? { api: over.api } : {}),
     ...(over.chatTurns ? { chatTurns: over.chatTurns } : {}),
+    ...(over.aiPrograms ? { aiPrograms: over.aiPrograms } : {}),
     micName: async () => "macOS default: Test Mic",
     describe: (error) => (error instanceof Error ? error.message : String(error)),
     errorDetails: (error) => ((error as { kind?: string }).kind ? { kind: (error as { kind: string }).kind, retryable: true } : {}),
@@ -516,7 +518,7 @@ function modelCore(model: { complete: (request: ModelRequest, signal?: AbortSign
 }
 
 /** A model Core and switchable model with fake gateways that record which model answered what. */
-function modelHarness(keys: ProviderKeys = { "claude-plan": CLAUDE }) {
+function modelHarness(keys: ProviderKeys = { "claude-plan": CLAUDE }, aiPrograms?: IslandOptions["aiPrograms"]) {
   const path = join(mkdtempSync(join(tmpdir(), "ark-island-")), "config", "island.json");
   const requests: { model: string; request: ModelRequest }[] = [];
   const logs: string[] = [];
@@ -539,7 +541,7 @@ function modelHarness(keys: ProviderKeys = { "claude-plan": CLAUDE }) {
     save: (choice) => writeSavedChoice(path, choice),
     log: { info: (event, fields) => logs.push(JSON.stringify({ event, ...fields })), warn: (event, fields) => logs.push(JSON.stringify({ event, ...fields })) },
   });
-  const h = islandHarness({ core, settings });
+  const h = islandHarness({ core, settings, ...(aiPrograms ? { aiPrograms } : {}) });
   return { ...h, core, requests, path, logs };
 }
 
@@ -560,8 +562,39 @@ test("ready is followed by info with the model and the providers, Claude on the 
     { id: "claude-plan", available: true },
     { id: "codex", available: false },
     { id: "gemini-cli", available: false },
+    { id: "copilot", available: false },
+    { id: "opencode", available: false },
   ]);
   assert.ok(info.providers[0]!.models.some((m) => m.id === "claude-haiku-4-5-20251001" && m.name === "Claude Haiku 4.5"));
+});
+
+test("ADR-269: AI programs are sent at start and on demand; one switched off leaves the picker and cannot be chosen", async () => {
+  let scans = 0;
+  const blocked: string[] = [];
+  const event = { type: "ai.programs" as const, scannedAt: "2026-11-06T00:00:00.000Z", programs: [] };
+  const h = modelHarness({ "claude-plan": CLAUDE, codex: "/bin/codex" }, {
+    scan: async () => ({ event, changed: ++scans === 1 }),
+    event: () => event,
+    setAllowed: (id, allowed) => { if (!allowed) blocked.push(id === "codex" ? "codex" : id); return { ok: true }; },
+    blockedProviders: () => blocked,
+  });
+  await tick(5);
+  assert.deepEqual(h.events().filter((e) => e.type === "ai.programs").length, 1, "the first scan is sent");
+  h.clear();
+  await h.send({ type: "ai.programs.scan" });
+  assert.equal(scans, 2);
+  assert.deepEqual(h.types(), ["ai.programs", "info"], "asked for, so sent although nothing changed; the sign-ins are checked again too");
+  h.clear();
+  await h.send({ type: "ai.programs.allow", id: "claude-code", allowed: false });
+  assert.match(JSON.stringify(h.events()), /ARK uses this program now/, "the program in use cannot be switched off");
+  h.clear();
+  await h.send({ type: "ai.programs.allow", id: "codex", allowed: false });
+  const info = h.events().find((e) => e.type === "info");
+  assert.ok(info?.type === "info" && !info.providers.some((p) => p.id === "codex"));
+  assert.deepEqual(h.types().slice(0, 1), ["ai.programs"]);
+  h.clear();
+  await h.send({ type: "model.set", provider: "codex", model: "codex-default" });
+  assert.match(JSON.stringify(h.events()), /switched off for ARK/);
 });
 
 test("model.set switches the next request, keeps the conversation, saves the choice and sends info", async () => {
@@ -603,8 +636,8 @@ test("model.set refusals are settings errors with the fix, and nothing changes (
     { type: "model.set", provider: "claude-plan", model: "gpt 9!" }, // ADR-097: any well-formed id is a custom model; this one is not well-formed
   );
   assert.deepEqual(h.events(), [
-    { type: "error", stage: "settings", message: 'Unknown AI provider "gemini". Choose Claude (my plan) or Codex (my ChatGPT plan) or Gemini CLI (my Google sign-in).' },
-    { type: "error", stage: "settings", message: 'Unknown AI provider "claude". Choose Claude (my plan) or Codex (my ChatGPT plan) or Gemini CLI (my Google sign-in).' },
+    { type: "error", stage: "settings", message: 'Unknown AI provider "gemini". Choose Claude (my plan) or Codex (my ChatGPT plan) or Gemini CLI (my Google sign-in) or Copilot CLI (my GitHub sign-in) or OpenCode (my sign-ins).' },
+    { type: "error", stage: "settings", message: 'Unknown AI provider "claude". Choose Claude (my plan) or Codex (my ChatGPT plan) or Gemini CLI (my Google sign-in) or Copilot CLI (my GitHub sign-in) or OpenCode (my sign-ins).' },
     { type: "error", stage: "settings", message: '"gpt 9!" is not a model id: use 1 to 100 letters, digits, ".", "_", ":" or "-".' },
   ]);
   assert.equal(existsSync(h.path), false);

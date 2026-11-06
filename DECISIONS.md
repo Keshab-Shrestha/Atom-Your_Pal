@@ -4965,3 +4965,61 @@ Keshab likes the new thinking pill and tool rows. When the answer started, the s
 
 - What ARK did stays in view next to its answer.
 - The work log is still not saved in chat history. A reopened chat shows the answers only.
+
+## ADR-270 — Copilot CLI and OpenCode as chat providers (2026-11-06)
+
+### Context
+
+Keshab wants ARK to chat through more of the AI programs on his Mac, on his own sign-ins. ARK already does this for Claude Code, Codex and the Gemini CLI (ADR-093). The GitHub Copilot CLI is on this Mac. OpenCode is not on this Mac yet.
+
+### Decision
+
+- Two new providers: `copilot` (the GitHub Copilot CLI) and `opencode` (OpenCode). They use the Gemini CLI pattern: one run of the program per turn, the conversation as one prompt, one final text.
+- A provider is available when ARK finds its program: `ARK_COPILOT_PATH` or `ARK_OPENCODE_PATH` first, then the usual places and PATH. ARK also looks in `~/.opencode/bin`, where the OpenCode install script puts it.
+- Copilot runs `copilot --prompt <text> --silent --no-ask-user --no-custom-instructions --disable-builtin-mcps --disallow-temp-dir --excluded-tools=<all its tools> --deny-tool=shell --deny-tool=write --deny-tool=url`, and `--model=<id>` when a model is chosen. ARK gives no allow flag, so a `--prompt` run denies all other actions that need approval.
+- OpenCode runs `opencode run --format json --dir <empty folder> [--model provider/model] <text>`. `OPENCODE_CONFIG_CONTENT` sets the permission `"*": "deny"` and turns off the update check. ARK joins the `text` events. An `error` event becomes a clear error.
+- Each run starts in a new empty folder. ARK deletes the folder after the run.
+- ARK removes API keys, GitHub tokens (`GH_TOKEN`, `GITHUB_TOKEN`, `COPILOT_GITHUB_TOKEN`), Copilot's own-key provider settings, `COPILOT_ALLOW_ALL`, `OPENCODE_PERMISSION` and `OPENCODE_CONFIG_CONTENT` from the environment of these programs. The programs use only their own sign-in.
+- These providers get no ARK tools. They refuse a project chat and the "Ask for changes" and "Full access" modes before a program starts. "Chat only" is allowed, because their own tools are off.
+- Model lists: Copilot: its own model, `auto`, `claude-sonnet-5.5`, `claude-opus-5.5`, `claude-haiku-5.5`, `gpt-6.1-terra`, `gpt-6-luna`, `gemini-3.8-flash`. OpenCode: its own model, `opencode/gpt-6.1-sol`, `anthropic/claude-sonnet-5-5`.
+
+### Consequences
+
+- Keshab can pick Copilot or OpenCode in the model picker when the program is on this Mac.
+- The answer comes as one text at the end. There is no streaming and no thinking control.
+- Each turn sends the full conversation again. There is no session resume.
+- Copilot and OpenCode keep their own session logs in their own folders. ARK does not read or delete these logs.
+- A model in the list can be unavailable on Keshab's account. The program then gives an error, and ARK shows it.
+- A custom model id with "/" (an OpenCode `provider/model` id) is not accepted. Only the listed OpenCode models can be picked.
+
+## ADR-269 — Live AI program scan (2026-11-06)
+
+### Context
+
+ARK looked for 5 AI tools once, at start (ADR-093). Keshab installs and removes AI programs often. He wants ARK to find every AI coding or chat program on the Mac, keep the list current, and let him choose which ones ARK may use.
+
+### Decision
+
+- `apps/mac/src/ai-programs.ts` holds a registry of 14 programs as data: Claude Code (`claude`), Codex (`codex`), Gemini CLI (`gemini`), GitHub Copilot CLI (`copilot`), OpenCode (`opencode`), Cursor Agent (`cursor-agent`, `Cursor.app`), Aider (`aider`), Qwen Code (`qwen`), Goose (`goose`, `Goose.app`), Amp (`amp`), Crush (`crush`), Kiro (`kiro-cli`, `Kiro.app`), Ollama (`ollama`, `Ollama.app`) and LM Studio (`lms`, `LM Studio.app`).
+- ARK looks on PATH, in `~/.local/bin`, `/opt/homebrew/bin`, `/usr/local/bin`, `~/.npm-global/bin`, `~/.bun/bin`, `~/.cargo/bin`, `~/.opencode/bin` and `~/.lmstudio/bin`, and for app bundles in `/Applications` and `~/Applications`. An `ARK_*_PATH` that exists for a provider wins.
+- ARK reads a version with `--version`, or with `plutil` from an app bundle's `Info.plist`. Each call has 3 s. Its input is closed. A whole scan has 8 s. A version that does not come back in time is left out.
+- ARK checks only that a sign-in file exists. It never reads the file. Files: `~/.codex/auth.json`, `~/.gemini/oauth_creds.json`, `~/.local/share/opencode/auth.json`. Claude Code keeps its sign-in in the Keychain, so ARK does not say.
+- Each program has a status. `ready`: the gateway has its provider (`claude-plan`, `codex`, `gemini-cli`, and `copilot` and `opencode` when ADR-270 adds them). `found`: ARK has no adapter for it yet. `local-model`: Ollama and LM Studio. ARK does not use local models (CLAUDE.md §11).
+- The runtime scans at start, every 10 minutes and on `{"type":"ai.programs.scan"}`. Only one scan runs at a time. A second request joins the running scan. The window gets `ai.programs` after a change, and always after a request.
+- `{"type":"ai.programs.allow","id","allowed"}` switches a ready program on or off for ARK. The choice is saved in `config/ai-programs.json`, next to `config/island.json`, as `{"disallowed":[…]}`. All ready programs are on by default.
+- A program that is switched off leaves the model picker (`info.providers`). `model.set` and `chat.model` refuse its provider. ARK refuses to switch off the program of the model in use.
+- Settings > AI model shows "Found on this Mac": an icon, the name, the version, the place, a status chip, a may-use switch for a ready program, the time of the last scan and Rescan. It replaces the ADR-093 list in that place.
+
+### Consequences
+
+- A newly installed program shows in at most 10 minutes, or at once after Rescan.
+- Each scan starts one short `--version` process for each found program.
+- ADR-093's `tools` in `info` stays. It still decides if a provider is signed in. Rescan refreshes it too.
+- A chat that already uses a switched-off provider keeps that provider until Keshab changes it.
+- Not verified from official docs: the binary name of Kiro's app bundle, Goose's app bundle name, and the sign-in file of Qwen Code, Copilot CLI, Amp and Cursor Agent. ARK does not check sign-in files for these.
+
+### ADR-269 and ADR-270: security review notes (2026-11-06)
+
+- The scan runs a found program's `--version` with only `PATH`, `HOME` and `NO_COLOR`, so a found program never gets ARK's keys. A timeout kills with SIGKILL. The chat adapters also kill with SIGKILL, and Copilot runs with `--no-auto-update`.
+- `signedInEnv` now strips every `*_API_KEY` and the GitHub tokens for all CLI providers. Each CLI uses only its own sign-in. A Codex setup that reads a custom `*_API_KEY` from the environment stops working.
+- Known limit: "may use: off" is checked when Keshab picks a model (`chat.model`, `model.set`). It is not yet checked for a saved default at start, or for a chat that already uses that provider.

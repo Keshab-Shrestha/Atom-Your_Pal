@@ -52,7 +52,7 @@ test("info offers Claude on the plan first, then the other signed-in tools, and 
   const { settings } = settingsHarness();
   const info = settings.info();
   assert.deepEqual([info.provider, info.model], ["claude-plan", "claude-sonnet-5-5"]);
-  assert.deepEqual(info.providers.map((p) => [p.id, p.available, p.models.length]), [["claude-plan", true, 3], ["codex", false, 5], ["gemini-cli", false, 3]]);
+  assert.deepEqual(info.providers.map((p) => [p.id, p.available, p.models.length]), [["claude-plan", true, 3], ["codex", false, 5], ["gemini-cli", false, 3], ["copilot", false, 8], ["opencode", false, 3]]);
   assert.ok(noPath(JSON.stringify(info)));
   assert.equal(settingsHarness({ keys: {} }).settings.info().providers[0]!.available, false);
 });
@@ -194,10 +194,10 @@ test("a tool known to be signed out cannot be chosen; the scan's list comes with
       { id: "gemini-cli", name: "Gemini CLI", found: true, provider: "gemini-cli", note: "Found" },
     ],
   });
-  assert.deepEqual(settings.info().providers.map((p) => p.available), [true, true, true], "before the scan: found is enough");
+  assert.deepEqual(settings.info().providers.map((p) => p.available), [true, true, true, false, false], "before the scan: found is enough");
   await settings.scanTools?.();
   const info = settings.info();
-  assert.deepEqual(info.providers.map((p) => [p.id, p.available]), [["claude-plan", true], ["codex", false], ["gemini-cli", true]]);
+  assert.deepEqual(info.providers.map((p) => [p.id, p.available]), [["claude-plan", true], ["codex", false], ["gemini-cli", true], ["copilot", false], ["opencode", false]]);
   assert.equal(info.tools?.length, 2);
   assert.ok(!JSON.stringify(info).includes("/x/codex"), "paths are never sent");
 });
@@ -217,6 +217,7 @@ test("thinking choices come from live model metadata, unknown models stay unsupp
   assert.match(settings.reasoning!("claude-plan", "claude-older").note!, /does not expose adjustable/);
   assert.equal(settings.reasoning!("codex", "custom-model").levels.length, 0);
   assert.match(settings.reasoning!("gemini-cli", "gemini").note!, /does not expose/);
+  for (const provider of ["copilot", "opencode"]) assert.match(settings.reasoning!(provider, "auto").note!, /does not expose thinking controls/);
   fail = true; await settings.refreshModels!();
   assert.deepEqual(settings.reasoning!("codex", "gpt-test").levels, ["low", "medium", "high"]);
 });
