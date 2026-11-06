@@ -137,7 +137,7 @@ struct Composer: View {
             }
             // ADR-274: the placeholder names the keys while the box is empty; this line names them once the words hide it.
             if !snapshot, readOnly == nil, model.queue.running, !empty {
-                Text(model.queue.awaitingStart ? "Sending… · \(Self.busyHint)" : Self.busyHint)
+                Text(model.queue.awaitingStart ? "Sending… · \(Self.queueHint)" : Self.busyHint)
                     .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
             }
         }
@@ -258,14 +258,16 @@ struct Composer: View {
 
     private var talkHint: String? { model.settings.shortcut(for: .talk).map { "Hold \($0.display) to talk" } }
     private var placeholder: String {
-        model.queue.running ? Self.busyHint : "Message ARK…"
+        model.queue.running ? (model.queue.awaitingStart ? Self.queueHint : Self.busyHint) : "Message ARK…"
     }
-    /// ADR-274: Return keeps ADR-127's behaviour while ARK answers (the message waits); Tab does the same; ⌘Return sends now.
-    static let busyHint = "Return or Tab to queue · ⌘Return to send now"
+    /// ADR-274: Return keeps ADR-127's behaviour while ARK answers (the message waits); Tab does the same. ⌘Return queues the draft
+    /// and sends the oldest queued message now; while a message is still being sent it does nothing, so that hint leaves it out.
+    static let queueHint = "Return or Tab to queue"
+    static let busyHint = "\(queueHint) · ⌘Return to send the next now"
 
     /// ADR-274: Tab queues a draft while ARK answers. An empty box, Shift-Tab or an idle chat leave Tab to focus navigation.
     private func queueWithTab(_ press: KeyPress) -> KeyPress.Result {
-        guard model.queue.running, !empty, press.modifiers.isEmpty, !FieldEditor.composing else { return .ignored }
+        guard model.queue.running, !empty, press.modifiers.subtracting(.capsLock).isEmpty, !FieldEditor.composing else { return .ignored }
         send(now: false)
         return .handled
     }
@@ -617,9 +619,13 @@ private struct QueuedRow: View {
         .accessibilityLabel("\(held ? "Unsent" : "Queued") message \(position) of \(count): \(summary)")
         .accessibilityAction(named: "Edit") { if canEdit { edit() } }
         .accessibilityAction(named: held ? "Discard" : "Remove", remove)
-        .accessibilityAction(named: "Send now") { if canSend { sendNow?() } }
-        .accessibilityAction(named: "Move up") { move?(message.id, position - 2) }
-        .accessibilityAction(named: "Move down") { move?(message.id, position) }
+        .accessibilityActions {
+            if let sendNow { Button("Send now") { if canSend { sendNow() } } }
+            if let move {
+                Button("Move up") { move(message.id, position - 2) }
+                Button("Move down") { move(message.id, position) }
+            }
+        }
     }
 
     private func action(_ symbol: String, _ title: String, help: String, enabled: Bool, _ run: @escaping () -> Void) -> some View {
@@ -637,7 +643,7 @@ private struct QueuedRow: View {
             if press.key == .upArrow { move(message.id, position - 2); return .handled }
             if press.key == .downArrow { move(message.id, position); return .handled }
         }
-        guard press.modifiers.isEmpty else { return .ignored }
+        guard press.modifiers.subtracting(.capsLock).isEmpty else { return .ignored }
         switch press.key {
         case .return: if canSend, let sendNow { sendNow(); return .handled }
         case .delete, .deleteForward: remove(); return .handled

@@ -38,10 +38,13 @@ public enum ChatActivity {
     }
 
     /// The view now replaces the last one. Unknown jobs keep the last known ones. The oldest views past `limit` are dropped.
-    public static func remember(_ mark: ChatSeen, for chat: String, in seen: [String: ChatSeen]) -> [String: ChatSeen] {
+    /// While the owner stays in the chat, a view with the same messages and jobs keeps the stored one (no write for a new time
+    /// only); `leaving` stores it regardless, so the time names when the owner left.
+    public static func remember(_ mark: ChatSeen, for chat: String, in seen: [String: ChatSeen], leaving: Bool = false) -> [String: ChatSeen] {
         var next = seen
         var mark = mark
         if mark.jobs == nil { mark.jobs = seen[chat]?.jobs }
+        if !leaving, let old = seen[chat], old.messages == mark.messages, old.jobs == mark.jobs { return seen }
         next[chat] = mark
         if next.count > limit {
             for old in next.sorted(by: { $0.value.at < $1.value.at }).prefix(next.count - limit).map(\.key) { next[old] = nil }
@@ -56,5 +59,44 @@ public enum ChatActivity {
         format.timeZone = calendar.timeZone
         format.dateFormat = calendar.isDate(since, inSameDayAs: now) ? "HH:mm" : "MMM d, HH:mm"
         return "Catch me up: summarise in a few lines what happened in this chat since \(format.string(from: since))."
+    }
+}
+
+/// ADR-274: is the current chat on screen? Composers that show it, while the ARK window is open. The window is kept in memory
+/// when it closes, so its composer does not go away: closing pauses the view, and opening on the chat page resumes it.
+public struct ChatViewing: Sendable, Equatable {
+    public enum Step: Sendable, Equatable { case none, arrive, leave }
+    public private(set) var composers = 0
+    public private(set) var hidden = false
+    public var isOn: Bool { composers > 0 && !hidden }
+
+    public init() {}
+
+    /// A composer appeared, so the window shows it.
+    public mutating func composerAppeared() -> Step {
+        let was = isOn
+        composers += 1
+        hidden = false
+        return was ? .none : .arrive
+    }
+
+    public mutating func composerGone() -> Step {
+        guard composers > 0 else { return .none }
+        let was = isOn
+        composers -= 1
+        return was && !isOn ? .leave : .none
+    }
+
+    public mutating func windowClosed() -> Step {
+        let was = isOn
+        hidden = true
+        return was ? .leave : .none
+    }
+
+    /// On another page the old composer goes soon; a new composer resumes the view when it appears.
+    public mutating func windowOpened(onChat: Bool) -> Step {
+        guard onChat, hidden else { return .none }
+        hidden = false
+        return isOn ? .arrive : .none
     }
 }

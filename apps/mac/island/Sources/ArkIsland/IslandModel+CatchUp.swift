@@ -6,18 +6,21 @@ import ArkIslandCore
 // it sends one fixed request through the normal send path. While the chat stays on screen, new activity is seen, not news.
 
 extension IslandModel {
-    /// A composer showing the current chat appeared.
-    func chatViewStarted() {
-        chatViewers += 1
-        if chatViewers == 1 { arriveInChat() }
-    }
+    /// A composer showing the current chat appeared or went away.
+    func chatViewStarted() { follow(chatViewing.composerAppeared()) }
+    func chatViewEnded() { follow(chatViewing.composerGone()) }
+    /// The ARK window closed (it stays in memory, so the composer's onDisappear does not fire) or opened again.
+    func chatWindowClosed() { follow(chatViewing.windowClosed()) }
+    func chatWindowOpened() { follow(chatViewing.windowOpened(onChat: windowPage == .chat)) }
 
-    /// A composer showing the current chat went away. The last one records the view.
-    func chatViewEnded() {
-        guard chatViewers > 0 else { return }
-        recordChatSeen()
-        chatViewers -= 1
-        if chatViewers == 0 { viewedChat = nil; pendingSeen = nil; catchUpSince = nil }
+    private func follow(_ step: ChatViewing.Step) {
+        switch step {
+        case .arrive: arriveInChat()
+        case .leave:
+            recordChatSeen(leaving: true)
+            viewedChat = nil; pendingSeen = nil; catchUpSince = nil
+        case .none: break
+        }
     }
 
     /// Sends the fixed request the way Return sends a typed message to an idle chat; the draft in the box stays.
@@ -29,10 +32,10 @@ extension IslandModel {
     }
 
     func followChatView(_ event: IslandEvent) {
-        guard chatViewers > 0 else { return }
+        guard chatViewing.isOn else { return }
         switch event {
         case .chats(let list) where list.current != viewedChat:
-            recordChatSeen(viewedChat)
+            recordChatSeen(viewedChat, leaving: true)
             arriveInChat()
         case .chats, .helpers:
             if let seen = pendingSeen, let mark = chatMark(), mark.jobs != nil {
@@ -56,9 +59,9 @@ extension IslandModel {
         recordChatSeen()
     }
 
-    private func recordChatSeen(_ chat: String? = nil) {
+    private func recordChatSeen(_ chat: String? = nil, leaving: Bool = false) {
         guard let chat = chat ?? viewedChat, let mark = chatMark(chat) else { return }
-        settings.chatSeen = ChatActivity.remember(mark, for: chat, in: settings.chatSeen)
+        settings.chatSeen = ChatActivity.remember(mark, for: chat, in: settings.chatSeen, leaving: leaving)
     }
 
     private func chatMark(_ chat: String? = nil) -> ChatSeen? {

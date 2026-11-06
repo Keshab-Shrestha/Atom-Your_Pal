@@ -424,6 +424,7 @@ final class IslandModel {
         queue.sending(command) // pending copies remain in their own chat for review
         if case .chatDelete(let id) = command {
             input.remove(id); saveInput()
+            settings.chatSeen[id] = nil // ADR-274: no Catch me up view for a deleted chat
             recovery.record = nil; recovery.reading = nil
             recovery.attempts.removeAll { $0.chat == id }
         }
@@ -439,8 +440,8 @@ final class IslandModel {
     var catchUpSince: Date?
     /// ADR-274: the Workers chip asks the transcript to show the Workers card.
     var workersScrollTick = 0
-    /// ADR-274: how many composers show the current chat, the chat they show, and its last view while the Board list is not in yet.
-    @ObservationIgnored var chatViewers = 0
+    /// ADR-274: whether the current chat is on screen, the chat shown, and its last view while the Board list is not in yet.
+    @ObservationIgnored var chatViewing = ChatViewing()
     @ObservationIgnored var viewedChat: String?
     @ObservationIgnored var pendingSeen: ChatSeen?
     /// Gallery fixtures and ordinary submissions use the same bounded FIFO.
