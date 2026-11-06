@@ -102,6 +102,32 @@ export function nativeMembers(list: readonly HelperView[]): HelperView[] {
   return list.filter((h) => h.available && h.role !== "improver" && KITS.includes(h.kit));
 }
 
+/** "Sid, find …": Keshab speaks to one agent by name. */
+const ADDRESSED = /^\s*([\p{L}][\p{L}' -]{0,19}?)\s*,\s*\S/u;
+/** ADR-126: "@Sid" anywhere in the message, not inside a word or an email address. */
+const MENTIONED = /(?<![\p{L}\p{N}._%+-])@([\p{L}][\p{L}\p{N}_-]{0,19})/gu;
+
+/**
+ * The agent the user speaks to by name in this message: "Sid, …" (ADR-081) or "@Sid" (ADR-126). Claude and Codex chats use it
+ * for the "spoke to" line and for ADR-272's exception: that agent may get the request directly, even when it has a lead.
+ */
+export function addressedAgent(text: string, helpers: Pick<HelperStore, "list">): HelperView | undefined {
+  const names = [ADDRESSED.exec(text)?.[1], ...[...text.matchAll(MENTIONED)].map((m) => m[1])]
+    .filter((n): n is string => !!n)
+    .map((n) => n.trim().toLowerCase());
+  if (!names.length) return undefined;
+  try {
+    const members = nativeMembers(helpers.list());
+    for (const name of names) {
+      const found = members.find((m) => m.name.toLowerCase() === name);
+      if (found) return found;
+    }
+  } catch {
+    // no agent list: nobody is addressed
+  }
+  return undefined;
+}
+
 /** Granted MCP servers of a worker: on, and given to it (ADR-090). */
 export const grantedServers = (servers: readonly McpServer[], helper: string) => servers.filter((s) => s.enabled && s.workers.includes(helper));
 

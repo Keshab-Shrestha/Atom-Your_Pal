@@ -26,7 +26,7 @@ import { stoppedTaskSummary } from "./stopped-task-summary.ts";
 import { RECALL_SOURCES, type FilePermissions, type MemorySelection, type RecallEvent, type RecallPayload } from "@ark/memory";
 import type { FileApproval, FileEditReview } from "./computer-bridge.ts";
 import { denyRead } from "./folder-run.ts";
-import { BUILT_IN_AGENTS, agentDefinitions, nativeMembers } from "./native-agents.ts";
+import { BUILT_IN_AGENTS, addressedAgent, agentDefinitions, nativeMembers } from "./native-agents.ts";
 import { boardRecorder, type BoardRecorder, type BoardStore } from "./native-board.ts";
 import { nativeGate, type NativeGate, type TeamScope } from "./native-safety.ts";
 import { planBook, withPlanTools, type PlanBook, type PlanStore } from "./native-plan.ts";
@@ -295,10 +295,6 @@ interface Live {
 /** True when Claude Code could read the text as a file mention or a slash command. */
 export const needsComposed = (text: string) => text.includes("@") || /^\s*\//.test(text);
 
-/** "Sid, find …": Keshab speaks to one agent by name. */
-const ADDRESSED = /^\s*([\p{L}][\p{L}' -]{0,19}?)\s*,\s*\S/u;
-/** ADR-126: "@Sid" anywhere in the message, not inside a word or an email address. */
-const MENTIONED = /(?<![\p{L}\p{N}._%+-])@([\p{L}][\p{L}\p{N}_-]{0,19})/gu;
 
 export function createNativeCore(deps: NativeCoreDeps): NativeCore {
   const { newId = randomUUID, now = () => new Date() } = deps;
@@ -527,24 +523,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
 
   /** "Sid, …" (ADR-081 in native form) or "@Sid" (ADR-126): a fixed line asks the main agent to hand the request to Sid as it is. */
   function addressedMember(text: string): HelperView | undefined {
-    if (!deps.team) return undefined;
-    const names = [ADDRESSED.exec(text)?.[1], ...[...text.matchAll(MENTIONED)].map((m) => m[1])]
-      .filter((n): n is string => !!n)
-      .map((n) => n.trim().toLowerCase());
-    if (!names.length) return undefined;
-    const member = (() => {
-      try {
-        const members = nativeMembers(deps.team!.helpers.list());
-        for (const name of names) {
-          const found = members.find((m) => m.name.toLowerCase() === name);
-          if (found) return found;
-        }
-        return undefined;
-      } catch {
-        return undefined;
-      }
-    })();
-    return member;
+    return deps.team ? addressedAgent(text, deps.team.helpers) : undefined;
   }
   function addressed(member: HelperView | undefined): string | undefined {
     return member ? `The user spoke to ${member.name} directly: delegate this request to ${member.name} as it is, with the Agent tool (subagent_type "${member.id}").` : undefined;

@@ -10,7 +10,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import type { ModelRequest, ToolCall, ToolResult, ToolRunner, ToolSpec } from "@ark/contracts";
 import { createGateway, createCodexSessionAdapter, redact, runCodexProjectInspection, type CodexSessionOptions } from "@ark/llm-gateway";
 import { realish, type HelperView } from "@ark/helpers";
-import { kitHas, nativeMembers, RESEARCH_PAGES } from "./native-agents.ts";
+import { addressedAgent, kitHas, nativeMembers, RESEARCH_PAGES } from "./native-agents.ts";
 import { CODEX_SKILL_BUDGET, CODEX_SKILL_CHARS, codexWorkerCapabilities, codexWorkerPrompt, observeCodexWorker } from "./codex-worker.ts";
 import { boardRecorder } from "./native-board.ts";
 import { nativeGate, type NativeGate } from "./native-safety.ts";
@@ -199,6 +199,7 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
             } : {}),
             ...(team.filePermissions ? { permissions: team.filePermissions.forChat(chat) } : {}),
             worktrees: team.worktrees,
+            ...(team.reportsTo ? { reportsTo: team.reportsTo } : {}),
             ...(plans ? { plans } : {}),
             ...(req.files ? { project: { cwd: req.files.cwd } } : {}),
           },
@@ -207,7 +208,9 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
       entry = { gate, access, policy, project: req.project === true, ...(board ? { board } : {}), ...(plans ? { plans } : {}), tools: plans ? withPlanTools(options.tools, plans) : options.tools, ...(req.files ? { cwd: req.files.cwd } : {}) };
       chats.set(chat, entry);
     }
-    entry.gate.newAnswer(req.files);
+    // ADR-272, as in a Claude chat: the agent the user named in this message may get the request directly.
+    const asked = [...req.messages].reverse().find((m) => m.role === "user" && !m.toolResults?.length)?.content ?? "";
+    entry.gate.newAnswer(req.files, options.team ? addressedAgent(asked, options.team.helpers)?.id : undefined);
     entry.plans?.setWebAvailable?.(webAllowed(req));
     return entry;
   }
@@ -225,14 +228,14 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
     const verdict = await approvalSignal.run(signal, () => entry.gate.canUseTool("Agent", call.input, { toolUseID: call.id }));
     if (verdict.behavior !== "allow") return result(call, verdict.message ?? "That agent cannot start.", true);
     const id = `codex-${randomUUID()}`;
-    const job = entry.board.jobOfAgent(id, member.id);
+    // Link by this call's id first (ADR-272): with the same agent running twice, the agent type alone names no job.
+    entry.board.onEvent({ type: "system", subtype: "task_started", tool_use_id: call.id, task_id: id });
+    const job = entry.board.jobOfAgent(id);
     if (job === undefined) return result(call, "ARK could not link that agent's task.", true);
     const controller = new AbortController();
     const cancel = () => controller.abort(); signal?.addEventListener("abort", cancel, { once: true });
     if (signal?.aborted) controller.abort();
     running.set(job, controller);
-    team.helpers.linkNativeTask(job, id);
-    entry.board.onEvent({ type: "system", subtype: "task_started", tool_use_id: call.id, task_id: id });
     team.helpers.setModel(job, workerModel, member.codexPinnedModel ? `Codex model pinned by ${ownerName()} for this worker.` : "Uses this chat's Codex model; Claude pins are separate.");
     const worker = { id, type: member.id, cwd: req.files?.cwd ?? options.home ?? homedir() };
     // Native shell stays disabled; host commands use separate inspection/disposable-copy sandboxes.

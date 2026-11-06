@@ -5049,7 +5049,7 @@ ARK goes to other developers for free. ARK's own prompts, refusals and screens u
 
 ## ADR-272 — Agents call agents, work goes through managers, one agent runs many times (2026-11-06)
 
-Amends ADR-261.
+Amends ADR-261. Covers Claude chats and Codex chats (Keshab, 2026-11-06: "Codex chats follow the same rules").
 
 ### Context
 
@@ -5096,5 +5096,6 @@ Not done: the stall flag (a running job with no tool call or progress for 8 minu
 - In a home-folder chat, a folders child waits while other file work runs, also its folders caller's work. The hold refuses the call, and the caller does the work itself.
 - Design reference: Ghostex (MIT, maddada/Ghostex) for "a worker reports only at the end of its turn" and for coordinator ideas. ARK uses no Ghostex code.
 - Live test: `apps/mac/src/native-team.live.test.ts` runs Sid → Kame on the real Claude Code. Kame's job records Sid's job as its parent, and Kame's answer comes back through Sid. It passed on 2026-11-06.
+- Codex chats (2026-11-06): the Codex gate gets the chart (`reportsTo`) and the agent the user named in the message (`addressedAgent` in `native-agents.ts`, shared with native-core). So A1 and the gate's checks apply there too. A Codex worker has no Agent tool: it consults another worker only through the advisory path (ConsultWorker). Codex now links each started task by its call id, not by the agent type, so two runs of the same agent at once get the right jobs.
 - Review fixes (2026-11-06): the gate takes a child slot before its first await, so parallel calls cannot pass the cap of 6. A failed admission gives the slot back. After a worktree swap, a job that still waits for a worktree takes the other job's place and folder number, so two agents never share a worktree.
 
