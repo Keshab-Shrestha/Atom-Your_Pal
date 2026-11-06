@@ -3,3 +3,4 @@ export type { Config, LlmChoice, LlmProvider, LoadConfigOptions, LogLevel, Provi
 export { createLogger, migrateLegacyLog } from "./log.ts";
 export type { LogFields, Logger } from "./log.ts";
 export { ENV_NAMES, readEnv } from "./env.ts";
+export { cleanOwnerName, OWNER_NAME_MAX, ownerName, setOwnerName } from "./owner.ts";

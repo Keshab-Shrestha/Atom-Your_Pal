@@ -189,6 +189,8 @@ final class IslandController {
         if ArkEnv.read("ARK_BUBBLE_DEMO", env) != nil { playBubbleDemo() }
         // Development and the UI check (scripts/ui-check.sh): open the window at launch, as a click on the menu bar icon does.
         if ArkEnv.read("ARK_OPEN_WINDOW", env) == "1" || UserDefaults.standard.bool(forKey: "ark.window.restoreOnLaunch") { helpersWindow.show() }
+        // ADR-271: first run opens the window, which asks "What should ARK call you?".
+        else if OwnerName.needsAsking(saved: model.settings.ownerName) { helpersWindow.show() }
         if ArkEnv.read("ARK_LOOK_DEMO", env) != nil { playLookDemo() }
         if ArkEnv.read("ARK_WORK_DEMO", env) != nil { playWorkDemo() }
         if let spots = ArkEnv.read("ARK_POINT_DEMO", env) { playPointDemo(spots) }

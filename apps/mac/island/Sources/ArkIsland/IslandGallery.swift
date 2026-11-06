@@ -103,6 +103,7 @@ enum IslandGallery {
         writeMcpPaste(to: directory)
         writeStates(to: directory)
         writeModelPage(to: directory)
+        writeOwnerWelcome(to: directory)
         writeSlashPicker(to: directory)
         writeMentionPicker(to: directory)
         writeSidebarHidden(to: directory)

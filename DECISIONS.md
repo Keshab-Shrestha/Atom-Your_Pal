@@ -5023,3 +5023,26 @@ ARK looked for 5 AI tools once, at start (ADR-093). Keshab installs and removes 
 - The scan runs a found program's `--version` with only `PATH`, `HOME` and `NO_COLOR`, so a found program never gets ARK's keys. A timeout kills with SIGKILL. The chat adapters also kill with SIGKILL, and Copilot runs with `--no-auto-update`.
 - `signedInEnv` now strips every `*_API_KEY` and the GitHub tokens for all CLI providers. Each CLI uses only its own sign-in. A Codex setup that reads a custom `*_API_KEY` from the environment stops working.
 - Known limit: "may use: off" is checked when Keshab picks a model (`chat.model`, `model.set`). It is not yet checked for a saved default at start, or for a chat that already uses that provider.
+
+## ADR-271 — The owner's name, asked on first run (2026-11-06)
+
+### Context
+
+ARK goes to other developers for free. ARK's own prompts, refusals and screens used one fixed owner name in about 40 places. Each new user must see their own name.
+
+### Decision
+
+- On first run, ARK opens its window. A sheet asks "What should ARK call you?". The macOS full name (`NSFullUserName`) fills the field first. Continue saves the name. The sheet stays until a name is saved.
+- The island keeps the name in UserDefaults, key `ark.owner.name` (`IslandSettings.ownerName`). Settings > General has a "Your name" row to change it.
+- The island sends `{"type":"owner.set","name":"…"}` after each runtime start and after each change. With no saved name it sends the macOS first name. With neither, it sends nothing.
+- The runtime keeps the name in `config/owner.json`, next to `config/island.json`, as `{"name":"…"}`. It reads the file at start, before it makes its tools.
+- `ownerName()` in `@ark/shared` gives the name to every prompt and message. Without a name it gives "the user" ("The user" at the start of a sentence). `@ark/helpers` and `@ark/memory` now depend on `@ark/shared`.
+- A name is one line with no control characters and at most 60 characters. An empty name is refused.
+- On screen: Home's greeting uses the first name. The You page, the sidebar avatar and the Team's owner card use the name. With no name, the greeting has no name and the owner card says "You".
+- The no-tool run contracts in `claude-plan-job.ts` say "the user", as the other contracts in that file do. The MCP entry (`mcp-serve.ts`, a separate process) says "the user". The skills plugin description has no name.
+
+### Consequences
+
+- No fixed owner name is left in a runtime prompt, message or screen text. Code comments, tests and gallery fixtures keep a sample name.
+- A tool description is made at runtime start. After the first-run sheet, a few descriptions (for example trash_file) say "the user" until the next start. Refusals and prompts that are built per call use the new name at once.
+- Prompts change when the name changes, so their cache prefix changes once.

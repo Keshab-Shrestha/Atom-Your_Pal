@@ -43,7 +43,7 @@ test("Tinker drafts a skill and proposes skill edits with no tools, in their own
   assert.deepEqual(await runSkillDraft({ ...base, sdk: one.sdk }), { draft });
   const o = one.seen[0]!.options;
   assert.deepEqual([o.tools, o.persistSession, o.mcpServers, o.plugins, o.outputFormat.schema.required], [[], false, {}, undefined, ["name", "description", "body"]]);
-  assert.match(o.systemPrompt, /turns one task that Keshab rated as good into a reusable skill/);
+  assert.match(o.systemPrompt, /turns one task that the user rated as good into a reusable skill/);
   const bad = fakeSdk(async function* () {
     yield init();
     yield done({ ...draft, name: "Not A Name" });
@@ -73,7 +73,7 @@ test("Tinker's review uses no tools and returns one proposed change (Task 3.13)"
   assert.deepEqual(await runReview({ claudePath: "/bin/claude", model: "m", task: "Review", instructions: "You are Tinker.", signal: new AbortController().signal, sdk, env: {} }), { review });
   const o = seen[0]!.options;
   assert.deepEqual([o.tools, o.persistSession, o.outputFormat.schema.required], [[], false, ["change", "field", "text", "reason"]]);
-  assert.match(o.systemPrompt, /reviews one task that Keshab rated as not good/);
+  assert.match(o.systemPrompt, /reviews one task that the user rated as not good/);
 });
 
 test("a run has one separate session with no tools, no settings and nothing from the account (ADR-110 N5)", async () => {

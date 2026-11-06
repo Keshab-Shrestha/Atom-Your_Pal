@@ -1,3 +1,4 @@
+import { ownerName } from "@ark/shared";
 import { chatAccessPolicy, CHAT_ONLY_NOTICE, type AccessApproval, type ChatAccessPolicy } from "./chat-access.ts";
 import type { ChatAccessMode } from "@ark/contracts";
 import { createHash, randomUUID } from "node:crypto";
@@ -232,7 +233,7 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
     running.set(job, controller);
     team.helpers.linkNativeTask(job, id);
     entry.board.onEvent({ type: "system", subtype: "task_started", tool_use_id: call.id, task_id: id });
-    team.helpers.setModel(job, workerModel, member.codexPinnedModel ? "Codex model pinned by Keshab for this worker." : "Uses this chat's Codex model; Claude pins are separate.");
+    team.helpers.setModel(job, workerModel, member.codexPinnedModel ? `Codex model pinned by ${ownerName()} for this worker.` : "Uses this chat's Codex model; Claude pins are separate.");
     const worker = { id, type: member.id, cwd: req.files?.cwd ?? options.home ?? homedir() };
     // Native shell stays disabled; host commands use separate inspection/disposable-copy sandboxes.
     // 2026-11-02: a Full access chat's agents have every kit's tools (kitHas), checked again before each use.

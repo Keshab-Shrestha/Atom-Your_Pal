@@ -12,7 +12,7 @@ struct HomeHeader: View {
     var body: some View {
         // Snapshots use a fixed evening and name, so reference images do not change with the clock or the Mac's user.
         let hour = snapshot ? 19 : Calendar.current.component(.hour, from: Date())
-        let greeting = HomeBrief.greeting(hour: hour, name: snapshot ? "Keshab" : NSFullUserName())
+        let greeting = HomeBrief.greeting(hour: hour, name: snapshot ? "Keshab" : OwnerName.known(saved: model.settings.ownerName, fullUserName: NSFullUserName()) ?? "") // ADR-271
         let fact = HomeBrief.fact(needsYou: attention.total, working: attention.running, tokensToday: model.helpers.list?.usage?.today.io ?? 0) // the same input + output as the "Tokens today" tile
         VStack(alignment: .leading, spacing: 6) {
             if theme.serifTitles {

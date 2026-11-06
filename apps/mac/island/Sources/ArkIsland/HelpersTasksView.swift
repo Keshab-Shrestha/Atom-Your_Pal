@@ -527,7 +527,7 @@ private struct GoalSection: View {
     }
 }
 
-/// Keshab's notes, oldest first, and a field to add one. A note added before the task runs goes to its worker.
+/// The owner's notes, oldest first, and a field to add one. A note added before the task runs goes to its worker.
 private struct NotesSection: View {
     let model: IslandModel
     let comments: [TaskComment]
@@ -553,7 +553,8 @@ private struct NotesSection: View {
             ForEach(comments) { comment in
                 VStack(alignment: .leading, spacing: 2) {
                     if let delivery = comment.delivery {
-                        Text(delivery == "live" ? "Keshab (while running)" : "Keshab (after this run: the run could not take it)")
+                        let who = OwnerName.known(saved: model.settings.ownerName, fullUserName: NSFullUserName()) ?? "You" // ADR-271
+                        Text(delivery == "live" ? "\(who) (while running)" : "\(who) (after this run: the run could not take it)")
                             .appFont(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
                     }
                     Text(comment.text).appFont(.system(size: 12.5)).foregroundStyle(theme.text.color).fixedSize(horizontal: false, vertical: true)

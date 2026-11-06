@@ -1,3 +1,4 @@
+import { ownerName } from "@ark/shared";
 import { randomUUID } from "node:crypto";
 import { importedNoteResult } from "./brain-source-context.ts";
 import { homedir } from "node:os";
@@ -277,7 +278,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
       if (tainted.has("main")) tainted.set(`job:${job.id}`, tainted.get("main")!);
       team.board.opened(id, job.id, String(input.description ?? ""));
       const chosen = typeof updated.model === "string" ? updated.model : member.pinnedModel;
-      if (chosen) team.helpers.setModel(job.id, chosen, updated.model ? "Chosen by Laya." : "Pinned by Keshab.");
+      if (chosen) team.helpers.setModel(job.id, chosen, updated.model ? "Chosen by Laya." : `Pinned by ${ownerName()}.`);
       if (admissionSignal?.aborted) throw new Error("The turn stopped during worker admission; no worker was dispatched.");
       if (isolated) { updated.isolation = "worktree"; pendingTrees.push(job.id); }
     } catch (error) {
@@ -294,7 +295,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
     if (name === "AskUserQuestion") return deny("Use ARK's ask_user tool for a clarification card in the foreground window, or ask in your reply. This does not grant file/system access.");
     if (name.startsWith(`mcp__${TOOL_SERVER}__`)) {
       const bare = name.slice(`mcp__${TOOL_SERVER}__`.length);
-      if (bare === TRASH_TOOL) return deny("Hand deletes to an agent with the folders kit: it asks Keshab and moves the file to the Trash.");
+      if (bare === TRASH_TOOL) return deny(`Hand deletes to an agent with the folders kit: it asks ${ownerName()} and moves the file to the Trash.`);
       if (tainted.has("main") && TAINT_REFUSED_TOOLS.has(bare)) return log("taint.refused", { tool: bare }), deny(taintNote("main"));
       return { allow: true, input };
     }
@@ -384,10 +385,10 @@ export function nativeGate(scope: NativeScope): NativeGate {
       const ok = await approve({ summary: `${member.name} has a plan for the task`, reason: plan.slice(0, 600) || "Approve the plan to let it start." });
       say(ok ? "allowed" : "declined");
       if (ok) planApproved.add(agentId);
-      return ok ? { allow: true, input } : deny("Keshab did not approve this plan. Stop and report what you planned, so he can change the task.");
+      return ok ? { allow: true, input } : deny(`${ownerName(true)} did not approve this plan. Stop and report what you planned, so the task can be changed.`);
     }
     if (member.planFirst && CHANGE_TOOLS.includes(name) && !planApproved.has(agentId)) {
-      return say("refused"), deny(`${member.name} plans first: no file changes before Keshab approves the plan. Call ExitPlanMode with your plan.`);
+      return say("refused"), deny(`${member.name} plans first: no file changes before ${ownerName()} approves the plan. Call ExitPlanMode with your plan.`);
     }
     if (name === "WebFetch") {
       const problem = webFetchProblem(input.url, { tainted: isTainted(agentId) });

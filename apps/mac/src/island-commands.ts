@@ -1,6 +1,7 @@
 // The commands from the island, their allowlist and the parser (moved from island-protocol.ts; docs/island-protocol.md is the specification).
 
 import { isChatAccessMode, type ChatAccessMode } from "@ark/contracts";
+import { cleanOwnerName } from "@ark/shared";
 import type { ProjectSourceRequest } from "./project-sources.ts";
 import type { WorkspaceRequest } from "./project-workspace.ts";
 import { parseChatControl, type ChatControlRequest } from "./chat-controls.ts";
@@ -127,6 +128,8 @@ export type IslandCommand =
   | { type: "telegram.set"; push: boolean }
   /** ADR-098 item 5: Settings' "Local API" switch. The runtime answers with an `api` event. */
   | { type: "api.set"; on: boolean }
+  /** ADR-271: the name ARK calls its owner, from the first-run window or Settings > General. */
+  | { type: "owner.set"; name: string }
   /** 2026-10-15: Settings' "Regenerate" next to "Copy token". The runtime answers with an `api` event. */
   | { type: "api.regenerate" }
   | { type: "tools.scan" }
@@ -295,6 +298,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "speech.set",
   "telegram.set",
   "api.set",
+  "owner.set",
   "api.regenerate",
   "tools.scan",
   "ai.programs.scan",
@@ -628,6 +632,11 @@ export function parseCommand(line: string): ParsedLine {
     const { on } = value as { on?: unknown };
     if (typeof on !== "boolean") return { error: 'api.set needs "on" to be true or false.' };
     return { command: { type, on } };
+  }
+  if (type === "owner.set") {
+    const name = cleanOwnerName((value as { name?: unknown }).name);
+    if (!name) return { error: 'owner.set needs a "name": some text.' };
+    return { command: { type, name } };
   }
   if (type === "telegram.set") {
     const { push } = value as { push?: unknown };

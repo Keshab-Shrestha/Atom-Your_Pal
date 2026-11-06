@@ -1,3 +1,4 @@
+import { ownerName } from "@ark/shared";
 import { CHAT_ONLY_NOTICE, ASK_CHANGES_NOTICE, FULL_ACCESS_NOTICE, chatAccessPolicy, type AccessApproval } from "./chat-access.ts";
 import type { ChatAccessMode } from "@ark/contracts";
 import { randomUUID } from "node:crypto";
@@ -871,7 +872,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
     steer(job, text) {
       for (const [chat, entry] of live) {
         if (!entry.board?.running().includes(job) || entry.handle.closed || (busy && chat === sessionId)) continue;
-        const note = `Keshab adds a note to task ${job}, which one of your agents works on: ${text.trim()}\nTake it into account: when the agent reports, or hand the task again with the note if it matters now. Answer in one short sentence.`;
+        const note = `${ownerName(true)} adds a note to task ${job}, which one of your agents works on: ${text.trim()}\nTake it into account: when the agent reports, or hand the task again with the note if it matters now. Answer in one short sentence.`;
         entry.handle.send(note, { clientComposed: true }).then(
           (reply) => woke(chat, reply.text, () => entry.handle),
           () => deps.log?.("session.steer_failed", { chatId: chat, job }),

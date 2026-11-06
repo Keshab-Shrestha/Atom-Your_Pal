@@ -389,6 +389,21 @@ final class IslandModel {
     @ObservationIgnored var wakeChanged: () -> Void = {}
 
     /// Turns the pet on or off: saves the setting and shows or hides Pal at once.
+    /// ADR-271: the name on screen (Home's greeting, You, the Team's owner card): the saved one, else the Mac user's first name, else "you".
+    var ownerDisplayName: String { OwnerName.display(saved: settings.ownerName, fullUserName: NSFullUserName()) }
+
+    /// ADR-271: saves the owner's name (first-run window, Settings → General) and tells the runtime.
+    func setOwnerName(_ name: String) {
+        guard let cleaned = OwnerName.clean(name) else { return }
+        settings.ownerName = cleaned
+        sendOwnerName()
+    }
+
+    /// The runtime uses the known name in ARK's prompts; with none, it says "the user".
+    private func sendOwnerName() {
+        if let name = OwnerName.known(saved: settings.ownerName, fullUserName: NSFullUserName()) { send(.ownerSet(name: name)) }
+    }
+
     func setPet(_ enabled: Bool) {
         settings.petEnabled = enabled
         petChanged(enabled)
@@ -1201,6 +1216,7 @@ final class IslandModel {
             computerRestarting = false
             computerTimeout?.cancel()
             send(.telegramSet(push: settings.telegramPush))
+            sendOwnerName() // ADR-271
             sendChatDefaults() // Settings → Defaults (2026-11-02)
             send(.apiSet(on: settings.localApi)) // ADR-098 item 5
             send(.computerMode(foreground: settings.computerForeground))
