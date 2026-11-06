@@ -1,5 +1,9 @@
 # ARK Project Status
 
+## README for new users — 7 November 2026
+
+- Docs only: README.md is rewritten for new users (Quick start first, short feature groups, Contributing, an honest Status). docs/features.md holds the full, checked feature list. Three new images: Workers card, result card and translucent window. No license file exists yet.
+
 ## Translucent window — 7 November 2026
 
 - ADR-277 (design reference: Ghostex, MIT): Settings > Appearance > Window has "Translucent window" and a Strength choice (Low, Medium, High). The default is off. With Ambient glass on, the desktop shows through the window, blurred by the system and tinted. The title bar is part of the same glass.
