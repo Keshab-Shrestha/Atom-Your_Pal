@@ -86,4 +86,32 @@ public enum ChatWorkText {
         if others > 0 { parts.append("\(others) more") }
         return parts.enumerated().map { i, part in i == 0 ? part : part.prefix(1).lowercased() + part.dropFirst() }.joined(separator: ", ")
     }
+
+    /// ADR-275 (after Ghostex's "Worked 9s" row, MIT): the bold start of a turn's work row, "Worked for 9s" and the like.
+    /// A finished turn with no tools and no questions only thought.
+    public static func headline(_ work: ChatWorkSnapshot, elapsedMs: Double) -> String {
+        let prefix = switch work.state {
+        case "working": "Working for"
+        case "completed": work.hasSteps ? "Worked for" : "Thought for"
+        case "failed": "Failed after"
+        case "interrupted": "Interrupted after"
+        default: "Stopped after"
+        }
+        return "\(prefix) \(duration(ms: elapsedMs))"
+    }
+
+    /// ADR-275: the counts at the right of the work row: "3 tool calls", "1 question". Only what ARK knows: tool rows carry
+    /// no paths, so there is no "files changed" count.
+    public static func chips(_ work: ChatWorkSnapshot) -> [String] {
+        let calls = work.calls.count + work.omitted
+        var out: [String] = []
+        if calls > 0 { out.append(calls == 1 ? "1 tool call" : "\(calls) tool calls") }
+        if !work.questions.isEmpty { out.append(ChatQuestions.count(work.questions.count)) }
+        return out
+    }
+}
+
+extension ChatWorkSnapshot {
+    /// Something to open: tool calls or questions. A turn that only thought has none.
+    public var hasSteps: Bool { !calls.isEmpty || omitted > 0 || !questions.isEmpty }
 }

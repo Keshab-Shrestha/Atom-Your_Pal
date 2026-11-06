@@ -1,5 +1,12 @@
 # ARK Task Plan
 
+## Worked header, diff card and questions card — 6 November 2026
+
+- ADR-275 (design reference: Ghostex, MIT): each turn's work row is one header: chevron, the time in bold, the tool summary, and "3 tool calls" and "1 question" pills. The newest turn keeps its steps open. There is no "files changed" pill: tool rows carry no paths.
+- The file review shows the change as a diff card: "+N −M" with mini squares, the file name and folder, hunks with two line-number gutters, green and red rows, and "Reveal in Finder".
+- `ask_user` can ask one to four questions in one card (`questions`, a JSON string). The card shows numbered questions, radio options with a "Recommended" pill and letter keys, "Other / none of these", a note, and one "Send answers" (⌘↩). A blank question is sent as unanswered.
+- Verified: TypeScript tests (1486 pass, 11 skipped) and typecheck, Swift tests (992 pass), fixture renders of the new `transcript` gallery group, UI check with no golden change (live step not run). Not checked by hand in the running app.
+
 ## Queue rows, Tab to queue and Catch me up — 6 November 2026
 
 - ADR-274 (design reference: Ghostex, MIT): each queued message is a compact row with a grip, its first line and Edit, Send now and Remove on hover or keyboard focus. Drag a row, or press ⌥↑ or ⌥↓, to change the order. Send now works on every row: it stops the answer through the existing text-send path, then sends.

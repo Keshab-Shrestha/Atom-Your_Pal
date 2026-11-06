@@ -35,6 +35,11 @@ enum IslandGallery {
             writeWorkers(to: directory)
             return
         }
+        if ArkEnv.read("ARK_ISLAND_GALLERY_ONLY") == "transcript" {
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            writeTranscriptCards(to: directory)
+            return
+        }
         if ArkEnv.read("ARK_ISLAND_GALLERY_ONLY") == "composer" {
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             writeComposer(to: directory)
@@ -110,6 +115,7 @@ enum IslandGallery {
         writeWorkspaceDesign(to: directory)
         writeWorkers(to: directory)
         writeComposer(to: directory)
+        writeTranscriptCards(to: directory)
         writeProjects(to: directory)
         writeBrain(to: directory)
         writeMcpPaste(to: directory)

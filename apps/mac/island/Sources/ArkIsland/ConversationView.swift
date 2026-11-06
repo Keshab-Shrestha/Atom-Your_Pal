@@ -868,9 +868,11 @@ struct ConversationTab: View {
 
     private var composer: some View {
         VStack(spacing: 8) {
-            if let work = model.conversation.turns.last?.work, work.state == "working", work.chat == model.chats?.current,
-               let question = work.questions.first(where: { $0.state == "pending" }) {
-                ChatQuestionCard(model: model, work: work, question: question).id(question.id)
+            if let work = model.conversation.turns.last?.work, work.state == "working", work.chat == model.chats?.current {
+                let questions = work.questions.filter { $0.state == "pending" }
+                if !questions.isEmpty {
+                    ChatQuestionsCard(model: model, work: work, questions: questions).id(questions.map(\.id).joined())
+                }
             }
             RememberRows(model: model) // upgrades.md C2: facts the notes noticed, kept only on Remember
             Composer(model: model)

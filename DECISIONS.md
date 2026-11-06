@@ -5163,3 +5163,34 @@ Design reference: Ghostex (github.com/maddada/Ghostex, MIT): its queue rows, its
 - VoiceOver lists Send now, Move up and Move down only on rows that have them (held rows have none).
 - When the Board list arrives after the chat, its job changes are compared once when it arrives.
 - Gallery scenes: `ARK_ISLAND_GALLERY_ONLY=composer` renders 52-composer-queue-dark, 52-composer-queue-light, 52-composer-catch-up-dark and 52-composer-catch-up-light.
+
+## ADR-275 — Chat UX from Ghostex, batch 3: worked header, diff card, questions card (2026-11-06)
+
+Follows ADR-274. Extends ADR-156 (chat work visibility) and the complete file review (ADR-129).
+
+### Context
+
+A finished turn showed "Worked for 9s · Read 3 files" in plain text, with no counts. The file review showed the change as one run of crossed-out and green words, with no line numbers. The `ask_user` tool asked one question per card, and the card had only text buttons for the choices and a free-text field.
+
+Design reference: Ghostex (github.com/maddada/Ghostex, MIT): its "Worked 9s" row, its "Edited 1 file" diff card and its questions card. ARK uses no Ghostex code, assets or pixel layouts. Each pattern is drawn again with ARK's tokens, type scale, square cards, UIcons and tone steps (ADR-214).
+
+### Decision
+
+1. Worked header. The turn's work row is one header: a chevron, the time in bold ("Worked for 9s", "Thought for 4s", "Working for 2s"), the dim summary of the tools, and pills at the right: "3 tool calls" and "1 question". The newest turn keeps its steps open after the answer (owner rule, 2026-11-06). The words and the counts come from `ChatWorkText.headline` and `ChatWorkText.chips` in ArkIslandCore.
+2. No "files changed" pill. Tool rows carry no paths, so ARK does not know how many files a turn changed. ARK shows only counts that it knows.
+3. Diff card. Under "Changes", the file review shows one card: a pencil tile, "1 file to change", "+N −M" and five mini squares; then one section per file with a chevron, the file name in bold and the folder dim; then each hunk with a tinted "@@ -a,b +c,d @@" line, two line-number gutters and green added and red removed rows in mono. The bottom link is "Reveal in Finder": ARK's existing file action. It never opens or runs the file. `UnifiedDiff` in ArkIslandCore makes the hunks from the Myers line diff that `TextDiff` already has (three lines of context; changes closer than six lines share a hunk).
+4. Each thing shows once. The path shows once, in the file's row. With one file, the "+N −M" shows once, in the card header. "Before" and "After" keep the whole texts with the path above them.
+5. Questions card. All questions that wait in a turn show in one card above the composer: a header tile, "ARK asks" and "2 questions"; for each question a "Q1" pill, the question, its options as radio rows (label, optional dim line, a "Recommended" pill, a letter key a, b, c at the right), an "Other / none of these" row, and an optional note. A question with no options has only "Your answer". The footer says "Questions you leave blank are sent as unanswered." and has "Send answers" (⌘↩). Tab moves to a question's options; a letter picks a row; ↑ and ↓ move the pick. Each row has a VoiceOver label, its key as a hint and the selected trait.
+6. `ask_user` extension (runtime). The tool keeps `question` and `choices` for one question. A new optional `questions` property is a JSON string: an array of one to four `{question, choices}` objects (the tool schema allows only `{type, description}` per property). Each choice is one line: "Label | reason (recommended)". A choice may have 160 characters (was 100). Code parses and checks all of it: in `chat-work.ts` for the runtime, in `ChatQuestions` (ArkIslandCore) for the card. One call makes one card. The card waits until each question has an answer or a blank, then the tool returns one result. One question keeps the old result format; more give `{answers: [...]}` with `unanswered: true` for a blank. Stop, expiry and the end of the turn settle the whole card at once.
+7. Answers. The card sends one `chat.question.answer` per question, through the existing path that saves each answer for recovery. A picked option sends its label, then the note. "Other" sends the note, or "None of these". A blank sends a skip.
+
+### Stays ARK's own
+
+- Answers are clarification only, not file or system permission. The card says so.
+- No new runtime command, wire field or dependency. At most four questions per turn and one waiting card, as before.
+
+### Consequences
+
+- The file review's segmented picker and scroll view are AppKit views and do not render in a snapshot. The gallery shows the diff card on its own.
+- "Review all" from Ghostex was not added: one ARK file review holds one file, and the review is already the place to review it.
+- Gallery scenes: `ARK_ISLAND_GALLERY_ONLY=transcript` renders 53-worked-header, 53-diff-card and 53-questions-card, each dark and light.
