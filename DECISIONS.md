@@ -5095,4 +5095,6 @@ Not done: the stall flag (a running job with no tool call or progress for 8 minu
 - A child in a Git project works in its own worktree, not in its caller's worktree. The caller reads the child's report, not its files. To read the child's files, the caller asks for approval.
 - In a home-folder chat, a folders child waits while other file work runs, also its folders caller's work. The hold refuses the call, and the caller does the work itself.
 - Design reference: Ghostex (MIT, maddada/Ghostex) for "a worker reports only at the end of its turn" and for coordinator ideas. ARK uses no Ghostex code.
+- Live test: `apps/mac/src/native-team.live.test.ts` runs Sid → Kame on the real Claude Code. Kame's job records Sid's job as its parent, and Kame's answer comes back through Sid. It passed on 2026-11-06.
+- Review fixes (2026-11-06): the gate takes a child slot before its first await, so parallel calls cannot pass the cap of 6. A failed admission gives the slot back. After a worktree swap, a job that still waits for a worktree takes the other job's place and folder number, so two agents never share a worktree.
 

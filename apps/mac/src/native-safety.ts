@@ -165,7 +165,9 @@ export function nativeGate(scope: NativeScope): NativeGate {
   };
   const memories = new Map<number, FolderMemory>(); // ADR-122: per task, so a card is asked once per file
   const planApproved = new Set<string>(); // agent ids whose ExitPlanMode Keshab approved on the card
-  const pendingTrees: number[] = []; // jobs whose Agent call asked for a worktree, oldest first
+  // Jobs whose Agent call asked for a worktree, oldest first. `label`: the number its folder and branch get (ADR-272: after a
+  // swap a job may wait under the other job's number, because its own folder is in use).
+  const pendingTrees: { job: number; label: number }[] = [];
   // ADR-272: Claude Code names an agent's worktree "agent-<its agent id>". The job each was made for, to correct a FIFO mismatch.
   const treeOfAgent = new Map<string, { job: number; made: Workdir }>();
   const childCount = new Map<number, number>(); // root job -> agents started below it (ADR-272, MAX_TEAM_CHILDREN)
@@ -216,19 +218,26 @@ export function nativeGate(scope: NativeScope): NativeGate {
     }
   };
 
-  /** ADR-272: why an agent at work may not hand this task to `target`; undefined: it may. Code decides, from the chart and the Board. */
-  const delegationRefusal = (caller: HelperView, parentJob: number, target: string, members: readonly HelperView[]): string | undefined => {
+  /**
+   * ADR-272: may an agent at work hand this task to `target`? Code decides, from the chart and the Board. On yes it takes one of
+   * the root task's child slots at once, before any await, so parallel calls cannot pass the cap together; the caller gives the
+   * slot back when admission fails later.
+   */
+  const delegationRefusal = (caller: HelperView, parentJob: number, target: string, members: readonly HelperView[]): { problem: string } | { root: number } => {
     const name = (id: string) => members.find((m) => m.id === id)?.name;
+    const refuse = (problem: string) => ({ problem });
     const problem = delegationProblem(caller.id, target, team!.reportsTo?.() ?? {}, nativeMembers(members).map((m) => m.id), name);
-    if (problem) return problem;
+    if (problem) return refuse(problem);
     const chain: string[] = []; // the agents above this task, nearest first
     let root = parentJob;
     for (let row = team!.helpers.get(parentJob); row; row = row.parentId !== undefined ? team!.helpers.get(row.parentId) : undefined) { chain.push(row.helper); root = row.id; }
-    if (chain.includes(target)) return `${name(target) ?? target} already works on this task above you. End your turn; your report goes back up.`;
-    if (chain.length + 1 > MAX_ORG_DEPTH) return `This task is ${MAX_ORG_DEPTH} levels deep already. Do this part yourself, or end your turn and say in your report who should do it.`;
-    if ((childCount.get(root) ?? 0) >= MAX_TEAM_CHILDREN) return `This task already started ${MAX_TEAM_CHILDREN} agents below it. Do this part yourself, or end your turn with your report.`;
-    return undefined;
+    if (chain.includes(target)) return refuse(`${name(target) ?? target} already works on this task above you. End your turn; your report goes back up.`);
+    if (chain.length + 1 > MAX_ORG_DEPTH) return refuse(`This task is ${MAX_ORG_DEPTH} levels deep already. Do this part yourself, or end your turn and say in your report who should do it.`);
+    if ((childCount.get(root) ?? 0) >= MAX_TEAM_CHILDREN) return refuse(`This task already started ${MAX_TEAM_CHILDREN} agents below it. Do this part yourself, or end your turn with your report.`);
+    childCount.set(root, (childCount.get(root) ?? 0) + 1);
+    return { root };
   };
+  const freeChildSlot = (root: number) => childCount.set(root, Math.max(0, (childCount.get(root) ?? 0) - 1));
 
   /**
    * An Agent call: one of ARK's agents; makes the Board job; Laya's model; a worktree in a project. `from`: the agent at work
@@ -245,10 +254,13 @@ export function nativeGate(scope: NativeScope): NativeGate {
     if (paused) return deny(`${paused.name} is paused. Set it to Ready before starting new work.`);
     const member = nativeMembers(members).find((m) => m.id === type);
     if (!member) return deny(`"${type.slice(0, 40)}" is not one of your agents. Pick one by its description, or make one with create_agent.`);
+    let slot: number | undefined; // the root task whose child slot this call holds (ADR-272)
     if (from) {
-      const problem = delegationRefusal(from.member, from.job, member.id, members);
-      if (problem) return log("agent.delegate_refused", { job: from.job, helper: from.member.id, target: member.id }), deny(problem);
+      const verdict = delegationRefusal(from.member, from.job, member.id, members);
+      if ("problem" in verdict) return log("agent.delegate_refused", { job: from.job, helper: from.member.id, target: member.id }), deny(verdict.problem);
+      slot = verdict.root;
     }
+    let admitted = false;
     // ADR-111: a portion of the chat's work plan. Code checks the order and writes the prompt: its stored task, the goal
     // and the reports it waited for. The main agent's own prompt text is not used. Plans belong to the main thread only.
     const claim = from ? ({ kind: "none" } as const) : team.plans?.claim(String(input.description ?? ""), member) ?? ({ kind: "none" } as const);
@@ -316,21 +328,18 @@ export function nativeGate(scope: NativeScope): NativeGate {
       // The child inherits what its caller read (ADR-123): the caller's taint (by job, or by agent id before the link), else the main thread's.
       const read = from ? tainted.get(`job:${from.job}`) ?? tainted.get(from.agentId) : tainted.get("main");
       if (read !== undefined) tainted.set(`job:${job.id}`, read);
-      if (from) {
-        let root = from.job;
-        for (let row = team.helpers.get(from.job); row?.parentId !== undefined; row = team.helpers.get(row.parentId)) root = row.parentId;
-        childCount.set(root, (childCount.get(root) ?? 0) + 1);
-      }
       team.board.opened(id, job.id, String(input.description ?? ""));
       const chosen = typeof updated.model === "string" ? updated.model : member.pinnedModel;
       if (chosen) team.helpers.setModel(job.id, chosen, updated.model ? "Chosen by Laya." : `Pinned by ${ownerName()}.`);
       if (admissionSignal?.aborted) throw new Error("The turn stopped during worker admission; no worker was dispatched.");
-      if (isolated) { updated.isolation = "worktree"; pendingTrees.push(job.id); }
+      if (isolated) { updated.isolation = "worktree"; pendingTrees.push({ job: job.id, label: job.id }); }
+      admitted = true;
     } catch (error) {
       if (job) { fileReadbacks.delete(job.id); team.helpers.stop(job.id); } // no SDK worker was dispatched
       return deny(error instanceof Error ? error.message : String(error));
     } finally {
       release();
+      if (!admitted && slot !== undefined) freeChildSlot(slot);
     }
     log("agent.call", { job: job.id, helper: member.id, ...(from ? { parent: from.job } : {}), ...(typeof updated.model === "string" ? { model: updated.model } : {}) });
     return { allow: true, input: updated };
@@ -501,6 +510,8 @@ export function nativeGate(scope: NativeScope): NativeGate {
       if (other) work.set(own.job, other); else work.delete(own.job);
       for (const [agent, t] of treeOfAgent) if (t.job === job) treeOfAgent.set(agent, { job: own.job, made: t.made });
       treeOfAgent.set(agentId, { job, made: own.made });
+      // This job has its worktree now. If it still waits in the queue, the other job takes its place (and its folder number).
+      for (const [i, entry] of pendingTrees.entries()) if (entry.job === job) pendingTrees[i] = { job: own.job, label: entry.label };
       for (const j of [job, own.job]) { const c = fileReadbacks.get(j); if (c?.tree) c.invalid = true; } // never verify a swapped copy
       log("agent.worktree_swapped", { job, other: own.job });
     }
@@ -610,11 +621,12 @@ export function nativeGate(scope: NativeScope): NativeGate {
             // A host adapter names its job ("ark-job-<n>"); Claude Code names the agent ("agent-<id>"), so its job is the oldest waiting one.
             const name = typeof hook?.name === "string" ? hook.name : "";
             const named = /^ark-job-(\d+)$/.exec(name);
-            const at = named ? pendingTrees.indexOf(Number(named[1])) : 0;
-            const job = at >= 0 ? pendingTrees.splice(at, 1)[0] : undefined;
-            if (job === undefined || !team.project) throw new Error("No ARK task asked for this worktree.");
+            const at = named ? pendingTrees.findIndex((entry) => entry.job === Number(named[1])) : 0;
+            const entry = at >= 0 ? pendingTrees.splice(at, 1)[0] : undefined;
+            if (entry === undefined || !team.project) throw new Error("No ARK task asked for this worktree.");
+            const job = entry.job;
             if (!active(job) || checkingFiles.has(job)) throw new Error("This worker no longer needs a worktree.");
-            const made = await prepareWorkdir(team.project.cwd, job, team.worktrees);
+            const made = await prepareWorkdir(team.project.cwd, entry.label, team.worktrees);
             if (!active(job) || checkingFiles.has(job)) throw new Error("The task ended during worktree preparation; the copy is retained without dispatch.");
             work.set(job, made);
             if (name.startsWith("agent-")) treeOfAgent.set(name.slice("agent-".length), { job, made });

@@ -14,7 +14,7 @@ import { MAX_TEAM_CHILDREN } from "./org.ts";
 
 type Decision = { decision: string; reason?: string; input?: Record<string, any> };
 
-function setup(options: { reportsTo?: Record<string, string>; project?: "repo" | "folder"; plans?: boolean } = {}) {
+function setup(options: { reportsTo?: Record<string, string>; project?: "repo" | "folder"; plans?: boolean; chooseModel?: () => Promise<string | undefined> } = {}) {
   const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-team-")));
   const work = join(home, "work");
   mkdirSync(work);
@@ -39,6 +39,7 @@ function setup(options: { reportsTo?: Record<string, string>; project?: "repo" |
       home,
       log: (event, fields) => void events.push({ event, fields }),
       ...(options.reportsTo ? { reportsTo: () => options.reportsTo! } : {}),
+      ...(options.chooseModel ? { chooseModel: options.chooseModel } : {}),
       ...(options.project ? { project: { cwd: work } } : {}),
       ...(options.plans ? { plans: planBook(store, "chat-1", undefined, options.project ? { projectRoot: work } : {}) } : {}),
     },
@@ -244,5 +245,48 @@ test("C: before the SDK links two runs of one agent, ARK does not guess which ta
   t.board.onEvent({ type: "system", subtype: "task_started", task_id: "s2", tool_use_id: "u2" });
   assert.equal((await pre(t.gate, { agent_id: "s1", agent_type: "sid", tool_name: "WebSearch", tool_input: { query: "q" } }, "w2")).decision, "allow");
   assert.equal(t.board.jobOfAgent("s2"), jobOf(t.store, "sid").id);
+  t.done();
+});
+
+test("B1: parallel calls cannot pass the six-child cap while the model choice is pending (checker, 2026-11-06)", async () => {
+  // Production always chooses a model (Laya), and that await sits between the cap check and the Board job.
+  const t = setup({ chooseModel: () => new Promise((resolve) => setTimeout(() => resolve("haiku"), 20)) });
+  await start(t, "penny", "ag-penny");
+  const verdicts = await Promise.all(Array.from({ length: 10 }, (_, i) => delegate(t, "ag-penny", "penny", "sid", undefined, `p${i}`)));
+  assert.equal(verdicts.filter((v) => v.decision === "allow").length, MAX_TEAM_CHILDREN);
+  assert.equal(t.store.list().find((h) => h.id === "sid")!.jobs.length, MAX_TEAM_CHILDREN);
+  t.done();
+  // A call refused after the cap check (here: the parent stopped during the model choice) gives its slot back.
+  const u = setup({ chooseModel: () => new Promise((resolve) => setTimeout(() => resolve("haiku"), 20)) });
+  const root = await start(u, "penny", "ag-penny");
+  const late = delegate(u, "ag-penny", "penny", "sid", undefined, "q0");
+  u.gate.cancelJob(root);
+  assert.equal((await late).decision, "deny");
+  assert.equal(u.store.list().find((h) => h.id === "sid")!.jobs.length, 0);
+  u.done();
+});
+
+test("C: a swap before the other agent's worktree exists keeps both agents in their own worktrees (checker, 2026-11-06)", async () => {
+  const t = setup({ project: "repo" });
+  assert.equal((await pre(t.gate, ask("kame"), "u1")).decision, "allow");
+  const first = jobOf(t.store, "kame").id;
+  assert.equal((await pre(t.gate, ask("kame"), "u2")).decision, "allow");
+  const second = jobOf(t.store, "kame").id;
+  t.board.onEvent({ type: "system", subtype: "task_started", task_id: "a1", tool_use_id: "u1" });
+  t.board.onEvent({ type: "system", subtype: "task_started", task_id: "a2", tool_use_id: "u2" });
+  const create = (t.gate.hooks.WorktreeCreate as { hooks: ((input: Record<string, unknown>) => Promise<any>)[] }[])[0]!.hooks[0]!;
+  const edit = (agent: string, tree: string, id: string) => pre(t.gate, { agent_id: agent, agent_type: "kame", tool_name: "Edit", tool_input: { file_path: join(tree, "a.txt"), old_string: "old", new_string: "new" } }, id);
+  // Agent 2 creates first (FIFO gives it the first job's folder) and edits before agent 1 has a worktree.
+  const treeOfTwo = (await create({ name: "agent-a2" })).hookSpecificOutput.worktreePath as string;
+  assert.match(treeOfTwo, new RegExp(`task-${first}`));
+  assert.equal((await edit("a2", treeOfTwo, "e1")).decision, "allow");
+  const treeOfOne = (await create({ name: "agent-a1" })).hookSpecificOutput.worktreePath as string;
+  assert.notEqual(treeOfOne, treeOfTwo, "agent 1 gets a new folder, not agent 2's");
+  assert.match(treeOfOne, new RegExp(`task-${second}`));
+  assert.equal((await edit("a1", treeOfOne, "e2")).decision, "allow");
+  assert.equal((await edit("a2", treeOfTwo, "e3")).decision, "allow", "agent 2 still edits in its own worktree");
+  assert.equal((await edit("a1", treeOfTwo, "e4")).decision, "deny");
+  assert.equal((await edit("a2", treeOfOne, "e5")).decision, "deny");
+  for (const tree of [treeOfOne, treeOfTwo]) execFileSync("git", ["worktree", "remove", "--force", tree], { cwd: t.work });
   t.done();
 });
