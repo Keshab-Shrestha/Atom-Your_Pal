@@ -4933,3 +4933,21 @@ Keshab found too many places that overlap. Panels and Apps were both "make me a 
 - The rail has 7 pages instead of 10: Home, Chats, Board, Automations, Apps, Brain, Plugins, then Settings.
 - Back no longer reopens old places. To return to a Board tab, use the rail.
 - A stuck chat shows on Home within a day of use, not when Keshab notices it.
+
+## ADR-268 — The work log stays after the answer (2026-11-06)
+
+### Context
+
+Keshab likes the new thinking pill and tool rows. When the answer started, the steps folded into one line, so they seemed to disappear. A turn that only thought showed nothing.
+
+### Decision
+
+- The newest answer keeps its work log open after it finishes, with all its steps (not only the last 6). Older answers fold to one line ("Worked for 22s · Read 3 files"), and a click opens them.
+- A turn with no tools keeps one line: "Thought for 4s". It has no chevron, because there are no steps to open.
+- A call shorter than one second shows "<1s".
+- The video Studio (ADR-267, PR #42) is parked by Keshab. Its branch `studio-phase1` is kept.
+
+### Consequences
+
+- What ARK did stays in view next to its answer.
+- The work log is still not saved in chat history. A reopened chat shows the answers only.

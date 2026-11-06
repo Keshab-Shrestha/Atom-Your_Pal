@@ -72,8 +72,15 @@ extension IslandGallery {
             save(VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 12) { ThinkingPill(label: "Thinking"); ThinkingPill(label: ChatWorkText.phase(work)) }
                 ChatWorkView(work: work)
+                // 2026-11-06: a finished answer keeps its steps open; a thinking-only one keeps "Thought for".
+                if let done = try? JSONDecoder().decode(ChatWorkSnapshot.self, from: Data(json.replacingOccurrences(of: #""state":"working""#, with: #""state":"completed""#).replacingOccurrences(of: #""state":"started""#, with: #""state":"ok","ms":900"#).utf8)) {
+                    ChatWorkView(work: done, keepOpen: true)
+                }
+                if let thought = try? JSONDecoder().decode(ChatWorkSnapshot.self, from: Data(#"{"chat":"c","turn":"\#(id())","startedAt":"","elapsedMs":4000,"state":"completed","omitted":0,"questions":[],"calls":[]}"#.utf8)) {
+                    ChatWorkView(work: thought, keepOpen: true)
+                }
             }
-            .padding(24).frame(width: 720, height: 360, alignment: .topLeading)
+            .padding(24).frame(width: 720, height: 760, alignment: .topLeading)
             .background(palette.surfaceSolid.color).themed(palette).environment(\.islandSnapshot, true), name: name, to: directory)
         }
     }

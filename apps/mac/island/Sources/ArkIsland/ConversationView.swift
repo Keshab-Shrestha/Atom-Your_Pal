@@ -848,9 +848,10 @@ struct TurnView: View {
                 }
             }
             VStack(alignment: .leading, spacing: 8) {
-                if let work = turn.work,
-                   work.state != "completed" || !work.calls.isEmpty || work.omitted > 0 || !work.questions.isEmpty {
-                    ChatWorkView(work: work, step: computerStep)
+                // 2026-11-06 (Keshab: the process "disappears" once the answer shows): every turn keeps its work line, a thinking-only
+                // turn too ("Thought for 4s"), and the newest answer keeps its steps open under the answer's start.
+                if let work = turn.work {
+                    ChatWorkView(work: work, step: computerStep, keepOpen: latest)
                 }
                 switch turn.outcome {
                 case .inProgress where turn.reply == nil:

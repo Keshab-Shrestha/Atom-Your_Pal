@@ -1,5 +1,9 @@
 # ARK Task Plan
 
+## The work log stays after the answer — 6 November 2026
+
+- ADR-268: the newest answer keeps its steps open, older ones fold to one line, and a thinking-only turn shows "Thought for 4s". The video Studio is parked; its branch is kept.
+
 ## Fewer places: Automations, one Apps page, Back to Home — 6 November 2026
 
 - ADR-265: Scheduled and Workflows are one page, Automations, in the workflow card style, with filters. Panels and Apps are one Apps page, and each one gets a tile in the rail. Back goes up out of a sub-page, otherwise Home, and from Home to Chats.
