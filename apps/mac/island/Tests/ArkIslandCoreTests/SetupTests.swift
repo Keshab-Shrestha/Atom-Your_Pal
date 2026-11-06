@@ -90,7 +90,7 @@ struct PlainFailureTests {
         guard case .showCommand(let text) = f.action else { Issue.record("expected showCommand"); return }
         #expect(text.contains("claude auth login"))
         // apps/mac/src/model-settings.ts, when switching to the plan without Claude Code.
-        let switching = try #require(PlainFailure.match("Install Claude Code and run `claude auth login` to use Claude (my plan), then restart ARK."))
+        let switching = try #require(PlainFailure.match("Install Claude Code and run `claude auth login` to use Claude, then restart ARK."))
         #expect(switching.sentence == f.sentence)
     }
 

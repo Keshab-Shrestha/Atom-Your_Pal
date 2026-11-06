@@ -39,6 +39,8 @@ public enum IslandEvent: Sendable, Equatable {
     /// That request is no longer waiting: answered, declined, timed out or cancelled.
     case approvalClosed(id: String)
     case info(ModelInfo)
+    /// ADR-269: the AI programs on this Mac (at start, after a change, after `ai.programs.scan`).
+    case aiPrograms(AiProgramsState)
     /// What ARK keeps (ADR-058): after `memory.list`, and after every change from then on.
     case memory(MemoryList)
     /// Remembering by itself (upgrades.md C2): whether suggestions are made, and the ones that wait (after `suggestions.get`, and after each change).
@@ -135,6 +137,7 @@ public enum IslandEvent: Sendable, Equatable {
         case .approvalRequest: "approval.request"
         case .approvalClosed: "approval.closed"
         case .info: "info"
+        case .aiPrograms: "ai.programs"
         case .memory: "memory"
         case .suggestions: "suggestions"
         case .workflows: "workflows"
@@ -279,6 +282,8 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
             model: try f.string("model"),
             providers: try f.providers(),
             tools: Fields.tools(f.values["tools"])))
+    case "ai.programs":
+        return .aiPrograms(AiProgramsState.from(f.values))
     case "worker.line":
         return .workerLine(try f.string("line"))
     case "timer":
@@ -658,7 +663,8 @@ private struct Fields {
                          rating: j["rating"] as? String, reviews: (j["reviews"] as? NSNumber)?.intValue,
                          autoRetries: (j["autoRetries"] as? NSNumber)?.intValue ?? 0, subAgents: Self.subAgents(j["subAgents"]),
                          labels: (j["labels"] as? [Any] ?? []).compactMap { $0 as? String }, recoveryNeeded: Self.flag(j["recoveryNeeded"]),
-                         retryOf: (j["retryOf"] as? NSNumber)?.intValue, retriedAs: (j["retriedAs"] as? NSNumber)?.intValue, advisory: Self.flag(j["advisory"]), chatId: j["chatId"] as? String)
+                         retryOf: (j["retryOf"] as? NSNumber)?.intValue, retriedAs: (j["retriedAs"] as? NSNumber)?.intValue, advisory: Self.flag(j["advisory"]), chatId: j["chatId"] as? String,
+                         quietSince: (j["quietSince"] as? String).flatMap(Self.date))
     }
 
     /// ADR-098: search results of one kind; a malformed one is left out. Chat ids are strings, task ids numbers.

@@ -36,27 +36,34 @@ public enum ChatTranscript {
         return "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>\(css)</style></head><body>\(body)</body></html>"
     }
 
-    /// A reply's blocks with its media made selectable: chart → table, drawing → label, image line → label.
+    /// A reply's blocks with its media made selectable: chart → table, result card → its tables, drawing → label, image line → label.
     public static func blocks(_ reply: String) -> [MarkdownBlock] {
-        MarkdownBlocks.parse(reply).map { block in
-            switch block {
-            case .code(let s, let language) where language?.lowercased() == "chart":
-                guard let chart = ReplyChart.parse(s) else { return block }
-                let table = chart.table
-                return .table(header: [chart.title ?? ""] + table.header.dropFirst(), rows: table.rows)
-            case .code(let s, let language) where language?.lowercased() == "svg":
-                return ReplySVG.check(s) == nil ? block : .paragraph("*Drawing*")
-            case .paragraph(let s):
-                guard let pieces = ReplyImage.pieces(s) else { return block }
-                return .paragraph(pieces.map { piece in
-                    switch piece {
-                    case .text(let t): t
-                    case .image(let image): "*Image: \(image.alt.isEmpty ? "untitled" : image.alt)*"
-                    }
-                }.joined(separator: "\n"))
-            default:
-                return block
+        MarkdownBlocks.parse(reply).flatMap { block -> [MarkdownBlock] in
+            if case .code(let s, let language) = block, language?.lowercased() == ArkVisual.language, let visual = ArkVisual.parse(s) {
+                return MarkdownBlocks.parse(visual.markdown)
             }
+            return [media(block)]
+        }
+    }
+
+    private static func media(_ block: MarkdownBlock) -> MarkdownBlock {
+        switch block {
+        case .code(let s, let language) where language?.lowercased() == "chart":
+            guard let chart = ReplyChart.parse(s) else { return block }
+            let table = chart.table
+            return .table(header: [chart.title ?? ""] + table.header.dropFirst(), rows: table.rows)
+        case .code(let s, let language) where language?.lowercased() == "svg":
+            return ReplySVG.check(s) == nil ? block : .paragraph("*Drawing*")
+        case .paragraph(let s):
+            guard let pieces = ReplyImage.pieces(s) else { return block }
+            return .paragraph(pieces.map { piece in
+                switch piece {
+                case .text(let t): t
+                case .image(let image): "*Image: \(image.alt.isEmpty ? "untitled" : image.alt)*"
+                }
+            }.joined(separator: "\n"))
+        default:
+            return block
         }
     }
 }

@@ -1,3 +1,4 @@
+import { ownerName } from "@ark/shared";
 import type { ToolSpec } from "@ark/contracts";
 import { MemoryError, type Memory, type MemoryStore } from "./store.ts";
 
@@ -41,7 +42,7 @@ export function createMemoryTools(options: MemoryToolOptions): MemoryTool[] {
           "Keeps one short fact about the user for future conversations (it survives restarts). Use it when the user asks you " +
           "to remember something, or after they agree to you keeping a lasting fact they told you (their name, family, " +
           "preferences, important dates, how they like things done). Write the fact in the third person, self-contained, " +
-          'one sentence, e.g. "Keshab\'s sister is called Asha." Never keep passwords, card numbers or other secrets.',
+          `one sentence, e.g. "${ownerName(true)}'s sister is called Asha." Never keep passwords, card numbers or other secrets.`,
         inputSchema: {
           type: "object",
           properties: {

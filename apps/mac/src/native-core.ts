@@ -1,3 +1,4 @@
+import { ownerName } from "@ark/shared";
 import { CHAT_ONLY_NOTICE, ASK_CHANGES_NOTICE, FULL_ACCESS_NOTICE, chatAccessPolicy, type AccessApproval } from "./chat-access.ts";
 import type { ChatAccessMode } from "@ark/contracts";
 import { randomUUID } from "node:crypto";
@@ -25,7 +26,8 @@ import { stoppedTaskSummary } from "./stopped-task-summary.ts";
 import { RECALL_SOURCES, type FilePermissions, type MemorySelection, type RecallEvent, type RecallPayload } from "@ark/memory";
 import type { FileApproval, FileEditReview } from "./computer-bridge.ts";
 import { denyRead } from "./folder-run.ts";
-import { BUILT_IN_AGENTS, agentDefinitions, nativeMembers } from "./native-agents.ts";
+import { BUILT_IN_AGENTS, addressedAgent, agentDefinitions, nativeMembers } from "./native-agents.ts";
+import { handBackLine, handBackNeed } from "./org.ts";
 import { boardRecorder, type BoardRecorder, type BoardStore } from "./native-board.ts";
 import { nativeGate, type NativeGate, type TeamScope } from "./native-safety.ts";
 import { planBook, withPlanTools, type PlanBook, type PlanStore } from "./native-plan.ts";
@@ -46,6 +48,11 @@ const MEDIA_RULE =
   'When the user asks for a chart or graph, write a ```chart block of JSON instead of a table: {"type":"bar"|"line"|"pie","title":"…",' +
   '"labels":["…"],"series":[{"name":"…","values":[1,2]}]}, one value per label, at most 6 series and 50 labels; a pie has one series. ' +
   "To show a picture, put a Markdown image on its own line: ![what it shows](an https address, or the absolute path of an image file on this Mac). " +
+  // ADR-276: a result card for numbers, comparisons and test results (docs/chat-visuals.md).
+  "For results with numbers (test runs, comparisons, measurements), write one ```ark-visual block of JSON: " +
+  '{"title":"Tests","blocks":[{"type":"stats","items":[{"label":"Failed","value":"2","tone":"bad"}]},' +
+  '{"type":"bar","unit":"ms","data":[{"label":"api","value":420}]}]}; blocks are stats, bar, line (data: points with only label ' +
+  "and value, each label different) and table (columns, rows of text); any block may have a title; at most 6 blocks and 40 points. " +
   "For a logo, icon or simple drawing, write a ```svg block: one <svg> with a viewBox, using shapes, paths, gradients and text only, with no scripts, links or images. " +
   // 2026-11-02: a drawing went to an agent, which asked to write a file and stopped when the card expired.
   "Write charts and drawings yourself, in your reply: do not hand them to an agent or save them to a file unless the user asks for a file.";
@@ -164,8 +171,31 @@ export interface NativeTeamDeps {
   readAssignedSkill?(name: string): { name: string; description: string; body: string } | undefined;
   /** 2026-11-05 (org.ts): the team line and routing rule for the main agent's prompt; "" when no agent has a lead. */
   org?(): string;
+  /** ADR-272: who reports to whom (org.ts), for the code checks of Agent calls and each agent's team line. */
+  reportsTo?(): Readonly<Record<string, string>>;
   /** A reply the session gave by itself (an agent reported). `saved`: it is already in the open chat's turns. */
   onWake?(chatId: string, text: string, saved: boolean): void;
+}
+
+/** ADR-272: the host's "handed back" lines for these finished jobs; "" when none ended its report with "Hand back:". */
+export function handBackLines(team: Pick<NativeTeamDeps, "helpers" | "reportsTo">, jobs: readonly number[]): string {
+  try {
+    const members = team.helpers.list();
+    const name = (id: string) => members.find((m) => m.id === id)?.name;
+    return jobs.flatMap((job) => {
+      const need = handBackNeed(team.helpers.report(job)?.body ?? "");
+      const helper = team.helpers.get(job)?.helper;
+      return need && helper ? [handBackLine(name(helper) ?? helper, need, team.reportsTo?.() ?? {}, name)] : [];
+    }).join("\n");
+  } catch {
+    return ""; // a missing report row never blocks the wake
+  }
+}
+
+/** ADR-272: the chart for the agent definitions: each agent's team line and whether it gets the Agent tool. */
+function teamScope(team: NativeTeamDeps) {
+  const members = nativeMembers(team.helpers.list());
+  return { reportsTo: team.reportsTo?.() ?? {}, agentIds: members.map((m) => m.id), name: (id: string) => members.find((m) => m.id === id)?.name };
 }
 
 export interface NativeCore extends Core {
@@ -286,10 +316,6 @@ interface Live {
 /** True when Claude Code could read the text as a file mention or a slash command. */
 export const needsComposed = (text: string) => text.includes("@") || /^\s*\//.test(text);
 
-/** "Sid, find …": Keshab speaks to one agent by name. */
-const ADDRESSED = /^\s*([\p{L}][\p{L}' -]{0,19}?)\s*,\s*\S/u;
-/** ADR-126: "@Sid" anywhere in the message, not inside a word or an email address. */
-const MENTIONED = /(?<![\p{L}\p{N}._%+-])@([\p{L}][\p{L}\p{N}_-]{0,19})/gu;
 
 export function createNativeCore(deps: NativeCoreDeps): NativeCore {
   const { newId = randomUUID, now = () => new Date() } = deps;
@@ -408,6 +434,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
               ...(team.filePermissions ? { permissions: team.filePermissions.forChat(chat) } : {}),
               ...(team.chooseModel ? { chooseModel: team.chooseModel } : {}),
               worktrees: team.worktrees,
+              ...(team.reportsTo ? { reportsTo: team.reportsTo } : {}),
               ...(project ? { project } : {}),
               ...(deps.log ? { log: deps.log } : {}),
             },
@@ -415,7 +442,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
         : {}),
     });
     const skills = team?.skills?.(chat);
-    const agents = team ? agentDefinitions(team.helpers, { ...(project ? { project } : {}), ...(team.browser ? { browser: team.browser } : {}), ...(skills ? { skillsPlugin: skills.plugin } : {}), ...(access === "full" ? { fullAccess: true } : {}) }) : undefined;
+    const agents = team ? agentDefinitions(team.helpers, { ...(project ? { project } : {}), ...(team.browser ? { browser: team.browser } : {}), ...(skills ? { skillsPlugin: skills.plugin } : {}), ...(access === "full" ? { fullAccess: true } : {}), ...(team.reportsTo ? { team: teamScope(team) } : {}) }) : undefined;
     let handle: ChatSessionHandle;
     handle = await openChatSession({
       chatId: chat,
@@ -459,7 +486,13 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
           try { deps.log?.("agent.stopped_summary", { chatId: chat, updates: tasks.length }); }
           catch { /* Diagnostics must not discard the corrected notice. */ }
         }
-        woke(chat, summary ?? text, () => handle);
+        // ADR-272: an agent that ended its report with "Hand back:" left the choice of agent to ARK. Code writes the line.
+        const handBacks = handBackLines(team, tasks.flatMap((task) => {
+          const job = task.status === "completed" ? board?.knownJobOfTask?.(task.id) : undefined;
+          return job !== undefined ? [job] : [];
+        }));
+        if (handBacks && entry) entry.missed = [...(entry.missed ?? []), { role: "assistant", content: handBacks }];
+        woke(chat, handBacks ? `${summary ?? text}\n\n${handBacks}` : summary ?? text, () => handle);
       } } : {}),
       ...(files ? { cwd: files.cwd } : {}),
       ...(resume ? { resume } : {}),
@@ -516,24 +549,10 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
   }
 
   /** "Sid, …" (ADR-081 in native form) or "@Sid" (ADR-126): a fixed line asks the main agent to hand the request to Sid as it is. */
-  function addressed(text: string): string | undefined {
-    if (!deps.team) return undefined;
-    const names = [ADDRESSED.exec(text)?.[1], ...[...text.matchAll(MENTIONED)].map((m) => m[1])]
-      .filter((n): n is string => !!n)
-      .map((n) => n.trim().toLowerCase());
-    if (!names.length) return undefined;
-    const member = (() => {
-      try {
-        const members = nativeMembers(deps.team!.helpers.list());
-        for (const name of names) {
-          const found = members.find((m) => m.name.toLowerCase() === name);
-          if (found) return found;
-        }
-        return undefined;
-      } catch {
-        return undefined;
-      }
-    })();
+  function addressedMember(text: string): HelperView | undefined {
+    return deps.team ? addressedAgent(text, deps.team.helpers) : undefined;
+  }
+  function addressed(member: HelperView | undefined): string | undefined {
     return member ? `The user spoke to ${member.name} directly: delegate this request to ${member.name} as it is, with the Agent tool (subagent_type "${member.id}").` : undefined;
   }
 
@@ -590,7 +609,9 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
       if (!entry) entry = await open(chat, model, prompt, tools, files, key, resume, readOnly, reasoning, access, signal);
       else if (entry.handle.model !== model) await entry.handle.setModel(model); // ADR-097: background tasks still run, so switch live
       entry.signal = signal;
-      entry.gate.newAnswer(files);
+      // ADR-272: the agent the user spoke to by name may get this request directly, even when it has a lead.
+      const spokenTo = chatOnly ? undefined : addressedMember(text);
+      entry.gate.newAnswer(files, spokenTo?.id);
       // A new session without a resumable one gets the conversation so far as a transcript.
       let replayNote = opened && !resume ? selected.notice : undefined;
       let history: RecallPayload["history"] = opened && !resume
@@ -613,7 +634,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
       const opening = opened && !chatOnly ? await openingContext(chat, text) : [];
       const typed = deps.screenReplies && input.source === "text" ? TYPED_NOTE : undefined;
       const continuityNote = continuity && (opened || entry.continuityKey !== continuity.key) ? continuity.text : undefined;
-      const parts = [...opening, ...requiredPart("user.addressed-worker", chatOnly ? undefined : addressed(text)),
+      const parts = [...opening, ...requiredPart("user.addressed-worker", addressed(spokenTo)),
         ...requiredPart("response.format", typed), ...extra, ...requiredPart("history.replay-notice", replayNote),
         ...requiredPart("history.continuity", continuityNote)];
       const ctx = composeContext(parts, context);
@@ -871,7 +892,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
     steer(job, text) {
       for (const [chat, entry] of live) {
         if (!entry.board?.running().includes(job) || entry.handle.closed || (busy && chat === sessionId)) continue;
-        const note = `Keshab adds a note to task ${job}, which one of your agents works on: ${text.trim()}\nTake it into account: when the agent reports, or hand the task again with the note if it matters now. Answer in one short sentence.`;
+        const note = `${ownerName(true)} adds a note to task ${job}, which one of your agents works on: ${text.trim()}\nTake it into account: when the agent reports, or hand the task again with the note if it matters now. Answer in one short sentence.`;
         entry.handle.send(note, { clientComposed: true }).then(
           (reply) => woke(chat, reply.text, () => entry.handle),
           () => deps.log?.("session.steer_failed", { chatId: chat, job }),

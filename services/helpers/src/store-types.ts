@@ -516,7 +516,7 @@ export interface HelperStore {
    * legacy runner never picks it up. The complete task text is retained.
    * ADR-164: advisoryParentId instead admits a bounded, tool-free child with exact task length and durable scope.
    */
-  addNativeJob(helper: string, task: string, links: { chatId: string; sdkTaskId?: string; advisoryParentId?: number }): Job;
+  addNativeJob(helper: string, task: string, links: { chatId: string; sdkTaskId?: string; advisoryParentId?: number; parentId?: number }): Job;
   /** Persist one retry intent before dispatch; repeated requests return the same attempt without dispatching again. */
   queueNativeRetry(id: number): { job: Job; created: boolean };
   /** Host-bound retry intent and its single-portion plan, when the source belonged to a plan. */

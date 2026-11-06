@@ -64,6 +64,10 @@ final class IslandModel {
     var capabilities: [CapabilityItem]?
     /// Claude plan usage (ADR-076), merged from `plan.usage` events. Nil until one arrives: no meters.
     var planUsage: PlanUsage?
+    /// ADR-269: the AI programs on this Mac; nil until the first scan arrives.
+    var aiPrograms: AiProgramsState?
+    /// ADR-269: a rescan was asked for and has not come back.
+    var scanningPrograms = false
     /// ADR-091: Keshab's chats and the one ARK is in; nil until the window asks.
     var chats: ChatList?
     /// The skill open in Plugins → Skills (its whole SKILL.md), the last answer to `skillGet` or `skillSave`.
@@ -385,6 +389,21 @@ final class IslandModel {
     @ObservationIgnored var wakeChanged: () -> Void = {}
 
     /// Turns the pet on or off: saves the setting and shows or hides Pal at once.
+    /// ADR-271: the name on screen (Home's greeting, You, the Team's owner card): the saved one, else the Mac user's first name, else "you".
+    var ownerDisplayName: String { OwnerName.display(saved: settings.ownerName, fullUserName: NSFullUserName()) }
+
+    /// ADR-271: saves the owner's name (first-run window, Settings → General) and tells the runtime.
+    func setOwnerName(_ name: String) {
+        guard let cleaned = OwnerName.clean(name) else { return }
+        settings.ownerName = cleaned
+        sendOwnerName()
+    }
+
+    /// The runtime uses the known name in ARK's prompts; with none, it says "the user".
+    private func sendOwnerName() {
+        if let name = OwnerName.known(saved: settings.ownerName, fullUserName: NSFullUserName()) { send(.ownerSet(name: name)) }
+    }
+
     func setPet(_ enabled: Bool) {
         settings.petEnabled = enabled
         petChanged(enabled)
@@ -405,6 +424,7 @@ final class IslandModel {
         queue.sending(command) // pending copies remain in their own chat for review
         if case .chatDelete(let id) = command {
             input.remove(id); saveInput()
+            settings.chatSeen[id] = nil // ADR-274: no Catch me up view for a deleted chat
             recovery.record = nil; recovery.reading = nil
             recovery.attempts.removeAll { $0.chat == id }
         }
@@ -416,6 +436,14 @@ final class IslandModel {
 
     /// The message waiting for the answer to end, and whether a turn is running.
     private(set) var queue = MessageQueue()
+    /// ADR-274: when the owner last viewed this chat, while it holds activity from after that; nil hides Catch me up.
+    var catchUpSince: Date?
+    /// ADR-274: the Workers chip asks the transcript to show the Workers card.
+    var workersScrollTick = 0
+    /// ADR-274: whether the current chat is on screen, the chat shown, and its last view while the Board list is not in yet.
+    @ObservationIgnored var chatViewing = ChatViewing()
+    @ObservationIgnored var viewedChat: String?
+    @ObservationIgnored var pendingSeen: ChatSeen?
     /// Gallery fixtures and ordinary submissions use the same bounded FIFO.
     func queueMessage(_ text: String, draft: ComposerDraft) {
         var entry = input.entry(for: inputChat)
@@ -476,9 +504,27 @@ final class IslandModel {
         return nil
     }
 
-    func sendQueuedNow() {
-        guard inputRuntimeReady, !queue.awaitingStart, let message = queue.take() else { return }
+    /// ADR-274: any queued row can go now (nil: the head). Like Command-Return, it stops the answer through the runtime's
+    /// text-send path ("typing over an answer stops it"), then sends; the other entries keep their order.
+    func sendQueuedNow(_ id: String? = nil) {
+        guard inputRuntimeReady, !queue.awaitingStart, let message = queue.take(id: id) else { return }
         sendQueued(message)
+    }
+
+    /// ADR-274: fixed words sent to an idle chat, as Return sends typed ones (Catch me up).
+    func sendIdle(_ text: String) -> Bool {
+        guard !queue.running, ask(text) else { return false }
+        queue.didDispatch()
+        return true
+    }
+
+    /// ADR-274: drag or ⌥↑/⌥↓ reorders the live queue; the saved copies follow the same order.
+    func moveWaitingInput(_ id: String, to index: Int) {
+        guard queue.move(id: id, to: index) else { return }
+        var entry = input.entry(for: inputChat)
+        entry.waiting = queue.ordered(entry.waiting)
+        input.set(entry, for: inputChat)
+        saveInput()
     }
 
     /// Editing one entry never merges it with a draft or consumes another queue item.
@@ -1064,6 +1110,7 @@ final class IslandModel {
         if helpers.takeRenameConfirmed() { showSaved("agent-name") } // only once the runtime's list has the new name
         if let refresh = helpers.takeRefresh() { send(refresh) } // the open task changed: ask for its thread again
         if helperRefusal { return } // a refused helper command is shown in the ARK window only
+        defer { followChatView(event) } // ADR-274: Catch me up
         conversation.apply(event)
         settleQueue(event)
         approval.apply(event)
@@ -1197,6 +1244,7 @@ final class IslandModel {
             computerRestarting = false
             computerTimeout?.cancel()
             send(.telegramSet(push: settings.telegramPush))
+            sendOwnerName() // ADR-271
             sendChatDefaults() // Settings → Defaults (2026-11-02)
             send(.apiSet(on: settings.localApi)) // ADR-098 item 5
             send(.computerMode(foreground: settings.computerForeground))
@@ -1213,6 +1261,9 @@ final class IslandModel {
             send(.chatWorkWatch) // ADR-156: only a UI that can render cards opts into waiting for an answer
             refreshForegroundRecovery()
             if helpersWindowOpen { send(.commandsList) } // the "/" picker (ADR-117)
+        case .aiPrograms(let state):
+            aiPrograms = state
+            scanningPrograms = false
         case .info(let info):
             modelInfo = info
             syncChatModelName()

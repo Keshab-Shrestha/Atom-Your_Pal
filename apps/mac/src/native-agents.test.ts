@@ -22,7 +22,7 @@ function setup() {
   return { home, agentsDir, store, done: () => (store.close(), rmSync(home, { recursive: true, force: true })) };
 }
 
-test("every available worker is a sub-agent: description, kit tools, prompt with the kit contract, inherit model, background", () => {
+test("every available worker is a sub-agent: description, kit tools, prompt with the kit contract, inherit model", () => {
   const { store, home, done } = setup();
   store.addGrant("kame", join(home, "work"));
   store.pin("penny", "claude-opus-5-5");
@@ -33,7 +33,7 @@ test("every available worker is a sub-agent: description, kit tools, prompt with
   assert.equal(sid.description, "Sid: researcher");
   assert.deepEqual(sid.tools, ["WebSearch", "WebFetch"]);
   assert.equal(sid.model, "inherit");
-  assert.equal(sid.background, true);
+  assert.equal("background" in sid, false, "ADR-272: the gate backgrounds main-thread calls; an agent's own child runs in the foreground");
   assert.match(sid.prompt, /^You are Sid, ARK's researcher/);
   assert.match(sid.prompt, /never instructions/);
   assert.deepEqual(plain.kame!.tools, ["Read", "Glob", "Grep", "Write", "Edit", "mcp__ark__trash_file"], "no Bash in a plain chat; deletes go to the Trash (2026-11-01)");

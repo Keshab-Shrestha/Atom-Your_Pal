@@ -54,6 +54,9 @@ public final class IslandSettings {
     static let palReactsKey = "ark.wisp.reacts"
     static let palHomeDisplayKey = "ark.wisp.homeDisplay"
     static let tourDoneKey = "ark.tourDone"
+    static let ownerNameKey = "ark.owner.name"
+    static let chatSeenKey = "ark.chat.seen"
+    static let planNotesKey = "ark.plan.notes"
 
     @ObservationIgnored private let defaults: UserDefaults
     /// Mirrors what is stored, so views observe changes.
@@ -92,6 +95,17 @@ public final class IslandSettings {
         didSet { save(tourDone, Self.tourDoneKey) }
     }
 
+    /// ADR-271: the name ARK calls its owner. Nil until the first-run window saves one; the runtime gets it with `owner.set`.
+    /// A set value is cleaned (`OwnerName.clean`); an empty one is not stored.
+    public var ownerName: String? {
+        didSet {
+            let cleaned = ownerName.flatMap(OwnerName.clean)
+            if cleaned != ownerName { ownerName = cleaned; return }
+            if let cleaned { defaults.set(cleaned, forKey: Self.ownerNameKey) } else { defaults.removeObject(forKey: Self.ownerNameKey) }
+            revision += 1
+        }
+    }
+
     /// Show the pet (ADR-042). Default on.
     public var petEnabled: Bool {
         didSet { save(petEnabled, Self.petKey) }
@@ -121,6 +135,16 @@ public final class IslandSettings {
     /// Presentation only: no paths, previews, grants or Undo tokens are stored here.
     public var workspaceWidth: Double { didSet { defaults.set(WorkspacePaneLayout.preference(workspaceWidth), forKey: Self.workspaceWidthKey) } }
     public var workspaceSurface: String { didSet { defaults.set(WorkspaceSurface(rawValue: workspaceSurface)?.rawValue ?? "home", forKey: Self.workspaceSurfaceKey) } }
+
+    /// ADR-274: what each chat held when it was last on screen, for Catch me up. No message text; this Mac only.
+    public var chatSeen: [String: ChatSeen] {
+        didSet { if chatSeen != oldValue { defaults.set(try? JSONEncoder().encode(chatSeen), forKey: Self.chatSeenKey) } }
+    }
+
+    /// ADR-276: the owner's notes on each work plan, until Send notes puts them in the composer. This Mac only.
+    public var planNotes: PlanNoteBook {
+        didSet { if planNotes != oldValue { defaults.set(try? JSONEncoder().encode(planNotes), forKey: Self.planNotesKey) } }
+    }
 
     /// Local picker bookmarks only. They do not select a provider/model or grant access.
     public private(set) var favoriteModels: Set<String> {
@@ -278,6 +302,7 @@ public final class IslandSettings {
         petEnabled = defaults.object(forKey: Self.petKey) as? Bool ?? true
         palReacts = defaults.object(forKey: Self.palReactsKey) as? Bool ?? true
         tourDone = defaults.bool(forKey: Self.tourDoneKey)
+        ownerName = defaults.string(forKey: Self.ownerNameKey).flatMap(OwnerName.clean)
         palHomeDisplay = defaults.string(forKey: Self.palHomeDisplayKey).map(PalHomeDisplay.init(storageValue:)) ?? .main
         soundsEnabled = defaults.object(forKey: Self.soundsKey) as? Bool ?? true
         speakReports = defaults.object(forKey: Self.speakReportsKey) as? Bool ?? true
@@ -312,6 +337,8 @@ public final class IslandSettings {
         projectFilter = defaults.string(forKey: Self.projectFilterKey)
         workspaceWidth = WorkspacePaneLayout.preference(defaults.object(forKey: Self.workspaceWidthKey) as? Double ?? 420)
         workspaceSurface = defaults.string(forKey: Self.workspaceSurfaceKey).flatMap(WorkspaceSurface.init(rawValue:))?.rawValue ?? "home"
+        chatSeen = defaults.data(forKey: Self.chatSeenKey).flatMap { try? JSONDecoder().decode([String: ChatSeen].self, from: $0) } ?? [:]
+        planNotes = defaults.data(forKey: Self.planNotesKey).flatMap { try? JSONDecoder().decode(PlanNoteBook.self, from: $0) } ?? PlanNoteBook()
         favoriteModels = Set((defaults.stringArray(forKey: Self.favoriteModelsKey) ?? []).prefix(128).filter { $0.count <= 256 })
         dictationMode = (defaults.string(forKey: Self.dictationModeKey)).flatMap(DictationMode.init(rawValue:)) ?? .automatic
         livePreview = defaults.object(forKey: Self.livePreviewKey) as? Bool ?? true

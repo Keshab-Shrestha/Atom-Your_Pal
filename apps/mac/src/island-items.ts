@@ -143,6 +143,8 @@ export interface JobItem {
   /** ADR-090: how many times a failure was retried by itself. */
   autoRetries?: number;
   parentId?: number;
+  /** ADR-273: a running native job with no tool call or progress for 8 minutes: when it last moved (ISO). */
+  quietSince?: string;
   /** ADR-095: the sub-agents its runs started (newest 12): name, state, short description and result. Never logged. */
   /** ADR-098: its labels, sorted; absent when none. */
   labels?: string[];

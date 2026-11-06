@@ -16,7 +16,7 @@ struct ChatWorkView: View {
 
     private var working: Bool { work.state == "working" }
     /// Nothing to open for a turn that only thought: no tools, no questions.
-    private var hasSteps: Bool { !work.calls.isEmpty || work.omitted > 0 || !work.questions.isEmpty }
+    private var hasSteps: Bool { work.hasSteps }
     private var expanded: Bool { hasSteps && (opened ?? (working || keepOpen)) }
     /// While it runs, only the latest rows, so a long turn does not push the reply away.
     private static let liveRows = 6
@@ -111,57 +111,34 @@ struct ChatWorkView: View {
         }
     }
 
+    /// ADR-275 (after Ghostex's "Worked 9s" row, MIT): one header for the turn's work. The chevron, the time in bold, what it did
+    /// in plain words, and at the right the counts as pills. The newest turn keeps its steps open under it (owner rule, 2026-11-06).
     private var toggle: some View {
-        Button { if hasSteps { opened = !expanded } } label: {
+        let label = ChatWorkText.headline(work, elapsedMs: work.elapsed())
+        let chips = ChatWorkText.chips(work)
+        return Button { if hasSteps { opened = !expanded } } label: {
             HStack(spacing: 8) {
-                if hasSteps { Glyph(systemName: "chevron.right").rotationEffect(.degrees(expanded ? 90 : 0)) }
-                Text(label).monospacedDigit()
-                if working, let step { Text("· \(step)").lineLimit(1).truncationMode(.tail) }
-                else if !working, !work.calls.isEmpty { Text("· \(ChatWorkText.summary(work.calls))").lineLimit(1).truncationMode(.tail) }
+                if hasSteps {
+                    Glyph(systemName: "chevron.right").appFont(.system(size: 9, weight: .semibold))
+                        .rotationEffect(.degrees(expanded ? 90 : 0)).foregroundStyle(theme.text3.color)
+                }
+                Text(label).fontWeight(.semibold).monospacedDigit().foregroundStyle(theme.text.color)
+                Group {
+                    if working, let step { Text("· \(step)") }
+                    else if !working, !work.calls.isEmpty { Text("· \(ChatWorkText.summary(work.calls))") }
+                }.lineLimit(1).truncationMode(.tail).layoutPriority(-1)
+                Spacer(minLength: 8)
+                ForEach(chips, id: \.self) { chip in
+                    Text(chip).appFont(.system(size: 11)).monospacedDigit().foregroundStyle(theme.text2.color)
+                        .padding(.horizontal, 8).padding(.vertical, 2)
+                        .background(Capsule(style: .continuous).fill(theme.fill2.color))
+                }
             }.appFont(.system(size: 12)).foregroundStyle(theme.text2.color)
             .contentShape(Rectangle())
-        }.buttonStyle(.plain).accessibilityValue(expanded ? "Expanded" : "Collapsed")
+        }.buttonStyle(.plain)
+            .accessibilityLabel(([label, working ? step : work.calls.isEmpty ? nil : ChatWorkText.summary(work.calls)].compactMap { $0 } + chips).joined(separator: ", "))
+            .accessibilityValue(hasSteps ? (expanded ? "Expanded" : "Collapsed") : "")
             .help("What ARK did in this turn. The time includes thinking, tools and waiting for your answers. A missing result means the outcome is unknown, not that nothing happened. This log is not kept in saved history.")
-    }
-    private var label: String {
-        let prefix = work.state == "working" ? "Working for" : work.state == "completed" ? (hasSteps ? "Worked for" : "Thought for") : work.state == "failed" ? "Failed after" : work.state == "interrupted" ? "Interrupted after" : "Stopped after"
-        return "\(prefix) \(ChatWorkText.duration(ms: work.elapsed()))"
-    }
-}
-
-struct ChatQuestionCard: View {
-    let model: IslandModel
-    let work: ChatWorkSnapshot
-    let question: ChatWorkSnapshot.Question
-    @State private var answer = ""
-    @State private var sent = false
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("ARK asks").appFont(.system(size: 11, weight: .semibold)).foregroundStyle(theme.text3.color)
-            Text(question.prompt).appFont(.system(size: 12.5)).textSelection(.enabled)
-            if let error = question.error { Text(error).appFont(.system(size: 11)).foregroundStyle(theme.attention.color) }
-            ForEach(question.choices, id: \.self) { choice in
-                Button(choice) { submit(choice) }.buttonStyle(.borderless).multilineTextAlignment(.leading)
-            }
-            SoulField(label: "Your answer", text: $answer, lines: 2)
-                .accessibilityLabel("Answer to ARK's question")
-            HStack {
-                Button("Send answer") { submit(answer) }.disabled(answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                Button("Skip") { submit(nil) }
-                if sent { Text("Waiting for confirmation…").appFont(.system(size: 11)).foregroundStyle(theme.text3.color) }
-            }
-            Text("Answering gives clarification, not file or system permission. Do not enter passwords or secrets. The message box queues a new message instead.")
-                .appFont(.system(size: 10.5)).foregroundStyle(theme.text3.color)
-        }
-        .appFont(.system(size: 12)).foregroundStyle(theme.text.color)
-        .padding(12).background(RoundedRectangle(cornerRadius: theme.radiusCard).fill(theme.fill1.color))
-        .disabled(sent)
-        .onChange(of: work) { _, _ in if question.error != nil { sent = false } }
-    }
-    private func submit(_ text: String?) {
-        if model.answerChatQuestion(work: work, question: question, text: text) { sent = true }
     }
 }
 

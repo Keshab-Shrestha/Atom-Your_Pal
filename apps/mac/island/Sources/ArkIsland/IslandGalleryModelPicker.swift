@@ -16,7 +16,10 @@ extension IslandGallery {
                     ModelOption(id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5")]),
                 ProviderOption(id: "codex", name: "Codex", available: true, models: [
                     ModelOption(id: "gpt-6-luna", name: "GPT-6 Luna"), ModelOption(id: "gpt-6-sol", name: "GPT-6 Sol")]),
-                ProviderOption(id: "gemini-cli", name: "Gemini", available: false, models: [ModelOption(id: "gemini", name: "Gemini")])
+                ProviderOption(id: "gemini-cli", name: "Gemini", available: false, models: [ModelOption(id: "gemini", name: "Gemini")]),
+                // ADR-270: the two programs added later, so the picker shows their marks (ADR-271 task 2).
+                ProviderOption(id: "copilot", name: "GitHub Copilot", available: true, models: [ModelOption(id: "gpt-5-mini", name: "GPT-5 mini")]),
+                ProviderOption(id: "opencode", name: "OpenCode", available: true, models: [ModelOption(id: "opencode/big-pickle", name: "Big Pickle")])
             ])
             save(ChatModelPicker(model: model, info: info, close: {}).environment(\.islandSnapshot, true)
                 .themed(ChatAppearance.palette(dark: dark)), name: name, to: directory)

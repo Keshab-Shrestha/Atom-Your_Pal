@@ -89,6 +89,15 @@ private struct MarkdownBlockView: View {
             } else {
                 code(s, language: language)
             }
+        case .code(let s, let language) where language?.lowercased() == ArkVisual.language:
+            // ADR-276: a result card; until its JSON is whole and valid, a quiet line while streaming, then the source.
+            if let visual = ArkVisual.parse(s) {
+                ArkVisualCard(visual: visual, source: s, copyEnabled: copyEnabled)
+            } else if !copyEnabled {
+                Label("Drawing a card…", systemImage: "chart.bar.doc.horizontal").appFont(.system(size: 12)).foregroundStyle(theme.text3.color)
+            } else {
+                code(s, language: language)
+            }
         case .code(let s, let language) where language?.lowercased() == "svg":
             // 2026-11-02: a drawing, once it is whole and passes the check; until then a quiet line, then the source.
             if let svg = ReplySVG.check(s) {

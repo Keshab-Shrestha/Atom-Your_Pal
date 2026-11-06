@@ -105,7 +105,7 @@ public struct NowFacts: Sendable, Equatable {
         public var detail: String?
     }
 
-    /// The provider, e.g. "Claude (my plan)", and the model replying, e.g. "Claude Opus 5.5".
+    /// The provider, e.g. "Claude", and the model replying, e.g. "Claude Opus 5.5".
     public var provider: String
     public var model: String
     public var microphone: String

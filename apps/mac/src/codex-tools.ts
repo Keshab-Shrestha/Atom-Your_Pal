@@ -1,3 +1,4 @@
+import { ownerName } from "@ark/shared";
 import { chatAccessPolicy, CHAT_ONLY_NOTICE, type AccessApproval, type ChatAccessPolicy } from "./chat-access.ts";
 import type { ChatAccessMode } from "@ark/contracts";
 import { createHash, randomUUID } from "node:crypto";
@@ -9,12 +10,12 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import type { ModelRequest, ToolCall, ToolResult, ToolRunner, ToolSpec } from "@ark/contracts";
 import { createGateway, createCodexSessionAdapter, redact, runCodexProjectInspection, type CodexSessionOptions } from "@ark/llm-gateway";
 import { realish, type HelperView } from "@ark/helpers";
-import { kitHas, nativeMembers, RESEARCH_PAGES } from "./native-agents.ts";
+import { addressedAgent, kitHas, nativeMembers, RESEARCH_PAGES } from "./native-agents.ts";
 import { CODEX_SKILL_BUDGET, CODEX_SKILL_CHARS, codexWorkerCapabilities, codexWorkerPrompt, observeCodexWorker } from "./codex-worker.ts";
 import { boardRecorder } from "./native-board.ts";
 import { nativeGate, type NativeGate } from "./native-safety.ts";
 import { planBook, withPlanTools, type PlanBook } from "./native-plan.ts";
-import type { NativeTeamDeps } from "./native-core.ts";
+import { handBackLines, type NativeTeamDeps } from "./native-core.ts";
 import { withHistoryTools } from "./chat-history.ts";
 import { SKILL_NAME } from "./skills.ts";
 import { readPublicPage } from "./public-page.ts";
@@ -198,6 +199,7 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
             } : {}),
             ...(team.filePermissions ? { permissions: team.filePermissions.forChat(chat) } : {}),
             worktrees: team.worktrees,
+            ...(team.reportsTo ? { reportsTo: team.reportsTo } : {}),
             ...(plans ? { plans } : {}),
             ...(req.files ? { project: { cwd: req.files.cwd } } : {}),
           },
@@ -206,7 +208,9 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
       entry = { gate, access, policy, project: req.project === true, ...(board ? { board } : {}), ...(plans ? { plans } : {}), tools: plans ? withPlanTools(options.tools, plans) : options.tools, ...(req.files ? { cwd: req.files.cwd } : {}) };
       chats.set(chat, entry);
     }
-    entry.gate.newAnswer(req.files);
+    // ADR-272, as in a Claude chat: the agent the user named in this message may get the request directly.
+    const asked = [...req.messages].reverse().find((m) => m.role === "user" && !m.toolResults?.length)?.content ?? "";
+    entry.gate.newAnswer(req.files, options.team ? addressedAgent(asked, options.team.helpers)?.id : undefined);
     entry.plans?.setWebAvailable?.(webAllowed(req));
     return entry;
   }
@@ -224,15 +228,15 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
     const verdict = await approvalSignal.run(signal, () => entry.gate.canUseTool("Agent", call.input, { toolUseID: call.id }));
     if (verdict.behavior !== "allow") return result(call, verdict.message ?? "That agent cannot start.", true);
     const id = `codex-${randomUUID()}`;
-    const job = entry.board.jobOfAgent(id, member.id);
+    // Link by this call's id first (ADR-272): with the same agent running twice, the agent type alone names no job.
+    entry.board.onEvent({ type: "system", subtype: "task_started", tool_use_id: call.id, task_id: id });
+    const job = entry.board.jobOfAgent(id);
     if (job === undefined) return result(call, "ARK could not link that agent's task.", true);
     const controller = new AbortController();
     const cancel = () => controller.abort(); signal?.addEventListener("abort", cancel, { once: true });
     if (signal?.aborted) controller.abort();
     running.set(job, controller);
-    team.helpers.linkNativeTask(job, id);
-    entry.board.onEvent({ type: "system", subtype: "task_started", tool_use_id: call.id, task_id: id });
-    team.helpers.setModel(job, workerModel, member.codexPinnedModel ? "Codex model pinned by Keshab for this worker." : "Uses this chat's Codex model; Claude pins are separate.");
+    team.helpers.setModel(job, workerModel, member.codexPinnedModel ? `Codex model pinned by ${ownerName()} for this worker.` : "Uses this chat's Codex model; Claude pins are separate.");
     const worker = { id, type: member.id, cwd: req.files?.cwd ?? options.home ?? homedir() };
     // Native shell stays disabled; host commands use separate inspection/disposable-copy sandboxes.
     // 2026-11-02: a Full access chat's agents have every kit's tools (kitHas), checked again before each use.
@@ -461,8 +465,8 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
     const adapter = createCodexSessionAdapter({ program: options.program, model: workerModel, runner: () => runner, ...options.session, ...(options.onUsage ? { onUsage: (u, r, model) => options.onUsage!(u, { ...r, context: { ...r.context, sessionId: req.context.sessionId, requestId: `job:${job}` } }, model) } : {}) });
     try {
       if (verdict.updatedInput.isolation === "worktree") {
-        const hook = (entry.gate.hooks.WorktreeCreate as { hooks: (() => Promise<any>)[] }[])[0]!.hooks[0]!;
-        worker.cwd = (await hook()).hookSpecificOutput.worktreePath;
+        const hook = (entry.gate.hooks.WorktreeCreate as { hooks: ((input: Record<string, unknown>) => Promise<any>)[] }[])[0]!.hooks[0]!;
+        worker.cwd = (await hook({ name: `ark-job-${job}` })).hookSpecificOutput.worktreePath; // keyed by job (ADR-272)
       }
       const declared = team.helpers.latestPlan(req.context.sessionId)?.portions.find((p) => p.job === job);
       const fileChecks = taskFileChecks(declared?.fileChecks);
@@ -492,7 +496,8 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
       }
       if (controller.signal.aborted) throw new Error("The task was stopped before completion was recorded.");
       entry.board.onEvent({ type: "system", subtype: "task_notification", task_id: id, status: "completed", summary: reply.text });
-      return result(call, `${member.name}'s report (task ${job}):\n${reply.text}${verificationNote}`);
+      const handBack = handBackLines(team, [job]); // ADR-272: same host line as a Claude chat
+      return result(call, `${member.name}'s report (task ${job}):\n${reply.text}${verificationNote}${handBack ? `\n\n${handBack}` : ""}`);
     } catch (error) {
       await advisory.close();
       entry.board.onEvent({ type: "system", subtype: "task_notification", task_id: id, status: controller.signal.aborted ? "stopped" : "failed", summary: redact(error instanceof Error ? error.message : "Codex task failed.") });

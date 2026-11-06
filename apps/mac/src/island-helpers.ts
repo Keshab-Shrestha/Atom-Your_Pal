@@ -2,6 +2,7 @@
 
 import { HelperError, describeSchedule, nextDue, taskEvidenceSummary, taskEvidenceText, type HelperStore, type Job, type PlanModel, type Schedule, type TaskSearchHit, type TestKind } from "@ark/helpers";
 import type { IslandHelpers } from "./island.ts";
+import type { QuietWatch } from "./job-quiet.ts";
 import type { JobItem, PlanItem, RoutineInput, SkillDraftItem, SkillEditItem, TestCaseItem, TestsItem } from "./island-protocol.ts";
 
 /** ADR-097: the form's schedule as the store's; missing numbers become -1, which the store refuses with words. */
@@ -63,7 +64,7 @@ export function compactChange(before: string, after: string): { before: string; 
   return { before: part(a), after: part(b) };
 }
 
-const toJobItem = (job: Job): JobItem => ({
+const toJobItem = (job: Job, quietSince?: Date): JobItem => ({
   ...(job.chatId ? { chatId: job.chatId } : {}),
   id: job.id,
   task: job.task,
@@ -97,6 +98,7 @@ const toJobItem = (job: Job): JobItem => ({
   ...(job.autoRetries ? { autoRetries: job.autoRetries } : {}),
   ...(job.parentId !== undefined ? { parentId: job.parentId } : {}),
   ...(job.labels?.length ? { labels: job.labels } : {}),
+  ...(quietSince ? { quietSince: quietSince.toISOString() } : {}),
 });
 
 /**
@@ -115,6 +117,8 @@ export function islandHelpers(
   codexModels: () => { id: string; name: string }[] = () => [],
   /** 2026-11-05 (org.ts): who reports to whom; absent: every agent reports to ARK and `helper.reportsTo` is refused. */
   org?: { map(): Readonly<Record<string, string>>; set(helper: string, lead: string | null): void },
+  /** ADR-273: the stuck dot; absent: no job is ever quiet. */
+  quiet?: Pick<QuietWatch, "since" | "onChange">,
 ): IslandHelpers {
   return {
     list: () => {
@@ -138,7 +142,7 @@ export function islandHelpers(
           const tests = testsOf(store, "soul", p.id);
           return { id: p.id, field: p.field, text: p.text, reason: p.reason, jobId: p.jobId, state: p.state, createdAt: p.createdAt.toISOString(), ...(tests ? { tests } : {}) };
         }),
-        jobs: h.jobs.map((job) => toJobItem(job)),
+        jobs: h.jobs.map((job) => toJobItem(job, quiet?.since(job.id))),
       }));
     },
     ...(org ? { setReportsTo: (helper: string, lead: string | null) => org.set(helper, lead) } : {}),
@@ -302,6 +306,10 @@ export function islandHelpers(
     activeNativeJobs: (chat) => store.runningNativeJobs(chat).map((job) => job.id),
     stop: (id) => store.stop(id),
     remove: (id) => store.remove(id),
-    onChange: (listener) => store.onChange(listener),
+    onChange: (listener) => {
+      const stopStore = store.onChange(listener);
+      const stopQuiet = quiet?.onChange(listener);
+      return () => { stopStore(); stopQuiet?.(); };
+    },
   };
 }

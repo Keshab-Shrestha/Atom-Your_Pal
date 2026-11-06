@@ -4,7 +4,7 @@ import type { Message, ProjectFiles, ToolRunner } from "@ark/contracts";
 import { answerTail, MAX_PROJECT_FILE_CALLS, PREFIX_BUDGET_BYTES, type ChatSession, type SessionSdk } from "@ark/llm-gateway";
 import { openHelperStore } from "@ark/helpers";
 import { openMemoryStore } from "@ark/memory";
-import { CHAT_ONLY_SYSTEM_PROMPT, CODEX_SYSTEM_PROMPT, CONTEXT_LABEL, PLAIN_SYSTEM_PROMPT, createNativeCore, NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT, TYPED_NOTE, type NativeCoreDeps } from "./native-core.ts";
+import { handBackLines, CHAT_ONLY_SYSTEM_PROMPT, CODEX_SYSTEM_PROMPT, CONTEXT_LABEL, PLAIN_SYSTEM_PROMPT, createNativeCore, NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT, TYPED_NOTE, type NativeCoreDeps } from "./native-core.ts";
 import { nativeGate } from "./native-safety.ts";
 import { createComputerBridge } from "./computer-bridge.ts";
 
@@ -380,6 +380,36 @@ test("org: the team line joins the team prompt only when set; a chart change rea
   store.close();
 });
 
+test("ADR-272: with a chart, each agent with a report or peer gets the Agent tool and its team line", async () => {
+  const { sdk, queries } = fakeSdk();
+  const store = openHelperStore({ path: ":memory:" });
+  const core = make(sdk, { team: { helpers: store, approve: async () => false, worktrees: "/tmp/ark-org-wt", reportsTo: () => ({ kame: "sid", puff: "sid", quill: "sid", hana: "penny" }) } });
+  await core.handle({ text: "hello", source: "voice" });
+  const agents = queries[0]!.options.agents as Record<string, { tools: string[]; prompt: string }>;
+  assert.ok(agents.sid!.tools.includes("Agent"));
+  assert.match(agents.sid!.prompt, /Your reports: Kame \(kame\), Puff \(puff\), Quill \(quill\)\.\nYour peers: Penny \(penny\)\./);
+  assert.equal(agents.hana!.tools.includes("Agent"), false, "Hana has no report and no peer: no Agent tool");
+  assert.match(agents.hana!.prompt, /last line of your report "Hand back: <what is needed>"\. ARK then chooses the agent\.$/, "every agent may hand the choice back");
+  store.close();
+});
+
+test("ADR-272: a report that ends with Hand back wakes ARK with the host's line; a normal report does not", async () => {
+  const store = openHelperStore({ path: ":memory:" });
+  const done = (job: number, body: string) => store.finish(job, { title: "t", summary: "s", body, sources: [] });
+  const back = store.addNativeJob("kame", "Make the page", { chatId: "c" });
+  const plain = store.addNativeJob("sid", "Find the facts", { chatId: "c" });
+  done(back.id, "I made the page.\nHand back: someone who can draw a logo\nwith colour");
+  assert.equal(handBackLines({ helpers: store, reportsTo: () => ({ kame: "sid" }) }, [back.id]), "", "the Hand back line must be the last line");
+  const again = store.addNativeJob("kame", "Make the page", { chatId: "c" });
+  done(again.id, `I made the page.\nHand back: a logo designer\u2028${"x".repeat(400)}`);
+  done(plain.id, "The facts are in the table.");
+  const line = handBackLines({ helpers: store, reportsTo: () => ({ kame: "sid" }) }, [again.id, plain.id]);
+  assert.match(line, /^Kame handed back to ARK: a logo designer x+\. Choose the agent for it \(the chart: Sid leads Kame\); the usual rules apply\.$/);
+  assert.equal(line.split("\n").length, 1, "one line; the normal report adds none");
+  assert.ok(line.length < 300 + 120);
+  store.close();
+});
+
 test("N2: a new agent restarts the session with resume only at a turn when no background task runs", async () => {
   const { sdk, queries } = backgroundSdk();
   const { store: chatSessions } = sessions();
@@ -672,12 +702,20 @@ test("the prompts with tools tell ARK to state facts plainly and name the source
   }
 });
 
+/** Keep equal to ArkVisualTests.promptExample (apps/mac/island/Tests/ArkIslandCoreTests/ArkVisualTests.swift). */
+const ARK_VISUAL_EXAMPLE =
+  '{"title":"Tests","blocks":[{"type":"stats","items":[{"label":"Failed","value":"2","tone":"bad"}]},' +
+  '{"type":"bar","unit":"ms","data":[{"label":"api","value":420}]}]}';
+
 // 2026-11-02: a chart came back as a Markdown table; the window now draws a chart block and shows image lines.
 test("every chat prompt describes the chart block and the image line", () => {
   for (const prompt of [NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT, CODEX_SYSTEM_PROMPT, PLAIN_SYSTEM_PROMPT]) {
     assert.match(prompt, /write a ```chart block of JSON instead of a table: \{"type":"bar"\|"line"\|"pie"/);
     assert.match(prompt, /put a Markdown image on its own line/);
     assert.match(prompt, /For a logo, icon or simple drawing, write a ```svg block/);
+    // ADR-276: the example card is the literal ArkVisualTests.promptExample parses, so the prompt never teaches a card that falls back to code.
+    assert.ok(prompt.includes("write one ```ark-visual block of JSON: " + ARK_VISUAL_EXAMPLE + "; "));
+    assert.match(prompt, /line \(data: points with only label and value, each label different\).*any block may have a title/);
     assert.match(prompt, /Write charts and drawings yourself, in your reply: do not hand them to an agent/);
   }
   assert.match(CODEX_SYSTEM_PROMPT, /use your image generation tool; ARK shows the image under your reply/);

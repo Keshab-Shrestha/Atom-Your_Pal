@@ -1,5 +1,55 @@
 # ARK Project Status
 
+## Result cards and plan notes — 6 November 2026
+
+- ADR-276 (design reference: Ghostex, MIT): a reply can hold an `ark-visual` block. The window draws stat tiles, bar rows, a line chart and tables in one card, with Copy (Markdown tables) and Source (the JSON). docs/chat-visuals.md gives the format.
+- The parser is strict and pure. An invalid block shows as code. VoiceOver reads the title, each stat and the shape of each chart.
+- The chat prompts carry one sentence and one small example for the block.
+- Each plan portion has Note: Looks good, Clarify or Needs tests, with optional words. Send notes puts numbered feedback in the chat box and does not send it. Notes stay on this Mac, per plan.
+- Verified: TypeScript tests (1486 pass, 11 skipped) and typecheck, Swift tests (1004 pass), fixture renders of the new `visuals` gallery group, UI check with no golden change (live step not run). Not done: notes on a text selection inside a plan; notes on a plan-first job's plan.
+- Checker fixes (ADR-276): a `stats` block can have a title; hidden characters make a card show as code; "Add note" stops at 50 notes; Send notes keeps the notes when the draft cannot be saved and is off with no chat open.
+
+## Worked header, diff card and questions card — 6 November 2026
+
+- ADR-275 (design reference: Ghostex, MIT): each turn's work row is one header: chevron, the time in bold, the tool summary, and "3 tool calls" and "1 question" pills. The newest turn keeps its steps open. There is no "files changed" pill: tool rows carry no paths.
+- The file review shows the change as a diff card: "+N −M" with mini squares, the file name and folder, hunks with two line-number gutters, green and red rows, and "Reveal in Finder".
+- `ask_user` can ask one to four questions in one card (`questions`, a JSON string). The card shows numbered questions, radio options with a "Recommended" pill and letter keys, "Other / none of these", a note, and one "Send answers" (⌘↩). A blank question is sent as unanswered.
+- Verified: TypeScript tests (1486 pass, 11 skipped) and typecheck, Swift tests (992 pass), fixture renders of the new `transcript` gallery group, UI check with no golden change (live step not run). Not checked by hand in the running app.
+- Checker fixes: Return in a note no longer sends; ⌘↩ sends only with focus in the card; 90 s per question; a final-newline change and changed characters show in the diff, with hidden characters as marks; hidden characters are removed from questions.
+
+## Queue rows, Tab to queue and Catch me up — 6 November 2026
+
+- ADR-274 (design reference: Ghostex, MIT): each queued message is a compact row with a grip, its first line and Edit, Send now and Remove on hover or keyboard focus. Drag a row, or press ⌥↑ or ⌥↓, to change the order. Send now works on every row: it stops the answer through the existing text-send path, then sends.
+- While ARK answers, Return and Tab queue the message and ⌘Return sends the next queued message now. The empty box says so. Tab with an empty box still moves focus.
+- "Catch me up" shows when a chat has new messages or Board job changes since it was last on screen. It sends one fixed request through the normal send path. "Workers n" above the box scrolls to the Workers card.
+- Checker fixes: Catch me up now shows after the ARK window closes and opens again. ⌘Return says "send the next now". Held rows list only their own VoiceOver actions. Caps Lock does not stop Tab or row keys. A deleted chat loses its saved view, and a new time alone does not write the view again.
+- Verified: TypeScript tests (1482 pass, 11 skipped) and typecheck, Swift tests (983 pass), fixture renders of the new `composer` gallery group, UI check with no golden change (live step not run). Not checked by hand in the running app.
+
+## Workers card, job tree and stuck dot — 6 November 2026
+
+- ADR-273 (design reference: Ghostex, MIT): a chat shows one Workers card for the Board jobs it started. A worker sits under its manager. Each row has a state glyph, the short title and one line of its latest step or report. A click opens the task. Past 5 rows the card folds.
+- The Board's Flow lanes and stacked list show a child job under its parent. A manager shows a crown, its worker count and its age.
+- A running agent with no tool call or progress for 8 minutes gets a hollow amber ring ("No new output for 8 min") and one `job.quiet` log line. Its next move clears the ring. A worker's move also counts for its manager. Nothing goes to the model.
+- Verified: TypeScript tests (1482 pass, 11 skipped) and typecheck, Swift tests (977 pass), fixture renders of the new `workers` gallery group, UI check with no golden change (live step not run). Not checked by hand in the running app.
+
+## Agents call agents, work goes through managers — 6 November 2026
+
+- ADR-272: an agent can give a part of its task to its report or its peer with the Agent tool. Code checks each call: no call to itself or up the chart, no loop, at most 4 levels deep, at most 6 agents below one task. The child shows in its parent's envelope on the Board, and its report comes back to the caller. Stopping a task stops its children.
+- On the main thread, work for an agent with a lead goes to the lead. A direct call is refused, except when the user named the agent.
+- The same agent can run many times at once when each run has its own worktree. Worktrees now go to the right job when two calls run in parallel.
+- Verified: TypeScript tests (1474 pass, 10 skipped) and typecheck. Not checked by hand in the running app. Not done: the 8-minute stall flag.
+
+## Owner name and two provider icons — 6 November 2026
+
+- ADR-271: on first run ARK asks "What should ARK call you?". The name is kept in the island settings, can be changed in Settings > General, and goes to the runtime with `owner.set` (saved in `config/owner.json`). ARK's prompts, refusals, Home's greeting, the You page and the Team's owner card use it. No fixed owner name is left in runtime or screen text.
+- The model picker and Settings > AI model show the GitHub Copilot and OpenCode marks (lobe-icons, MIT).
+- Verified: TypeScript tests (1464 pass), Swift tests (969 pass), fixture renders of the model picker, Settings > AI model and the first-run sheet. Golden shots updated: 20-settings-model, 33-model-picker-dark, 33-model-picker-light. Not checked by hand in the running app.
+
+## Live AI program scan — 6 November 2026
+
+- ADR-269: ARK finds 14 AI programs on this Mac, at start, every 10 minutes and on Rescan. Settings > AI model shows each one with its version, place and status: Ready, Found, not connected yet, or Local model, not used. Keshab switches each Ready program on or off. A program that is off leaves the model picker.
+- Verified: TypeScript and Swift tests for the scan, the commands and the event. Not checked by hand in the running app.
+
 ## The work log stays after the answer — 6 November 2026
 
 - ADR-268: the newest answer keeps its steps open, older ones fold to one line, and a thinking-only turn shows "Thought for 4s". The video Studio is parked; its branch is kept.

@@ -151,11 +151,13 @@ extension IslandGallery {
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         let palette = theme.palette
-        let info = #"{"type":"info","provider":"claude-plan","model":"claude-sonnet-5-5","providers":[{"id":"claude-plan","name":"Claude (my plan)","available":true,"models":[{"id":"claude-opus-5-5","name":"Claude Opus 5.5"},{"id":"claude-sonnet-5-5","name":"Claude Sonnet 5.5"},{"id":"claude-haiku-4-5-20251001","name":"Claude Haiku 4.5"}]}]}"#
+        let info = #"{"type":"info","provider":"claude-plan","model":"claude-sonnet-5-5","providers":[{"id":"claude-plan","name":"Claude","available":true,"models":[{"id":"claude-opus-5-5","name":"Claude Opus 5.5"},{"id":"claude-sonnet-5-5","name":"Claude Sonnet 5.5"},{"id":"claude-haiku-4-5-20251001","name":"Claude Haiku 4.5"}]}]}"#
         let helpers = #"{"type":"helpers","apps":[],"teamTasks":[],"helpers":[],"managers":[],"allowLarge":false,"models":[{"id":"claude-haiku-4-5","name":"Claude Haiku 4.5","tier":"small"},{"id":"claude-sonnet-4-5","name":"Claude Sonnet 4.5","tier":"medium"},{"id":"claude-opus-5-5","name":"Claude Opus 5.5","tier":"large"}]}"#
         let m = IslandModel(settings: IslandSettings(defaults: defaults))
         m.settings.theme = theme
-        for line in [info, helpers] { if let event = try? decodeEvent(line) { m.apply(event) } }
+        // ADR-269: the live "Found on this Mac" list: Ready (one switched off), Found, Local model, and one not installed.
+        let programs = #"{"type":"ai.programs","scannedAt":"2026-11-06T03:00:00.000Z","programs":[{"id":"claude-code","name":"Claude Code","found":true,"version":"2.1.312","path":"~/.local/bin/claude","status":"ready","provider":"claude-plan","allowed":true,"note":"ARK can chat with it"},{"id":"codex","name":"Codex","found":true,"version":"0.98.0","path":"/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex","status":"ready","signedIn":true,"provider":"codex","allowed":false,"note":"ARK can chat with it"},{"id":"copilot","name":"GitHub Copilot CLI","found":true,"version":"0.0.354","path":"/opt/homebrew/bin/copilot","status":"found","provider":"copilot","allowed":false,"note":"Found, not connected to ARK yet"},{"id":"opencode","name":"OpenCode","found":true,"version":"1.0.52","path":"~/.opencode/bin/opencode","status":"ready","signedIn":true,"provider":"opencode","allowed":true,"note":"ARK can chat with it"},{"id":"ollama","name":"Ollama","found":true,"version":"0.40.6","path":"/opt/homebrew/bin/ollama","status":"local-model","allowed":false,"note":"Runs local models: ARK does not use them"},{"id":"aider","name":"Aider","found":false,"status":"found","allowed":false}]}"#
+        for line in [info, helpers, programs] { if let event = try? decodeEvent(line) { m.apply(event) } }
         let page = ModelSection(model: m)
             .environment(\.islandSnapshot, true)
             .frame(width: 560)
@@ -163,6 +165,15 @@ extension IslandGallery {
             .background(palette.surfaceSolid.color)
             .themed(palette)
         save(page, name: name, to: directory)
+    }
+
+    /// ADR-271: the first-run question "What should ARK call you?", with a sample name.
+    static func writeOwnerWelcome(to directory: URL, theme: AppTheme = .void, name: String = "20-owner-welcome") {
+        let suite = "ark.gallery.owner.\(ProcessInfo.processInfo.processIdentifier)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let m = IslandModel(settings: IslandSettings(defaults: defaults))
+        save(OwnerWelcomeSheet(model: m, name: "Sam Lee").environment(\.islandSnapshot, true).themed(theme.palette), name: name, to: directory)
     }
 
     /// The "/" picker over the message box: "/re" with ARK's commands, a skill and Claude commands.

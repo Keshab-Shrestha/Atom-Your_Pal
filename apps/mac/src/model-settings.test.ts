@@ -52,7 +52,7 @@ test("info offers Claude on the plan first, then the other signed-in tools, and 
   const { settings } = settingsHarness();
   const info = settings.info();
   assert.deepEqual([info.provider, info.model], ["claude-plan", "claude-sonnet-5-5"]);
-  assert.deepEqual(info.providers.map((p) => [p.id, p.available, p.models.length]), [["claude-plan", true, 3], ["codex", false, 5], ["gemini-cli", false, 3]]);
+  assert.deepEqual(info.providers.map((p) => [p.id, p.available, p.models.length]), [["claude-plan", true, 3], ["codex", false, 5], ["gemini-cli", false, 3], ["copilot", false, 8], ["opencode", false, 3]]);
   assert.ok(noPath(JSON.stringify(info)));
   assert.equal(settingsHarness({ keys: {} }).settings.info().providers[0]!.available, false);
 });
@@ -80,7 +80,7 @@ test("a valid choice replaces the model, is saved and logged without the path", 
 test("refused choices explain the fix and change nothing; Gemini and the Claude API are gone (ADR-092)", async () => {
   const h = settingsHarness();
   const cases: [string, string, RegExp][] = [
-    ["gemini", "gemini-3.6-flash", /Unknown AI provider "gemini"\. Choose Claude \(my plan\) or Codex/],
+    ["gemini", "gemini-3.6-flash", /Unknown AI provider "gemini"\. Choose Claude or Codex/],
     ["claude", "claude-opus-5-5", /Unknown AI provider "claude"/],
     ["claude-plan", "gpt 9!", /"gpt 9!" is not a model id/], // ADR-097: a well-formed id is a custom model
     ["__proto__", "x", /Unknown AI provider/],
@@ -108,8 +108,8 @@ test("Codex and the Gemini CLI each name their own program to install and sign i
   const codex = h.settings.setModel("codex", "codex-default");
   const gemini = h.settings.setModel("gemini-cli", "gemini-default");
   assert.deepEqual([codex, gemini], [
-    { error: "Install Codex and run `codex login` to use Codex (my ChatGPT plan), then restart ARK." },
-    { error: "Install the Gemini CLI, run `gemini` and sign in with Google to use Gemini CLI (my Google sign-in), then restart ARK." },
+    { error: "Install Codex and run `codex login` to use Codex, then restart ARK." },
+    { error: "Install the Gemini CLI, run `gemini` and sign in with Google to use Gemini CLI, then restart ARK." },
   ]);
   assert.equal(h.built.length, 0);
 });
@@ -194,10 +194,10 @@ test("a tool known to be signed out cannot be chosen; the scan's list comes with
       { id: "gemini-cli", name: "Gemini CLI", found: true, provider: "gemini-cli", note: "Found" },
     ],
   });
-  assert.deepEqual(settings.info().providers.map((p) => p.available), [true, true, true], "before the scan: found is enough");
+  assert.deepEqual(settings.info().providers.map((p) => p.available), [true, true, true, false, false], "before the scan: found is enough");
   await settings.scanTools?.();
   const info = settings.info();
-  assert.deepEqual(info.providers.map((p) => [p.id, p.available]), [["claude-plan", true], ["codex", false], ["gemini-cli", true]]);
+  assert.deepEqual(info.providers.map((p) => [p.id, p.available]), [["claude-plan", true], ["codex", false], ["gemini-cli", true], ["copilot", false], ["opencode", false]]);
   assert.equal(info.tools?.length, 2);
   assert.ok(!JSON.stringify(info).includes("/x/codex"), "paths are never sent");
 });
@@ -217,6 +217,7 @@ test("thinking choices come from live model metadata, unknown models stay unsupp
   assert.match(settings.reasoning!("claude-plan", "claude-older").note!, /does not expose adjustable/);
   assert.equal(settings.reasoning!("codex", "custom-model").levels.length, 0);
   assert.match(settings.reasoning!("gemini-cli", "gemini").note!, /does not expose/);
+  for (const provider of ["copilot", "opencode"]) assert.match(settings.reasoning!(provider, "auto").note!, /does not expose thinking controls/);
   fail = true; await settings.refreshModels!();
   assert.deepEqual(settings.reasoning!("codex", "gpt-test").levels, ["low", "medium", "high"]);
 });

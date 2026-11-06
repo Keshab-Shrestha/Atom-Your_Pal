@@ -24,10 +24,30 @@ enum IslandGallery {
             return
         }
 
+        if ArkEnv.read("ARK_ISLAND_GALLERY_ONLY") == "visuals" { // ADR-276
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            writeArkVisuals(to: directory)
+            return
+        }
         if ArkEnv.read("ARK_ISLAND_GALLERY_ONLY") == "management" {
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             writeManagement(to: directory)
             writeWorkspace(to: directory) // Include split/cover captures for joined-pane review.
+            return
+        }
+        if ArkEnv.read("ARK_ISLAND_GALLERY_ONLY") == "workers" {
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            writeWorkers(to: directory)
+            return
+        }
+        if ArkEnv.read("ARK_ISLAND_GALLERY_ONLY") == "transcript" {
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            writeTranscriptCards(to: directory)
+            return
+        }
+        if ArkEnv.read("ARK_ISLAND_GALLERY_ONLY") == "composer" {
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            writeComposer(to: directory)
             return
         }
         if ArkEnv.read("ARK_ISLAND_GALLERY_ONLY") == "chat" {
@@ -39,7 +59,7 @@ enum IslandGallery {
         let model = IslandModel(settings: IslandSettings(defaults: defaults))
         let lines = [
             #"{"type":"ready","protocol":1,"provider":"claude-plan","model":"claude-sonnet-5-5","microphone":"Mac mini Microphone","voice":true}"#,
-            #"{"type":"info","provider":"claude-plan","model":"claude-sonnet-5-5","providers":[{"id":"claude-plan","name":"Claude (my plan)","available":true,"models":[{"id":"claude-opus-5-5","name":"Claude Opus 5.5"},{"id":"claude-sonnet-5-5","name":"Claude Sonnet 5.5"},{"id":"claude-haiku-4-5-20251001","name":"Claude Haiku 4.5"}]}]}"#,
+            #"{"type":"info","provider":"claude-plan","model":"claude-sonnet-5-5","providers":[{"id":"claude-plan","name":"Claude","available":true,"models":[{"id":"claude-opus-5-5","name":"Claude Opus 5.5"},{"id":"claude-sonnet-5-5","name":"Claude Sonnet 5.5"},{"id":"claude-haiku-4-5-20251001","name":"Claude Haiku 4.5"}]}]}"#,
             #"{"type":"state","state":"listening"}"#,
             #"{"type":"state","state":"transcribing"}"#,
             #"{"type":"transcript","text":"What's on my calendar this afternoon?"}"#,
@@ -92,17 +112,22 @@ enum IslandGallery {
         writeChatDesign(to: directory)
         writeModelPicker(to: directory)
         writeReplyMedia(to: directory)
+        writeArkVisuals(to: directory)
         writeGitWorkspace(to: directory)
         writeProjectSources(to: directory)
         writeAdaptation(to: directory)
         writeStudio(to: directory)
         writeWorkspace(to: directory)
         writeWorkspaceDesign(to: directory)
+        writeWorkers(to: directory)
+        writeComposer(to: directory)
+        writeTranscriptCards(to: directory)
         writeProjects(to: directory)
         writeBrain(to: directory)
         writeMcpPaste(to: directory)
         writeStates(to: directory)
         writeModelPage(to: directory)
+        writeOwnerWelcome(to: directory)
         writeSlashPicker(to: directory)
         writeMentionPicker(to: directory)
         writeSidebarHidden(to: directory)

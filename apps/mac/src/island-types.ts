@@ -94,6 +94,10 @@ export interface IslandOptions {
   api?: Pick<ApiServer, "set" | "regenerate">;
   /** The AI model choice: sent as `info` after `ready`, changed by `model.set`. Without it, `model.set` is refused. */
   settings?: Pick<ModelSettings, "info" | "setModel" | "scanTools" | "refreshModels">;
+  /** ADR-269: the AI programs on this Mac, scanned live; the ones switched off leave the model picker. */
+  aiPrograms?: Pick<import("./ai-programs.ts").AiPrograms, "scan" | "event" | "setAllowed" | "blockedProviders">;
+  /** ADR-271: the owner's name for ARK's prompts (`owner.set`). Absent: the command is ignored. */
+  owner?: import("./owner-settings.ts").OwnerSettings;
   /** Computer control (ADR-054): shows what ARK is doing and asks before risky actions. Absent when it is off. */
   computer?: Pick<ComputerBridge, "attach" | "answer" | "cancelAll" | "setForeground"> & Partial<Pick<ComputerBridge, "setDecisions" | "decisionResult">>;
   /** Window task/retry turns have their own Core, outside the foreground voice/text loop. */
