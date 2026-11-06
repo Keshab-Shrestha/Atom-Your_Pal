@@ -59,7 +59,7 @@ export function prepareSkills(pluginDir: string, names: readonly string[], dir =
   mkdirSync(join(pluginDir, ".claude-plugin"), { recursive: true });
   writeFileSync(
     join(pluginDir, ".claude-plugin", "plugin.json"),
-    JSON.stringify({ name: SKILLS_PLUGIN, version: "1.0.0", description: "The skills Keshab chose for this ARK worker." }, null, 2),
+    JSON.stringify({ name: SKILLS_PLUGIN, version: "1.0.0", description: "The skills chosen for this ARK worker." }, null, 2),
   );
   const linked: string[] = [];
   for (const name of names) {

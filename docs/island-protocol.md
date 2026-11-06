@@ -297,6 +297,12 @@ Events.
 
 The `info` event carries `tools`: each AI tool ARK looked for on this Mac, `{"id","name","found","signedIn"?,"provider"?,"note"}` (`signedIn` absent when the tool cannot be asked; `provider` absent for tools ARK does not use). `{"type":"tools.scan"}` looks again and is answered with `info`. Providers now include `codex` and `gemini-cli`.
 
+### AI programs (ADR-269)
+
+- `{"type":"ai.programs.scan"}` (no other keys) scans now and is answered with `ai.programs`. The runtime also scans at start and every 10 minutes, and sends `ai.programs` only when the list changed.
+- `{"type":"ai.programs","programs":[{"id","name","found","version"?,"path"?,"status":"ready"|"found"|"local-model","signedIn"?,"provider"?,"allowed","note"?}],"scannedAt":"<ISO time>"}`. `path` is for display only. `signedIn` is true only when the program's own sign-in file exists; it is absent when unknown.
+- `{"type":"ai.programs.allow","id":"codex","allowed":false}` (only these keys) switches a ready program on or off for ARK, and is answered with `ai.programs` and `info`. A refusal is an `error` with stage `settings`. A program that is off is left out of `info.providers`, and `model.set` and `chat.model` refuse it.
+
 ### Model choice (ADR-097)
 
 - The `info` event lists the live models of each provider in `providers[].models`.
@@ -328,6 +334,7 @@ The `info` event carries `tools`: each AI tool ARK looked for on this Mac, `{"id
 ### Local API (ADR-098 item 5)
 
 - `{"type":"api.set","on":true}`: Settings' "Local API" switch.
+- `{"type":"owner.set","name":"Sam"}` (ADR-271): the name ARK calls its owner in its prompts and messages. One line, at most 60 characters; an empty name is refused. The runtime saves it in `config/owner.json`. The island sends it after every `ready` and when the owner changes it.
   - With `on` `true`, the runtime listens on 127.0.0.1 at `ARK_API_PORT` (default 4790). It makes `data/api-token` when the file is not there.
   - With `on` `false`, the runtime stops listening.
   - The island sends it when ARK connects and when Keshab changes it. The answer is `api`.

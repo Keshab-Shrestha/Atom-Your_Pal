@@ -14,7 +14,7 @@ import { startRecording, type AudioClip } from "./audio.ts";
 import { createWhisperStt } from "./stt.ts";
 import { createKokoroSynthesizer, createSpeaker } from "./tts.ts";
 
-const SENTENCE = "Hello Keshab. This is ARK checking that it can speak and listen.";
+const SENTENCE = "Hello. This is ARK checking that it can speak and listen.";
 const SAMPLE_RATE = 16_000;
 const LISTEN_MS = 6_000;
 
@@ -27,7 +27,7 @@ const withMic = !process.argv.includes("--no-mic");
 const stt = createWhisperStt({
   modelPath: readEnv(env, "ARK_STT_MODEL") ?? "models/ggml-small.en.bin",
   language: readEnv(env, "ARK_STT_LANGUAGE") ?? "en",
-  vocabulary: readEnv(env, "ARK_STT_VOCABULARY") ?? "ARK, Keshab",
+  vocabulary: readEnv(env, "ARK_STT_VOCABULARY") ?? "ARK",
 });
 const synthesizer = createKokoroSynthesizer({ voice, dtype });
 const tts = createSpeaker(synthesizer);

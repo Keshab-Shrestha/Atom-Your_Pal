@@ -11,6 +11,7 @@ struct GeneralSection: View {
     var body: some View {
         let settings = model.settings
         let login = model.loginItem
+        Card { OwnerNameRow(model: model) } // ADR-271
         Card(footer: loginFooter(login)) {
             Row(title: "Open at login", detail: "Start ARK when you log in to this Mac") {
                 ThemedSwitch(isOn: login.enabled || login.needsApproval, set: { login.set($0) }, label: "Open at login")

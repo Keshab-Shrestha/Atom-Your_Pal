@@ -110,12 +110,14 @@ import { createWorkflowStore, dueWorkflows, eventWorkflows, workflowPrompt, type
 import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
 import { testMcpServer } from "./mcp-servers.ts";
 import { scanAiTools } from "./ai-tools.ts";
+import { createAiPrograms } from "./ai-programs.ts";
 import { checkIssues, createPaperclip, createPaperclipTools, issueTracker, paperclipBase } from "./paperclip.ts";
 import { createWindowPointer, type WindowPointer } from "./screen-context.ts";
 import { withPointing } from "./pointing.ts";
 import { defaultInputDevice, startRecording } from "./audio.ts";
 import { createWhisperStt, type SpeechToText } from "./stt.ts";
 import { createModelSettings, writeSavedChoice, type ModelSettings } from "./model-settings.ts";
+import { createOwnerSettings, ownerPath } from "./owner-settings.ts";
 import { createKokoroSynthesizer, createSpeaker, type TextToSpeech } from "./tts.ts";
 import type { VoiceLoopOptions } from "./voice-loop.ts";
 
@@ -141,6 +143,10 @@ export interface Runtime {
   /** 2026-11-04: pages ARK watches (watches.ts). */
   watches?: import("./island-types.ts").IslandWatches;
   islandLocalBackup?: IslandOptions["localBackup"];
+  /** ADR-269: the AI programs on this Mac, scanned live. */
+  aiPrograms: import("./ai-programs.ts").AiPrograms;
+  /** ADR-271: the owner's name (`owner.set`). Absent without a settings file. */
+  owner?: import("./owner-settings.ts").OwnerSettings;
   islandSourceAnalysis?: IslandOptions["sourceAnalysis"];
   config: Config;
   log: Logger;
@@ -356,6 +362,8 @@ export function createRuntime(
   let continuity: ReturnType<typeof createChatContinuity> | undefined;
   let sourceAnalysis: ReturnType<typeof createSourceAnalysis> | undefined;
   const localBackup = createLocalBackup({ path: join(dirname(options.settingsPath ?? "config/island.json"), "local-backup.json") });
+  // ADR-271: the owner's name for ARK's prompts, read before the tools are made. Only with a real settings file (not in tests).
+  const owner = options.settingsPath ? createOwnerSettings(ownerPath(options.settingsPath), log) : undefined;
   const saveChat = (sessionId: string, turns: readonly Message[], completion?: { requestId: string; reply: string }) => {
     if (!memory) return false;
     if (chatTurns.wasDeleted(sessionId)) return false; // the chat was deleted while this turn ran: it stays deleted
@@ -571,7 +579,7 @@ export function createRuntime(
   const cua = computerOn ? createCuaTransport({ onTiming: (timing) => log.info("computer.transport", { ...timing }) }) : undefined;
   const calendarHelper = findCalendarHelper();
   log.info("calendar.helper", { available: Boolean(calendarHelper) });
-  // The tools ARK can use. Built before the model because "Claude (my plan)" runs the tool loop itself and
+  // The tools ARK can use. Built before the model because "Claude" runs the tool loop itself and
   // needs them; the other providers get them from the Core.
   const tools = [
     // Task 3.16: only with Keshab's own Paperclip on this Mac. Approvals are answered only after his OK on the card.
@@ -1578,6 +1586,8 @@ export function createRuntime(
     ...(api ? { api } : {}),
     ...(sourceAnalysis ? { islandSourceAnalysis: sourceAnalysis } : {}),
     islandLocalBackup: localBackup,
+    ...(owner ? { owner } : {}),
+    aiPrograms: createAiPrograms({ path: join(dirname(options.settingsPath ?? "config/island.json"), "ai-programs.json"), log }),
     flushNotes: () => episodes?.flush() ?? Promise.resolve(),
     close: () => {
       localBackup.close();

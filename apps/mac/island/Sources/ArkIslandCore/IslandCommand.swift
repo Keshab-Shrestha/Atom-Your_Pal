@@ -102,6 +102,8 @@ public enum IslandCommand: Sendable, Equatable {
     case telegramSet(push: Bool)
     /// ADR-098 item 5: Settings' "Local API" switch. The runtime answers with an `api` event.
     case apiSet(on: Bool)
+    /// ADR-271: the name ARK calls its owner, for ARK's prompts. Sent after every runtime start and when it changes.
+    case ownerSet(name: String)
     /// Settings' "Work in the foreground" switch: the default for computer input. Sent again after every runtime start.
     case computerDecisions(provider: String, backup: Bool)
     case computerDecisionResult(id: String, choice: String?, confidence: Double?, probability: Double?)
@@ -110,6 +112,9 @@ public enum IslandCommand: Sendable, Equatable {
     case apiRegenerate
     /// ADR-093: look for the AI tools on this Mac again.
     case toolsScan
+    /// ADR-269: scan for AI programs now; let ARK use a ready one or not.
+    case aiProgramsScan
+    case aiProgramsAllow(id: String, allowed: Bool)
     /// The user is about to speak or type: the runtime opens the chat's session now (pre-warm). No model call.
     case chatWarm
     /// ADR-091: Keshab's chats: list them, continue one, delete one.
@@ -304,11 +309,14 @@ public enum IslandCommand: Sendable, Equatable {
         case .speechSet: "speech.set"
         case .telegramSet: "telegram.set"
         case .apiSet: "api.set"
+        case .ownerSet: "owner.set"
         case .computerDecisions: "computer.decisions"
         case .computerDecisionResult: "computer.decision.result"
         case .computerMode: "computer.mode"
         case .apiRegenerate: "api.regenerate"
         case .toolsScan: "tools.scan"
+        case .aiProgramsScan: "ai.programs.scan"
+        case .aiProgramsAllow: "ai.programs.allow"
         case .chatWarm: "chat.warm"
         case .chatsList: "chats.list"
         case .chatControl: "chat.control"
@@ -555,6 +563,8 @@ public enum IslandCommand: Sendable, Equatable {
             fields["effort"] = effort
         case .panelSave(let panel):
             fields["panel"] = panel.jsonObject
+        case .aiProgramsAllow(let id, let allowed):
+            fields["id"] = id; fields["allowed"] = allowed // a real JSON boolean
         case .improvementsSet(let enabled):
             fields["enabled"] = enabled // a real JSON boolean
         case .panelDelete(let id), .watchRemove(let id), .appOpen(let id), .appRemove(let id), .improvementDismiss(let id), .improvementFixing(let id):
@@ -588,6 +598,8 @@ public enum IslandCommand: Sendable, Equatable {
             fields["push"] = push
         case .apiSet(let on):
             fields["on"] = on
+        case .ownerSet(let name):
+            fields["name"] = name
         case .computerDecisions(let provider, let backup):
             fields["provider"] = provider; fields["backup"] = backup
         case .computerDecisionResult(let id, let choice, let confidence, let probability):

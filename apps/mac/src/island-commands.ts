@@ -1,6 +1,7 @@
 // The commands from the island, their allowlist and the parser (moved from island-protocol.ts; docs/island-protocol.md is the specification).
 
 import { isChatAccessMode, type ChatAccessMode } from "@ark/contracts";
+import { cleanOwnerName } from "@ark/shared";
 import type { ProjectSourceRequest } from "./project-sources.ts";
 import type { WorkspaceRequest } from "./project-workspace.ts";
 import { parseChatControl, type ChatControlRequest } from "./chat-controls.ts";
@@ -127,9 +128,14 @@ export type IslandCommand =
   | { type: "telegram.set"; push: boolean }
   /** ADR-098 item 5: Settings' "Local API" switch. The runtime answers with an `api` event. */
   | { type: "api.set"; on: boolean }
+  /** ADR-271: the name ARK calls its owner, from the first-run window or Settings > General. */
+  | { type: "owner.set"; name: string }
   /** 2026-10-15: Settings' "Regenerate" next to "Copy token". The runtime answers with an `api` event. */
   | { type: "api.regenerate" }
   | { type: "tools.scan" }
+  /** ADR-269: scan for AI programs now (answered with `ai.programs`); let ARK use a ready one or not. */
+  | { type: "ai.programs.scan" }
+  | { type: "ai.programs.allow"; id: string; allowed: boolean }
   /** 2026-11-04: the user is about to speak or type: open the chat's session now (pre-warm). No model call. */
   | { type: "chat.warm" }
   | { type: "helper.set"; helper: string; app: string }
@@ -292,8 +298,11 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "speech.set",
   "telegram.set",
   "api.set",
+  "owner.set",
   "api.regenerate",
   "tools.scan",
+  "ai.programs.scan",
+  "ai.programs.allow",
   "chat.warm",
   "helper.set",
   "job.add",
@@ -455,6 +464,14 @@ export function parseCommand(line: string): ParsedLine {
     if (Object.keys(v).length !== 2 || typeof v.id !== "string" || !/^[a-z0-9:-]{1,100}$/.test(v.id)) return { error: "Invalid note id." };
     return { command: { type, id: v.id } };
   }
+  if (type === "ai.programs.scan") return Object.keys(value as object).length === 1 ? { command: { type } } : { error: "ai.programs.scan takes no other fields." };
+  if (type === "ai.programs.allow") {
+    const v = value as Record<string, unknown>;
+    if (Object.keys(v).some((k) => !["type", "id", "allowed"].includes(k)) || typeof v.id !== "string" || !/^[a-z0-9-]{1,40}$/.test(v.id) || typeof v.allowed !== "boolean") {
+      return { error: 'ai.programs.allow needs only an "id" and "allowed" (true or false).' };
+    }
+    return { command: { type, id: v.id, allowed: v.allowed } };
+  }
   if (type === "apps.list") return Object.keys(value as object).length === 1 ? { command: { type } } : { error: "Invalid apps request." };
   if (type === "app.open" || type === "app.remove") {
     const v = value as Record<string, unknown>;
@@ -615,6 +632,11 @@ export function parseCommand(line: string): ParsedLine {
     const { on } = value as { on?: unknown };
     if (typeof on !== "boolean") return { error: 'api.set needs "on" to be true or false.' };
     return { command: { type, on } };
+  }
+  if (type === "owner.set") {
+    const name = cleanOwnerName((value as { name?: unknown }).name);
+    if (!name) return { error: 'owner.set needs a "name": some text.' };
+    return { command: { type, name } };
   }
   if (type === "telegram.set") {
     const { push } = value as { push?: unknown };

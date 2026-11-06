@@ -54,6 +54,7 @@ public final class IslandSettings {
     static let palReactsKey = "ark.wisp.reacts"
     static let palHomeDisplayKey = "ark.wisp.homeDisplay"
     static let tourDoneKey = "ark.tourDone"
+    static let ownerNameKey = "ark.owner.name"
 
     @ObservationIgnored private let defaults: UserDefaults
     /// Mirrors what is stored, so views observe changes.
@@ -90,6 +91,17 @@ public final class IslandSettings {
     /// The first-run tour has run, or the user talked before it could (ADR-075). Default false.
     public var tourDone: Bool {
         didSet { save(tourDone, Self.tourDoneKey) }
+    }
+
+    /// ADR-271: the name ARK calls its owner. Nil until the first-run window saves one; the runtime gets it with `owner.set`.
+    /// A set value is cleaned (`OwnerName.clean`); an empty one is not stored.
+    public var ownerName: String? {
+        didSet {
+            let cleaned = ownerName.flatMap(OwnerName.clean)
+            if cleaned != ownerName { ownerName = cleaned; return }
+            if let cleaned { defaults.set(cleaned, forKey: Self.ownerNameKey) } else { defaults.removeObject(forKey: Self.ownerNameKey) }
+            revision += 1
+        }
     }
 
     /// Show the pet (ADR-042). Default on.
@@ -278,6 +290,7 @@ public final class IslandSettings {
         petEnabled = defaults.object(forKey: Self.petKey) as? Bool ?? true
         palReacts = defaults.object(forKey: Self.palReactsKey) as? Bool ?? true
         tourDone = defaults.bool(forKey: Self.tourDoneKey)
+        ownerName = defaults.string(forKey: Self.ownerNameKey).flatMap(OwnerName.clean)
         palHomeDisplay = defaults.string(forKey: Self.palHomeDisplayKey).map(PalHomeDisplay.init(storageValue:)) ?? .main
         soundsEnabled = defaults.object(forKey: Self.soundsKey) as? Bool ?? true
         speakReports = defaults.object(forKey: Self.speakReportsKey) as? Bool ?? true

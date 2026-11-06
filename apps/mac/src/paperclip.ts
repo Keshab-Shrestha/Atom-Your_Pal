@@ -3,6 +3,7 @@
 // ARK never installs, starts or configures Paperclip and keeps no Paperclip secrets. Narrow operations only: list
 // agents, create an issue, read an issue and its comments, list pending approvals, approve or reject one.
 
+import { ownerName } from "@ark/shared";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import type { Tool } from "@ark/tool-engine";
@@ -220,7 +221,7 @@ export function createPaperclipTools(options: PaperclipToolOptions): Tool[] {
       spec: {
         name: "paperclip_hand",
         description:
-          `Hand a task to an agent in Keshab's own Paperclip, only when Keshab asks for Paperclip or one of its agents by name. ${OUTSIDE} ` +
+          `Hand a task to an agent in ${ownerName()}'s own Paperclip, only when ${ownerName()} asks for Paperclip or one of its agents by name. ${OUTSIDE} ` +
           "agent: the Paperclip agent's name. title: a short title. description: what to do and deliver. Tell the user in one sentence who has it.",
         inputSchema: {
           type: "object",
@@ -250,7 +251,7 @@ export function createPaperclipTools(options: PaperclipToolOptions): Tool[] {
     {
       spec: {
         name: "paperclip_check",
-        description: "How the tasks ARK handed to Paperclip are doing, and Paperclip's approvals waiting for Keshab (with their ids).",
+        description: `How the tasks ARK handed to Paperclip are doing, and Paperclip's approvals waiting for ${ownerName()} (with their ids).`,
         inputSchema: { type: "object", properties: {} },
       },
       async run(): Promise<string> {
@@ -269,7 +270,7 @@ export function createPaperclipTools(options: PaperclipToolOptions): Tool[] {
       spec: {
         name: "paperclip_decide",
         description:
-          "Approve or reject one of Paperclip's waiting approvals, when Keshab says so. Keshab confirms on ARK's approval card first; " +
+          `Approve or reject one of Paperclip's waiting approvals, when ${ownerName()} says so. ${ownerName(true)} confirms on ARK's approval card first; ` +
           "without his OK nothing is sent. approval: its id from paperclip_check. approve: true or false. note: optional words for the decision.",
         inputSchema: {
           type: "object",
@@ -288,7 +289,7 @@ export function createPaperclipTools(options: PaperclipToolOptions): Tool[] {
         if (!approval) throw new Error("No such approval waits in Paperclip.");
         const approve = input.approve === true;
         const ok = await options.confirm({ summary: `${approve ? "Approve" : "Reject"} in Paperclip: ${approval.summary}`, reason: OUTSIDE });
-        if (!ok) return "Keshab did not confirm, so nothing was sent to Paperclip.";
+        if (!ok) return `${ownerName(true)} did not confirm, so nothing was sent to Paperclip.`;
         await client.decide(id, approve, typeof input.note === "string" ? input.note : undefined);
         options.onChange?.();
         return approve ? "Approved in Paperclip." : "Rejected in Paperclip.";

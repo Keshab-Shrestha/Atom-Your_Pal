@@ -1,5 +1,16 @@
 # ARK Task Plan
 
+## Owner name and two provider icons — 6 November 2026
+
+- ADR-271: on first run ARK asks "What should ARK call you?". The name is kept in the island settings, can be changed in Settings > General, and goes to the runtime with `owner.set` (saved in `config/owner.json`). ARK's prompts, refusals, Home's greeting, the You page and the Team's owner card use it. No fixed owner name is left in runtime or screen text.
+- The model picker and Settings > AI model show the GitHub Copilot and OpenCode marks (lobe-icons, MIT).
+- Verified: TypeScript tests (1464 pass), Swift tests (969 pass), fixture renders of the model picker, Settings > AI model and the first-run sheet. Golden shots updated: 20-settings-model, 33-model-picker-dark, 33-model-picker-light. Not checked by hand in the running app.
+
+## Live AI program scan — 6 November 2026
+
+- ADR-269: ARK finds 14 AI programs on this Mac, at start, every 10 minutes and on Rescan. Settings > AI model shows each one with its version, place and status: Ready, Found, not connected yet, or Local model, not used. Keshab switches each Ready program on or off. A program that is off leaves the model picker.
+- Verified: TypeScript and Swift tests for the scan, the commands and the event. Not checked by hand in the running app.
+
 ## The work log stays after the answer — 6 November 2026
 
 - ADR-268: the newest answer keeps its steps open, older ones fold to one line, and a thinking-only turn shows "Thought for 4s". The video Studio is parked; its branch is kept.

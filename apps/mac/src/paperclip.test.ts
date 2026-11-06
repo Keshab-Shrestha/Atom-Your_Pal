@@ -71,7 +71,7 @@ test("an approval is answered only after Keshab's OK on the card", async () => {
     let ok = false;
     const asked: string[] = [];
     const [, , decide] = createPaperclipTools({ client: pc.client, tracker: issueTracker(join(dir, "p.json")), confirm: async (r) => (asked.push(r.summary), ok) });
-    assert.equal(await decide!.run({ approval: "ap1", approve: true }), "Keshab did not confirm, so nothing was sent to Paperclip.");
+    assert.equal(await decide!.run({ approval: "ap1", approve: true }), "The user did not confirm, so nothing was sent to Paperclip.");
     assert.ok(!pc.calls.some((c) => c.url.endsWith("/approve")));
     ok = true;
     assert.equal(await decide!.run({ approval: "ap1", approve: false, note: "Not now" }), "Rejected in Paperclip.");

@@ -11,6 +11,9 @@ export const CLAUDE_PLAN = "claude-plan";
 /** ADR-093: Codex on the user's ChatGPT plan, and the Gemini CLI on the user's Google sign-in. */
 export const CODEX = "codex";
 export const GEMINI_CLI = "gemini-cli";
+/** ADR-270: the GitHub Copilot CLI on the user's GitHub sign-in, and OpenCode on the providers it signed in to. */
+export const COPILOT = "copilot";
+export const OPENCODE = "opencode";
 
 /**
  * The LLM providers: display name, where its "key" comes from (the path of the signed-in program: not a secret), the
@@ -21,7 +24,7 @@ export const GEMINI_CLI = "gemini-cli";
 export const PROVIDERS = {
   "claude-plan": {
     // Its "key" is the path of the `claude` program (ARK_CLAUDE_PATH, or found automatically), not a secret.
-    name: "Claude (my plan)",
+    name: "Claude",
     keyVar: "ARK_CLAUDE_PATH",
     defaultModel: "claude-sonnet-5-5",
     models: [
@@ -31,7 +34,7 @@ export const PROVIDERS = {
     ],
   },
   codex: {
-    name: "Codex (my ChatGPT plan)",
+    name: "Codex",
     keyVar: "ARK_CODEX_PATH",
     defaultModel: "codex-default",
     // ADR-097: a known list (Codex gives no list to other programs), plus a custom model id in Settings.
@@ -44,13 +47,40 @@ export const PROVIDERS = {
     ],
   },
   "gemini-cli": {
-    name: "Gemini CLI (my Google sign-in)",
+    name: "Gemini CLI",
     keyVar: "ARK_GEMINI_PATH",
     defaultModel: "gemini-default",
     models: [
       { id: "gemini-default", name: "Gemini CLI's own model" },
       { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" },
       { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
+    ],
+  },
+  // ADR-270: model ids from https://docs.github.com/en/copilot/reference/cli-command-reference ("Supported models").
+  copilot: {
+    name: "GitHub Copilot",
+    keyVar: "ARK_COPILOT_PATH",
+    defaultModel: "copilot-default",
+    models: [
+      { id: "copilot-default", name: "Copilot CLI's own model" },
+      { id: "auto", name: "Copilot Auto" },
+      { id: "claude-sonnet-5.5", name: "Claude Sonnet 5.5 (Copilot)" },
+      { id: "claude-opus-5.5", name: "Claude Opus 5.5 (Copilot)" },
+      { id: "claude-haiku-5.5", name: "Claude Haiku 5.5 (Copilot)" },
+      { id: "gpt-6.1-terra", name: "GPT-6.1 Terra (Copilot)" },
+      { id: "gpt-6-luna", name: "GPT-6 Luna (Copilot)" },
+      { id: "gemini-3.8-flash", name: "Gemini 3.8 Flash (Copilot)" },
+    ],
+  },
+  // ADR-270: provider/model ids from https://opencode.ai/docs/models/ ; "OpenCode's own model" is its configured default.
+  opencode: {
+    name: "OpenCode",
+    keyVar: "ARK_OPENCODE_PATH",
+    defaultModel: "opencode-default",
+    models: [
+      { id: "opencode-default", name: "OpenCode's own model" },
+      { id: "opencode/gpt-6.1-sol", name: "GPT-6.1 Sol (OpenCode Zen)" },
+      { id: "anthropic/claude-sonnet-5-5", name: "Claude Sonnet 5.5 (OpenCode)" },
     ],
   },
 } as const;
@@ -62,7 +92,7 @@ export type LlmProvider = keyof typeof PROVIDERS;
 type Env = Record<string, string | undefined>;
 
 /**
- * The signed-in `claude` program that "Claude (my plan)" runs. ARK_CLAUDE_PATH wins and is never second-guessed:
+ * The signed-in `claude` program that "Claude" runs. ARK_CLAUDE_PATH wins and is never second-guessed:
  * if it is wrong the answer is "not found", not some other copy. Otherwise the usual install places, then PATH.
  */
 export function findClaudeProgram(
@@ -107,11 +137,15 @@ export function findProgram(
   }
   // ADR-098 item 7: the ChatGPT app ships Codex too.
   if (name === "codex") places.push("/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex");
+  // ADR-270: OpenCode's install script puts it here (https://opencode.ai/install).
+  if (name === "opencode") places.push(`${home}/.opencode/bin/opencode`);
   return places.find(exists);
 }
 
 export const findCodexProgram = (env: Env = process.env) => findProgram("codex", "ARK_CODEX_PATH", env);
 export const findGeminiProgram = (env: Env = process.env) => findProgram("gemini", "ARK_GEMINI_PATH", env);
+export const findCopilotProgram = (env: Env = process.env) => findProgram("copilot", "ARK_COPILOT_PATH", env);
+export const findOpenCodeProgram = (env: Env = process.env) => findProgram("opencode", "ARK_OPENCODE_PATH", env);
 
 export const LLM_PROVIDER_IDS = Object.keys(PROVIDERS) as LlmProvider[];
 
@@ -125,7 +159,9 @@ export type ProviderKeys = Partial<Record<LlmProvider, string>>;
 export function readProviderKeys(
   env: Env = process.env,
   findClaude: (env: Env) => string | undefined = findClaudeProgram,
-  findOthers: { codex?: (env: Env) => string | undefined; gemini?: (env: Env) => string | undefined } = { codex: findCodexProgram, gemini: findGeminiProgram },
+  findOthers: Partial<Record<"codex" | "gemini" | "copilot" | "opencode", (env: Env) => string | undefined>> = {
+    codex: findCodexProgram, gemini: findGeminiProgram, copilot: findCopilotProgram, opencode: findOpenCodeProgram,
+  },
 ): ProviderKeys {
   const keys: ProviderKeys = {};
   // No keys: each provider is available when its signed-in program is. Its "key" is that program's path.
@@ -135,6 +171,10 @@ export function readProviderKeys(
   if (codex) keys[CODEX] = codex;
   const gemini = findOthers.gemini?.(env);
   if (gemini) keys[GEMINI_CLI] = gemini;
+  const copilot = findOthers.copilot?.(env);
+  if (copilot) keys[COPILOT] = copilot;
+  const opencode = findOthers.opencode?.(env);
+  if (opencode) keys[OPENCODE] = opencode;
   return keys;
 }
 
@@ -237,8 +277,8 @@ export function loadConfig(env: Env = process.env, options: LoadConfigOptions = 
   const config: Config = {
     llm: {
       provider,
-      // No key: the signed-in program's path (Claude Code, Codex or the Gemini CLI).
-      apiKey: (provider === CODEX ? findCodexProgram(env) : provider === GEMINI_CLI ? findGeminiProgram(env) : findClaudeProgram(env)) ?? "",
+      // No key: the signed-in program's path (Claude Code, Codex, the Gemini CLI, the Copilot CLI or OpenCode).
+      apiKey: ({ [CLAUDE_PLAN]: findClaudeProgram, [CODEX]: findCodexProgram, [GEMINI_CLI]: findGeminiProgram, [COPILOT]: findCopilotProgram, [OPENCODE]: findOpenCodeProgram }[provider](env)) ?? "",
       model,
       timeoutMs: positiveInt("ARK_LLM_TIMEOUT_MS", 30_000),
     },

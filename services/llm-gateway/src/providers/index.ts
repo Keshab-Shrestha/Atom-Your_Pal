@@ -1,13 +1,13 @@
 import { ProviderError, type ProviderAdapter } from "../gateway.ts";
-import { createCodexAdapter, createGeminiCliAdapter } from "./cli-tools.ts";
+import { createCodexAdapter, createCopilotAdapter, createGeminiCliAdapter, createOpenCodeAdapter } from "./cli-tools.ts";
 
-/** ADR-092, ADR-093: the signed-in tools on this Mac; Claude Code is the default. (Also in @ark/shared's PROVIDERS.) */
-export const PROVIDERS = ["claude-plan", "codex", "gemini-cli"] as const;
+/** ADR-092, ADR-093, ADR-270: the signed-in tools on this Mac; Claude Code is the default. (Also in @ark/shared's PROVIDERS.) */
+export const PROVIDERS = ["claude-plan", "codex", "gemini-cli", "copilot", "opencode"] as const;
 export type ProviderName = (typeof PROVIDERS)[number];
 
 export interface ProviderSettings {
   provider: ProviderName;
-  /** The path of the signed-in program (`claude`, `codex` or `gemini`): not a secret. */
+  /** The path of the signed-in program (`claude`, `codex`, `gemini`, `copilot` or `opencode`): not a secret. */
   apiKey: string;
   model: string;
 }
@@ -25,5 +25,9 @@ export function createProviderAdapter(settings: ProviderSettings): ProviderAdapt
       return createCodexAdapter({ program: settings.apiKey, model: settings.model });
     case "gemini-cli":
       return createGeminiCliAdapter({ program: settings.apiKey, model: settings.model });
+    case "copilot":
+      return createCopilotAdapter({ program: settings.apiKey, model: settings.model });
+    case "opencode":
+      return createOpenCodeAdapter({ program: settings.apiKey, model: settings.model });
   }
 }

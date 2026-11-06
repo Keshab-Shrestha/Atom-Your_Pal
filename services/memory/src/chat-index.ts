@@ -1,3 +1,4 @@
+import { ownerName } from "@ark/shared";
 import type { DatabaseSync } from "node:sqlite";
 import type { Message } from "@ark/contracts";
 import { ftsQuery, STOP_WORDS } from "./store.ts";
@@ -119,7 +120,7 @@ export function digestBrief(title: string, sections: readonly Turn[][], perMessa
   const parts = [`Chat title: ${title}`];
   let size = parts[0]!.length;
   for (const [i, section] of sections.entries()) {
-    const text = [`Section ${i + 1}:`, ...section.map((t) => `${t.role === "user" ? "Keshab" : "ARK"}: ${oneLine(t.content, perMessage)}`)].join("\n");
+    const text = [`Section ${i + 1}:`, ...section.map((t) => `${t.role === "user" ? ownerName(true) : "ARK"}: ${oneLine(t.content, perMessage)}`)].join("\n");
     if (size + text.length > maxChars) {
       parts.push(`Section ${i + 1} and later: (left out, too long)`);
       break;

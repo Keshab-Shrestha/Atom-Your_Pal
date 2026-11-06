@@ -2,6 +2,7 @@
 // stdin and receives JSON-line events on stdout. Specification: docs/island-protocol.md.
 
 import { workflowNextAt } from "./workflows.ts";
+import { AI_PROGRAMS, SCAN_EVERY_MS } from "./ai-programs.ts";
 import type { HubCommands } from "./hub-commands.ts";
 import { randomUUID } from "node:crypto";
 import { SOURCE_DATA_MARKER } from "./brain-source-context.ts";
@@ -708,6 +709,7 @@ export function runIsland(options: IslandOptions): IslandSession {
       }
       case "chat.model": {
         // ADR-097: this chat's own model, from the chat's top bar. Voice and new chats keep the default.
+        if (blockedMessage(command.provider)) return send({ type: "error", stage: "settings", message: blockedMessage(command.provider)! });
         const id = command.id || core.sessionId || "";
         const result = options.chats?.setModel?.(id, command.provider, command.model) ?? { error: "Chats are off, so a chat cannot have its own model." };
         if ("error" in result) {
@@ -724,6 +726,7 @@ export function runIsland(options: IslandOptions): IslandSession {
           send({ type: "error", stage: "settings", message: "This runtime cannot switch models." });
           return;
         }
+        if (blockedMessage(command.provider)) return send({ type: "error", stage: "settings", message: blockedMessage(command.provider)! });
         const result = options.settings.setModel(command.provider, command.model);
         if ("error" in result) {
           options.log?.warn("model.set_refused", { reason: result.error });
@@ -894,12 +897,34 @@ export function runIsland(options: IslandOptions): IslandSession {
         // Pre-warm: only while nothing runs. The Core opens the chat's session; a failure is only logged, the turn opens its own.
         if (!core.busy && loop.state === "idle") void core.warm?.().catch((error: unknown) => options.log?.warn("session.warm_failed", { message: describe(error) }));
         return;
+      case "ai.programs.scan":
+        // ADR-269: on demand: always answered, even when nothing changed. The provider sign-ins are checked again too.
+        void scanPrograms(true);
+        void options.settings?.scanTools?.().then(sendInfo, (error: unknown) => options.log?.warn("tools.scan_failed", { message: describe(error) }));
+        return;
+      case "ai.programs.allow": {
+        const programs = options.aiPrograms;
+        if (!programs) return send({ type: "error", stage: "settings", message: "This runtime does not scan for AI programs." });
+        const provider = options.settings?.info().provider;
+        if (!command.allowed && provider && AI_PROGRAMS.find((p) => p.id === command.id)?.provider === provider) {
+          return send({ type: "error", stage: "settings", message: "ARK uses this program now. Choose another model first, then switch it off." });
+        }
+        const result = programs.setAllowed(command.id, command.allowed);
+        if ("error" in result) return send({ type: "error", stage: "settings", message: result.error });
+        const event = programs.event();
+        if (event) send(event); else void scanPrograms(true);
+        sendInfo();
+        return;
+      }
       case "tools.scan":
         // ADR-093: look for the AI tools on this Mac again, then send the choices.
         void options.settings?.scanTools?.().then(sendInfo, (error: unknown) => options.log?.warn("tools.scan_failed", { message: describe(error) }));
         return;
       case "telegram.set":
         options.telegram?.setPush(command.push);
+        return;
+      case "owner.set":
+        options.owner?.set(command.name);
         return;
       case "api.set":
         if (!options.api) return send({ type: "api", on: false, port: 0, tokenFile: "", error: "The local API is not available in this mode." });
@@ -1459,9 +1484,26 @@ export function runIsland(options: IslandOptions): IslandSession {
     if (event) send(event);
   });
 
+  let programsTimer: NodeJS.Timeout | undefined;
+  /** ADR-269: one scan at a time (the module joins a running one); sent when it changed, or always when asked. */
+  function scanPrograms(always: boolean): Promise<void> {
+    if (!options.aiPrograms) return Promise.resolve();
+    return options.aiPrograms.scan().then(({ event, changed }) => { if (changed || always) send(event); },
+      (error: unknown) => options.log?.warn("ai_programs.scan_failed", { message: describe(error) }));
+  }
+  function blockedMessage(provider: string): string | undefined {
+    return options.aiPrograms?.blockedProviders().includes(provider)
+      ? "This AI program is switched off for ARK. Switch it on in Settings → AI model first." : undefined;
+  }
+
   /** The model in use, then what can be asked of it. */
   function sendInfo() {
-    if (options.settings) send({ type: "info", ...options.settings.info() });
+    if (options.settings) {
+      const info = options.settings.info();
+      const blocked = options.aiPrograms?.blockedProviders() ?? [];
+      // ADR-269: a program Keshab switched off leaves the model picker; the model in use always stays listed.
+      send({ type: "info", ...info, providers: info.providers.filter((p) => p.id === info.provider || !blocked.includes(p.id)) });
+    }
     if (chatsWatched && options.chats?.reasoningOf) sendChats();
     if (options.capabilities) send({ type: "capabilities", items: options.capabilities() });
   }
@@ -1510,6 +1552,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     stopHelperUpdates?.();
     stopTaskActivity?.();
     stopPlanUsage?.();
+    clearInterval(programsTimer);
     stopTimers?.();
     stopGoalLines?.();
     options.log?.info("app.quit");
@@ -1553,6 +1596,10 @@ export function runIsland(options: IslandOptions): IslandSession {
         }
       }
       sendInfo();
+      // ADR-269: the AI programs on this Mac, now and every 10 minutes; the window hears only of a change.
+      void scanPrograms(true);
+      programsTimer = setInterval(() => void scanPrograms(false), SCAN_EVERY_MS);
+      programsTimer.unref?.();
       // ADR-093: find the AI tools on this Mac, then send the choices again with them.
       void options.settings?.scanTools?.().then(sendInfo, (error: unknown) => options.log?.warn("tools.scan_failed", { message: describe(error) }));
       // ADR-097: the Claude plan's live model list, then the choices again with it.

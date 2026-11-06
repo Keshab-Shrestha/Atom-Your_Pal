@@ -1,6 +1,7 @@
 // ADR-090: Keshab's MCP servers at run time: their Agent SDK configs, a test (the MCP handshake and the tool list),
 // and the check each tool call passes: a trusted server's tools run; any other asks on Pal's card (no answer is a no).
 
+import { ownerName } from "@ark/shared";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/sdk/client/stdio.js";
@@ -70,6 +71,6 @@ export function mcpCheck(options: McpCheckOptions) {
       reason: options.reason ?? "Allow this one call. Mark the server Trusted in Plugins to stop asking.",
     });
     options.onCheck?.({ server: name, verdict: ok ? "allowed" : "declined" });
-    return ok ? undefined : "Keshab did not allow this tool call. Carry on without it, or say in the report what is needed.";
+    return ok ? undefined : `${ownerName(true)} did not allow this tool call. Carry on without it, or say in the report what is needed.`;
   };
 }

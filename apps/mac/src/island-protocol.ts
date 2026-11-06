@@ -58,6 +58,7 @@ export type IslandEvent =
   | ({ type: "approval.request" } & ApprovalAsk)
   | { type: "approval.closed"; id: string }
   | InfoEvent
+  | import("./ai-programs.ts").AiProgramsEvent
   | { type: "timer"; id: number; label: string; message: string }
   | { type: "context.ready"; app: string; ok: true }
   | { type: "context.ready"; app: string; ok: false; message: string }

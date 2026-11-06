@@ -92,7 +92,7 @@ const TOOLS: ToolDef[] = [
   },
   {
     name: "ark_needs_you",
-    description: "What waits for Keshab's answer in ARK (questions, plans, proposals, held and failed tasks), with the actions each one takes. Keshab answers them in ARK or on Telegram.",
+    description: "What waits for the user's answer in ARK (questions, plans, proposals, held and failed tasks), with the actions each one takes. The user answers them in ARK or on Telegram.",
     properties: {},
     call: () => api("GET", "/v1/needs"),
   },

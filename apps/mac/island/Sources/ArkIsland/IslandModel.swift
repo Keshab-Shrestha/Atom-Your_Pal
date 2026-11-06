@@ -64,6 +64,10 @@ final class IslandModel {
     var capabilities: [CapabilityItem]?
     /// Claude plan usage (ADR-076), merged from `plan.usage` events. Nil until one arrives: no meters.
     var planUsage: PlanUsage?
+    /// ADR-269: the AI programs on this Mac; nil until the first scan arrives.
+    var aiPrograms: AiProgramsState?
+    /// ADR-269: a rescan was asked for and has not come back.
+    var scanningPrograms = false
     /// ADR-091: Keshab's chats and the one ARK is in; nil until the window asks.
     var chats: ChatList?
     /// The skill open in Plugins → Skills (its whole SKILL.md), the last answer to `skillGet` or `skillSave`.
@@ -385,6 +389,21 @@ final class IslandModel {
     @ObservationIgnored var wakeChanged: () -> Void = {}
 
     /// Turns the pet on or off: saves the setting and shows or hides Pal at once.
+    /// ADR-271: the name on screen (Home's greeting, You, the Team's owner card): the saved one, else the Mac user's first name, else "you".
+    var ownerDisplayName: String { OwnerName.display(saved: settings.ownerName, fullUserName: NSFullUserName()) }
+
+    /// ADR-271: saves the owner's name (first-run window, Settings → General) and tells the runtime.
+    func setOwnerName(_ name: String) {
+        guard let cleaned = OwnerName.clean(name) else { return }
+        settings.ownerName = cleaned
+        sendOwnerName()
+    }
+
+    /// The runtime uses the known name in ARK's prompts; with none, it says "the user".
+    private func sendOwnerName() {
+        if let name = OwnerName.known(saved: settings.ownerName, fullUserName: NSFullUserName()) { send(.ownerSet(name: name)) }
+    }
+
     func setPet(_ enabled: Bool) {
         settings.petEnabled = enabled
         petChanged(enabled)
@@ -1197,6 +1216,7 @@ final class IslandModel {
             computerRestarting = false
             computerTimeout?.cancel()
             send(.telegramSet(push: settings.telegramPush))
+            sendOwnerName() // ADR-271
             sendChatDefaults() // Settings → Defaults (2026-11-02)
             send(.apiSet(on: settings.localApi)) // ADR-098 item 5
             send(.computerMode(foreground: settings.computerForeground))
@@ -1213,6 +1233,9 @@ final class IslandModel {
             send(.chatWorkWatch) // ADR-156: only a UI that can render cards opts into waiting for an answer
             refreshForegroundRecovery()
             if helpersWindowOpen { send(.commandsList) } // the "/" picker (ADR-117)
+        case .aiPrograms(let state):
+            aiPrograms = state
+            scanningPrograms = false
         case .info(let info):
             modelInfo = info
             syncChatModelName()

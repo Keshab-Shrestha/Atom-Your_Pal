@@ -1,3 +1,4 @@
+import { ownerName } from "@ark/shared";
 import { lstatSync, readlinkSync, realpathSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { HelperError } from "./jobs.ts";
@@ -200,16 +201,18 @@ const OUTSIDE: [RegExp, string][] = [
 ];
 // ADR-123: delete and anything that harms the OS is never run. Deleting is refused outright (Keshab, 2026-10-16); an agent has no delete tool, and
 // this closes the shell.
-const DELETE_AND_HARM: [RegExp, string][] = [
+// ADR-271: read when a command is refused, so the reason names the owner set at that time.
+const useTrash = (): string => `Commands do not delete files. Use the trash_file tool: it asks ${ownerName()} and moves the file to the Trash.`;
+const DELETE_AND_HARM: [RegExp, string | (() => string)][] = [
   // 2026-10-16 (security review): a regex list cannot be complete, so the common ways round it are closed too: the command anywhere as a word (not only
   // after a separator), a backslash or full path before it, inline code in a shell or an interpreter, and the delete calls of the usual languages.
   // The real limits are the sandbox (writes only in the project folder, no network) and the copies kept for undo.
-  [/(?<![\w.\-])\\?(?:\/(?:usr\/)?(?:local\/)?bin\/)?(?:rm|rmdir|unlink|trash|shred|srm)(?=\s|$|;|&|\|)/, "Commands do not delete files. Use the trash_file tool: it asks Keshab and moves the file to the Trash."],
+  [/(?<![\w.\-])\\?(?:\/(?:usr\/)?(?:local\/)?bin\/)?(?:rm|rmdir|unlink|trash|shred|srm)(?=\s|$|;|&|\|)/, useTrash],
   [/(?<![\w.\-])(?:sh|bash|zsh|dash|ksh|fish)\s+(?:-[a-zA-Z]*c\b|--command)|(?<![\w.\-])eval\s|(?<![\w.\-])(?:node|nodejs|deno|bun)\s+(?:-e\b|--eval\b|-p\b|--print\b)|(?<![\w.\-])python[0-9.]*\s+-[a-zA-Z]*c\b|(?<![\w.\-])(?:perl|ruby|php)\s+-[a-zA-Z]*[er]\b/, "Run a script file, not inline code: inline code cannot be checked."],
-  [/\b(?:rmSync|unlinkSync|rmdirSync|fs\.rm|fs\.unlink|fs\.rmdir|rmtree|os\.remove|os\.unlink|os\.rmdir|shutil\.rmtree|FileUtils\.rm|File\.delete|Files\.delete|unlink\s*\()/, "Commands do not delete files. Use the trash_file tool: it asks Keshab and moves the file to the Trash."],
+  [/\b(?:rmSync|unlinkSync|rmdirSync|fs\.rm|fs\.unlink|fs\.rmdir|rmtree|os\.remove|os\.unlink|os\.rmdir|shutil\.rmtree|FileUtils\.rm|File\.delete|Files\.delete|unlink\s*\()/, useTrash],
   [/\bmv\b[^\n;|&]*\/dev\/null|(?<![\w.\-])truncate\s/, "Emptying files is never done by an agent."],
   [new RegExp(`${GIT}(?:stash\\s+(?:clear|drop)|worktree\\s+(?:remove|prune)|gc\\s+--prune|reflog\\s+expire|prune\\b|replace\\b)`), "That git command throws work away and is never run by an agent."],
-  [/(?:^|[;&|(\n]\s*|\b(?:env|xargs|command|exec|nohup|time|sudo)\s+)(?:rm|rmdir|unlink|trash|shred|srm)\b|\bfind\b[^\n;|&]*(?:-delete\b|-exec\s+(?:rm|rmdir|unlink)\b)/, "Commands do not delete files. Use the trash_file tool: it asks Keshab and moves the file to the Trash."],
+  [/(?:^|[;&|(\n]\s*|\b(?:env|xargs|command|exec|nohup|time|sudo)\s+)(?:rm|rmdir|unlink|trash|shred|srm)\b|\bfind\b[^\n;|&]*(?:-delete\b|-exec\s+(?:rm|rmdir|unlink)\b)/, useTrash],
   [new RegExp(`${GIT}(?:clean|rm)\\b|${GIT}branch\\s+(?:-[dD]|--delete)\\b`), "Deleting files or branches is never done by an agent."],
   [/(?:^|[;&|(\n]\s*|\b(?:env|xargs|command|exec|nohup|time|sudo)\s+)(?:dd|mkfs\S*|diskutil|hdiutil|fdisk|newfs\S*|chown|chgrp|kill|killall|pkill|shutdown|reboot|halt|pmset|networksetup|scutil|csrutil|spctl|tccutil|nvram|systemsetup|dscl|fdesetup)\b/, "That command changes the system and is never run by an agent."],
   [/\bchmod\s+(?:-[a-zA-Z]*R[a-zA-Z]*|--recursive)\b/, "Changing permissions of whole folders is never done by an agent."],
@@ -227,7 +230,7 @@ export const isPushCommand = (command: string): boolean => new RegExp(`${GIT}pus
 export function classifyCommand(command: string): CommandVerdict {
   if (command.length > MAX_COMMAND_CHARS) return { verdict: "refuse", reason: `The command is longer than ${MAX_COMMAND_CHARS} characters. Put it in a script file.` };
   for (const [re, reason] of REFUSED) if (re.test(command)) return { verdict: "refuse", reason };
-  for (const [re, reason] of DELETE_AND_HARM) if (re.test(command)) return { verdict: "refuse", reason };
+  for (const [re, reason] of DELETE_AND_HARM) if (re.test(command)) return { verdict: "refuse", reason: typeof reason === "string" ? reason : reason() };
   for (const [re, reason] of OUTSIDE) if (re.test(command)) return { verdict: "ask", reason, outside: true };
   return { verdict: "allow" };
 }

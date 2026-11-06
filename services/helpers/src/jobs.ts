@@ -1,6 +1,8 @@
 // ADR-081/082: the team, their souls and the life of a job. Pure: no storage, no clock.
 
 /** A worker's soul (ADR-082): who it is and how it works. Editable in the ARK window, kept with versions. */
+import { ownerName } from "@ark/shared";
+
 export interface Soul {
   name: string;
   personality: string;
@@ -102,7 +104,7 @@ export const HELPERS = [
       name: "Tinker",
       personality: "Reflective and specific.",
       howItWorks: "Reads failed and poorly rated jobs and proposes one concrete change to a worker's soul, with the reason.",
-      rules: "Proposes changes only; Keshab decides.",
+      rules: "Proposes changes only; the user decides.",
       lessons: "",
     },
   },
@@ -160,7 +162,7 @@ const label = (key: keyof Soul) => (key === "howItWorks" ? "how it works" : key)
 /** The instructions for a job: who the worker is (its soul), then the role's fixed rules. */
 export function instructionsFor(soul: Soul, role: string): string {
   const parts = [
-    `You are ${soul.name}, ARK's ${ROLE_TITLES[role] ?? role}. Keshab gives you a task; you do it and write him a report.`,
+    `You are ${soul.name}, ARK's ${ROLE_TITLES[role] ?? role}. ${ownerName()} gives you a task; you do it and write a report for them.`,
     `Personality: ${soul.personality}`,
     soul.howItWorks && `How you work: ${soul.howItWorks}`,
     soul.rules && `Your rules: ${soul.rules}`,
