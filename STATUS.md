@@ -2,7 +2,7 @@
 
 ## Rust migration plan — 11 November 2026
 
-- ADR-278 is Proposed: docs/rust-migration-plan.md (Rune at `b556a38`, MIT, as the UI base). Docs only; nothing is built or changed in the app. Not verified by build: the Rune claims in section 10 of the plan.
+- ADR-278 is Proposed: docs/rust-migration-plan.md (Rune at `b556a38`, MIT, as the UI base). Docs only; nothing is built or changed in the app. Not verified by build: the Rune claims in section 10 of the migration plan.
 
 ## README for new users — 7 November 2026
 
