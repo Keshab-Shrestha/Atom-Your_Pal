@@ -146,6 +146,19 @@ fn jobs() {
 }
 
 #[test]
+fn questions() {
+    use ark_core::questions::*;
+    check("questions", |name, args| match name {
+        "parseQuestions" => match parse_questions(args[0].as_object().unwrap()) {
+            Ok(list) => json!(list.iter().map(|q| json!({ "prompt": q.prompt, "choices": q.choices })).collect::<Vec<_>>()),
+            Err(error) => json!({ "error": error }),
+        },
+        "toolName" => json!(tool_name(args.first())),
+        other => panic!("no Rust port for {other}"),
+    });
+}
+
+#[test]
 fn policy() {
     use ark_core::policy::*;
     check("policy", |name, args| match name {

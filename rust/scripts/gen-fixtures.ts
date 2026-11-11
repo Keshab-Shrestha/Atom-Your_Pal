@@ -9,6 +9,7 @@ import { classifyCommand, expandHome, folderForTask, hasGitPart, isImportantName
 import { parseWriteScope, writeScopesOverlap } from "../../services/helpers/src/write-scopes.ts";
 import { canMove, isFinal, isRetryable, makesCycle, move, type JobState } from "../../services/helpers/src/jobs.ts";
 import { quietWatch } from "../../apps/mac/src/job-quiet.ts";
+import { parseQuestions, toolName } from "../../apps/mac/src/chat-work.ts";
 import { callable, checkReportsTo, delegationProblem, handBackLine, handBackNeed, orgAgentIds, orgPrompt, resolveOrg, teamLine } from "../../apps/mac/src/org.ts";
 
 type Case = { fn: string; args: unknown[]; out: unknown };
@@ -200,4 +201,32 @@ function write(module: string, source: string, cases: Case[]): void {
   ];
   for (const [jobs, steps] of scenarios) add("quietScenario", [jobs, steps], () => scenario(jobs, steps));
   write("jobs", "services/helpers/src/jobs.ts, apps/mac/src/job-quiet.ts", cases);
+}
+
+// ---- questions (chat-work.ts) ----
+{
+  const cases: Case[] = [];
+  const add = (fn: string, args: unknown[], value: () => unknown) => cases.push({ fn, args, out: run(value) });
+  const asked = (input: Record<string, unknown>) => {
+    const result = parseQuestions(input);
+    return typeof result === "string" ? { error: result } : result;
+  };
+  const inputs: Record<string, unknown>[] = [
+    { questions: JSON.stringify([{ question: "Which database?", choices: "Postgres | Fits the stack (recommended)\nSQLite" }, { question: "When?" }]) },
+    { question: "Ship today?", choices: "Yes\nNo" }, { question: "A?", questions: "[]" }, { questions: "not json" },
+    { questions: JSON.stringify([1, 2, 3, 4, 5].map((n) => ({ question: `Q${n}?` }))) }, { questions: JSON.stringify([{ question: "A?", extra: 1 }]) },
+    { question: "A?", choices: "x".repeat(161) }, { question: "A?", choices: "x".repeat(160) },
+    { question: "Del‮ete​ the\u0007 file?\nWhy", choices: "Ye⁦s﻿\n‏\nN\u0000o" }, { question: "‮​" },
+    { questions: "[]" }, { questions: 3 }, { questions: null }, { choices: "a" }, {}, { question: "A?", extra: true }, { questions: "x".repeat(4001) },
+    { questions: JSON.stringify([null]) }, { questions: JSON.stringify([[]]) }, { questions: JSON.stringify([["a"]]) }, { questions: JSON.stringify([0]) },
+    { questions: JSON.stringify(["text"]) }, { questions: JSON.stringify([{}]) }, { questions: JSON.stringify({ question: "A?" }) },
+    { question: "A?", choices: "a\nb\nc\nd\ne" }, { question: "A?", choices: "a\na" }, { question: "A?", choices: "a\n\n  \nb" }, { question: "A?", choices: null },
+    { question: "x".repeat(600) }, { question: "x".repeat(601) }, { question: "😀".repeat(300) }, { question: "😀".repeat(301) }, { question: "A?", choices: 4 },
+    { question: "  padded　" }, { question: "A?", choices: "x".repeat(644) }, { questions: JSON.stringify([{ question: "A?", choices: ["a"] }]) },
+  ];
+  for (const input of inputs) add("parseQuestions", [input], () => asked(input));
+  for (const name of ["Read", "mcp__ark__remember", "ark_time", "mcp__github__x", "bad name", "", "x".repeat(100), "x".repeat(101), "é", 3, null, "a:b.c-d_e", "ark_mcp__ark__x"]) {
+    add("toolName", [name], () => toolName(name));
+  }
+  write("questions", "apps/mac/src/chat-work.ts (parseQuestions, toolName)", cases);
 }

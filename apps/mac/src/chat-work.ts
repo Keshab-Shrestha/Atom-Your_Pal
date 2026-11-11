@@ -32,7 +32,7 @@ const questionSpec: ToolSpec = {
 const hidden = /[\u0000-\u0009\u000B-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g;
 const clean = (text: string) => text.replace(hidden, "").trim();
 /** ADR-275: one question, or 2–4 from the `questions` JSON string. A string is the refusal to send back. */
-function parseQuestions(input: Record<string, unknown>): { prompt: string; choices: string[] }[] | string {
+export function parseQuestions(input: Record<string, unknown>): { prompt: string; choices: string[] }[] | string {
   const keys = Object.keys(input);
   if (keys.some((key) => !["question", "choices", "questions"].includes(key))) return "Use only question, choices or questions.";
   let raw: unknown[];
@@ -54,7 +54,7 @@ function parseQuestions(input: Record<string, unknown>): { prompt: string; choic
   }
   return out;
 }
-const toolName = (name: unknown) => typeof name === "string" && /^[a-zA-Z0-9_.:-]{1,100}$/.test(name) ? name.replace(/^mcp__ark__|^ark_/, "") : "Provider tool";
+export const toolName = (name: unknown) => typeof name === "string" && /^[a-zA-Z0-9_.:-]{1,100}$/.test(name) ? name.replace(/^mcp__ark__|^ark_/, "") : "Provider tool";
 
 /** Ephemeral foreground observations. Tool rows omit arguments/results; explicit question-card data stays in memory. No policy changes. */
 export function createChatWork(options: { persistAnswer?(turn: string, card: string, question: string, answer: string): void } = {}) {
