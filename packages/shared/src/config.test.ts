@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ConfigError, findClaudeProgram, loadConfig, readProviderKeys } from "./config.ts";
+import { ConfigError, findClaudeProgram, findProgram, loadConfig, readProviderKeys } from "./config.ts";
 
 // Placeholder values, not real credentials.
 const CLAUDE_KEY = "test-claude-key-0000";
@@ -52,7 +52,7 @@ test("reports every problem at once", () => {
     (error: unknown) => {
       assert.ok(error instanceof ConfigError);
       assert.equal(error.problems.length, 4);
-      assert.match(error.message, /ARK_LLM_PROVIDER must be one of claude-plan, codex, gemini-cli, got "openai"/);
+      assert.match(error.message, /ARK_LLM_PROVIDER must be one of claude-plan, codex, gemini-cli, copilot, opencode, got "openai"/);
       assert.match(error.message, /ARK_LLM_TIMEOUT_MS must be a positive integer, got "soon"/);
       assert.match(error.message, /ARK_AUDIO_SAMPLE_RATE must be a positive integer, got "-1"/);
       assert.match(error.message, /ARK_LOG_LEVEL must be one of debug, info, warn, error, got "loud"/);
@@ -99,6 +99,19 @@ test("claude-plan counts as available when the program exists, with the path in 
   const keys = readProviderKeys({ ARK_CLAUDE_PATH: process.execPath });
   assert.equal(keys["claude-plan"], process.execPath);
   assert.equal(readProviderKeys({ ARK_CLAUDE_PATH: "/definitely/not/here" })["claude-plan"], undefined);
+});
+
+test("ADR-270: the Copilot CLI and OpenCode are providers when their programs are found", () => {
+  const find = (path: string) => () => path;
+  const keys = readProviderKeys({}, () => undefined, { copilot: find("/x/copilot"), opencode: find("/x/opencode") });
+  assert.deepEqual(keys, { copilot: "/x/copilot", opencode: "/x/opencode" });
+  assert.deepEqual(readProviderKeys({}, () => undefined, { copilot: () => undefined, opencode: () => undefined }), {});
+  const has = (...paths: string[]) => (path: string) => paths.includes(path);
+  assert.equal(findProgram("opencode", "ARK_OPENCODE_PATH", { PATH: "" }, has("/h/.opencode/bin/opencode"), "/h", () => []), "/h/.opencode/bin/opencode", "its install script's place");
+  assert.equal(findProgram("copilot", "ARK_COPILOT_PATH", { PATH: "" }, has("/h/.local/bin/copilot"), "/h", () => []), "/h/.local/bin/copilot");
+  const config = loadConfig({ ARK_LLM_PROVIDER: "opencode", ARK_LLM_MODEL: "anthropic/claude-sonnet-5-5", ARK_OPENCODE_PATH: process.execPath });
+  assert.deepEqual([config.llm.provider, config.llm.model, config.llm.apiKey], ["opencode", "anthropic/claude-sonnet-5-5", process.execPath]);
+  assert.equal(loadConfig({ ARK_LLM_PROVIDER: "copilot", ARK_LLM_MODEL: "gemini-2.5-pro" }).llm.model, "copilot-default", "another provider's model gives way to the default");
 });
 
 test("choosing claude-plan needs no API key", () => {

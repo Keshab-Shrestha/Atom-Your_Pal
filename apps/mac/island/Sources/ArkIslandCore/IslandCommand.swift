@@ -110,6 +110,9 @@ public enum IslandCommand: Sendable, Equatable {
     case apiRegenerate
     /// ADR-093: look for the AI tools on this Mac again.
     case toolsScan
+    /// ADR-269: scan for AI programs now; let ARK use a ready one or not.
+    case aiProgramsScan
+    case aiProgramsAllow(id: String, allowed: Bool)
     /// The user is about to speak or type: the runtime opens the chat's session now (pre-warm). No model call.
     case chatWarm
     /// ADR-091: Keshab's chats: list them, continue one, delete one.
@@ -309,6 +312,8 @@ public enum IslandCommand: Sendable, Equatable {
         case .computerMode: "computer.mode"
         case .apiRegenerate: "api.regenerate"
         case .toolsScan: "tools.scan"
+        case .aiProgramsScan: "ai.programs.scan"
+        case .aiProgramsAllow: "ai.programs.allow"
         case .chatWarm: "chat.warm"
         case .chatsList: "chats.list"
         case .chatControl: "chat.control"
@@ -555,6 +560,8 @@ public enum IslandCommand: Sendable, Equatable {
             fields["effort"] = effort
         case .panelSave(let panel):
             fields["panel"] = panel.jsonObject
+        case .aiProgramsAllow(let id, let allowed):
+            fields["id"] = id; fields["allowed"] = allowed // a real JSON boolean
         case .improvementsSet(let enabled):
             fields["enabled"] = enabled // a real JSON boolean
         case .panelDelete(let id), .watchRemove(let id), .appOpen(let id), .appRemove(let id), .improvementDismiss(let id), .improvementFixing(let id):

@@ -232,6 +232,8 @@ test("parses the helper commands", () => {
     { type: "speech.set", reports: false, updates: true },
     { type: "git.list" },
     { type: "tools.scan" },
+    { type: "ai.programs.scan" },
+    { type: "ai.programs.allow", id: "codex", allowed: false },
     { type: "chat.warm" },
     { type: "watches.get" },
     { type: "improvements.get" },

@@ -39,7 +39,7 @@ enum IslandGallery {
         let model = IslandModel(settings: IslandSettings(defaults: defaults))
         let lines = [
             #"{"type":"ready","protocol":1,"provider":"claude-plan","model":"claude-sonnet-5-5","microphone":"Mac mini Microphone","voice":true}"#,
-            #"{"type":"info","provider":"claude-plan","model":"claude-sonnet-5-5","providers":[{"id":"claude-plan","name":"Claude (my plan)","available":true,"models":[{"id":"claude-opus-5-5","name":"Claude Opus 5.5"},{"id":"claude-sonnet-5-5","name":"Claude Sonnet 5.5"},{"id":"claude-haiku-4-5-20251001","name":"Claude Haiku 4.5"}]}]}"#,
+            #"{"type":"info","provider":"claude-plan","model":"claude-sonnet-5-5","providers":[{"id":"claude-plan","name":"Claude","available":true,"models":[{"id":"claude-opus-5-5","name":"Claude Opus 5.5"},{"id":"claude-sonnet-5-5","name":"Claude Sonnet 5.5"},{"id":"claude-haiku-4-5-20251001","name":"Claude Haiku 4.5"}]}]}"#,
             #"{"type":"state","state":"listening"}"#,
             #"{"type":"state","state":"transcribing"}"#,
             #"{"type":"transcript","text":"What's on my calendar this afternoon?"}"#,

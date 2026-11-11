@@ -110,6 +110,7 @@ import { createWorkflowStore, dueWorkflows, eventWorkflows, workflowPrompt, type
 import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
 import { testMcpServer } from "./mcp-servers.ts";
 import { scanAiTools } from "./ai-tools.ts";
+import { createAiPrograms } from "./ai-programs.ts";
 import { checkIssues, createPaperclip, createPaperclipTools, issueTracker, paperclipBase } from "./paperclip.ts";
 import { createWindowPointer, type WindowPointer } from "./screen-context.ts";
 import { withPointing } from "./pointing.ts";
@@ -141,6 +142,8 @@ export interface Runtime {
   /** 2026-11-04: pages ARK watches (watches.ts). */
   watches?: import("./island-types.ts").IslandWatches;
   islandLocalBackup?: IslandOptions["localBackup"];
+  /** ADR-269: the AI programs on this Mac, scanned live. */
+  aiPrograms: import("./ai-programs.ts").AiPrograms;
   islandSourceAnalysis?: IslandOptions["sourceAnalysis"];
   config: Config;
   log: Logger;
@@ -571,7 +574,7 @@ export function createRuntime(
   const cua = computerOn ? createCuaTransport({ onTiming: (timing) => log.info("computer.transport", { ...timing }) }) : undefined;
   const calendarHelper = findCalendarHelper();
   log.info("calendar.helper", { available: Boolean(calendarHelper) });
-  // The tools ARK can use. Built before the model because "Claude (my plan)" runs the tool loop itself and
+  // The tools ARK can use. Built before the model because "Claude" runs the tool loop itself and
   // needs them; the other providers get them from the Core.
   const tools = [
     // Task 3.16: only with Keshab's own Paperclip on this Mac. Approvals are answered only after his OK on the card.
@@ -1578,6 +1581,7 @@ export function createRuntime(
     ...(api ? { api } : {}),
     ...(sourceAnalysis ? { islandSourceAnalysis: sourceAnalysis } : {}),
     islandLocalBackup: localBackup,
+    aiPrograms: createAiPrograms({ path: join(dirname(options.settingsPath ?? "config/island.json"), "ai-programs.json"), log }),
     flushNotes: () => episodes?.flush() ?? Promise.resolve(),
     close: () => {
       localBackup.close();

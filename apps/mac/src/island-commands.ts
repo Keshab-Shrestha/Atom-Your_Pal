@@ -130,6 +130,9 @@ export type IslandCommand =
   /** 2026-10-15: Settings' "Regenerate" next to "Copy token". The runtime answers with an `api` event. */
   | { type: "api.regenerate" }
   | { type: "tools.scan" }
+  /** ADR-269: scan for AI programs now (answered with `ai.programs`); let ARK use a ready one or not. */
+  | { type: "ai.programs.scan" }
+  | { type: "ai.programs.allow"; id: string; allowed: boolean }
   /** 2026-11-04: the user is about to speak or type: open the chat's session now (pre-warm). No model call. */
   | { type: "chat.warm" }
   | { type: "helper.set"; helper: string; app: string }
@@ -294,6 +297,8 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "api.set",
   "api.regenerate",
   "tools.scan",
+  "ai.programs.scan",
+  "ai.programs.allow",
   "chat.warm",
   "helper.set",
   "job.add",
@@ -454,6 +459,14 @@ export function parseCommand(line: string): ParsedLine {
     const v = value as Record<string, unknown>;
     if (Object.keys(v).length !== 2 || typeof v.id !== "string" || !/^[a-z0-9:-]{1,100}$/.test(v.id)) return { error: "Invalid note id." };
     return { command: { type, id: v.id } };
+  }
+  if (type === "ai.programs.scan") return Object.keys(value as object).length === 1 ? { command: { type } } : { error: "ai.programs.scan takes no other fields." };
+  if (type === "ai.programs.allow") {
+    const v = value as Record<string, unknown>;
+    if (Object.keys(v).some((k) => !["type", "id", "allowed"].includes(k)) || typeof v.id !== "string" || !/^[a-z0-9-]{1,40}$/.test(v.id) || typeof v.allowed !== "boolean") {
+      return { error: 'ai.programs.allow needs only an "id" and "allowed" (true or false).' };
+    }
+    return { command: { type, id: v.id, allowed: v.allowed } };
   }
   if (type === "apps.list") return Object.keys(value as object).length === 1 ? { command: { type } } : { error: "Invalid apps request." };
   if (type === "app.open" || type === "app.remove") {

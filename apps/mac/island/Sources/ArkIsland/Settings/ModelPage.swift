@@ -77,28 +77,14 @@ struct ModelSection: View {
             // ADR-083: window-wide, so it is a setting. It was the last block of the sidebar until 2026-10-15.
             if let list = model.helpers.list { AllowLargeCard(model: model, list: list) }
             if info.provider == "claude-plan" { PlanMetersCard(usage: model.planUsage) }
-            // ADR-093: the AI tools on this Mac, found or not, and what ARK does with them.
             Card("Local backup", footer: "Optional text-only conversation with a server you configure. Cloud chats stay primary; no automatic fallback, model installation or shared access grants.") {
                 Row(title: "Use local text backup", detail: "Configure, check and explicitly message your own compatible server") {
                     PillButton(title: "Open") { localBackupOpen = true }.disabled(!model.localBackupReady)
                 }
             }
             .sheet(isPresented: $localBackupOpen) { LocalBackupPane(model: model) }
-            Card("Found on this Mac", footer: "Claude and Codex can use ARK's tools and file agents. Codex workers use checked file tools; shell, web, browser and external MCP tools are not available to them yet. Gemini CLI is text-only. Chats keep their conversation when the model changes. Local text backup is configured separately and never replaces these providers automatically.") {
-                if info.tools.isEmpty {
-                    Row(title: "Looking for AI tools…") { ProgressView().controlSize(.small) }
-                }
-                ForEach(Array(info.tools.enumerated()), id: \.element.id) { index, tool in
-                    if index > 0 { RowDivider() }
-                    Row(title: tool.name, detail: tool.note) {
-                        StatusDot(color: tool.found ? (tool.signedIn == false ? theme.attention.color : tool.provider == nil ? theme.text3.color : theme.success.color) : theme.text3.color, size: 7)
-                    }
-                }
-                RowDivider()
-                Row(title: "Look again", detail: "After installing or signing in to a tool") {
-                    PillButton(title: "Scan") { model.send(.toolsScan) }
-                }
-            }
+            // ADR-269: the live list replaces the start-up list of ADR-093.
+            AiProgramsCard(model: model)
         } else {
             Card {
                 Row(title: "Waiting for ARK to start…") { ProgressView().controlSize(.small) }

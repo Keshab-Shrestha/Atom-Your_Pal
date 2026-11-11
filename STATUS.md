@@ -1,5 +1,10 @@
 # ARK Project Status
 
+## Live AI program scan — 6 November 2026
+
+- ADR-269: ARK finds 14 AI programs on this Mac, at start, every 10 minutes and on Rescan. Settings > AI model shows each one with its version, place and status: Ready, Found, not connected yet, or Local model, not used. Keshab switches each Ready program on or off. A program that is off leaves the model picker.
+- Verified: TypeScript and Swift tests for the scan, the commands and the event. Not checked by hand in the running app.
+
 ## The work log stays after the answer — 6 November 2026
 
 - ADR-268: the newest answer keeps its steps open, older ones fold to one line, and a thinking-only turn shows "Thought for 4s". The video Studio is parked; its branch is kept.
