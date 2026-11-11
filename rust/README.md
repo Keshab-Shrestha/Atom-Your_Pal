@@ -8,6 +8,7 @@ This folder holds the Rust build of ARK (ADR-278, docs/rust-migration-plan.md). 
 - `rust-toolchain.toml`: Rust 1.99.1, the same version as Rune.
 - `vendor/rune/`: a copy of part of Rune (MIT), the UI base. `vendor/rune/UPSTREAM.md` gives the source commit and the ARK patches.
 - `crates/ark-hello/`: a hello window. It proves that the Rune copy builds, draws headless and reports its tree.
+- `crates/ark-spike/`: the Phase 0.2 spike checks (text input, windows, native views, accessibility). ARK does not ship it. `cargo run -p ark-spike -- --check text|windows|views|a11y` opens one check. `crates/ark-spike/CHECKLIST.md` gives the steps, `docs/rust-phase-0-results.md` the results.
 - `THIRD_PARTY.txt`: the third-party licences of the Rust build.
 
 ## Set up
