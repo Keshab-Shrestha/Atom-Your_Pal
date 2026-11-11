@@ -53,7 +53,7 @@ struct WorkspaceNavigationRail: View {
                 pages(model.settings.sidebar.bottom, bottom: true)
                 // 2026-11-02: the owner's page, as the reference's account footer (the You page).
                 Button { model.navigate { model.windowPage = .you } } label: {
-                    YouAvatar(name: snapshot ? "Keshab Shrestha" : NSFullUserName(), size: 26)
+                    YouAvatar(name: snapshot ? "Keshab Shrestha" : model.settings.ownerName ?? NSFullUserName(), size: 26) // ADR-271
                         .overlay(Circle().strokeBorder(model.windowPage == .you ? Color.primary.opacity(0.6) : .clear, lineWidth: 1.5).padding(-3))
                 }
                 .buttonStyle(.plain).help("You").accessibilityLabel("You").padding(.top, 4)

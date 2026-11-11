@@ -334,6 +334,7 @@ The `info` event carries `tools`: each AI tool ARK looked for on this Mac, `{"id
 ### Local API (ADR-098 item 5)
 
 - `{"type":"api.set","on":true}`: Settings' "Local API" switch.
+- `{"type":"owner.set","name":"Sam"}` (ADR-271): the name ARK calls its owner in its prompts and messages. One line, at most 60 characters; an empty name is refused. The runtime saves it in `config/owner.json`. The island sends it after every `ready` and when the owner changes it.
   - With `on` `true`, the runtime listens on 127.0.0.1 at `ARK_API_PORT` (default 4790). It makes `data/api-token` when the file is not there.
   - With `on` `false`, the runtime stops listening.
   - The island sends it when ARK connects and when Keshab changes it. The answer is `api`.

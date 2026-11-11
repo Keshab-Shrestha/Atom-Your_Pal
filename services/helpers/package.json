@@ -4,6 +4,7 @@
   "type": "module",
   "exports": "./src/index.ts",
   "dependencies": {
-    "@ark/decision-engine": "workspace:*"
+    "@ark/decision-engine": "workspace:*",
+    "@ark/shared": "workspace:*"
   }
 }

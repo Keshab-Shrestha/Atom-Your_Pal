@@ -236,6 +236,9 @@ importers:
       '@ark/decision-engine':
         specifier: workspace:*
         version: link:../decision-engine
+      '@ark/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
 
   services/llm-gateway:
     dependencies:
@@ -257,6 +260,9 @@ importers:
       '@ark/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@ark/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
 
   services/tool-engine:
     dependencies:

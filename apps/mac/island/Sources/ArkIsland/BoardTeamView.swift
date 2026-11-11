@@ -7,6 +7,7 @@ import ArkIslandCore
 /// work in a lead's area through the lead. A card's line lights while that agent works; a click opens the agent.
 struct BoardTeamView: View {
     let model: IslandModel
+    @Environment(\.islandSnapshot) private var snapshot
     @State private var dragging: String?
     @State private var dragAt: CGPoint = .zero
     @State private var pointerAt: CGPoint = .zero
@@ -154,7 +155,8 @@ struct BoardTeamView: View {
         Group {
             switch id {
             case OrgChart.owner:
-                FixedNode(title: "You", detail: "Owner", level: level, lit: false)
+                // ADR-271: the owner's name (snapshots keep "You", so reference images do not depend on the Mac's user).
+                FixedNode(title: snapshot ? "You" : OwnerName.known(saved: model.settings.ownerName, fullUserName: NSFullUserName()) ?? "You", detail: "Owner", level: level, lit: false)
             case OrgChart.ark:
                 FixedNode(title: "ARK", detail: model.status.isBusy ? model.status.title : "Ready", level: level, lit: model.status.isBusy)
             default:

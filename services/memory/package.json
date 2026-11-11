@@ -4,6 +4,7 @@
   "type": "module",
   "exports": "./src/index.ts",
   "dependencies": {
-    "@ark/contracts": "workspace:*"
+    "@ark/contracts": "workspace:*",
+    "@ark/shared": "workspace:*"
   }
 }

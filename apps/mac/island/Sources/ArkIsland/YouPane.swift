@@ -25,8 +25,8 @@ struct YouPane: View {
         .onAppear { if model.memory == nil, !snapshot { model.loadMemory() } }
     }
 
-    /// The owner's name: the Mac user's full name (snapshots: a fixed one).
-    private var name: String { snapshot ? "Keshab Shrestha" : NSFullUserName() }
+    /// The owner's name (ADR-271): the saved one, else the Mac user's full name (snapshots: a fixed sample).
+    private var name: String { snapshot ? "Keshab Shrestha" : model.settings.ownerName ?? NSFullUserName() }
 
     private var header: some View {
         HStack(spacing: 16) {

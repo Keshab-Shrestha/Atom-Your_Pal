@@ -72,6 +72,10 @@ struct HelpersView: View {
         .sheet(isPresented: Binding(get: { model.showsProjectSources }, set: { model.showsProjectSources = $0 })) {
             ProjectSourceSheet(model: model).themed(palette)
         }
+        // ADR-271: first run asks for the owner's name; the sheet goes once one is saved.
+        .sheet(isPresented: Binding(get: { !snapshot && OwnerName.needsAsking(saved: model.settings.ownerName) }, set: { _ in })) {
+            OwnerWelcomeSheet(model: model).themed(palette)
+        }
         .overlay(alignment: .trailing) {
             if model.agentPanel != nil { AgentPanelView(model: model).themed(palette).padding(.vertical, 8).transition(.move(edge: .trailing)) }
         }

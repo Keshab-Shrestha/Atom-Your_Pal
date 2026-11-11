@@ -1,3 +1,4 @@
+import { ownerName } from "@ark/shared";
 import { cpSync, existsSync, lstatSync, mkdirSync, renameSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, extname, isAbsolute, join, resolve } from "node:path";
@@ -33,7 +34,7 @@ export function createTrashTool(options: { home?: string; trash?: string } = {})
   return {
     spec: {
       name: TRASH_TOOL,
-      description: "Move one file or folder to the macOS Trash (Keshab can put it back from Finder). Keshab is asked first. Give the full path.",
+      description: `Move one file or folder to the macOS Trash (${ownerName()} can put it back from Finder). ${ownerName(true)} is asked first. Give the full path.`,
       inputSchema: { type: "object", properties: { path: { type: "string", description: "The full path of the file or folder." } }, required: ["path"] },
     },
     run(input) {

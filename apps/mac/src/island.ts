@@ -923,6 +923,9 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "telegram.set":
         options.telegram?.setPush(command.push);
         return;
+      case "owner.set":
+        options.owner?.set(command.name);
+        return;
       case "api.set":
         if (!options.api) return send({ type: "api", on: false, port: 0, tokenFile: "", error: "The local API is not available in this mode." });
         void options.api.set(command.on).then((status) => send({ type: "api", ...status }));

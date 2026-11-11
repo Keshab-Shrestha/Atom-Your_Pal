@@ -117,6 +117,7 @@ import { withPointing } from "./pointing.ts";
 import { defaultInputDevice, startRecording } from "./audio.ts";
 import { createWhisperStt, type SpeechToText } from "./stt.ts";
 import { createModelSettings, writeSavedChoice, type ModelSettings } from "./model-settings.ts";
+import { createOwnerSettings, ownerPath } from "./owner-settings.ts";
 import { createKokoroSynthesizer, createSpeaker, type TextToSpeech } from "./tts.ts";
 import type { VoiceLoopOptions } from "./voice-loop.ts";
 
@@ -144,6 +145,8 @@ export interface Runtime {
   islandLocalBackup?: IslandOptions["localBackup"];
   /** ADR-269: the AI programs on this Mac, scanned live. */
   aiPrograms: import("./ai-programs.ts").AiPrograms;
+  /** ADR-271: the owner's name (`owner.set`). Absent without a settings file. */
+  owner?: import("./owner-settings.ts").OwnerSettings;
   islandSourceAnalysis?: IslandOptions["sourceAnalysis"];
   config: Config;
   log: Logger;
@@ -359,6 +362,8 @@ export function createRuntime(
   let continuity: ReturnType<typeof createChatContinuity> | undefined;
   let sourceAnalysis: ReturnType<typeof createSourceAnalysis> | undefined;
   const localBackup = createLocalBackup({ path: join(dirname(options.settingsPath ?? "config/island.json"), "local-backup.json") });
+  // ADR-271: the owner's name for ARK's prompts, read before the tools are made. Only with a real settings file (not in tests).
+  const owner = options.settingsPath ? createOwnerSettings(ownerPath(options.settingsPath), log) : undefined;
   const saveChat = (sessionId: string, turns: readonly Message[], completion?: { requestId: string; reply: string }) => {
     if (!memory) return false;
     if (chatTurns.wasDeleted(sessionId)) return false; // the chat was deleted while this turn ran: it stays deleted
@@ -1581,6 +1586,7 @@ export function createRuntime(
     ...(api ? { api } : {}),
     ...(sourceAnalysis ? { islandSourceAnalysis: sourceAnalysis } : {}),
     islandLocalBackup: localBackup,
+    ...(owner ? { owner } : {}),
     aiPrograms: createAiPrograms({ path: join(dirname(options.settingsPath ?? "config/island.json"), "ai-programs.json"), log }),
     flushNotes: () => episodes?.flush() ?? Promise.resolve(),
     close: () => {

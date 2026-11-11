@@ -102,6 +102,8 @@ public enum IslandCommand: Sendable, Equatable {
     case telegramSet(push: Bool)
     /// ADR-098 item 5: Settings' "Local API" switch. The runtime answers with an `api` event.
     case apiSet(on: Bool)
+    /// ADR-271: the name ARK calls its owner, for ARK's prompts. Sent after every runtime start and when it changes.
+    case ownerSet(name: String)
     /// Settings' "Work in the foreground" switch: the default for computer input. Sent again after every runtime start.
     case computerDecisions(provider: String, backup: Bool)
     case computerDecisionResult(id: String, choice: String?, confidence: Double?, probability: Double?)
@@ -307,6 +309,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .speechSet: "speech.set"
         case .telegramSet: "telegram.set"
         case .apiSet: "api.set"
+        case .ownerSet: "owner.set"
         case .computerDecisions: "computer.decisions"
         case .computerDecisionResult: "computer.decision.result"
         case .computerMode: "computer.mode"
@@ -595,6 +598,8 @@ public enum IslandCommand: Sendable, Equatable {
             fields["push"] = push
         case .apiSet(let on):
             fields["on"] = on
+        case .ownerSet(let name):
+            fields["name"] = name
         case .computerDecisions(let provider, let backup):
             fields["provider"] = provider; fields["backup"] = backup
         case .computerDecisionResult(let id, let choice, let confidence, let probability):

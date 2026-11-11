@@ -67,8 +67,10 @@ struct AiProgramRow: View {
     }
 
     @ViewBuilder private var icon: some View {
-        if let provider = program.provider, ProviderLogo.mark(provider) != nil {
-            ProviderIcon(provider: provider, size: 16)
+        // A program with no provider of its own still shows its maker's mark when ARK has one (ADR-269 program ids).
+        let logo = program.provider ?? program.id
+        if ProviderLogo.mark(logo) != nil {
+            ProviderIcon(provider: logo, size: 16)
         } else {
             Glyph(systemName: program.status == "local-model" ? "cpu" : "terminal").appFont(.system(size: 13)).foregroundStyle(theme.text2.color)
         }
