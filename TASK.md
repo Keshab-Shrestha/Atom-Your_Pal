@@ -2,7 +2,7 @@
 
 ## Rust migration plan — 11 November 2026
 
-- ADR-278 (Proposed; UI base: Rune, MIT): docs/rust-migration-plan.md plans the move from Swift and Node to Rust in five phases of small PRs. Docs only; no Rust code. Next: the owner answers the decisions in section 9, then Phase 0 PR 1 (`rust/` workspace, pinned toolchain, Rune copy at `b556a38`, CI job, headless hello window).
+- ADR-278 (Accepted; UI base: Rune, MIT): docs/rust-migration-plan.md plans the move from Swift and Node to Rust in five phases of small PRs. Docs only; no Rust code. Next: Phase 0 PR 1 (`rust/` workspace, pinned toolchain, Rune copy at `b556a38`, CI job, headless hello window).
 
 ## README for new users — 7 November 2026
 

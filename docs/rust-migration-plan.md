@@ -1,6 +1,6 @@
 # Rust migration plan
 
-Status: Proposed (ADR-278). This migration plan contains no migration code.
+Status: Accepted (ADR-278). The owner accepted all recommendations in section 9. This migration plan contains no migration code.
 
 ## 1. Goal
 
@@ -337,7 +337,7 @@ Every PR follows CLAUDE.md §3 and §21: one capability, tests, verify, docs, st
 | Workspace browser, Apps pane | `WKWebView` child view in a Rune window | Rune has no web view | Not needed |
 | Menu-bar item, AX, Keychain, login item | objc2 code in `ark-mac` and the Rune copy | Rune does not have them | Rune adds them upstream |
 
-## 9. Decisions the owner must make
+## 9. Decisions (all accepted as recommended)
 
 | # | Question | Options | Recommendation |
 | --- | --- | --- | --- |

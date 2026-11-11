@@ -5289,7 +5289,7 @@ The owner likes the translucent main window of Ghostex (github.com/maddada/Ghost
 
 ## ADR-278 — Rust migration plan (2026-11-11)
 
-**Status:** Proposed. The migration plan is in [docs/rust-migration-plan.md](docs/rust-migration-plan.md). No migration code exists yet.
+**Status:** Accepted. The owner accepted all 11 recommendations in section 9 of the migration plan. The migration plan is in [docs/rust-migration-plan.md](docs/rust-migration-plan.md). No migration code exists yet.
 
 ### Context
 
