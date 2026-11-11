@@ -1,5 +1,17 @@
 # ARK Project Status
 
+## Rust Phase 0.2: spike checks — 12 November 2026
+
+- ADR-278, Phase 0 PR 2: `rust/crates/ark-spike` holds the spike checks. It changes no Rune file. `docs/rust-phase-0-results.md` holds the table of results. The Swift and Node code does not change.
+- Works: keys, undo and paste forms in a Rune field (headless and live); the AccessKit tree in the macOS Accessibility API, with press and set-value actions; `NSStatusItem` through objc2 with menu and click; hover in a panel while the app is active; an `App::overlay` panel on the second display, also over a full-screen Space; `WindowOptions::overlay` click-through on the main display; `WKWebView` over the Rune layer (draws, clicks, typing); the Rune embed host in a SwiftUI view (draws, typed keys).
+- Works with a patch: `.hudWindow` behind Rune needs the Metal layer lifted (zPosition), as Rune's own material host does. The spike does it without a Rune change.
+- Does not work: hover in a panel while another app is active; the web page in the accessibility tree; `WindowOptions::overlay` over a full-screen Space.
+- A click on an overlay that takes clicks activates the app.
+- `claude` 2.1.312 has every flag of option 2B. `--permission-prompt-tool` is hidden from `--help`. Not checked: hooks from `--settings` with no setting sources.
+- Owner to run: `rust/crates/ark-spike/CHECKLIST.md` (IME, dictation, emoji picker, rich and image paste, spell check, VoiceOver, second display with a normal desktop, the real blur, IME in the embed host).
+- Verified: `cargo build --locked`, `cargo build --locked -p ark-spike`, clippy `--no-deps -D warnings` for both crates, `cargo test --locked` (2 pass) and `cargo test --locked -p ark-spike` (1 pass). The new lock entries: `ark-spike` and `objc2-web-kit` (Zlib OR Apache-2.0 OR MIT). CI builds and lints `ark-spike` and runs none of its checks.
+- Build: ark-spike adds 36 s to a clean debug build (it builds `rune` again with more objc2 features), 24 s of clippy and 6 s of tests.
+
 ## Rust Phase 0.1: workspace, Rune copy and hello window — 11 November 2026
 
 - ADR-278, Phase 0 PR 1: `rust/` holds a Cargo workspace with toolchain 1.99.1. `rust/vendor/rune` holds a copy of Rune at `b556a38`: 12 crates and the OpenCode theme, 24 MB, 1 392 files. `rust/crates/ark-hello` holds the hello window. The new CI workflow `rust.yml` runs only on changes under `rust/`. The Swift and Node code does not change.

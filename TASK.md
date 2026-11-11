@@ -1,5 +1,14 @@
 # ARK Task Plan
 
+## Rust Phase 0.2: spike checks — 12 November 2026
+
+- ADR-278, Phase 0 PR 2: `rust/crates/ark-spike` is a spike Rune app. ARK does not ship it. `--check text|windows|views|a11y` opens one check group. It changes no Rune file. Results: `docs/rust-phase-0-results.md`.
+- The spike uses objc2 for the status item, the `.hudWindow` material and the `WKWebView`. `embed-host/` is a SwiftPM program that draws the text check inside a SwiftUI view through Rune's embed host.
+- CI builds and lints `ark-spike` only. Its checks need a screen, so CI does not run them. One headless test checks the text check's log and accessibility tree.
+- Owner to run: `rust/crates/ark-spike/CHECKLIST.md` (Japanese IME, dictation, emoji picker, rich paste, VoiceOver, second display with a normal desktop, the real blur, IME in the embed host).
+- Rune patches found (not made): hover in a panel while another app is active; native child views in the accessibility tree; `.hudWindow` and `.sidebar` cases in `SystemMaterial`. Decide each in Phase 3 (decision 11: patch and open an upstream issue).
+- Next: the owner fills in the checklist. Then Phase 1 starts.
+
 ## Rust Phase 0.1: workspace, Rune copy and hello window — 11 November 2026
 
 - ADR-278, Phase 0 PR 1: `rust/` is a Cargo workspace with toolchain 1.99.1. `rust/vendor/rune` is a copy of Rune at `b556a38`. It holds the 9 crates of the migration plan. It also holds `procwatch`, `rune-ref` and `themes/opencode`, because the build and the tests need them. `rust/vendor/rune/UPSTREAM.md` records the source, the dropped parts and the update steps. `rust/THIRD_PARTY.txt` lists the licences.
