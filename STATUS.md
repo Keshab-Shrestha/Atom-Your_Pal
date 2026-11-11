@@ -1,5 +1,19 @@
 # ARK Project Status
 
+## Rust Phase 1: ark-core — 12 November 2026
+
+- ADR-278, Phase 1: `rust/crates/ark-core` is built, on branch `rust-phase-1`, not pushed. The app does not call it. One commit for each module.
+- Safety policy: done. 230 TypeScript fixture cases match. 8 ported tests pass.
+- Org: done. 75 fixture cases match. 11 ported tests (TypeScript and Swift) pass.
+- Jobs and quiet mark: done. 77 fixture cases match, with quiet-mark scenarios on a fake store. 11 ported tests pass.
+- `ark-visual` card: done. 8 ported Swift tests pass. No fixtures: the source is Swift only.
+- Questions: done. 49 fixture cases match. 5 ported tests pass.
+- Diffs: done. 18 ported Swift tests pass. No fixtures: the source is Swift only.
+- Shortcut matcher: done. 30 ported Swift tests pass. No fixtures: the source is Swift only.
+- Totals: 98 Rust tests and 431 fixture cases pass. `cargo clippy -p ark-core --all-targets --no-deps -- -D warnings` is clean. `pnpm typecheck` passes.
+- Known differences, recorded in the code: Rust's `(?i)` and JavaScript's `/i` fold ſ and the Kelvin sign differently (guarded); serde_json refuses a lone surrogate escape and a number past f64 that `JSON.parse` accepts; diff words follow Unicode UAX #29, Apple's word break also uses a dictionary for Japanese and Chinese.
+- Not done: the protocol codec (`ark-protocol`, its own crate); shared vector files that Swift also reads; a CI check that the fixtures are current with the TypeScript code.
+
 ## Rust Phase 0.1: workspace, Rune copy and hello window — 11 November 2026
 
 - ADR-278, Phase 0 PR 1: `rust/` holds a Cargo workspace with toolchain 1.99.1. `rust/vendor/rune` holds a copy of Rune at `b556a38`: 12 crates and the OpenCode theme, 24 MB, 1 392 files. `rust/crates/ark-hello` holds the hello window. The new CI workflow `rust.yml` runs only on changes under `rust/`. The Swift and Node code does not change.

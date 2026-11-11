@@ -1,5 +1,18 @@
 # ARK Task Plan
 
+## Rust Phase 1: ark-core — 12 November 2026
+
+- ADR-278, Phase 1: the new crate `rust/crates/ark-core` holds pure logic, with no IO and no unsafe code. The running app does not call it (decision 3, option C).
+- Safety policy: the pure parts of `grants.ts` (command classes, tool paths, the folder for a task, important names) and `write-scopes.ts` (declared scopes, overlap). The owner's name is a parameter. The checks that read the disk stay for Phase 2.
+- Org: `org.ts` (depth limit, loops, the can-call gate, hand back, team lines) and `OrgChart.swift` (levels, drop check, layout). The `org.json` store stays for Phase 2.
+- Jobs: the job life of `jobs.ts`, the quiet mark of `job-quiet.ts` (without the store and the timer) and `JobTree.swift`.
+- `ark-visual` card: `ArkVisual.swift`, with the hidden-character count, the number format and the Markdown table that it uses.
+- Questions: the `ask_user` input parser and the tool name of `chat-work.ts` (now exported), and `ChatQuestions.swift`.
+- Diffs: `TextDiff.swift`, `UnifiedDiff.swift` and `InlineDiff.swift`.
+- Shortcuts: `ShortcutMatcher.swift`, with the part of the `Shortcuts.swift` model that it reads.
+- Parity: `rust/scripts/gen-fixtures.ts` runs the TypeScript code and writes `tests/fixtures/*.json`. The test `parity` compares each Rust answer with them. Each module also ports its TypeScript or Swift test cases. The CI job `rust` lints `ark-core` and runs its tests.
+- Next: the protocol codec (`ark-protocol`). Then shared vector files for the Swift-only areas, so that Swift reads the same vectors.
+
 ## Rust Phase 0.1: workspace, Rune copy and hello window — 11 November 2026
 
 - ADR-278, Phase 0 PR 1: `rust/` is a Cargo workspace with toolchain 1.99.1. `rust/vendor/rune` is a copy of Rune at `b556a38`. It holds the 9 crates of the migration plan. It also holds `procwatch`, `rune-ref` and `themes/opencode`, because the build and the tests need them. `rust/vendor/rune/UPSTREAM.md` records the source, the dropped parts and the update steps. `rust/THIRD_PARTY.txt` lists the licences.
