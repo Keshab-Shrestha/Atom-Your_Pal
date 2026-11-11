@@ -1,5 +1,12 @@
 # ARK Task Plan
 
+## Rust Phase 2.1: ark-runtime forwarder — 12 November 2026
+
+- ADR-278, Phase 2 PR 1: `rust/crates/ark-runtime` is a pure forwarder (std threads and `libc`, no tokio). `ark-runtime <program> [args...]` starts the Node runtime and copies each line both ways without a change. Stderr, the exit code and the stop signals pass through.
+- The Swift app starts `ark-runtime <node> <node arguments>` when `ARK_RUNTIME=rust` (`RuntimeLocator.forwarded`). The folder and the environment do not change. `ARK_RUNTIME_BIN` gives the path; otherwise ARK looks next to its own binary. The default stays Node. `build-app.sh` does not change.
+- `tests/smoke-harness.ts`: `ARK_RUNTIME_BIN` puts the forwarder between the harness and Node. Without it, the harness does not change.
+- Next: Phase 2 step 1, the read-only commands in Rust.
+
 ## Rust Phase 0.1: workspace, Rune copy and hello window — 11 November 2026
 
 - ADR-278, Phase 0 PR 1: `rust/` is a Cargo workspace with toolchain 1.99.1. `rust/vendor/rune` is a copy of Rune at `b556a38`. It holds the 9 crates of the migration plan. It also holds `procwatch`, `rune-ref` and `themes/opencode`, because the build and the tests need them. `rust/vendor/rune/UPSTREAM.md` records the source, the dropped parts and the update steps. `rust/THIRD_PARTY.txt` lists the licences.

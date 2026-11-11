@@ -1,4 +1,4 @@
-# The Rust build (ADR-278, docs/rust-migration-plan.md): build, lint and test ark-hello, then draw the hello window headless.
+# The Rust build (ADR-278, docs/rust-migration-plan.md): build, lint and test ark-hello and ark-runtime, then draw the hello window headless.
 # It runs only when a file under rust/ (or this file) changes, on its own runner, so the jobs in ci.yml do not wait for it.
 # The PNG and the tree JSON are kept as an artifact so the window can be looked at.
 name: Rust
@@ -36,7 +36,7 @@ jobs:
           key: rust-${{ runner.os }}-${{ runner.arch }}-1.99.1-${{ hashFiles('rust/Cargo.lock') }}
           restore-keys: rust-${{ runner.os }}-${{ runner.arch }}-1.99.1-
       - run: cargo build --locked
-      - run: cargo clippy --locked -p ark-hello --all-targets --no-deps -- -D warnings
+      - run: cargo clippy --locked -p ark-hello -p ark-runtime --all-targets --no-deps -- -D warnings
       - run: cargo test --locked
       - run: |
           mkdir -p "$RUNNER_TEMP/ark-hello"

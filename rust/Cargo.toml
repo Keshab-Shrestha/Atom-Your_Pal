@@ -5,6 +5,7 @@
 resolver = "3"
 members = [
     "crates/ark-hello",
+    "crates/ark-runtime",
     "vendor/rune/crates/rune",
     "vendor/rune/crates/rune-kit",
     "vendor/rune/crates/rune-motion",
@@ -18,7 +19,7 @@ members = [
     "vendor/rune/crates/rune-ref",
     "vendor/rune/themes/opencode",
 ]
-default-members = ["crates/ark-hello"]
+default-members = ["crates/ark-hello", "crates/ark-runtime"]
 
 [workspace.package]
 edition = "2024"
