@@ -177,6 +177,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ark-runtime"
+version = "0.0.1"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "arrayref"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"

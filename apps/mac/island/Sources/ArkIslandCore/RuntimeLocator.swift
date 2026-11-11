@@ -20,6 +20,7 @@ public enum LocateError: Error, Equatable, CustomStringConvertible {
     case projectNotFound(tried: [String])
     case nodeNotFound(tried: [String])
     case nodeTooOld(path: String, version: String)
+    case forwarderNotFound(tried: [String])
 
     public var description: String {
         switch self {
@@ -32,6 +33,9 @@ public enum LocateError: Error, Equatable, CustomStringConvertible {
         case .nodeTooOld(let path, let version):
             "Node.js at \(path) is \(version); ARK needs \(RuntimeLocator.minimumNode.text) or newer. " +
                 "Update it with `brew upgrade node`, or set ARK_NODE to a newer one."
+        case .forwarderNotFound(let tried):
+            "ARK_RUNTIME=rust is set, but `ark-runtime` was not found (looked in: \(tried.joined(separator: ", "))). " +
+                "Build it with `cargo build --release -p ark-runtime` in rust/ and set ARK_RUNTIME_BIN, or remove ARK_RUNTIME."
         }
     }
 }
@@ -78,6 +82,8 @@ public struct RuntimeLocator {
     public var nodeVersion: (String) -> String?
     /// The Calendar and Reminders helper (ADR-060), when there is one: `ark-calendar` next to the app's binary.
     public var calendarHelper: String?
+    /// The Rust forwarder (ADR-278 Phase 2.1), when there is one: `ark-runtime` next to the app's binary.
+    public var runtimeForwarder: String?
 
     public init(
         environment: [String: String],
@@ -86,9 +92,11 @@ public struct RuntimeLocator {
         isExecutable: @escaping (String) -> Bool,
         fileExists: @escaping (String) -> Bool,
         nodeVersion: @escaping (String) -> String?,
-        calendarHelper: String? = nil
+        calendarHelper: String? = nil,
+        runtimeForwarder: String? = nil
     ) {
         self.calendarHelper = calendarHelper
+        self.runtimeForwarder = runtimeForwarder
         self.environment = environment
         self.bundleInfo = bundleInfo
         self.homeDirectory = homeDirectory
@@ -104,11 +112,23 @@ public struct RuntimeLocator {
     public func locate() throws -> RuntimeLaunch {
         let root = try projectRoot()
         let node = try nodePath()
-        return RuntimeLaunch(
+        return try forwarded(RuntimeLaunch(
             executable: URL(fileURLWithPath: node),
             arguments: ["--env-file-if-exists=.env", "--disable-warning=ExperimentalWarning", Self.entryPoint, "--island"],
             directory: URL(fileURLWithPath: root, isDirectory: true),
-            environment: runtimeEnvironment(node: node))
+            environment: runtimeEnvironment(node: node)))
+    }
+
+    /// ADR-278 Phase 2.1: with `ARK_RUNTIME=rust`, the Rust forwarder starts Node: `ark-runtime <node> <node arguments>`, same folder and
+    /// environment. Any other value (or none) keeps the Node launch. `ARK_RUNTIME_BIN` wins over the forwarder next to the app's binary.
+    func forwarded(_ node: RuntimeLaunch) throws -> RuntimeLaunch {
+        guard ArkEnv.read("ARK_RUNTIME", environment) == "rust" else { return node }
+        let candidates = [ArkEnv.read("ARK_RUNTIME_BIN", environment), runtimeForwarder].compactMap { $0 }.filter { !$0.isEmpty }
+        guard let forwarder = candidates.first(where: isExecutable) else { throw LocateError.forwarderNotFound(tried: candidates) }
+        var launch = node
+        launch.executable = URL(fileURLWithPath: forwarder)
+        launch.arguments = [node.executable.path] + node.arguments
+        return launch
     }
 
     func projectRoot() throws -> String {
@@ -168,7 +188,8 @@ extension RuntimeLocator {
             isExecutable: { fm.isExecutableFile(atPath: $0) },
             fileExists: { fm.fileExists(atPath: $0) },
             nodeVersion: { RuntimeLocator.probeNodeVersion(at: $0) },
-            calendarHelper: bundle.executableURL.map { $0.deletingLastPathComponent().appendingPathComponent("ark-calendar").path })
+            calendarHelper: bundle.executableURL.map { $0.deletingLastPathComponent().appendingPathComponent("ark-calendar").path },
+            runtimeForwarder: bundle.executableURL.map { $0.deletingLastPathComponent().appendingPathComponent("ark-runtime").path })
     }
 }
 

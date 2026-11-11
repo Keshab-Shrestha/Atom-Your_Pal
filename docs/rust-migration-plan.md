@@ -263,6 +263,7 @@ Every PR follows CLAUDE.md §3 and §21: one capability, tests, verify, docs, st
 ### Phase 2: Rust runtime replaces Node, one area at a time (20 to 30 PRs)
 
 - Scope: `ark-store`, `ark-gateway`, `ark-runtime`, `helpers/claude-bridge`.
+- Status: PR 1 (Phase 2.1) is done. `rust/crates/ark-runtime` is a pure forwarder. The Swift app starts it when `ARK_RUNTIME=rust`. The default stays Node. The smoke test passes with and without the forwarder. Next: step 1, the read-only commands.
 - First PR: `ark-runtime` as a pure forwarder. The Swift app starts it when `ARK_RUNTIME=rust`. It starts the Node runtime and forwards every line both ways. Exit: the smoke test (`tests/smoke.test.ts`) passes through it.
 - Then move areas, least risky first. Each move makes Rust answer the commands of that area. Rust stops forwarding them.
   1. Read-only commands: status, chat list, search, usage, stats, brain read. Rust reads the databases; Node writes them.

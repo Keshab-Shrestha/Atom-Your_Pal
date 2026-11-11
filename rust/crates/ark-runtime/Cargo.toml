@@ -1,0 +1,12 @@
+[package]
+name = "ark-runtime"
+version = "0.0.1"
+edition.workspace = true
+publish = false
+description = "Phase 2.1: a pure forwarder between the Swift app and the Node runtime (ADR-278)."
+
+[dependencies]
+libc = "0.2"
+
+[lints]
+workspace = true
