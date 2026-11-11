@@ -27,6 +27,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppFonts.register() // Settings > Appearance > Typeface: the bundled Inter and Geist.
+        if ArkEnv.read("ARK_ISLAND_GALLERY") != nil, ArkEnv.read("ARK_ISLAND_GALLERY_ONLY") == "translucent-live" {
+            IslandGallery.showTranslucentLive() // ADR-277: quits by itself after a few seconds
+            return
+        }
         if let gallery = ArkEnv.read("ARK_ISLAND_GALLERY") {
             IslandGallery.render(to: URL(fileURLWithPath: gallery))
             NSApp.terminate(nil)
@@ -63,10 +67,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let trace = self.trace
         let settings = IslandSettings()
         // ADR-255: the system's Reduce Transparency turns glass into flat, now and whenever it changes.
+        // ADR-277: Increase Contrast keeps the window opaque in the same way.
         settings.reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
+        settings.increaseContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
                                                           object: nil, queue: .main) { _ in
-            MainActor.assumeIsolated { settings.reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency }
+            MainActor.assumeIsolated {
+                settings.reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
+                settings.increaseContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
+            }
         }
         for action in settings.unreadableShortcuts {
             log.warn("settings.shortcut_unreadable", ["action": action.rawValue])

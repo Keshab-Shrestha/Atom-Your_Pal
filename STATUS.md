@@ -1,5 +1,16 @@
 # ARK Project Status
 
+## README for new users — 7 November 2026
+
+- Docs only: README.md is rewritten for new users (Quick start first, short feature groups, Contributing, an honest Status). docs/features.md holds the full, checked feature list. Three new images: Workers card, result card and translucent window. Fresh renders replace the Studio, chat, chart and logo images. Safety lines say where Full access skips a question. No license file exists yet.
+
+## Translucent window — 7 November 2026
+
+- ADR-277 (design reference: Ghostex, MIT): Settings > Appearance > Window has "Translucent window" and a Strength choice (Low, Medium, High). The default is off. With Ambient glass on, the desktop shows through the window, blurred by the system and tinted. The title bar is part of the same glass.
+- Dark themes use the `.hudWindow` material, light themes `.sidebar`. The sidebar is more see-through than the work pane; cards and bubbles are the most opaque.
+- Main text keeps 4.5:1 and secondary text 3:1 at every strength over a white or a black desktop. Reduce Transparency and Increase Contrast keep the window opaque.
+- Verified: TypeScript tests (1489 pass, 11 skipped) and typecheck, Swift tests (1017 pass), fixture renders of the new `translucent` gallery group, all goldens unchanged (gallery rendered with the release binary), and a real translucent window captured on screen. Not done: the app bundle build (it quits the running ARK); a long-session cost check of the blur.
+
 ## Result cards and plan notes — 6 November 2026
 
 - ADR-276 (design reference: Ghostex, MIT): a reply can hold an `ark-visual` block. The window draws stat tiles, bar rows, a line chart and tables in one card, with Copy (Markdown tables) and Source (the JSON). docs/chat-visuals.md gives the format.

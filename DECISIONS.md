@@ -5257,3 +5257,32 @@ An independent checker reviewed this batch. These changes follow:
 9. Tests: the byte limit uses a valid card padded past 64,000 bytes; `1e400` and 200 levels of nesting show as code; the prompt's example card parses. `ArkVisualTests.promptExample` and `ARK_VISUAL_EXAMPLE` in native-core.test.ts hold the same text, and the TypeScript test checks that the prompt holds it.
 
 Intended: a plan number that comes back with the same goal shows its old notes again. The key is the plan number and the goal, so this is the same plan to the owner.
+
+## ADR-277 — Translucent window (2026-11-07)
+
+### Context
+
+The owner likes the translucent main window of Ghostex (github.com/maddada/Ghostex, MIT; design reference only, no code taken). In that window the desktop wallpaper shows through, blurred and tinted, behind the sidebar, the chat and the title bar. Panels such as the composer and cards are a little more opaque. ADR-255 glass is not see-through: its panes are tints over ARK's own ambient light, and ADR-255 left "glass that shows the desktop" as not done.
+
+### Decision
+
+1. Setting. Settings > Appearance > Window has "Translucent window" (`IslandSettings.translucentWindow`, key `ark.look.translucent`) and, when it is on, "Strength": Low, Medium or High (`translucencyStrength`, key `ark.look.translucencyStrength`). The default is off, with Medium strength. Reset this page sets both back. The card is under the theme cards, so the top of the page does not move.
+2. A kind of glass. The translucent window replaces ARK's ambient light with the desktop. It needs Ambient glass. With Flat, the window stays opaque. `IslandSettings.translucentShown` is `translucentWindow && glassShown && !increaseContrast`.
+3. Window. When it is shown, the window is not opaque and its background is clear (`DesktopWindowAppearance.apply`). The backdrop (`TranslucentBackdrop`) is an `NSVisualEffectView` with `.behindWindow` blending and the `.active` state, then a tint of the theme's base colour. The SwiftUI hosting view stays clear. The window keeps its shadow and its system corners. AppKit draws the shadow again after a change. The title bar area is part of the same glass.
+4. Materials. Dark themes use `.hudWindow`. Light themes use `.sidebar`. These were chosen from captures of a real window.
+5. Panes. `WindowTranslucency.lanes` takes the glass panes and sets their opacity from a table. The rail and the sidebar are the most see-through. The work pane is next. Cards and chat bubbles are the most opaque. At Medium: tint 0.45, rail and sidebar 0.40, work 0.60, workspace 0.65, cards and bubbles 0.72. `frame` stays opaque, so `surfaceSolid` and masks (terminal, run surface) stay opaque.
+6. Contrast floor. If main text would fall under 4.5:1, or secondary text under 3:1, over a white or a black desktop, the pane gets more opaque until it passes. This check ignores the material's own tint, so it is the worst case. Today the table values already pass at every strength, so this check changes nothing and only guards later edits to the table.
+7. Accessibility. Reduce Transparency draws Flat (ADR-255), so the window stays opaque. Increase Contrast also keeps the window opaque (`IslandSettings.increaseContrast`, kept current from `NSWorkspace`). The Window card says why.
+
+### Real and emulated
+
+- Real: the blur of the desktop, on screen only.
+- Emulated: a snapshot cannot draw the system blur. The gallery group `translucent` (`ARK_ISLAND_GALLERY_ONLY=translucent`) draws the window on a wallpaper-like field, with the same field blurred by Core Image inside the window. It does not draw the material's own tint, so the shots are a little more see-through than the screen. Shots: `55-translucent-{dark,light}-{low,medium,high}`, `55-translucent-dark-high-bright` and `55-translucent-light-high-night`.
+- A manual check: `ARK_ISLAND_GALLERY=<dir> ARK_ISLAND_GALLERY_ONLY=translucent-live` shows a real translucent window with sample data for a few seconds and prints its window number for `screencapture -l`. It uses a throwaway defaults suite and no runtime, so it can run next to a running ARK.
+- Snapshots no longer draw `DesktopWindowAppearance`. Under ImageRenderer that AppKit view draws a placeholder, which an opaque backdrop hid before.
+
+### Consequences
+
+- Nothing changes until the owner turns the setting on. No golden changed.
+- `WindowTranslucencyTests` checks the contrast floor for every theme at High over white and black, the strength order, the material per theme, the default, storage, and the Reduce Transparency and Increase Contrast fallbacks.
+- Not checked: GPU and WindowServer cost of the blur over a long session; the blur over a real wallpaper (the live captures had a dark app window behind the ARK window).

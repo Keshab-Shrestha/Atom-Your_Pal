@@ -59,13 +59,82 @@ enum ChatAppearance {
 /// Also update AppKit controls and window chrome when the theme changes while the window is open.
 struct DesktopWindowAppearance: NSViewRepresentable {
     let palette: ThemePalette
+    /// ADR-277: the window shows the desktop behind it (`IslandSettings.translucentShown`).
+    var translucent = false
+
+    /// Full screen has no desktop behind the window, so the window is opaque there; these re-apply the look on entering and leaving.
+    final class Coordinator {
+        var tokens: [NSObjectProtocol] = []
+        deinit { tokens.forEach(NotificationCenter.default.removeObserver) }
+    }
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
     func makeNSView(context: Context) -> NSView { NSView() }
     func updateNSView(_ view: NSView, context: Context) {
-        DispatchQueue.main.async { [weak view] in
+        let palette = palette, translucent = translucent
+        DispatchQueue.main.async { [weak view, weak coordinator = context.coordinator] in
             guard let window = view?.window else { return }
-            window.appearance = NSAppearance(named: palette.isDark ? .darkAqua : .aqua)
-            window.backgroundColor = palette.surfaceSolid.nsColor
-            window.hasShadow = palette.usesShadows
+            Self.apply(to: window, palette: palette, translucent: translucent)
+            guard let coordinator, coordinator.tokens.isEmpty else { return }
+            coordinator.tokens = [NSWindow.didEnterFullScreenNotification, NSWindow.didExitFullScreenNotification].map { name in
+                NotificationCenter.default.addObserver(forName: name, object: window, queue: .main) { [weak window] _ in
+                    guard let window else { return }
+                    Self.apply(to: window, palette: palette, translucent: translucent)
+                }
+            }
+        }
+    }
+
+    /// Opaque: the pane colour fills the window. Translucent: the window is clear, so the blur in `TranslucentBackdrop` shows the
+    /// desktop; it keeps its shadow, which AppKit then takes from the content, so it is drawn again after a change.
+    static func apply(to window: NSWindow, palette: ThemePalette, translucent wanted: Bool) {
+        let translucent = wanted && !window.styleMask.contains(.fullScreen)
+        window.appearance = NSAppearance(named: palette.isDark ? .darkAqua : .aqua)
+        let changed = window.isOpaque == translucent
+        window.isOpaque = !translucent
+        window.backgroundColor = translucent ? .clear : palette.surfaceSolid.nsColor
+        window.hasShadow = translucent || palette.usesShadows
+        if changed { window.invalidateShadow() }
+    }
+}
+
+/// ADR-277: the system's blur of what is behind the window, under the tint and the panes. A snapshot cannot draw it (the
+/// gallery draws a blurred wallpaper instead), so it is left out there.
+struct TranslucentBackdrop: View {
+    let theme: AppTheme
+    let strength: TranslucencyStrength
+    @Environment(\.islandSnapshot) private var snapshot
+
+    var body: some View {
+        ZStack {
+            if !snapshot { BehindWindowBlur(material: WindowTranslucency.material(dark: theme.palette.isDark)) }
+            WindowTranslucency.tint(theme, strength: strength).color
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+/// The blur never takes a click: the drag area and the controls above it (and double-click to zoom) keep working.
+private final class ClickThroughEffectView: NSVisualEffectView {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+
+private struct BehindWindowBlur: NSViewRepresentable {
+    let material: WindowTranslucency.Material
+
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = ClickThroughEffectView()
+        view.blendingMode = .behindWindow
+        view.state = .active // blur also while ARK is not the active app, as the reference does
+        return view
+    }
+
+    func updateNSView(_ view: NSVisualEffectView, context: Context) {
+        view.material = switch material {
+        case .hudWindow: .hudWindow
+        case .sidebar: .sidebar
         }
     }
 }

@@ -54,7 +54,28 @@ struct AppearanceSection: View {
                 }
             }.padding(8)
         }
-        ResetPageCard(footer: "The theme, material, typeface and text size go back to their defaults.") { settings.resetAppearance() }
+        // ADR-277: glass over the desktop instead of ARK's own light. After the themes, so the top of the page stays as it was.
+        Card("Window", footer: Self.translucencyFooter(settings)) {
+            Row(title: "Translucent window", detail: "The desktop shows through the window, blurred and tinted") {
+                ThemedSwitch(isOn: settings.translucentWindow, set: { settings.translucentWindow = $0 }, label: "Translucent window")
+                    .disabled(!settings.translucentAvailable)
+                    .opacity(settings.translucentAvailable ? 1 : 0.5)
+            }
+            if settings.translucentWindow {
+                RowDivider()
+                ChoiceRow(title: "Strength", detail: "How much of the desktop shows through",
+                          selection: settings.translucencyStrength) { settings.translucencyStrength = $0 }
+            }
+        }
+        ResetPageCard(footer: "The theme, material, window, typeface and text size go back to their defaults.") { settings.resetAppearance() }
+    }
+
+    /// Why the window stays opaque, or what the setting does. Text keeps its contrast at every strength.
+    static func translucencyFooter(_ settings: IslandSettings) -> String {
+        if settings.reduceTransparency { return "Reduce Transparency is on in System Settings, so the window stays opaque." }
+        if settings.increaseContrast { return "Increase Contrast is on in System Settings, so the window stays opaque." }
+        if !settings.glass { return "Needs Ambient glass. With Flat, the window stays opaque." }
+        return "Text keeps a readable contrast at every strength, on a light or a dark desktop."
     }
 }
 

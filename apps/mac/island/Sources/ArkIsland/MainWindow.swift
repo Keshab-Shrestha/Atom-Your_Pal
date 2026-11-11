@@ -41,9 +41,8 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSMenuItemValidati
             model.send(.commandsList) // the "/" picker (ADR-117)
         }
         let palette = ChatAppearance.palette(settings: model.settings)
-        window.appearance = NSAppearance(named: palette.isDark ? .darkAqua : .aqua)
-        window.backgroundColor = palette.surfaceSolid.nsColor
-        window.hasShadow = palette.usesShadows // Void: a hairline, no drop shadow (ADR-086)
+        // Void: a hairline, no drop shadow (ADR-086). ADR-277: a translucent window is clear, with a shadow.
+        DesktopWindowAppearance.apply(to: window, palette: palette, translucent: model.settings.translucentShown)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         model.chatWindowOpened() // ADR-274: back in the chat after a close: compare with the last view

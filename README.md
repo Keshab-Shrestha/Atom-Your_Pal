@@ -4,185 +4,131 @@
 
 <h1 align="center">ARK</h1>
 
-<p align="center"><b>A voice and desktop assistant for your Mac, with a team of agents.</b></p>
+<p align="center"><b>A voice and desktop assistant for your Mac, with a team of agents that you direct.</b></p>
+
+<p align="center">macOS 14+ · Swift + Node.js · runs on your own Claude, Codex, Gemini, Copilot or OpenCode sign-in</p>
 
 ---
 
-ARK runs on your Mac. You talk or type. ARK answers, uses tools, and hands bigger work to its agents. Permissions, memory and approvals are ordinary code, not model decisions. Your data stays on your Mac.
-
 <p align="center">
-  <img src="docs/images/ark-chat-window.png" width="820" alt="The ARK window: the chat list and a chat">
-  <br><sub><b>Chat.</b> Your chats on the left, the conversation on the right. Pick the model, the thinking level and the access for each chat under the message field.</sub>
+  <img src="docs/images/ark-chat-window.png" width="820" alt="The ARK window in the Daylight theme: the rail, the chat list and a chat with the model, thinking and access pickers">
+  <br><sub><b>Chat.</b> The rail at the left, your chats, then the conversation. Pick the model, the thinking level and the access for each chat under the message field.</sub>
 </p>
 
 <p align="center">
-  <img src="docs/images/ark-studio.png" width="820" alt="The Board's Studio as a navy blueprint with agents at desks">
-  <br><sub><b>Studio.</b> The Board shows your agents as a blueprint: working agents sit at a desk with their current step, idle agents wait in Recharge. The light bulb switches between a navy and a pale print.</sub>
+  <img src="docs/images/ark-studio.png" width="820" alt="The Board in the Studio view: a navy blueprint with agents at desks, the Flow, Studio and Team tabs, and the agent list">
+  <br><sub><b>Studio.</b> The Board's Studio view: working agents sit at a desk with their current step, and idle agents wait in Recharge. The agent list is at the right.</sub>
 </p>
 
 <p align="center">
   <img src="docs/images/ark-chat-chart.png" width="410" alt="A chat reply with a bar chart, a ring chart and an image">
   <img src="docs/images/ark-chat-logo.png" width="410" alt="A chat reply with a logo drawn as SVG">
-  <br><sub><b>Charts, images and drawings.</b> Left: a reply with a bar chart, a ring chart and an image. Right: a logo that ARK drew, with Save SVG, Save PNG and Copy SVG.</sub>
+  <br><sub><b>Charts, images and drawings.</b> Left: a bar chart, a ring chart and an image. Right: a logo that ARK drew as SVG.</sub>
 </p>
+
+<p align="center">
+  <img src="docs/images/ark-workers-card.png" width="820" alt="The Workers card: a manager's job with the jobs of its agents under it, each with its state and latest step">
+  <br><sub><b>Workers card.</b> A manager splits the task. The jobs of its agents show under it, with their state and latest step.</sub>
+</p>
+
+<p align="center">
+  <img src="docs/images/ark-visual-card.png" width="410" alt="A result card with stat tiles, bar rows, a line chart and a failures table">
+  <img src="docs/images/ark-translucent-window.png" width="410" alt="The ARK window with the desktop wallpaper showing through, blurred">
+  <br><sub><b>Result cards and the translucent window.</b> Left: an <code>ark-visual</code> card. Right: the optional translucent window (sample render).</sub>
+</p>
+
+## Quick start
+
+You need macOS 14 or later and [Claude Code](https://claude.com/claude-code). Run this in Terminal:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Keshab-Shrestha/Atom-Your_Pal/main/scripts/install-ark.command | bash
+claude auth login   # once, if Claude Code is not signed in yet
+```
+
+The installer installs what is missing (it asks first), downloads ARK to `~/ARK`, builds it and opens it. The first build takes a few minutes.
+
+On first run, ARK asks your name. Then hold **Control + Option** and talk, or type in the window.
+
+## What ARK is
+
+- **A voice and desktop assistant.** Talk from any app, dictate into any text field, and chat in a native Mac window.
+- **A team of agents with a chain of command.** ARK is the CEO. Managers split work for their workers. Agents call agents, and one agent can run many jobs at once.
+- **Policy in code, not in the model.** Permissions, approvals, memory and agent-to-agent calls are ordinary code. The model proposes. Code decides.
+- **Your own sign-ins.** ARK runs on your signed-in Claude Code, Codex, Gemini CLI, GitHub Copilot CLI or OpenCode. It needs no API key.
+- **Local data.** Chats, memory and agents stay in the ARK folder on your Mac.
+
+## How it works
+
+```text
+You: voice, text, Telegram, local API
+        │
+        ▼
+ARK.app (Swift)          window, island, Pal, Parakeet dictation
+        │  line-delimited JSON
+        ▼
+ARK runtime (Node.js)    chats, memory, tools, policy, approvals
+        │
+        ├── LLM Gateway ──▶ Claude Code · Codex · Gemini CLI · Copilot CLI · OpenCode
+        └── Board ────────▶ ARK (CEO) ─▶ managers ─▶ workers (own git worktrees)
+```
 
 ## Features
 
-### Chat
-- Chats are saved. Continue any chat by voice or text.
-- Models: Claude (your signed-in plan), Codex (your ChatGPT sign-in) and Gemini CLI. The model picker shows provider logos and favourites.
-- Thinking level per chat: Low, Medium, High, Extra high or Max, when the model has it.
-- Access per chat: Saved permissions, Ask before changes, Chat only or Full access.
-- Replies use Markdown: tables, lists, code. Copy a reply as Markdown, plain text or rich text. Copy a table as Markdown, HTML, TSV or CSV.
-- Charts: ask for a chart and ARK draws bars, lines or a ring. "Copy table" copies the numbers.
-- Drawings: ask for a logo or icon and ARK draws it as SVG. Save SVG, Save PNG (1024 px) or Copy SVG.
-- Images: an image file on your Mac shows in the reply. A web image loads only when you click "Show image".
-- Image generation: Codex chats make photos and illustrations. ARK keeps each one in `data/images`.
-- Select text (⇧⌘A): the whole chat as one text. Drag or ⌘A selects across messages. ⌘C keeps bold, italic, underline and tables.
-- Copy whole chat, Find in chat (⌘F), Search all (⇧⌘F), Copy last reply (⇧⌘C).
-- New chat (⌘N), new project (⇧⌘N).
-- Type "/" for commands: ARK's own, your skills, and your Claude commands from `~/.claude/commands`.
-- Attach files and paste images. Quote a reply. Edit or retry a message in a new chat. Fork a chat.
-- Pin and archive chats. Each chat has a brief, its task results and its saved history.
-- ARK states facts plainly and names the source when sources disagree.
+All features: [docs/features.md](docs/features.md).
 
-### Home, ⌘K and ⌘J
-- Home opens with a greeting and today's one fact (what needs you, who is working, or the day's tokens), an Ask box that starts a chat, and your pinned panels.
-- ⌘K command palette: one search box for actions, pages, Board views, your newest chats, agents, projects, Settings pages and themes.
-- ⌘J "Ask an agent": a panel on any page. Pick an agent, see its latest tasks and give it a new one.
-- The sidebar lists your agents with a live dot: working, waiting for you, idle or paused.
-- You page: your name, what ARK remembers, your setup, your activity and your connections.
+**Chat**
+- Five chat providers, with thinking level and access (Saved permissions, Ask before changes, Chat only, Full access) per chat.
+- Charts, SVG drawings, images and `ark-visual` result cards with stat tiles, bars, lines and tables.
+- A live work log, a diff card for file changes and a numbered questions card.
+- Queue messages while ARK answers (Return or Tab). "Catch me up" summarises a chat that changed while you were away.
 
-### Projects
-- A project is a folder or a git repository (local, Git URL or GitHub).
-- Project chats get file tools, commands and an isolated git worktree for each agent task.
-- Workspace pane (⌥⌘R): Files, Changes (with Undo), Git, Browser, Terminal, Run and Details.
+**Agents and the Board**
+- Each agent has a role, a kit (research, folders or think) and a versioned `soul.md`.
+- Managers get the work first. Agents call their reports or peers. Code checks each call.
+- The Workers card shows each job as a tree. A hollow ring marks a job with no output for 8 minutes.
+- The Board has three views: Flow (Needs you, Running, To do, Done), Studio and Team (an org chart on an endless board).
 
-### Voice
-- Push-to-talk from any app (Control + Option). ARK answers out loud.
-- Dictation into any text field (Right ⌘ + Right ⌥), on Parakeet.
-- ARK can read agent reports and updates aloud, with a chime.
+**Voice and computer control**
+- Push-to-talk (Control + Option) and dictation (Right ⌘ + Right ⌥) from any app.
+- ARK clicks and types in other apps through the Cua Driver, without moving your pointer. It is off by default.
 
-### Agents and the Board
-- Each agent has a role, a kit and a `soul.md` (personality, how it works, rules, lessons). Edits are versioned.
-- Kits: research (the web), folders (files), think (no tools). In a Full access chat every agent has every kit's tools.
-- ARK answers known topics itself. It hands work to an agent only when you name one, ask for sources, change files, or need many lookups.
-- ARK makes a new agent when none fits. You approve it on a card.
-- Plans: ARK splits a big job into portions, one agent each.
-- The same team rules on Claude and Codex.
-- The Board has five views:
-  - Studio: the agents at their desks, drawn as a blueprint. The light bulb switches between a navy and a pale print.
-  - Needs you: questions, approvals and failed tasks.
-  - Tasks: tasks by status, with labels, notes and an inspector.
-  - Team: an org chart that shows who works now.
-  - Activity: what the team did.
-- Routines run on a schedule. Wake-ups run an agent every set time.
-- Workflows: a trigger (by hand, a schedule, or a Board task that fails or finishes), then up to 8 steps. Each step is an agent's task, and each gets the report of the one before. Draft, Test run, Publish.
-- Skills: ARK offers to save a good task as a skill and improves a skill when you complain. A skills hub installs skills from pinned public repositories.
-- MCP servers: paste a server's JSON config. Give each server to the agents you choose.
-- Each agent can have its own browser profile.
-- Paperclip: hand tasks to your own Paperclip (`ARK_PAPERCLIP_URL`).
+**Work by itself**
+- Automations: workflows, routines on a timer and page watches, on one page.
+- Apps: ask for an app or a panel. It runs in a sandbox with no network.
+- Home: what needs you, who works, token use, and up to three "ARK noticed" notes with "Fix it".
 
-### Computer control
-- ARK looks at app windows and clicks, types and scrolls through the Cua driver. Your real pointer does not move.
-- A teal fingertip pointer shows where ARK acts, with a ring when it arrives.
-- Off until you turn it on in Settings → Computer.
-- ARK learns a button task after one checked run. Say the same words again and it replays the task with no model, through the same checks. It stops at the first mismatch.
-- ARK counts what goes wrong in its own log once a day and shows up to three notes on Home ("ARK noticed"): a tool that keeps failing, a crash, a slow answer. Press "Fix it" and a coding agent works on a branch of ARK's own source; you review the diff and push it. ARK never merges, and never pushes a branch that changes permission, approval, update or dependency files. ARK then keeps watching: when the problem stops appearing in the log, Home says "Fixed"; if it comes back, the note comes back. Turn it off in Settings → Privacy.
-- "Make me a habit tracker app": ARK writes a small app, you approve it, and it runs inside ARK on the Apps page, in a sandbox with no network. It keeps its own notes, and can ask ARK a question if you allow it.
-- "Watch this page and tell me when it says slots are open": ARK reads the page on a timer with no model, tells you once, and lists the watch on the Scheduled page.
-- ARK opens the chat's session when you click the box or open the mic, so the first reply starts sooner.
-- A routine can wake ARK when it is closed (Settings → General). ARK opens in the background a minute before the routine is due.
-- Dictation can tidy punctuation and capitals with ARK (Settings → Dictation). ARK keeps your words as spoken unless the tidy text keeps every number and name.
-- A copy built from source updates itself from Settings → General, after you click Update.
-- ARK can lower the Mac's sound while you speak.
+**Look**
+- 9 themes, 8 typefaces, Ambient glass or Flat, and an optional translucent window.
 
-### Memory and everyday tools
-- ARK remembers facts you ask it to keep, and keeps lasting facts you state in a chat by itself, with no question. A "Remembered" row with Undo shows for 10 minutes. See, edit or forget each one in Second brain. Settings → Privacy has the switch.
-- ARK recovers earlier parts of a chat.
-- Brain: notes, links and source folders that ARK can read.
-- Calendar, reminders, timers, weather, notes, music, opening apps, and "what is this page?" for the browser in front.
+## Safety
 
-### Dashboard
-- Tokens and list-price dollars by day, agent and model. Trends for 7, 30 or 90 days.
-- Plan use, cache hits, an activity heatmap and the team's git branches.
-
-### Panels
-- Ask ARK for a panel ("a reading list and a counter for glasses of water") and approve it on a card. It appears on the Panels page, and on Home when pinned.
-- Blocks: text, stat, progress, checklist, notes, counter, chart and button. Stats and progress can show live numbers such as what needs you or today's tokens.
-- You tick, add, count and click. A button only acts when you click it: it puts a prompt in a new chat for you to send, opens a page, or runs a workflow.
-
-### Phone and other tools
-- Telegram: talk to ARK, answer Needs you, steer tasks and read reports ([docs/telegram.md](docs/telegram.md)).
-- Local API on `127.0.0.1` (off by default) and an MCP server for Claude Code and Hermes ([details](#use-ark-from-other-tools)).
-
-### Look and settings
-- 9 themes: Void, Daylight, Paper & Teal, Ink & Sage, Midnight Sapphire, Graphite & Champagne Gold, Royal Plum & Lavender, Obsidian & Electric Teal, Graphite & Ember. Paper & Teal and Ink & Sage use serif page titles.
-- 8 typefaces: System, Helvetica Neue, Source Sans, Work Sans, Lato, Poppins, Nunito, Mulish. Four text sizes.
-- Settings → Defaults: model, thinking and access for new chats, where ⌘N opens, the start page and the Dashboard range.
-- Pal: a 2D mascot that shows when ARK listens, thinks, speaks or asks, and flies to point at things.
-- Drag sidebar rows into your own order.
-
-### Safety
-- Files: agents work in your home folder and on external drives. `~/Library`, hidden folders, secrets, ARK's data, git's own files and identity, bank, tax and medical documents are protected.
-- Changing an existing file asks once per file, except in Full access. A copy of each changed file is kept for Undo.
-- Network commands, sudo, system settings and git history rewrites ask, then run outside the sandbox.
-- A git push asks, then ARK pushes the task's own branch to origin, never forced.
-- Always refused: permanent deletes (files go to the Trash), remote changes and keychain reads.
-- After web text is read, lasting changes, MCP calls and outside-sandbox commands ask again, also in Full access.
-- An approval card that gets no answer expires. The agent is told so; it is not counted as a refusal.
-- Secrets in the activity timeline show as `[hidden]`. Logs hold ids, states and timings, never your words.
-- ARK uses your signed-in Claude Code and Codex. It never reads their logins.
+- ARK asks before it uses `~/Library`, hidden folders, secrets, ARK's data, or bank, tax or medical files. Full access skips this question.
+- A change to an existing file and a move to the Trash ask first, except in Full access. ARK keeps a copy of each changed file for Undo.
+- A git push asks first, except in Full access. ARK pushes only the task's own branch, never with force.
+- Network commands, sudo, system settings and git history rewrites ask first. Full access skips this question, except after an agent reads web text.
+- ARK always refuses permanent deletes, remote changes and keychain reads.
+- After an agent reads web text, outside-sandbox commands, MCP calls and lasting changes ask again, also in Full access.
+- Logs hold ids, states and timings, never your words. ARK never reads your provider logins.
 
 Details: [SECURITY.md](SECURITY.md). Every decision: [DECISIONS.md](DECISIONS.md).
 
 ## Install
 
-ARK is built on your own Mac from this repository. The installer does everything: it installs what is missing, downloads ARK, builds it, signs it for this Mac and opens it.
+You build ARK on your Mac from this repository. Each option ends with `scripts/setup.sh`. This script installs the packages and makes a local signing identity, "ARK Local Signing". With this identity, macOS keeps ARK's permissions across rebuilds. Then the script builds `ARK.app` and opens it.
 
-### Option 1: download the installer
+**Option 1: the installer file.** Download **Install-ARK.command** from the [latest release](https://github.com/Keshab-Shrestha/Atom-Your_Pal/releases/latest). In Finder, right-click it and choose **Open** (macOS blocks a double-click the first time). Answer the questions in Terminal.
 
-1. Download **Install-ARK.command** from the [latest release](https://github.com/Keshab-Shrestha/Atom-Your_Pal/releases/latest).
-2. In Finder, right-click the file and choose **Open**. (macOS blocks a double-click the first time, because the file is not from the App Store.)
-3. Answer the questions in the Terminal window. The first build takes a few minutes.
+**Option 2: one command.** Use the command in [Quick start](#quick-start). To use another folder, put `ARK_DIR=/path/to/folder` before `bash`.
 
-### Option 2: one command in Terminal
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/Keshab-Shrestha/Atom-Your_Pal/main/scripts/install-ark.command | bash
-```
-
-ARK goes to `~/ARK`. To use another folder, put `ARK_DIR=/path/to/folder` before `bash`.
-
-### Option 3: Homebrew
+**Option 3: Homebrew.** The tap is [Keshab-Shrestha/homebrew-ark](https://github.com/Keshab-Shrestha/homebrew-ark). `ark-install` is the same installer as Option 1.
 
 ```sh
 brew install keshab-shrestha/ark/ark
 ark-install
 ```
 
-Homebrew installs Node.js and pnpm and the `ark-install` command. `ark-install` is the same installer as Option 1. Run it again to update ARK. The tap is [Keshab-Shrestha/homebrew-ark](https://github.com/Keshab-Shrestha/homebrew-ark).
-
-### What ARK needs
-
-The installer checks each item and installs the missing ones with Homebrew. It asks before each install.
-
-| Item | Required | What it is for | Install by hand |
-|---|---|---|---|
-| macOS 14 or later | Yes | The app | — |
-| Xcode Command Line Tools | Yes | Swift compiler, git | `xcode-select --install` |
-| Homebrew | Yes | Installs the tools below | [brew.sh](https://brew.sh) |
-| Node.js 22.18 or later | Yes | ARK's runtime | `brew install node` |
-| pnpm | Yes | ARK's packages | `brew install pnpm` |
-| Claude Code, signed in | Yes | ARK's model, on your own Claude plan. No API key. | `brew install --cask claude-code`, then `claude auth login` |
-| Codex | No | Codex as a chat model, and image generation | Install the ChatGPT app, or `npm install -g @openai/codex`. Sign in once. |
-| Gemini CLI | No | Gemini as a chat model | `npm install -g @google/gemini-cli` |
-| ffmpeg and whisper.cpp | No | The fallback for speech to text | `brew install ffmpeg whisper-cpp` |
-| Cua Driver | No | Computer control (clicks and typing in other apps) | [github.com/trycua/cua](https://github.com/trycua/cua), then `cua-driver permissions grant` |
-
-The voice (Kokoro) and dictation (Parakeet) models download themselves the first time you use them.
-
-### Option 4: build by hand
+**Option 4: build by hand.**
 
 ```sh
 git clone https://github.com/Keshab-Shrestha/Atom-Your_Pal.git ARK
@@ -190,76 +136,60 @@ cd ARK
 sh scripts/setup.sh
 ```
 
-`scripts/setup.sh` checks the items above, installs the packages, makes the local signing identity ("ARK Local Signing", so macOS keeps ARK's permissions across rebuilds), builds `ARK.app` and opens it. To run ARK in Terminal without the app, run `pnpm start`.
+To run the runtime in Terminal without the app, run `pnpm start`.
 
-### First run
+**Settings.** All `.env` settings are optional. Copy `.env.example` to `.env` in the ARK folder. For example, set `ARK_TELEGRAM_BOT_TOKEN` and `ARK_TELEGRAM_CHAT_ID` for Telegram.
 
-1. Sign in to Claude Code once: `claude auth login`.
-2. Open ARK. Its icon shows in the menu bar and Pal appears on the screen.
-3. Optional settings go in `.env` in the ARK folder (copy `.env.example`). All of them are optional, for example `ARK_TELEGRAM_BOT_TOKEN` and `ARK_TELEGRAM_CHAT_ID` for Telegram.
-4. To control other apps, install Cua Driver and turn on Settings → Computer.
+**Update.** Run the installer again. Or, in the ARK folder, run `git pull` and then `sh scripts/setup.sh`.
 
-### Update
+**Uninstall.** Quit ARK and delete the ARK folder (`~/ARK`). Your chats and memory are in its `data/` folder. Copy that folder first to keep them.
 
-Run the installer again, or in the ARK folder run `git pull` and then `sh scripts/setup.sh`.
+### Requirements
 
-### Uninstall
+The installer checks each required item and asks before it installs one with Homebrew.
 
-Quit ARK, then delete the ARK folder (`~/ARK`). Your chats and memory are in its `data/` folder, so copy that folder first to keep them.
+| Item | Required | Use | Install by hand |
+|---|---|---|---|
+| macOS 14 or later | Yes | The app | — |
+| Xcode Command Line Tools | Yes | Swift compiler, git | `xcode-select --install` |
+| Homebrew | Installer only | Installs the tools below | [brew.sh](https://brew.sh) |
+| Node.js 22.18 or later | Yes | ARK's runtime | `brew install node` |
+| pnpm | Yes | ARK's packages | `brew install pnpm` |
+| Claude Code, signed in | Yes | ARK's main model, on your Claude plan | `brew install --cask claude-code`, then `claude auth login` |
+| Codex | No | Codex chats and image generation | `npm install -g @openai/codex`, then sign in once |
+| Gemini CLI | No | Gemini chats | `npm install -g @google/gemini-cli` |
+| GitHub Copilot CLI or OpenCode | No | Copilot or OpenCode chats | Install it and sign in. ARK finds it. |
+| ffmpeg and whisper.cpp | No | The fallback for speech to text | `brew install ffmpeg whisper-cpp` |
+| Cua Driver | No | Computer control | [github.com/trycua/cua](https://github.com/trycua/cua), then `cua-driver permissions grant` |
 
-### Permissions
-
-macOS asks the first time ARK needs each one.
-
-- Microphone: while you hold the talk keys or dictate.
-- Input Monitoring: to notice the talk and dictation keys.
-- Accessibility: to type dictated text into the app in front.
-- Automation: when you ask for Music, Notes or the browser tab.
-- Calendar and Reminders: when you ask about your schedule or reminders.
-- Notifications: when something needs you.
-- Screen Recording and Accessibility for Cua Driver: only for computer control.
-
-## Tests
-
-```sh
-pnpm typecheck
-pnpm test          # all TypeScript tests, including a smoke test that starts a real runtime (about 30 seconds)
-pnpm island:test   # the Swift tests
-pnpm window:shot   # captures the real, open ARK window to /tmp/ark-window.png (needs Screen Recording for your terminal)
-pnpm test:visual   # draws every window offscreen and compares it to tests/ui-golden (build the app first: pnpm island:build)
-pnpm test:live     # the live smoke test: a real Claude session and a real agent (about one minute, uses a little of your plan)
-```
-
-The smoke tests (`tests/smoke.test.ts`, `tests/smoke.live.test.ts`, helper `tests/smoke-harness.ts`) start `node apps/mac/src/main.ts --island` in a temp folder with a clean environment. They never touch your `data/`, `.env` or token. The live test saves, edits and tries to delete one file in a temp folder under `~/Documents`, and removes it. GitHub runs typecheck, `pnpm test` and the Swift tests on every push (`.github/workflows/ci.yml`), and a blocking visual job that keeps the rendered images as an artifact; the live test does not run there.
+The voice (Kokoro) and dictation (Parakeet) models download the first time you use them. macOS asks for each permission the first time that ARK needs it. ARK uses Microphone, Input Monitoring, Accessibility, Automation, Calendar, Reminders and Notifications. Computer control also needs Screen Recording.
 
 ## Use ARK from other tools
 
-Turn on Settings → General → Local API. Then add the MCP server to Claude Code. Use the full path to this folder:
+Turn on Settings → General → Local API. Then add the MCP server to Claude Code, with the full path to the ARK folder:
 
 ```sh
 claude mcp add ark -- node /path/to/ark/apps/mac/src/mcp-serve.ts
 ```
 
-The tools are `ark_give_goal`, `ark_goal_status`, `ark_chat`, `ark_list_tasks`, `ark_task_report`, `ark_needs_you` and `ark_answer_need`. The local API listens on `http://127.0.0.1:4790`. Change the port with `ARK_API_PORT`. Each request needs the bearer token from `data/api-token`. The token can read your live saved memory facts, Second Brain note previews, and Noah-originated shared chat history, approve or reject plans, and retry tasks; it cannot answer risky-action cards, skill installs or soul changes (those are answered in the ARK window or on Telegram). Turn the API off when you do not use it. Settings → General has "Regenerate" to replace the token.
+The tools are `ark_give_goal`, `ark_goal_status`, `ark_chat`, `ark_list_tasks`, `ark_task_report`, `ark_needs_you` and `ark_answer_need`.
+
+The local API listens on `http://127.0.0.1:4790`. `ARK_API_PORT` changes the port. Each request needs the bearer token from `data/api-token`. The token can read saved memory facts, Brain note previews and shared chat history. It can approve or reject plans and retry tasks. It cannot answer risky-action cards, skill installs or soul changes. Turn the API off when you do not use it. Settings → General → "Regenerate" replaces the token.
+
+Telegram: [docs/telegram.md](docs/telegram.md). Phone with Tailscale: [docs/mobile.md](docs/mobile.md).
 
 ## Architecture
 
-```text
-You (voice, text, the window, Telegram, the local API)
-  │
-  ▼
-ARK.app (Swift): Pal, the island, the ARK window, notifications
-  │  line-delimited JSON (docs/island-protocol.md)
-  ▼
-ARK runtime (Node.js, TypeScript)
-  ├── Speech: Whisper (hearing), Kokoro (voice), Parakeet (dictation)
-  ├── ARK Core: requests, chats, tools, memory
-  ├── Helpers: agents, souls, tasks, routines, grants (SQLite)
-  ├── LLM Gateway: Claude Code, Codex with checked host tools, Gemini CLI for text
-  └── Policy in code: folder checks, approvals, the sandbox
-```
+| Part | What it does |
+|---|---|
+| `ARK.app` (Swift) | The window, the island, Pal, notifications, push-to-talk and dictation (Parakeet) |
+| Runtime (Node.js, TypeScript) | Requests, chats, tools, memory, policy and approvals |
+| Speech | Parakeet in the app, Whisper as the runtime fallback, Kokoro for the voice |
+| `services/helpers` | Agents, souls, jobs, the org chart, routines and grants (SQLite) |
+| LLM Gateway | Claude Code, Codex (with checked host tools), Gemini CLI, Copilot CLI and OpenCode |
+| Policy | Folder checks, approvals, the sandbox and the agent-call rules, all in code |
 
-More: [ARCHITECTURE.md](ARCHITECTURE.md). Current and proposed upgrades: [combined roadmap](docs/upgrade-roadmap.md).
+The app and the runtime talk in line-delimited JSON ([docs/island-protocol.md](docs/island-protocol.md)). More: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Project layout
 
@@ -267,28 +197,45 @@ More: [ARCHITECTURE.md](ARCHITECTURE.md). Current and proposed upgrades: [combin
 |---|---|
 | `apps/mac/src/` | The Node.js runtime (TypeScript) |
 | `apps/mac/island/` | The Swift app (`ARK.app`) and its tests |
-| `services/` | Core, helpers, LLM gateway, memory, tool engine, decision engine |
+| `services/` | `core`, `helpers`, `llm-gateway`, `memory`, `tool-engine`, `decision-engine` |
 | `packages/` | Shared contracts and utilities (`@ark/*`) |
-| `data/agents/` | One `soul.md` per agent |
-| `docs/` | Protocol, vision, design notes and images |
+| `data/agents/` | One `soul.md` for each agent |
+| `docs/` | Protocol, features, design notes and images |
 
-Every part is described in [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md).
+Every part: [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md).
 
 ## Documentation
 
 | Document | What it covers |
 |---|---|
-| [TASK.md](TASK.md) | Each task as built, with its tests |
-| [STATUS.md](STATUS.md) | What is built and what is next |
-| [DECISIONS.md](DECISIONS.md) | Every architecture decision (ADRs) |
+| [docs/features.md](docs/features.md) | All features |
 | [SECURITY.md](SECURITY.md) | What ARK may and may not do |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | How the parts fit |
-| [docs/telegram.md](docs/telegram.md) | How to set up and use ARK from Telegram |
-| [docs/mobile.md](docs/mobile.md) | How to use ARK from a phone with Tailscale |
+| [DECISIONS.md](DECISIONS.md) | Every architecture decision (ADRs) |
+| [STATUS.md](STATUS.md) and [TASK.md](TASK.md) | What is built, with its tests |
+| [docs/chat-visuals.md](docs/chat-visuals.md) | The `ark-visual` card grammar |
 | [docs/island-protocol.md](docs/island-protocol.md) | The app and runtime protocol |
 | [docs/VISION.md](docs/VISION.md) | The long-term vision |
 | [CLAUDE.md](CLAUDE.md) | The engineering rules |
 
+## Contributing and tests
+
+1. Fork the repository and run `sh scripts/setup.sh`.
+2. Read [CLAUDE.md](CLAUDE.md): one capability for each change, smallest change first.
+3. Run the checks: `pnpm typecheck && pnpm test && pnpm island:test` (or `pnpm check`).
+4. Update the docs that the change touches: TASK.md, STATUS.md, DECISIONS.md, SECURITY.md.
+5. Open one pull request for each capability.
+
+```sh
+pnpm typecheck
+pnpm test          # all TypeScript tests, with a smoke test that starts a real runtime (about 30 seconds)
+pnpm island:test   # the Swift tests
+pnpm test:visual   # draws every window offscreen and compares it to tests/ui-golden (run pnpm island:build first)
+pnpm test:live     # a real Claude session and a real agent (about one minute; uses a little of your plan)
+```
+
+The smoke tests start the runtime in a temporary folder with a clean environment. They never touch your `data/`, `.env` or token. GitHub runs typecheck, `pnpm test`, the Swift tests and a visual check on every push (`.github/workflows/ci.yml`). The live test does not run there.
+
 ## Status
 
-ARK is a personal prototype. It is built and used on one Mac. The app is not packaged for other Macs. Many new features have tests but are not yet tried live. Read [STATUS.md](STATUS.md) for the current state.
+You build ARK from source on your Mac. There is no signed, packaged app for other Macs yet. Many new features have tests but no live check yet. The install commands download the `main` branch. Some features on this page reach `main` when their pull requests merge. [STATUS.md](STATUS.md) gives the current state. The repository has no license file yet.
