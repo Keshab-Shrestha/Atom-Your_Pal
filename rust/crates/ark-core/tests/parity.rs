@@ -31,6 +31,44 @@ fn check(module: &str, run: impl Fn(&str, &[Value]) -> Value) -> usize {
     cases.len()
 }
 
+fn reports_to(value: &Value) -> ark_core::org::ReportsTo {
+    value.as_object().unwrap().iter().map(|(k, v)| (k.clone(), v.as_str().unwrap().to_string())).collect()
+}
+
+#[test]
+fn org() {
+    use ark_core::org::*;
+    check("org", |name, args| {
+        let ids = |i: usize| strings(&args[i]).unwrap();
+        let names = |i: usize| {
+            let map = args[i].clone();
+            move |id: &str| map.get(id).and_then(Value::as_str).map(str::to_string)
+        };
+        match name {
+            "orgAgentIds" => {
+                let list = args[0].as_array().unwrap();
+                let members: Vec<Member<'_>> = list.iter().map(|m| Member { id: m["id"].as_str().unwrap(), role: m["role"].as_str().unwrap() }).collect();
+                json!(org_agent_ids(&members))
+            }
+            "checkReportsTo" => match check_reports_to(str_arg(args, 0), args[1].as_str(), &reports_to(&args[2]), &ids(3)) {
+                Ok(map) => json!(map),
+                Err(error) => json!({ "error": error }),
+            },
+            "resolveOrg" => json!(resolve_org(&reports_to(&args[0]), &ids(1))),
+            "orgPrompt" => json!(org_prompt(&reports_to(&args[0]), &names(1))),
+            "handBackNeed" => json!(hand_back_need(str_arg(args, 0))),
+            "handBackLine" => json!(hand_back_line(str_arg(args, 0), str_arg(args, 1), &reports_to(&args[2]), &names(3))),
+            "callable" => {
+                let c = callable(str_arg(args, 0), &reports_to(&args[1]), &ids(2));
+                json!({ "reports": c.reports, "peers": c.peers })
+            }
+            "delegationProblem" => json!(delegation_problem(str_arg(args, 0), str_arg(args, 1), &reports_to(&args[2]), &ids(3), &names(4))),
+            "teamLine" => json!(team_line(str_arg(args, 0), &reports_to(&args[1]), &ids(2), &names(3))),
+            other => panic!("no Rust port for {other}"),
+        }
+    });
+}
+
 #[test]
 fn policy() {
     use ark_core::policy::*;

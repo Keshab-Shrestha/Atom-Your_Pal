@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { classifyCommand, expandHome, folderForTask, hasGitPart, isImportantName, isInside, isPushCommand, toolPaths } from "../../services/helpers/src/grants.ts";
 import { parseWriteScope, writeScopesOverlap } from "../../services/helpers/src/write-scopes.ts";
+import { callable, checkReportsTo, delegationProblem, handBackLine, handBackNeed, orgAgentIds, orgPrompt, resolveOrg, teamLine } from "../../apps/mac/src/org.ts";
 
 type Case = { fn: string; args: unknown[]; out: unknown };
 const out = join(dirname(fileURLToPath(import.meta.url)), "..", "crates", "ark-core", "tests", "fixtures");
@@ -89,4 +90,46 @@ function write(module: string, source: string, cases: Case[]): void {
   ];
   for (const [a, b] of pairs) add("writeScopesOverlap", [a, b], () => writeScopesOverlap(binding(a), binding(b)));
   write("policy", "services/helpers/src/grants.ts, services/helpers/src/write-scopes.ts", cases);
+}
+
+// ---- org (org.ts) ----
+{
+  const cases: Case[] = [];
+  const add = (fn: string, args: unknown[], value: () => unknown) => cases.push({ fn, args, out: run(value) });
+  // `names` stands for the name function: an id missing from it has no name.
+  const namer = (names: Record<string, string>) => (id: string) => names[id];
+  const ids = ["kame", "lyra", "pk", "sid", "quill"];
+  const deep = { lyra: "kame", pk: "lyra", sid: "pk" };
+  add("orgAgentIds", [[{ id: "sid", role: "researcher" }, { id: "tinker", role: "improver" }, { id: "kame", role: "coder" }]],
+    () => orgAgentIds([{ id: "sid", role: "researcher" }, { id: "tinker", role: "improver" }, { id: "kame", role: "coder" }]));
+  const changes: [string, string | null, Record<string, string>][] = [
+    ["nobody", "kame", {}], ["sid", "tinker", {}], ["sid", "sid", {}], ["kame", "sid", { sid: "kame" }], ["kame", "pk", { sid: "kame", pk: "sid" }],
+    ["quill", "sid", deep], ["kame", "quill", deep], ["quill", "pk", deep], ["sid", null, deep], ["sid", "kame", {}], ["kame", null, {}],
+    ["lyra", "quill", { quill: "sid", sid: "kame" }], ["pk", "lyra", { lyra: "kame", kame: "sid" }],
+  ];
+  for (const [agent, lead, current] of changes) add("checkReportsTo", [agent, lead, current, ids], () => checkReportsTo(agent, lead, current, ids));
+  const raws: [Record<string, string>, string[]][] = [
+    [deep, ["kame", "pk", "sid"]], [deep, ["pk", "sid"]], [{ a: "b", b: "a" }, ["a", "b"]], [{ a: "b", b: "c", c: "d", d: "e", e: "f" }, ["a", "b", "c", "d", "e", "f"]],
+    [{ a: "gone", gone: "b" }, ["a", "b"]], [{ a: "gone", gone: "a" }, ["a"]], [{}, ["a"]], [{ x: "a" }, ["a"]],
+  ];
+  for (const [raw, agents] of raws) add("resolveOrg", [raw, agents], () => resolveOrg(raw, agents));
+  const names = { kame: "Kame", lyra: "Lyricists", pk: "ProjectK", sid: "Sid" };
+  for (const map of [{}, { pk: "kame", lyra: "kame", kame: "sid" }, { quill: "kame" }]) add("orgPrompt", [map, names], () => orgPrompt(map, namer(names)));
+  const reports = [
+    "Done. The table is filled in.", "Hand back: a designer\nThen I stopped.", "I could not do the logo.\n\nHand back: someone who can draw a logo  \n",
+    "hand back: a second\u0007line\rhere", `Hand back: ${"x".repeat(1000)}`, "Hand back:   ", "HAND BACK:x​y­z", `Hand back: ${"😀".repeat(200)}`,
+    "Hand back:\u{FEFF}tabs\tand spaces", "  Hand back: trimmed  \n\n\n", "",
+  ];
+  for (const r of reports) add("handBackNeed", [r], () => handBackNeed(r));
+  add("handBackLine", ["Kame", "a logo designer", { kame: "sid" }, { kame: "Kame", sid: "Sid" }], () => handBackLine("Kame", "a logo designer", { kame: "sid" }, namer({ kame: "Kame", sid: "Sid" })));
+  add("handBackLine", ["Kame", "a logo designer", {}, { kame: "Kame", sid: "Sid" }], () => handBackLine("Kame", "a logo designer", {}, namer({ kame: "Kame", sid: "Sid" })));
+  const team = ["ana", "bo", "cy", "di", "ed"];
+  const chart = { bo: "ana", cy: "ana", di: "bo" };
+  const upper = Object.fromEntries(team.map((id) => [id, id.toUpperCase()]));
+  for (const a of team) add("callable", [a, chart, team], () => callable(a, chart, team));
+  for (const a of team) for (const b of team) add("delegationProblem", [a, b, chart, team, upper], () => delegationProblem(a, b, chart, team, namer(upper)));
+  add("delegationProblem", ["ana", "zed", chart, team, {}], () => delegationProblem("ana", "zed", chart, team, namer({})));
+  for (const a of team) add("teamLine", [a, chart, team, upper], () => teamLine(a, chart, team, namer(upper)));
+  add("teamLine", ["bo", chart, team, {}], () => teamLine("bo", chart, team, namer({})));
+  write("org", "apps/mac/src/org.ts", cases);
 }

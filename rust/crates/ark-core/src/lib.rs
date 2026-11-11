@@ -3,5 +3,6 @@
 #![forbid(unsafe_code)]
 
 pub mod js;
+pub mod org;
 pub mod policy;
 

@@ -45,6 +45,43 @@ pub fn ascii_case_guard(text: &str) -> std::borrow::Cow<'_, str> {
     }
 }
 
+/// `string.slice(n)` in UTF-16 code units (a cut surrogate pair becomes U+FFFD).
+pub fn utf16_suffix(s: &str, n: usize) -> String {
+    let units: Vec<u16> = s.encode_utf16().skip(n).collect();
+    String::from_utf16_lossy(&units)
+}
+
+/// General category Cf (format), Unicode 16.
+// ponytail: a fixed table; a new Unicode version may add format characters.
+pub fn is_format(c: char) -> bool {
+    matches!(c as u32, 0xAD | 0x600..=0x605 | 0x61C | 0x6DD | 0x70F | 0x890..=0x891 | 0x8E2 | 0x180E | 0x200B..=0x200F
+        | 0x202A..=0x202E | 0x2060..=0x2064 | 0x2066..=0x206F | 0xFEFF | 0xFFF9..=0xFFFB | 0x110BD | 0x110CD
+        | 0x13430..=0x1343F | 0x1BCA0..=0x1BCA3 | 0x1D173..=0x1D17A | 0xE0001 | 0xE0020..=0xE007F)
+}
+
+/// General categories Cc, Cf, Zl and Zp: the characters `[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]` matches.
+pub fn is_control_or_format(c: char) -> bool {
+    c.is_control() || is_format(c) || c == '\u{2028}' || c == '\u{2029}'
+}
+
+/// `text.replace(/[class]+/g, " ")` for a class given as a predicate.
+pub fn collapse_runs(text: &str, class: impl Fn(char) -> bool) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut in_run = false;
+    for c in text.chars() {
+        if class(c) {
+            if !in_run {
+                out.push(' ');
+            }
+            in_run = true;
+        } else {
+            out.push(c);
+            in_run = false;
+        }
+    }
+    out
+}
+
 /// The class JavaScript's `\s` matches, for use inside a character class.
 const JS_SPACE_CLASS: &str = r"\t\n\x0B\x0C\r \x{A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}\x{FEFF}";
 
