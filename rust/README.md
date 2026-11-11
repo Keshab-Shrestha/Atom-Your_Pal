@@ -12,9 +12,12 @@ This folder holds the Rust build of ARK (ADR-278, docs/rust-migration-plan.md). 
 
 ## Set up
 
-1. Install `rustup` (for example, `brew install rustup`).
-2. Run `rustup toolchain install 1.99.1 --profile minimal --component clippy`.
-3. Run the commands below in this folder. `rust-toolchain.toml` selects 1.99.1.
+1. Install `rustup`: `brew install rustup`.
+2. Homebrew does not link `rustup`, `cargo` and `rustc` into its `bin` folder. Put them on your PATH: `export PATH="$(brew --prefix rustup)/bin:$PATH"`.
+3. Go to this folder (`cd rust`). Run `rustup toolchain install 1.99.1 --profile minimal --component clippy`.
+4. Run the commands below in this folder. `rust-toolchain.toml` selects 1.99.1.
+
+Do not run a bare `rustup` or `cargo` command outside this folder. With no default toolchain, `rustup` then installs the `stable` toolchain without a question.
 
 On macOS, Rune needs the Xcode Command Line Tools and no other system libraries.
 

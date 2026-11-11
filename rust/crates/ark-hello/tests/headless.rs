@@ -1,6 +1,8 @@
 //! Runs the built ark-hello binary headless, as CI does, and checks both outputs.
 #![allow(clippy::expect_used)] // Test code: a failed step should stop the test with its message.
 
+use std::collections::HashSet;
+use std::io::Cursor;
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -30,12 +32,15 @@ fn snap_writes_a_png_of_the_window_size() {
     run(&["--snap", png.to_str().expect("utf-8 path"), "--scale", &SCALE.to_string()]);
 
     let bytes = std::fs::read(&png).expect("png written");
-    assert_eq!(&bytes[..8], b"\x89PNG\r\n\x1a\n", "PNG signature");
-    // The IHDR chunk follows the signature: length (4), type (4), width (4), height (4).
-    let be = |at: usize| u32::from_be_bytes(bytes[at..at + 4].try_into().expect("4 bytes"));
-    assert_eq!(&bytes[12..16], b"IHDR");
-    assert_eq!((be(16), be(20)), (WIDTH_PT * SCALE, HEIGHT_PT * SCALE));
-    assert!(bytes.len() > 1000, "a drawn window, not an empty image: {} bytes", bytes.len());
+    let mut reader = png::Decoder::new(Cursor::new(bytes)).read_info().expect("valid PNG");
+    let mut pixels = vec![0; reader.output_buffer_size().expect("buffer size")];
+    let info = reader.next_frame(&mut pixels).expect("PNG frame");
+    assert_eq!((info.width, info.height), (WIDTH_PT * SCALE, HEIGHT_PT * SCALE));
+
+    // A blank window is one colour, so text on the background means at least two.
+    let bpp = info.line_size / info.width as usize;
+    let colours: HashSet<&[u8]> = pixels[..info.buffer_size()].chunks_exact(bpp).collect();
+    assert!(colours.len() >= 2, "the PNG is one flat colour: no text was drawn");
 }
 
 #[test]

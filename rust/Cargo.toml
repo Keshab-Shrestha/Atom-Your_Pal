@@ -24,7 +24,8 @@ default-members = ["crates/ark-hello"]
 edition = "2024"
 license = "MIT"
 
-# Same profiles as Rune's workspace: full debug info makes one `rune` test build use 18-23 GB of RAM.
+# Rune's dev and release profiles (full debug info makes one `rune` test build use 18-23 GB of RAM).
+# Rune's perf, bench and rune-hot profiles are not copied.
 [profile.dev]
 debug = "line-tables-only"
 
@@ -35,7 +36,7 @@ debug = false
 codegen-units = 16
 incremental = true
 
-# Rune's workspace lints, unchanged: the Rune crates use `lints.workspace = true`.
+# Rune's workspace lints: the Rune crates use `lints.workspace = true`.
 [workspace.lints.rust]
 unsafe_op_in_unsafe_fn = "deny"
 unused_must_use = "deny"

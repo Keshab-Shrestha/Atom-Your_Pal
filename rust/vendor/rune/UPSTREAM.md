@@ -25,7 +25,9 @@ This folder is a copy of part of Rune (ADR-278, decision 1A in docs/rust-migrati
 - Folders: `demo/`, `site/`, `www/`, `examples/`, `research/`, `scripts/`, `spikes/`, `tools/`, `changelog/`.
 - Crates: `rune-i18n`, `rune-fx`, `rune-light`, `rune-register`, `rune-knobs`, `rune-perf`, `rune-luau`.
 - Files: `AGENTS.md`, `CLAUDE.md`, `CHANGELOG.md`, `PLAN.md`, `WEB.md`, `README.md`, `pack.new`.
-- Moved, not dropped: the workspace `Cargo.toml` becomes `rust/Cargo.toml` (ARK's workspace, with the same profiles and lints). `Cargo.lock` becomes `rust/Cargo.lock`, so ARK builds with the same dependency versions. `rust-toolchain.toml` becomes `rust/rust-toolchain.toml` (1.99.1).
+- Moved, not dropped: the workspace `Cargo.toml` becomes `rust/Cargo.toml`, ARK's workspace. It keeps Rune's `dev` and `release` profiles and Rune's workspace lints. It drops Rune's `perf`, `bench` and `rune-hot` profiles.
+- `Cargo.lock` becomes `rust/Cargo.lock`, so ARK builds with the same dependency versions.
+- `rust-toolchain.toml` becomes `rust/rust-toolchain.toml` (1.99.1). It drops the `rustfmt` component.
 
 ## ARK patches
 
