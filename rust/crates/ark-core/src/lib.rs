@@ -8,5 +8,6 @@ pub mod js;
 pub mod org;
 pub mod policy;
 pub mod questions;
+pub mod shortcuts;
 pub mod visual;
 
