@@ -18,6 +18,9 @@ logs/
 .build/
 apps/mac/island/build/
 
+# Rust build output (ADR-278)
+rust/target/
+
 # ARK Island settings (written by the runtime on model.set)
 config/island.json
 # The owner's name (ADR-271) and the AI programs ARK may use (ADR-269): personal, never in git

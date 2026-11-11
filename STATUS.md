@@ -1,5 +1,13 @@
 # ARK Project Status
 
+## Rust Phase 0.1: workspace, Rune copy and hello window — 11 November 2026
+
+- ADR-278, Phase 0 PR 1: `rust/` holds a Cargo workspace (toolchain 1.99.1), a copy of Rune at `b556a38` in `rust/vendor/rune` (12 crates and the OpenCode theme, 24 MB, 1 392 files) and the `ark-hello` window. The new CI workflow `rust.yml` runs only on changes under `rust/`. The Swift and Node code does not change.
+- Build numbers (Apple M4, 10 cores): clean debug build 53 s, incremental build 1.8 s, clean release build 88 s. Release binary 29.8 MB (25.0 MB stripped). `rust/target` uses 1.7 GB after a debug build and 3.3 GB after a debug and a release build. CI build time is not known yet: the branch is not pushed.
+- Verified: `cargo build --locked`, `cargo clippy -p ark-hello --no-deps -D warnings`, `cargo test` (2 pass: the headless PNG is 720 × 400 at scale 2; the accessibility tree has the "Hello from ARK" label) and `pnpm typecheck`. The headless PNG was looked at by eye.
+- Phase 0 checks done by build: Rune builds with 1.99.1 on macOS with no system libraries other than the Xcode Command Line Tools. Rune shows 6 dead-code warnings in `rune`. Licence list in `rust/THIRD_PARTY.txt`: all crates are permissive except 8 MPL-2.0 crates (symphonia, opuscule), which come from Rune's default feature `ogg-audio`. Upstream `dev` moved to `40504db3`: one `rune-luau` change (not copied) and one icon hairline change (take it with the next update).
+- Still open in Phase 0: Japanese IME, dictation, emoji picker and paste in a Rune field; VoiceOver on the hello window; `NSStatusItem`; hover in a non-key panel; overlay on a second display; `.hudWindow` behind a Rune window; `WKWebView` child view; embed host in SwiftUI; the `claude` flags for option 2B; CI build time.
+
 ## Rust migration plan — 11 November 2026
 
 - ADR-278 is Accepted: docs/rust-migration-plan.md (Rune at `b556a38`, MIT, as the UI base). Docs only; nothing is built or changed in the app. Not verified by build: the Rune claims in section 10 of the migration plan.

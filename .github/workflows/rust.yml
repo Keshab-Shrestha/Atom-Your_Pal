@@ -1,0 +1,50 @@
+# The Rust build (ADR-278, docs/rust-migration-plan.md): build, lint and test ark-hello, then draw the hello window headless.
+# It runs only when a file under rust/ (or this file) changes, on its own runner, so the jobs in ci.yml do not wait for it.
+# The PNG and the tree JSON are kept as an artifact so the window can be looked at.
+name: Rust
+
+on:
+  push:
+    paths: ["rust/**", ".github/workflows/rust.yml"]
+  pull_request:
+    paths: ["rust/**", ".github/workflows/rust.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rust-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install 1.99.1 --profile minimal --component clippy
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            rust/target
+          key: rust-${{ runner.os }}-${{ runner.arch }}-1.99.1-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: rust-${{ runner.os }}-${{ runner.arch }}-1.99.1-
+      - run: cargo build --locked
+      - run: cargo clippy --locked -p ark-hello --all-targets --no-deps -- -D warnings
+      - run: cargo test --locked
+      - run: |
+          mkdir -p "$RUNNER_TEMP/ark-hello"
+          target/debug/ark-hello --snap "$RUNNER_TEMP/ark-hello/hello.png" --scale 2
+          target/debug/ark-hello --tree "$RUNNER_TEMP/ark-hello/tree.json"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ark-hello
+          path: ${{ runner.temp }}/ark-hello
+          if-no-files-found: ignore

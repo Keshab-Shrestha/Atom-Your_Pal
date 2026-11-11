@@ -1,0 +1,54 @@
+# ARK Rust workspace (ADR-278, docs/rust-migration-plan.md).
+# `vendor/rune` is a copy of Rune (MIT); see vendor/rune/UPSTREAM.md.
+# Plain `cargo build` and `cargo test` act on ARK's own crates only (default-members).
+[workspace]
+resolver = "3"
+members = [
+    "crates/ark-hello",
+    "vendor/rune/crates/rune",
+    "vendor/rune/crates/rune-kit",
+    "vendor/rune/crates/rune-motion",
+    "vendor/rune/crates/rune-staging",
+    "vendor/rune/crates/rune-taffy",
+    "vendor/rune/crates/rune-mac",
+    "vendor/rune/crates/rune-notify",
+    "vendor/rune/crates/rune-highlights",
+    "vendor/rune/crates/rune-mermaid",
+    "vendor/rune/crates/procwatch",
+    "vendor/rune/crates/rune-ref",
+    "vendor/rune/themes/opencode",
+]
+default-members = ["crates/ark-hello"]
+
+[workspace.package]
+edition = "2024"
+license = "MIT"
+
+# Same profiles as Rune's workspace: full debug info makes one `rune` test build use 18-23 GB of RAM.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.release]
+codegen-units = 16
+incremental = true
+
+# Rune's workspace lints, unchanged: the Rune crates use `lints.workspace = true`.
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+unused_must_use = "deny"
+unsafe_code = "allow"
+
+[workspace.lints.clippy]
+await_holding_lock = "deny"
+await_holding_refcell_ref = "deny"
+dbg_macro = "deny"
+disallowed_types = "deny"
+expect_used = "warn"
+todo = "warn"
+unwrap_used = "warn"
+undocumented_unsafe_blocks = "warn"
+let_underscore_must_use = "warn"
+disallowed_methods = "warn"
