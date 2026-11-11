@@ -73,6 +73,7 @@ import { createLayaEngine, acceptedComputerPlan } from "@ark/decision-engine";
 import type { InputSource, Message, ArkInput } from "@ark/contracts";
 import type { IslandBrain, IslandChats, IslandGit, IslandHelpers, IslandMemory, IslandOptions, IslandProjects } from "./island.ts";
 import { islandHelpers } from "./island-helpers.ts";
+import { quietWatch } from "./job-quiet.ts";
 import { createHubCommands } from "./hub-commands.ts";
 import { listCommands, useCommand, userCommandsDir } from "./slash-commands.ts";
 import { SKILLS_PLUGIN, listSkills, prepareSkills, readSkill, readSkillPage, readSkillFile, useSkill, userSkillsDir, writeSkillFile } from "./skills.ts";
@@ -812,9 +813,12 @@ export function createRuntime(
   const islandOrg = org && { map: () => org.map(), set: (helper: string, lead: string | null) => { org.set(helper, lead); orgChanged(); } };
   // A removed agent's reports move up to its own lead (or ARK) in the file too, so nothing passes to a new agent with its id.
   helpers?.onChange((change) => { if (change.action === "agent" && !change.added && org?.prune()) orgChanged(); });
+  // ADR-273: the stuck dot. A running agent with no output for 8 minutes is marked and logged; nothing goes to the model.
+  const jobQuiet = helpers && quietWatch(helpers, { log: (event, fields) => log.info(event, fields as never) });
   const nativeTeam = helpers && {
     helpers,
     ...(org ? { org: () => orgPrompt(org.map(), (id: string) => helpers.list().find((h) => h.id === id)?.name) } : {}),
+    ...(org ? { reportsTo: () => org.map() } : {}),
     approve: (request: { summary: string; reason: string; reasonMax?: number }, signal?: AbortSignal) => computer.approve(request, signal),
     approveFile: (request: { summary: string; reason: string }, signal?: AbortSignal) => computer.approveFile(request, signal),
     approveFileEdit: (request: import("./computer-bridge.ts").FileEditReview & { summary: string }, signal?: AbortSignal) => computer.approveFileEdit(request, signal),
@@ -1541,7 +1545,7 @@ export function createRuntime(
     islandSlashCommands: { list: () => listCommands(userCommandsDir()) },
     islandSkillFiles: { read: (name) => readSkillFile(name, userSkillsDir(), skillsDir), write: (name, text) => writeSkillFile(name, text, userSkillsDir(), skillsDir) },
     ...(helpers ? { islandHelpers: warmOnOpen(withPaperclip(paperclip, paperclipListeners, {
-            ...islandHelpers(helpers, installedApps, planModels, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name))), undefined, codexWorkerModels, islandOrg),
+            ...islandHelpers(helpers, installedApps, planModels, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name))), undefined, codexWorkerModels, islandOrg, jobQuiet),
             hub: createHubCommands({ store: helpers, log }), // B3.5
             // ADR-110 N5: no legacy runner starts a queued task, so the page's task field and Retry hand it to the main agent.
             addJob: (helper: string, task: string) => {
@@ -1601,6 +1605,7 @@ export function createRuntime(
       api?.stop();
       tinker?.close();
       void decisions.close();
+      jobQuiet?.stop();
     },
     record: (handlers) => startRecording(config.audio, handlers),
     async micName() {

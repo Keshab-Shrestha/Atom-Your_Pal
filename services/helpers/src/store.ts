@@ -382,6 +382,15 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     }
   }
 
+  /** ADR-272: stopping a native task stops its native children (advisory or delegated), and theirs, so none runs on alone. */
+  function stopNativeChildren(id: number) {
+    for (const child of childrenOf.all(id) as unknown as JobRow[]) {
+      if ((child.native_scope !== "advisory" && !child.chat_id) || isFinal(child.state as JobState)) continue;
+      transition(toJob(child), "stopped");
+      stopNativeChildren(child.id);
+    }
+  }
+
   /** Task 3.6: an ended task runs again (its goal opens again); a running one runs once more when it ends. */
   function wake(job: Job) {
     // Native attempts never reuse an old run through legacy comments/auto-wake. Explicit retries get a new identity.
@@ -769,6 +778,22 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         emit({ action: "job", helper: known.id, job: id, state: "running" });
         return mustGet(id);
       }
+      if (links.parentId !== undefined) {
+        // ADR-272: an agent gave part of its task to another agent. The child is a full worker (tools, Board row) under its parent.
+        const task = cleanTask(raw.trim());
+        let id = 0;
+        transaction(() => {
+          const parent = mustGet(links.parentId!);
+          if (parent.state !== "running" || parent.chatId !== links.chatId || parent.nativeScope) throw new HelperError("A delegated task needs a running parent task in this chat.");
+          if (parent.helper === helper) throw new HelperError("An agent cannot give a task to itself.");
+          id = insertTask(known.id, task, [], { goal: null, parentId: parent.id, goalId: null, planFirst: false });
+          setNativeLinks.run(links.chatId, links.sdkTaskId ?? null, id);
+          claim.run(id);
+          log(id, "running");
+        });
+        emit({ action: "job", helper: known.id, job: id, state: "running" });
+        return mustGet(id);
+      }
       const reserved = retryInChat.get(links.chatId) as { id: number } | undefined;
       if (!reserved && /^task-retry-\d+$/.test(links.chatId)) throw new HelperError("That retry attempt no longer exists. Start a new task instead.");
       if (reserved) {
@@ -963,7 +988,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       const job = get(id);
       if (!job || isFinal(job.state)) return false;
       transition(job, "stopped");
-      for (const child of childrenOf.all(id) as unknown as JobRow[]) if (child.native_scope === "advisory" && !isFinal(child.state as JobState)) transition(toJob(child), "stopped");
+      stopNativeChildren(id);
       return true;
     },
 
@@ -971,7 +996,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       const job = get(id);
       if (!job) return false;
       if (!isFinal(job.state)) transition(job, "stopped"); // so a runner listening for "stopped" ends it
-      for (const child of childrenOf.all(id) as unknown as JobRow[]) if (child.native_scope === "advisory" && !isFinal(child.state as JobState)) transition(toJob(child), "stopped");
+      stopNativeChildren(id);
       transaction(() => {
         deleteReport.run(id);
         deleteJob.run(id);

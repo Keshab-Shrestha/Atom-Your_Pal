@@ -46,6 +46,7 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSMenuItemValidati
         window.hasShadow = palette.usesShadows // Void: a hairline, no drop shadow (ADR-086)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        model.chatWindowOpened() // ADR-274: back in the chat after a close: compare with the last view
     }
 
     func close() { window?.performClose(nil) }
@@ -133,6 +134,7 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSMenuItemValidati
         model.cancelProjectSource()
         model.workspaceTerminal.reset()
         model.rememberWindowPage()
+        model.chatWindowClosed() // ADR-274: the closed window keeps its composer, so record the view and stop following here
         model.helpersWindowOpen = false
         model.recorder.stop() // a shortcut recording left open keeps every global shortcut paused and takes ARK's keys (onDisappear does not fire here)
         model.permissions.stopPolling() // the window is closed, not destroyed, so Settings' onDisappear never fires: the 1.5 s permission checks ran for ever

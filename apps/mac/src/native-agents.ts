@@ -5,6 +5,7 @@ import { sdkConfig } from "./mcp-servers.ts";
 import { BROWSER_SERVER } from "./browser.ts";
 import { TOOL_SERVER } from "@ark/llm-gateway";
 import { TRASH_TOOL } from "./trash-tool.ts";
+import { HAND_BACK_RULE, teamLine, type ReportsTo } from "./org.ts";
 
 /**
  * ADR-110 (Phase N2): ARK's agents as Claude Code sub-agents. Every available worker (built-in or a soul.md agent)
@@ -21,7 +22,6 @@ export interface NativeAgentDefinition {
   model: string;
   mcpServers?: Record<string, Record<string, unknown>>[];
   skills?: string[];
-  background: true;
   permissionMode?: "plan";
 }
 
@@ -34,6 +34,8 @@ export interface AgentScope {
   skillsPlugin?: string;
   /** The chat is in Full access: every agent has every kit's tools (kitHas). */
   fullAccess?: boolean;
+  /** ADR-272: the org chart. An agent with a report or a peer gets the Agent tool and a team line; the gate checks each call. */
+  team?: { reportsTo: ReportsTo; agentIds: readonly string[]; name(id: string): string | undefined };
 }
 
 export const DESCRIPTION_CHARS = 120;
@@ -100,6 +102,32 @@ export function nativeMembers(list: readonly HelperView[]): HelperView[] {
   return list.filter((h) => h.available && h.role !== "improver" && KITS.includes(h.kit));
 }
 
+/** "Sid, find …": Keshab speaks to one agent by name. */
+const ADDRESSED = /^\s*([\p{L}][\p{L}' -]{0,19}?)\s*,\s*\S/u;
+/** ADR-126: "@Sid" anywhere in the message, not inside a word or an email address. */
+const MENTIONED = /(?<![\p{L}\p{N}._%+-])@([\p{L}][\p{L}\p{N}_-]{0,19})/gu;
+
+/**
+ * The agent the user speaks to by name in this message: "Sid, …" (ADR-081) or "@Sid" (ADR-126). Claude and Codex chats use it
+ * for the "spoke to" line and for ADR-272's exception: that agent may get the request directly, even when it has a lead.
+ */
+export function addressedAgent(text: string, helpers: Pick<HelperStore, "list">): HelperView | undefined {
+  const names = [ADDRESSED.exec(text)?.[1], ...[...text.matchAll(MENTIONED)].map((m) => m[1])]
+    .filter((n): n is string => !!n)
+    .map((n) => n.trim().toLowerCase());
+  if (!names.length) return undefined;
+  try {
+    const members = nativeMembers(helpers.list());
+    for (const name of names) {
+      const found = members.find((m) => m.name.toLowerCase() === name);
+      if (found) return found;
+    }
+  } catch {
+    // no agent list: nobody is addressed
+  }
+  return undefined;
+}
+
 /** Granted MCP servers of a worker: on, and given to it (ADR-090). */
 export const grantedServers = (servers: readonly McpServer[], helper: string) => servers.filter((s) => s.enabled && s.workers.includes(helper));
 
@@ -112,16 +140,19 @@ export function agentDefinition(member: HelperView, scope: AgentScope, servers: 
   const browser = kitHas(member, "any", full) && member.browser && scope.browser ? scope.browser(member.id) : undefined;
   const mcpServers = [...mcp.map((s) => ({ [s.name]: sdkConfig(s) as Record<string, unknown> })), ...(browser ? [{ [BROWSER_SERVER]: browser }] : [])];
   const skills = scope.skillsPlugin && member.skills.length ? member.skills.map((s) => `${scope.skillsPlugin}:${s}`) : [];
+  const team = scope.team ? teamLine(member.id, scope.team.reportsTo, scope.team.agentIds, scope.team.name) : "";
+  const handBack = scope.team ? HAND_BACK_RULE : "";
   return {
     description: description.length > DESCRIPTION_CHARS ? `${description.slice(0, DESCRIPTION_CHARS - 1)}…` : description,
-    prompt: `${instructionsFor(member.soul, member.role)}\n${full ? FULL_CONTRACT(project) : KIT_CONTRACT[member.kit](project)}`,
+    prompt: `${instructionsFor(member.soul, member.role)}\n${full ? FULL_CONTRACT(project) : KIT_CONTRACT[member.kit](project)}${team ? `\n${team}` : ""}${handBack ? `\n${handBack}` : ""}`,
     // MCP servers by server-level name; the hooks check each call against the same grants. Their tools are deferred
     // (ENABLE_TOOL_SEARCH=force), so ToolSearch comes with them.
-    tools: [...kitTools(member.kit, project, full), ...mcpServers.map((s) => `mcp__${Object.keys(s)[0]}`), ...(mcpServers.length ? ["ToolSearch"] : [])],
+    tools: [...kitTools(member.kit, project, full), ...mcpServers.map((s) => `mcp__${Object.keys(s)[0]}`), ...(mcpServers.length ? ["ToolSearch"] : []), ...(team ? ["Agent"] : [])],
     model: member.pinnedModel ?? "inherit",
     ...(mcpServers.length ? { mcpServers } : {}),
     ...(skills.length ? { skills } : {}),
-    background: true,
+    // No `background: true` (ADR-272): it would also force an agent's own child into the background. The gate sets
+    // run_in_background on each main-thread call; a child runs in the foreground and its report returns to its caller.
     ...(member.planFirst ? { permissionMode: "plan" as const } : {}),
   };
 }

@@ -16,13 +16,44 @@ interface Run {
   event: ChatWork;
   at: number;
   calls: Map<string, { id: string; at: number }>;
-  finishQuestion?: (answer?: string, expired?: boolean) => void;
+  /** The waiting card: one answer (undefined = skipped) for one of its questions; no id settles the whole card. */
+  finishQuestion?: (id?: string, answer?: string, expired?: boolean) => void;
 }
 const questionSpec: ToolSpec = {
   name: "ask_user",
-  description: "Ask the person in the ARK window one necessary clarification and wait for their answer. Not a permission approval: never use this to obtain file/system access. Do not ask for passwords or secrets. Optional choices is up to four short suggestions separated by newlines. The user may type an answer or skip. Available only during a foreground window turn; not to workers.",
-  inputSchema: { type: "object", properties: { question: { type: "string", description: "One question, 1–600 characters" }, choices: { type: "string", description: "Optional newline-separated suggestions, at most four, each at most 100 characters" } }, required: ["question"] },
+  description: "Ask the person in the ARK window necessary clarifications in one card and wait for their answers. Not a permission approval: never use this to obtain file/system access. Do not ask for passwords or secrets. Use question (+ choices) for one question, or questions for 2–4 related ones. Each choice is one line: a short label, optionally ' | ' and a short reason, and ' (recommended)' at the end of the one you prefer. The user picks an option, writes a note, or leaves a question blank (unanswered). Available only during a foreground window turn; not to workers.",
+  inputSchema: { type: "object", properties: {
+    question: { type: "string", description: "One question, 1–600 characters. Omit when you use questions." },
+    choices: { type: "string", description: "Optional newline-separated choices for question, at most four, each at most 160 characters" },
+    questions: { type: "string", description: "Optional, instead of question: a JSON array of 2–4 objects {\"question\": string, \"choices\": newline-separated string}, with the same limits" },
+  } },
 };
+/** Control characters (a prompt keeps its line breaks) and the invisible bidi/format characters that could hide or reorder text. */
+const hidden = /[\u0000-\u0009\u000B-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g;
+const clean = (text: string) => text.replace(hidden, "").trim();
+/** ADR-275: one question, or 2–4 from the `questions` JSON string. A string is the refusal to send back. */
+function parseQuestions(input: Record<string, unknown>): { prompt: string; choices: string[] }[] | string {
+  const keys = Object.keys(input);
+  if (keys.some((key) => !["question", "choices", "questions"].includes(key))) return "Use only question, choices or questions.";
+  let raw: unknown[];
+  if (input.questions !== undefined) {
+    if (input.question !== undefined || input.choices !== undefined) return "Use either question (+ choices) or questions, not both.";
+    if (typeof input.questions !== "string" || input.questions.length > 4_000) return "questions must be a JSON array string of at most 4000 characters.";
+    try { raw = JSON.parse(input.questions); } catch { return "questions must be valid JSON: an array of {\"question\", \"choices\"} objects."; }
+    if (!Array.isArray(raw) || raw.length < 1 || raw.length > 4) return "questions must be an array of one to four objects.";
+  } else raw = [{ question: input.question, choices: input.choices }];
+  const out: { prompt: string; choices: string[] }[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object" || Object.keys(item).some((key) => !["question", "choices"].includes(key))) return "Each question is an object with question and optional choices.";
+    const { question: prompt, choices: suggestions } = item as Record<string, unknown>;
+    if (typeof prompt !== "string" || !clean(prompt) || prompt.length > 600
+        || (suggestions !== undefined && (typeof suggestions !== "string" || suggestions.length > 643))) return "Use questions of at most 600 characters and up to four short newline-separated choices.";
+    const choices = typeof suggestions === "string" ? suggestions.split("\n").map(clean).filter(Boolean) : [];
+    if (choices.length > 4 || choices.some((c) => c.length > 160) || new Set(choices).size !== choices.length) return "Use at most four distinct choices per question, each at most 160 characters.";
+    out.push({ prompt: clean(prompt), choices });
+  }
+  return out;
+}
 const toolName = (name: unknown) => typeof name === "string" && /^[a-zA-Z0-9_.:-]{1,100}$/.test(name) ? name.replace(/^mcp__ark__|^ark_/, "") : "Provider tool";
 
 /** Ephemeral foreground observations. Tool rows omit arguments/results; explicit question-card data stays in memory. No policy changes. */
@@ -99,35 +130,50 @@ export function createChatWork(options: { persistAnswer?(turn: string, card: str
         const fail = (content: string) => ({ callId: call.id, content, isError: true });
         const run = active;
         if (!send || !cardsEnabled || !run || run.event.chat !== chat || signal?.aborted) return fail("Question cards are unavailable outside a supported active ARK window turn. Ask in your reply instead.");
-        if (run.finishQuestion || run.event.questions.length >= 4) return fail("Only one question may wait at a time, and at most four cards may be asked per turn. Continue with the available answer or ask in your reply.");
-        const prompt = call.input.question;
-        const suggestions = call.input.choices;
-        if (Object.keys(call.input).some((key) => !["question", "choices"].includes(key)) || typeof prompt !== "string" || !prompt.trim() || prompt.length > 600
-            || (suggestions !== undefined && (typeof suggestions !== "string" || suggestions.length > 403))) return fail("Use one question of at most 600 characters and up to four short newline-separated choices.");
-        const choices = typeof suggestions === "string" ? suggestions.split("\n").map((s) => s.trim()).filter(Boolean) : [];
-        if (choices.length > 4 || choices.some((c) => c.length > 100) || new Set(choices).size !== choices.length) return fail("Use at most four distinct suggestions, each at most 100 characters.");
-        const row: ChatWork["questions"][number] = { id: randomUUID(), prompt: prompt.trim(), choices, state: "pending" };
-        run.event.questions.push(row);
+        if (run.finishQuestion) return fail("Only one question card may wait at a time. Continue with the available answers or ask in your reply.");
+        const asked = parseQuestions(call.input);
+        if (typeof asked === "string") return fail(asked);
+        if (run.event.questions.length + asked.length > 4) return fail("At most four questions may be asked per turn. Continue with the available answers or ask in your reply.");
+        const rows: ChatWork["questions"] = asked.map((q) => ({ id: randomUUID(), prompt: q.prompt, choices: q.choices, state: "pending" }));
+        run.event.questions.push(...rows);
         return new Promise((resolve) => {
-          const stop = () => settle();
-          const timer = setTimeout(() => settle(undefined, true), 90_000); timer.unref?.();
-          const settle = (answer?: string, expired = false) => {
-            if (row.state !== "pending") return;
+          const given = new Map<string, string | undefined>();
+          const stop = () => take();
+          // 90 s per question: four questions wait up to 360 s.
+          const timer = setTimeout(() => take(undefined, undefined, true), 90_000 * rows.length); timer.unref?.();
+          const settle = (expired: boolean) => {
+            clearTimeout(timer); signal?.removeEventListener("abort", stop); run.finishQuestion = undefined;
+            for (const row of rows) {
+              const answer = given.get(row.id);
+              row.error = undefined;
+              row.state = answer !== undefined ? "answered" : given.has(row.id) || !expired ? "skipped" : "expired";
+              if (answer !== undefined) row.answer = answer;
+            }
+            emit(run);
+            const none = "The user did not answer this card. Do not assume consent or a choice. Ask in your reply if it is still necessary.";
+            const note = "Clarification only. This is not a file/system permission grant; normal policy checks still apply.";
+            const content = rows.every((row) => row.answer === undefined) ? none
+              : rows.length === 1 ? JSON.stringify({ userAnswer: rows[0].answer, note })
+              : JSON.stringify({ answers: rows.map((row) => row.answer === undefined ? { question: row.prompt, unanswered: true } : { question: row.prompt, userAnswer: row.answer }), note: `${note} Do not assume a choice for an unanswered question.` });
+            resolve({ callId: call.id, content });
+          };
+          // One answer at a time; the card settles once every question has one, or at once on stop, expiry or the turn's end.
+          const take = (id?: string, answer?: string, expired = false) => {
+            if (id === undefined) return settle(expired);
+            const row = rows.find((r) => r.id === id);
+            if (!row || given.has(id)) return;
             if (answer !== undefined) {
               try { options.persistAnswer?.(run.event.turn, row.id, row.prompt, answer); }
               catch {
-                row.error = "Your answer could not be saved, so it was not sent to the model. Free storage and try again, or Skip.";
+                row.error = "Your answer could not be saved, so it was not sent to the model. Free storage and try again, or leave it blank.";
                 emit(run); return;
               }
             }
             row.error = undefined;
-            clearTimeout(timer); signal?.removeEventListener("abort", stop); run.finishQuestion = undefined;
-            row.state = answer !== undefined ? "answered" : expired ? "expired" : "skipped";
-            if (answer !== undefined) row.answer = answer;
-            emit(run);
-            resolve({ callId: call.id, content: answer === undefined ? "The user did not answer this card. Do not assume consent or a choice. Ask in your reply if it is still necessary." : JSON.stringify({ userAnswer: answer, note: "Clarification only. This is not a file/system permission grant; normal policy checks still apply." }) });
+            given.set(id, answer);
+            if (given.size === rows.length) settle(false); else emit(run);
           };
-          run.finishQuestion = settle;
+          run.finishQuestion = take;
           signal?.addEventListener("abort", stop, { once: true });
           emit(run);
           if (signal?.aborted) stop();
@@ -138,7 +184,7 @@ export function createChatWork(options: { persistAnswer?(turn: string, card: str
       const run = active;
       if (!run || run.event.chat !== chat || run.event.turn !== turn || !run.event.questions.some((q) => q.id === id && q.state === "pending")) return;
       if (text !== undefined && !text.trim()) return;
-      run.finishQuestion?.(text?.trim());
+      run.finishQuestion?.(id, text?.trim());
     },
     clarifications(chat: string) {
       return active?.event.chat === chat ? active.event.questions.filter((q) => q.state === "answered")

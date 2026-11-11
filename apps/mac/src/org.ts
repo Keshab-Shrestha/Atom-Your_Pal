@@ -70,14 +70,80 @@ export function resolveOrg(raw: ReportsTo, agentIds: readonly string[]): Record<
  * so it changes only when the chart or a name changes. `name` maps an agent id to its name.
  */
 export function orgPrompt(map: ReportsTo, name: (id: string) => string | undefined): string {
+  const teams = orgTeams(map, name);
+  if (!teams) return "";
+  return `Team: ${teams}.\n` +
+    "Give work for an agent with a lead to that lead (or plan it with plan_work); the lead hands parts to its people. Call such an agent directly only when the user named it.\n" +
+    `A report that ends with "${HAND_BACK}" means its agent left the choice to you: pick the agent for that need and start it.`;
+}
+
+/** "Kame leads Lyra, Pk; Sid leads Kame", sorted; "" when no agent has a lead. */
+function orgTeams(map: ReportsTo, name: (id: string) => string | undefined): string {
   const teams = new Map<string, string[]>();
   for (const agent of Object.keys(map).sort()) teams.set(map[agent]!, [...(teams.get(map[agent]!) ?? []), agent]);
-  if (!teams.size) return "";
   const label = (id: string) => name(id) ?? id;
-  const lines = [...teams.keys()].sort().map((lead) => `${label(lead)} leads ${teams.get(lead)!.map(label).join(", ")}`);
-  return `Team: ${lines.join("; ")}.\n` +
-    "Work in a lead's area goes through the lead: call plan_work with a first portion for the lead (split the work and name which of its people does what), " +
-    "then portions for its people after it, then a last portion for the lead to review their reports. Small single-step work may go straight to the worker.";
+  return [...teams.keys()].sort().map((lead) => `${label(lead)} leads ${teams.get(lead)!.map(label).join(", ")}`).join("; ");
+}
+
+/**
+ * ADR-272 (Keshab, 2026-11-06): an agent may leave the choice of agent to ARK. It ends its report with this line; code finds
+ * it and writes the line ARK reads. The model gives only the need: one line, at most HAND_BACK_CHARS.
+ */
+export const HAND_BACK = "Hand back:";
+export const HAND_BACK_CHARS = 300;
+export const HAND_BACK_RULE = `When the work needs an agent you should not pick yourself (you are not sure who, or no agent you may call has the tools), end your turn and make the last line of your report "${HAND_BACK} <what is needed>". ARK then chooses the agent.`;
+
+/** The need in a report whose last non-empty line starts with "Hand back:"; undefined otherwise. One line, no control characters. */
+export function handBackNeed(report: string): string | undefined {
+  const last = report.split("\n").map((line) => line.trim()).filter(Boolean).at(-1) ?? "";
+  if (!last.toLowerCase().startsWith(HAND_BACK.toLowerCase())) return undefined;
+  const need = last.slice(HAND_BACK.length).replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]+/gu, " ").replace(/\s+/g, " ").trim();
+  return need ? need.slice(0, HAND_BACK_CHARS) : undefined;
+}
+
+/** The host's line for a handed-back report. Code writes it; only `need` (handBackNeed) comes from the model. */
+export function handBackLine(agent: string, need: string, map: ReportsTo, name: (id: string) => string | undefined): string {
+  const teams = orgTeams(map, name);
+  return `${agent} handed back to ARK: ${need}. Choose the agent for it${teams ? ` (the chart: ${teams})` : ""}; the usual rules apply.`;
+}
+
+/** ADR-272: the most agents one task from the main thread may start below it, at every level together. */
+export const MAX_TEAM_CHILDREN = 6;
+
+/** Whom an agent may hand work to: its direct reports, and its peers (the same lead, or both report to ARK). Sorted. */
+export function callable(agent: string, map: ReportsTo, agentIds: readonly string[]): { reports: string[]; peers: string[] } {
+  const ids = [...agentIds].sort();
+  return {
+    reports: ids.filter((id) => id !== agent && map[id] === agent),
+    peers: ids.filter((id) => id !== agent && map[id] === map[agent]),
+  };
+}
+
+/**
+ * ADR-272: may `caller` (an agent at work) hand a task to `target`? Only down to a direct report or across to a peer:
+ * never itself, never up the chart. undefined: yes; else the refusal, which says what to do instead.
+ */
+export function delegationProblem(caller: string, target: string, map: ReportsTo, agentIds: readonly string[], name: (id: string) => string | undefined): string | undefined {
+  const label = (id: string) => name(id) ?? id;
+  if (target === caller) return "You cannot give a task to yourself. Do the work, or end your turn with your report.";
+  if ((leadsOf(caller, map) ?? []).includes(target)) return `${label(target)} is above you in the team. Do not call up: end your turn, and your report goes back to the one who gave you the task.`;
+  const { reports, peers } = callable(caller, map, agentIds);
+  if (reports.includes(target) || peers.includes(target)) return undefined;
+  const can = [...reports, ...peers].map((id) => `${label(id)} (${id})`);
+  return `${label(target)} is not one of your reports or peers. ${can.length ? `You may call: ${can.join(", ")}.` : "You have no one to call."} Otherwise end your turn and say in your report who should do it.`;
+}
+
+/** A sub-agent's team line (ADR-272), so it calls only whom the code allows. "" when it has no one to call. */
+export function teamLine(agent: string, map: ReportsTo, agentIds: readonly string[], name: (id: string) => string | undefined): string {
+  const { reports, peers } = callable(agent, map, agentIds);
+  if (!reports.length && !peers.length) return "";
+  const list = (ids: string[]) => ids.map((id) => `${name(id) ?? id} (${id})`).join(", ");
+  return [
+    reports.length ? `Your reports: ${list(reports)}.` : "",
+    peers.length ? `Your peers: ${list(peers)}.` : "",
+    "You may give a part of your task to one of them with the Agent tool (subagent_type: its id). Its report comes back to you; use it in your own report.",
+    "You report only by ending your turn: you have no tool to message ARK or the one who called you while you work.",
+  ].filter(Boolean).join("\n");
 }
 
 export interface OrgStore {

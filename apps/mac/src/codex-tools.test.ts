@@ -144,3 +144,23 @@ test("Full access performs an actual worker overwrite without creating a continu
     assert.equal(cards, 2, "the protected file and the overwrite each ask"); assert.equal(readFileSync(path, "utf8"), "full draft");
   } finally { router.close(); helpers.close(); memory.close(); rmSync(home, { recursive: true, force: true }); }
 });
+
+test("ADR-272 in a Codex chat: work for an agent with a lead goes to the lead, unless the user named the agent", async () => {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "ark-codex-org-")));
+  const helpers = openHelperStore({ path: ":memory:", home });
+  const fake = fakeCodex(async () => "Done.");
+  const router = createCodexToolRouter({ program: "fake", model: "codex-test", home, tools: { specs: () => [], run: async (c) => ({ callId: c.id, content: "ok" }) },
+    session: { transport: fake.factory }, team: { helpers, worktrees: join(home, "worktrees"), approve: async () => false, reportsTo: () => ({ penny: "sid" }) } });
+  const delegate = (id: string, subagent_type: string) => ({ id, name: "ark_delegate", input: { subagent_type, description: "Budget", prompt: "Sum the budget" } });
+  const asked = (content: string): ModelRequest => ({ ...request(), messages: [{ role: "user", content }] });
+  try {
+    const direct = await router.forRequest(asked("sum my budget")).run(delegate("d1", "penny"));
+    assert.equal(direct.isError, true);
+    assert.equal(direct.content, 'Penny reports to Sid. Give the task to Sid (subagent_type "sid"); Sid assigns it.');
+    assert.equal(helpers.list().find((h) => h.id === "penny")!.jobs.length, 0);
+    assert.equal((await router.forRequest(asked("sum my budget")).run(delegate("d2", "sid"))).isError, undefined, "the lead takes it");
+    const named = await router.forRequest(asked("Penny, sum my budget")).run(delegate("d3", "penny"));
+    assert.equal(named.isError, undefined, named.content);
+    assert.equal(helpers.list().find((h) => h.id === "penny")!.jobs.length, 1);
+  } finally { router.close(); helpers.close(); rmSync(home, { recursive: true, force: true }); }
+});

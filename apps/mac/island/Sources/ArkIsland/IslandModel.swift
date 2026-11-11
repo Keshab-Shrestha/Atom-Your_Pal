@@ -424,6 +424,7 @@ final class IslandModel {
         queue.sending(command) // pending copies remain in their own chat for review
         if case .chatDelete(let id) = command {
             input.remove(id); saveInput()
+            settings.chatSeen[id] = nil // ADR-274: no Catch me up view for a deleted chat
             recovery.record = nil; recovery.reading = nil
             recovery.attempts.removeAll { $0.chat == id }
         }
@@ -435,6 +436,14 @@ final class IslandModel {
 
     /// The message waiting for the answer to end, and whether a turn is running.
     private(set) var queue = MessageQueue()
+    /// ADR-274: when the owner last viewed this chat, while it holds activity from after that; nil hides Catch me up.
+    var catchUpSince: Date?
+    /// ADR-274: the Workers chip asks the transcript to show the Workers card.
+    var workersScrollTick = 0
+    /// ADR-274: whether the current chat is on screen, the chat shown, and its last view while the Board list is not in yet.
+    @ObservationIgnored var chatViewing = ChatViewing()
+    @ObservationIgnored var viewedChat: String?
+    @ObservationIgnored var pendingSeen: ChatSeen?
     /// Gallery fixtures and ordinary submissions use the same bounded FIFO.
     func queueMessage(_ text: String, draft: ComposerDraft) {
         var entry = input.entry(for: inputChat)
@@ -495,9 +504,27 @@ final class IslandModel {
         return nil
     }
 
-    func sendQueuedNow() {
-        guard inputRuntimeReady, !queue.awaitingStart, let message = queue.take() else { return }
+    /// ADR-274: any queued row can go now (nil: the head). Like Command-Return, it stops the answer through the runtime's
+    /// text-send path ("typing over an answer stops it"), then sends; the other entries keep their order.
+    func sendQueuedNow(_ id: String? = nil) {
+        guard inputRuntimeReady, !queue.awaitingStart, let message = queue.take(id: id) else { return }
         sendQueued(message)
+    }
+
+    /// ADR-274: fixed words sent to an idle chat, as Return sends typed ones (Catch me up).
+    func sendIdle(_ text: String) -> Bool {
+        guard !queue.running, ask(text) else { return false }
+        queue.didDispatch()
+        return true
+    }
+
+    /// ADR-274: drag or ⌥↑/⌥↓ reorders the live queue; the saved copies follow the same order.
+    func moveWaitingInput(_ id: String, to index: Int) {
+        guard queue.move(id: id, to: index) else { return }
+        var entry = input.entry(for: inputChat)
+        entry.waiting = queue.ordered(entry.waiting)
+        input.set(entry, for: inputChat)
+        saveInput()
     }
 
     /// Editing one entry never merges it with a draft or consumes another queue item.
@@ -1083,6 +1110,7 @@ final class IslandModel {
         if helpers.takeRenameConfirmed() { showSaved("agent-name") } // only once the runtime's list has the new name
         if let refresh = helpers.takeRefresh() { send(refresh) } // the open task changed: ask for its thread again
         if helperRefusal { return } // a refused helper command is shown in the ARK window only
+        defer { followChatView(event) } // ADR-274: Catch me up
         conversation.apply(event)
         settleQueue(event)
         approval.apply(event)

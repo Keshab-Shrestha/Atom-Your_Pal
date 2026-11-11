@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { checkReportsTo, createOrgStore, orgAgentIds, orgPrompt, resolveOrg, MAX_ORG_DEPTH } from "./org.ts";
+import { HAND_BACK_CHARS, callable, checkReportsTo, handBackLine, handBackNeed, createOrgStore, delegationProblem, orgAgentIds, orgPrompt, resolveOrg, teamLine, MAX_ORG_DEPTH } from "./org.ts";
 
 const ids = ["kame", "lyra", "pk", "sid", "quill"];
 
@@ -77,5 +77,35 @@ test("orgPrompt is empty without leads, and sorted and stable with them", () => 
   const b = orgPrompt({ kame: "sid", lyra: "kame", pk: "kame" }, names);
   assert.equal(a, b, "the order of the map does not matter");
   assert.match(a, /^Team: Kame leads Lyricists, ProjectK; Sid leads Kame\.\n/);
-  assert.match(a, /call plan_work with a first portion for the lead .* a last portion for the lead to review their reports\. Small single-step work may go straight to the worker\.$/);
+  assert.match(a, /\nGive work for an agent with a lead to that lead \(or plan it with plan_work\); .* Call such an agent directly only when the user named it\.\nA report that ends with "Hand back:" means its agent left the choice to you/);
+});
+
+test("ADR-272 hand back: only a last line that starts with it counts; the need is one line of at most 300 characters", () => {
+  assert.equal(handBackNeed("Done. The table is filled in."), undefined, "a normal report");
+  assert.equal(handBackNeed("Hand back: a designer\nThen I stopped."), undefined, "not the last line");
+  assert.equal(handBackNeed("I could not do the logo.\n\nHand back: someone who can draw a logo  \n"), "someone who can draw a logo");
+  assert.equal(handBackNeed("hand back: a\u2028second\u0007line\rhere"), "a second line here", "control and line separators become spaces");
+  assert.equal(handBackNeed(`Hand back: ${"x".repeat(1000)}`)!.length, HAND_BACK_CHARS);
+  assert.equal(handBackNeed("Hand back:   "), undefined, "no need given");
+  const names = (id: string) => ({ kame: "Kame", sid: "Sid" })[id];
+  assert.equal(handBackLine("Kame", "a logo designer", { kame: "sid" }, names), "Kame handed back to ARK: a logo designer. Choose the agent for it (the chart: Sid leads Kame); the usual rules apply.");
+  assert.equal(handBackLine("Kame", "a logo designer", {}, names), "Kame handed back to ARK: a logo designer. Choose the agent for it; the usual rules apply.");
+});
+
+test("ADR-272: an agent may call its direct reports and its peers, never itself or up the chart", () => {
+  const ids = ["ana", "bo", "cy", "di", "ed"];
+  const map = { bo: "ana", cy: "ana", di: "bo" }; // ana (to ARK) leads bo and cy; bo leads di; ed reports to ARK
+  const names = (id: string) => id.toUpperCase();
+  assert.deepEqual(callable("ana", map, ids), { reports: ["bo", "cy"], peers: ["ed"] });
+  assert.deepEqual(callable("bo", map, ids), { reports: ["di"], peers: ["cy"] });
+  assert.equal(delegationProblem("ana", "bo", map, ids, names), undefined, "a direct report");
+  assert.equal(delegationProblem("bo", "cy", map, ids, names), undefined, "a peer under the same lead");
+  assert.equal(delegationProblem("ana", "ed", map, ids, names), undefined, "peers that report to ARK");
+  assert.match(delegationProblem("ana", "ana", map, ids, names)!, /yourself/);
+  assert.match(delegationProblem("di", "bo", map, ids, names)!, /^BO is above you/);
+  assert.match(delegationProblem("di", "ana", map, ids, names)!, /^ANA is above you/, "no call up past the lead either");
+  assert.match(delegationProblem("ana", "di", map, ids, names)!, /^DI is not one of your reports or peers\. You may call: BO \(bo\), CY \(cy\), ED \(ed\)\./, "not a report's report");
+  assert.match(delegationProblem("di", "ed", map, ids, names)!, /You have no one to call\./);
+  assert.equal(teamLine("di", map, ids, names), "", "no one to call: no line, no Agent tool");
+  assert.match(teamLine("bo", map, ids, names), /^Your reports: DI \(di\)\.\nYour peers: CY \(cy\)\.\n.*Agent tool.*\nYou report only by ending your turn/);
 });

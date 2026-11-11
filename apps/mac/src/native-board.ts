@@ -243,14 +243,17 @@ export function boardRecorder(
   };
 
   const jobOfAgent = (agentId: string, agentType?: string): number | undefined => {
-    const known = jobOfAgentId.get(agentId) ?? jobOfTask.get(agentId); // Claude Code's task id of an agent is its agent id
+    // Claude Code's task id of an agent is its agent id; task_started (keyed by the Agent call's id) is the sure link and wins.
+    const known = jobOfTask.get(agentId) ?? jobOfAgentId.get(agentId);
     if (known !== undefined) return jobOfAgentId.set(agentId, known), known;
     if (!agentType) return undefined;
-    // ponytail: unlinked yet (the hook ran before task_started reached us): the oldest running job of that worker here.
-    const linked = new Set(jobOfAgentId.values());
-    const open = [...byCall.values()].map((c) => c.job).find((j) => !linked.has(j) && !ended.has(j) && helperOf(j) === agentType);
-    if (open !== undefined) jobOfAgentId.set(agentId, open);
-    return open;
+    // Unlinked yet (the hook ran before task_started reached us): the one open job of that worker here. ADR-272: with two
+    // or more (the same agent many times at once) there is no guess; task_started links each one.
+    const linked = new Set([...jobOfAgentId.values(), ...jobOfTask.values()]);
+    const open = [...byCall.values()].map((c) => c.job).filter((j) => !linked.has(j) && !ended.has(j) && helperOf(j) === agentType);
+    if (open.length !== 1) return undefined;
+    jobOfAgentId.set(agentId, open[0]!);
+    return open[0];
   };
 
   const hook = (f: (input: Record<string, any>) => void | Promise<void>) => [

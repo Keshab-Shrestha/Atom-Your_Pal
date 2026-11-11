@@ -4837,7 +4837,7 @@ The audit (`docs/ui-audit-2026-11-05.md`, item A5) found that the window's top b
 
 ### Context
 
-Keshab wants to see the levels of the team like an office: CEO, managers and workers. He chose two things: the Board shows the levels, and the levels change how ARK routes work. ADR-095 had Manager files. ADR-110 N5 removed Manager runs for token cost, and ARK no longer reads those files. The Claude Agent SDK does not let a sub-agent start another sub-agent.
+Keshab wants to see the levels of the team like an office: CEO, managers and workers. He chose two things: the Board shows the levels, and the levels change how ARK routes work. ADR-095 had Manager files. ADR-110 N5 removed Manager runs for token cost, and ARK no longer reads those files. (Correction, ADR-272: the Claude Agent SDK lets a sub-agent start another sub-agent when the Agent tool is in its definition.)
 
 ### Decision
 
@@ -5046,3 +5046,214 @@ ARK goes to other developers for free. ARK's own prompts, refusals and screens u
 - No fixed owner name is left in a runtime prompt, message or screen text. Code comments, tests and gallery fixtures keep a sample name.
 - A tool description is made at runtime start. After the first-run sheet, a few descriptions (for example trash_file) say "the user" until the next start. Refusals and prompts that are built per call use the new name at once.
 - Prompts change when the name changes, so their cache prefix changes once.
+
+## ADR-272 — Agents call agents, work goes through managers, one agent runs many times (2026-11-06)
+
+Amends ADR-261. Covers Claude chats and Codex chats (Keshab, 2026-11-06: "Codex chats follow the same rules").
+
+### Context
+
+Keshab: "I will be talking to ARK and ARK will be providing the task to the agents; before going to the agents it will be going through the managers. But the agents will be able to call other agents. And the same agents will be able to work multiple times at the same time."
+
+Before this change, only a prompt line routed work through a lead. No code read the chart. Only the main thread had the Agent tool. Unplanned file work ran one task at a time in a chat, also in its own worktree. ARK paired worktrees with jobs in call order (FIFO), and it guessed the job of an unlinked agent.
+
+ADR-261 says that the SDK does not let a sub-agent start another sub-agent. That is wrong. A live probe on 2026-11-06 (SDK 0.3.287, CLI 2.1.287) showed this: a sub-agent with "Agent" in its tools started another sub-agent. The child's `task_started` had `spawn_depth: 2`. The PreToolUse hook of the nested call had the caller's `agent_id` and `agent_type`. The child ran in the foreground, and its result came back to its caller.
+
+### Decision
+
+C. The same agent many times at once:
+
+- The gate decides `isolated` (a worktree in a Git project) before the per-chat file hold. Work in its own worktree skips the hold. Work in the home folder or in a plain folder keeps the hold.
+- `PLAN_PARALLEL` stays a constant (2). ARK has no cheap setting path for it now.
+- Claude Code names an agent's worktree `agent-<agent id>`. The WorktreeCreate hook keeps that name with the job. When two parallel calls get each other's worktree, the gate swaps the two jobs' worktrees before it checks the agent's first file call. The folder and branch keep the other job's number. The host file readback of a swapped worktree is not used. A host adapter names its job (`ark-job-<n>`) and gets that job's worktree.
+- `jobOfAgent` uses the SDK task link first. Before the link, it guesses only when the agent has exactly one open job. With two or more, the gate refuses the call: "Make the same call again."
+
+B1. Agents call agents:
+
+- An agent with a report or a peer gets the Agent tool and a team line in its prompt. The line names its reports and peers and says that it reports only by ending its turn. An agent with no one to call gets neither.
+- The definitions no longer set `background: true`, because that also puts an agent's own child in the background. The gate sets `run_in_background: true` on each main-thread call and `false` on each nested call. The caller waits, and the child's report comes back to it.
+- The gate identifies the caller by the hook's `agent_id` and `agent_type` (the agent type is the ARK agent id), and by the Board job of that agent. It never reads the model's text for this.
+- Code policy (`delegationProblem` in `org.ts` and the gate): the target is a direct report, or a peer (the same lead, or both report to ARK). The caller may not call itself or one of its leads. The target may not already work on the task above the caller (no loops). A task may go at most 4 levels deep (`MAX_ORG_DEPTH`). One root task may start at most 6 agents below it (`MAX_TEAM_CHILDREN`), at all levels together. A paused agent is refused. A plan-first caller must have its plan approved first. The file hold applies as for the main thread.
+- A nested call passes only `description`, `prompt` and `subagent_type`. Plan portions ("P<n>") belong to the main thread only.
+- The child's Board job has `parentId` (the caller's job), so the Board shows it in its parent's envelope. Stopping a task stops its native children and their children.
+- Taint (ADR-123): the child gets the caller's taint. When the child ends, its taint goes to its caller, not to the main thread.
+- Each refusal is one or two short sentences and tells the model what to do instead.
+- "Report only at turn end": a child has no tool to message its caller or ARK while it works. SendMessage, ask_user and ARK's own tools stay refused, and `name` and `team_name` never pass on.
+
+A1. Work goes through managers:
+
+- On the main thread, a call with no plan portion to an agent whose lead is another agent is refused: "<X> reports to <Lead>. Give the task to <Lead> (subagent_type "<lead>"); <Lead> assigns it."
+- Exceptions: the user named the agent in this message (native-core's addressed agent, passed to the gate with `newAnswer`, not read from text by the gate), a retry chat, and an agent that reports to ARK.
+- Planned portions for a worker with a lead stay allowed. The plan already names the lead's portions.
+- The prompt rule in `orgPrompt` is now one line that matches the code.
+
+Not done: the stall flag (a running job with no tool call or progress for 8 minutes). It needs a timer per job. It is a follow-up.
+
+### Consequences
+
+- Token cost: each agent with someone to call carries the Agent tool and its agent list, about 1,000 tokens more for each sub-agent run. A child run costs its own model calls. The cap of 6 children for each root task limits the cost.
+- A child in a Git project works in its own worktree, not in its caller's worktree. The caller reads the child's report, not its files. To read the child's files, the caller asks for approval.
+- In a home-folder chat, a folders child waits while other file work runs, also its folders caller's work. The hold refuses the call, and the caller does the work itself.
+- Design reference: Ghostex (MIT, maddada/Ghostex) for "a worker reports only at the end of its turn" and for coordinator ideas. ARK uses no Ghostex code.
+- Live test: `apps/mac/src/native-team.live.test.ts` runs Sid → Kame on the real Claude Code. Kame's job records Sid's job as its parent, and Kame's answer comes back through Sid. It passed on 2026-11-06.
+- Hand back (Keshab, 2026-11-06): an agent may leave the choice of agent to ARK. Each agent's prompt says: when it should not pick the agent itself, it ends its turn and makes the last line of its report "Hand back: <what is needed>". Code finds that line (`handBackNeed` in `org.ts`) and writes a fixed line for ARK: "<Agent> handed back to ARK: <need>. Choose the agent for it (the chart: …); the usual rules apply." The need is one line, with no control characters, at most 300 characters. In a Claude chat the line goes into the wake text and into the next turn's catch-up. In a Codex chat it goes after the report in the tool result. ARK's team rule says that ARK then picks the agent and starts it, with the A1 rules. There is no new tool. This follows Ghostex's idea: a worker reports only at the end of its turn, and the coordinator decides.
+- Codex chats (2026-11-06): the Codex gate gets the chart (`reportsTo`) and the agent the user named in the message (`addressedAgent` in `native-agents.ts`, shared with native-core). So A1 and the gate's checks apply there too. A Codex worker has no Agent tool: it consults another worker only through the advisory path (ConsultWorker). Codex now links each started task by its call id, not by the agent type, so two runs of the same agent at once get the right jobs.
+- Review fixes (2026-11-06): the gate takes a child slot before its first await, so parallel calls cannot pass the cap of 6. A failed admission gives the slot back. After a worktree swap, a job that still waits for a worktree takes the other job's place and folder number, so two agents never share a worktree.
+
+## ADR-273 — Chat UX from Ghostex, batch 1 (2026-11-06)
+
+Follows ADR-272. Closes its follow-up: the stall flag.
+
+### Context
+
+ADR-272 lets agents call agents. A chat can now start a tree of Board jobs: a manager's job and its workers. The chat showed these jobs as a flat "Agents" list, and the Board showed each child apart from its parent ("for #20"). Nothing showed a worker that stopped making progress.
+
+Design reference: Ghostex (github.com/maddada/Ghostex, MIT). Its thread list shows sub-agents under their coordinator, a state glyph for each, and a short status line. ARK uses no Ghostex code, assets or pixel layouts. Each pattern is drawn again with ARK's tokens, type scale, square cards, UIcons and tone steps (ADR-214).
+
+### Decision
+
+1. Workers card in the chat. Under the latest turn, one card lists each Board job that the chat started. One row shows: the state glyph (a spinner while it runs, "?" in the attention colour when it needs the owner, a check when done, "!" when failed, a square when stopped, a clock when queued), the job's short title, the agent's name and one line of its latest step or report. A worker sits under the job that started it, with a guide line. A manager gets a crown. The header folds the card. Past 5 rows, "Show all" and "Show fewer" fold the rest. A click on a row opens the task. The card replaces the "Agents" list, so the chat shows each job once.
+2. Tree on the Board. In the Flow lanes and in the stacked list, a child job sits under its parent when both are in the same group. A manager shows a crown, its worker count and its age, in the same time format as the Workers card ("3 workers · 15m 0s"). The Flow card already has a clock line, so there the age is left out. "for #<parent>" shows only when the parent is not directly above (also on a nested Flow card).
+3. Stuck dot. `apps/mac/src/job-quiet.ts` watches running native jobs (jobs with a chat). Each step, tool call or state change of a job is a move. A move of a job is also a move of each job above it (walked up by `parentId`), so a manager that waits on a moving worker is not quiet. A sweep each minute marks a job quiet when it has not moved for `QUIET_AFTER_MS` (8 minutes). It logs `job.quiet` once (job id and parent id). The next move clears the mark. The mark lives in memory only; after a restart each running job starts a new count. The island job item carries `quietSince` (ISO time of the last move). A quiet job gets a hollow ring in the attention colour in the Workers card and on the Board, with the tip "No new output for 8 min". Red stays for a failed job. The runtime stops the watch when it closes.
+4. No extra tokens. Nothing about a quiet job goes to the model in this batch, also when the job has a parent.
+
+Pure logic is in `ArkIslandCore/JobTree.swift`: tree order, worker counts, one-line text, the row glyph (`WorkerMark`) and the fold (`WorkersFold`).
+
+### Stays ARK's own
+
+- The Board, its lanes, the inspector and the task page. A row opens ARK's own task view.
+- ARK's state words, colours and the tone steps of ADR-214. The crown and "?" glyphs come from UIcons, with SF Symbols as the fallback.
+- The rules of ADR-272: who may call whom, the depth and child caps, and "Hand back".
+
+### Consequences
+
+- The chat sidebar lists chats, not jobs, so it has no tree.
+- A manager's ARK prompt does not learn about a quiet worker yet. A later batch can decide whether to tell the manager and what that costs.
+- Gallery scenes: `ARK_ISLAND_GALLERY_ONLY=workers` renders 51-workers-card-dark, 51-workers-card-light, 51-workers-tree-flow and 51-workers-tree-list.
+
+
+## ADR-274 — Chat UX from Ghostex, batch 2: queue rows, Tab to queue, Catch me up (2026-11-06)
+
+Follows ADR-273. Extends ADR-127 and ADR-142.
+
+### Context
+
+ADR-142 put queued messages above the composer as text-button rows. Only the first row could go now, and the order could not change. A chat that changed while the owner was away (new replies, agent reports, Board jobs that moved) gave no sign of it when the owner came back.
+
+Design reference: Ghostex (github.com/maddada/Ghostex, MIT): its queue rows, its "Tab to queue" hint and its "Catch me up" button. ARK uses no Ghostex code, assets or pixel layouts. Each pattern is drawn again with ARK's tokens, type scale, square cards, UIcons and tone steps (ADR-214).
+
+### Decision
+
+1. Queue rows. Each queued message is one compact row in the composer card: a grip, the first line (truncated), and three icon actions on hover or keyboard focus: Edit, Send now, Remove. Drag the grip onto another row to put the message at that place. A row with keyboard focus takes Return (send now), E (edit), Delete (remove), ⌥↑ and ⌥↓ (move). VoiceOver gets the same actions by name. The saved copies follow the new order. Held messages (after a stop or a restart) keep their own rows with Edit and Discard, and have no grip and no Send now.
+2. Send now works on every row, not only the first. It uses the existing path: the runtime's `text.send` stops the current answer ("typing over an answer stops it"), then sends this message. The other rows keep their order. No new interrupt or steer mechanism was added.
+3. Return and Tab. While ARK answers, Return still queues the message (ADR-127). Tab now queues it too. ⌘Return puts the draft in the queue and sends the oldest queued message now. Tab queues only with words in the box, no modifier (Caps Lock does not count) and no open "/" or "@" menu. In other cases Tab moves focus as before. While ARK answers, the empty box says "Return or Tab to queue · ⌘Return to send the next now". With words in the box, the same line shows under it. While a message is still being sent, ⌘Return does nothing, so the line says only "Sending… · Return or Tab to queue".
+4. Catch me up. Each chat remembers on this Mac what it held when it was last on screen: the chat list's message count and the Board state of each job the chat started (`ark.chat.seen` in UserDefaults, at most 200 chats, no message text). When a composer shows the chat again, `ChatActivity.isNew` compares once. More messages, or a job of this chat that is new or has another state, shows "Catch me up" above the box. While the chat stays on screen, new activity is seen, not news. A chat seen for the first time shows nothing. A click sends one fixed request through the normal send path: "Catch me up: summarise in a few lines what happened in this chat since 14:05." The button shows only while ARK does not answer. The draft in the box stays.
+5. Workers chip. Above the box, "Workers n" counts this chat's running and queued Board jobs. A click scrolls the transcript to the Workers card (ADR-273). There is no "Queued n" chip: the queue rows show their count once, in their header.
+
+### Stays ARK's own
+
+- ADR-127 and ADR-142: Return queues while ARK answers, the 20-message limit, held messages after a stop or a restart, one send at a time.
+- No new runtime command, wire field or model call. `ChatActivity` and the queue order are deterministic code in ArkIslandCore.
+
+### Consequences
+
+- The Ghostex wording "Enter to send · Tab to queue" was not used: Return queues while ARK answers, so that line would be wrong.
+- The last view is recorded when the composer appears, disappears or the chat changes, and when the ARK window closes. The closed window stays in memory, so its composer does not disappear: `ChatViewing` (ArkIslandCore) pauses the view on close and resumes it when the window opens on the chat page. On another page, the next composer that appears resumes it. Moving to another app while the ARK window stays open does not count as leaving.
+- While the owner stays in the chat, a view with the same message count and job states is not written again (no write for a new time only). Leaving always writes, so the time names when the owner left. Deleting a chat removes its view.
+- VoiceOver lists Send now, Move up and Move down only on rows that have them (held rows have none).
+- When the Board list arrives after the chat, its job changes are compared once when it arrives.
+- Gallery scenes: `ARK_ISLAND_GALLERY_ONLY=composer` renders 52-composer-queue-dark, 52-composer-queue-light, 52-composer-catch-up-dark and 52-composer-catch-up-light.
+
+## ADR-275 — Chat UX from Ghostex, batch 3: worked header, diff card, questions card (2026-11-06)
+
+Follows ADR-274. Extends ADR-156 (chat work visibility) and the complete file review (ADR-129).
+
+### Context
+
+A finished turn showed "Worked for 9s · Read 3 files" in plain text, with no counts. The file review showed the change as one run of crossed-out and green words, with no line numbers. The `ask_user` tool asked one question per card, and the card had only text buttons for the choices and a free-text field.
+
+Design reference: Ghostex (github.com/maddada/Ghostex, MIT): its "Worked 9s" row, its "Edited 1 file" diff card and its questions card. ARK uses no Ghostex code, assets or pixel layouts. Each pattern is drawn again with ARK's tokens, type scale, square cards, UIcons and tone steps (ADR-214).
+
+### Decision
+
+1. Worked header. The turn's work row is one header: a chevron, the time in bold ("Worked for 9s", "Thought for 4s", "Working for 2s"), the dim summary of the tools, and pills at the right: "3 tool calls" and "1 question". The newest turn keeps its steps open after the answer (owner rule, 2026-11-06). The words and the counts come from `ChatWorkText.headline` and `ChatWorkText.chips` in ArkIslandCore.
+2. No "files changed" pill. Tool rows carry no paths, so ARK does not know how many files a turn changed. ARK shows only counts that it knows.
+3. Diff card. Under "Changes", the file review shows one card: a pencil tile, "1 file to change", "+N −M" and five mini squares; then one section per file with a chevron, the file name in bold and the folder dim; then each hunk with a tinted "@@ -a,b +c,d @@" line, two line-number gutters and green added and red removed rows in mono. The bottom link is "Reveal in Finder": ARK's existing file action. It never opens or runs the file. `UnifiedDiff` in ArkIslandCore makes the hunks from the Myers line diff that `TextDiff` already has (three lines of context; changes closer than six lines share a hunk).
+4. Each thing shows once. The path shows once, in the file's row. With one file, the "+N −M" shows once, in the card header. "Before" and "After" keep the whole texts with the path above them.
+5. Questions card. All questions that wait in a turn show in one card above the composer: a header tile, "ARK asks" and "2 questions"; for each question a "Q1" pill, the question, its options as radio rows (label, optional dim line, a "Recommended" pill, a letter key a, b, c at the right), an "Other / none of these" row, and an optional note. A question with no options has only "Your answer". The footer says "Questions you leave blank are sent as unanswered." and has "Send answers" (⌘↩). Tab moves to a question's options; a letter picks a row; ↑ and ↓ move the pick. Each row has a VoiceOver label, its key as a hint and the selected trait.
+6. `ask_user` extension (runtime). The tool keeps `question` and `choices` for one question. A new optional `questions` property is a JSON string: an array of one to four `{question, choices}` objects (the tool schema allows only `{type, description}` per property). Each choice is one line: "Label | reason (recommended)". A choice may have 160 characters (was 100). Code parses and checks all of it: in `chat-work.ts` for the runtime, in `ChatQuestions` (ArkIslandCore) for the card. One call makes one card. The card waits until each question has an answer or a blank, then the tool returns one result. One question keeps the old result format; more give `{answers: [...]}` with `unanswered: true` for a blank. Stop, expiry and the end of the turn settle the whole card at once.
+7. Answers. The card sends one `chat.question.answer` per question, through the existing path that saves each answer for recovery. A picked option sends its label, then the note. "Other" sends the note, or "None of these". A blank sends a skip.
+
+### Stays ARK's own
+
+- Answers are clarification only, not file or system permission. The card says so.
+- No new runtime command, wire field or dependency. At most four questions per turn and one waiting card, as before.
+
+### Consequences
+
+- The file review's segmented picker and scroll view are AppKit views and do not render in a snapshot. The gallery shows the diff card on its own.
+- "Review all" from Ghostex was not added: one ARK file review holds one file, and the review is already the place to review it.
+- Gallery scenes: `ARK_ISLAND_GALLERY_ONLY=transcript` renders 53-worked-header, 53-diff-card and 53-questions-card, each dark and light.
+
+### Checker fixes (2026-11-06)
+
+An independent checker reviewed this batch. These changes follow:
+
+1. Return in a note does not send the card. Only "Send answers" and ⌘↩ send.
+2. ⌘↩ sends the card only while focus is in the card (an `onKeyPress` on the card, not a window shortcut). In the message box, ⌘↩ keeps its ADR-274 meaning. This is checked by the build only, not by hand in the running app.
+3. The card waits 90 s for each question: four questions wait up to 360 s.
+4. VoiceOver reads the work header with its summary or current step.
+5. A change to only the final newline shows the last line as removed and added, with a "\ No newline at end of file" row, as `diff -u` writes it.
+6. In a change, a removed line and the added line at the same place mark the changed characters with a stronger tint (common prefix and suffix trimmed). A control character shows as its Control Pictures glyph (␍, ␀). A bidi, zero-width or other format character shows as "⟨U+202E⟩". A tab stays a tab, and the joiners in an emoji stay.
+7. The runtime (`chat-work.ts`) and the card (`ChatWorkSnapshot.Question` decoding) remove control characters and the characters U+200B–U+200F, U+202A–U+202E, U+2066–U+2069 and U+FEFF from prompts and choices. A prompt keeps its line breaks. A prompt with only such characters is refused.
+
+Known limit: when an answer cannot be saved, the card shows the error, but the answers that were already saved for the earlier questions stay saved. The card can then show a mismatch between what it shows and what was saved. This is not fixed.
+
+## ADR-276 — Chat UX from Ghostex, batch 4: result cards and plan notes (2026-11-06)
+
+Follows ADR-275. Extends the reply chart (2026-11-02) and work plans (ADR-111).
+
+### Context
+
+ARK drew a `chart` block with one chart. A test run or a comparison needs several numbers together: counts, a ranking and the failures. Agents wrote these as several Markdown tables. A work plan on the Board had no place for the owner's feedback on each step. The owner typed the feedback by hand.
+
+Design reference: Ghostex (github.com/maddada/Ghostex, MIT): its `visual` result cards and its plan annotations. ARK uses no Ghostex code, assets or pixel layouts. Each pattern is drawn again with ARK's tokens, type scale and square cards (ADR-214).
+
+### Decision
+
+1. Result card. A reply can hold a fenced block with the language `ark-visual`. The block holds one JSON object: a `title` and 1 to 6 blocks of type `stats`, `bar`, `line` or `table`. docs/chat-visuals.md gives the grammar and the limits.
+2. Strict parser. `ArkVisual.parse` in ArkIslandCore is pure and never throws. It refuses unknown keys, unknown types, wrong types, repeated chart labels, short table rows and any text or count over its limit. A refused block shows as code. A streaming block shows "Drawing a card…".
+3. Drawing. Stat tiles use the theme's good and bad colours for the tone. A line chart uses Swift Charts. Bars are plain SwiftUI rows (label, accent bar, value), because Swift Charts drew hairline bars on a category axis in the offscreen renderer. All bars and lines use the one accent colour.
+4. Header. An icon, the title, Source (shows the JSON) and Copy (the numbers as Markdown tables, with an HTML flavour). Select text shows the card as its tables.
+5. VoiceOver. The card is one element. Its label is the title, each stat, and for each chart its kind, its count and its largest value. Copy and Show source are actions.
+6. Prompt. The chat media rule (native-core.ts) gives one sentence and one small example. All four chat prompts carry it.
+7. Plan notes. Each portion row of a plan card has Note. The editor has three marks (Looks good, Clarify, Needs tests) and optional words. A note needs a mark or words. The notes list shows them in portion order with Remove, Clear and Send notes.
+8. Portion level, not text selection. Plan text is a SwiftUI Text. A selection in it cannot be read back, so a note belongs to a portion. The portion number is the line number in the message.
+9. Send notes. `PlanNotes.message` writes `Notes on the plan "<goal>":` and one numbered line for each note: `1. [Clarify] P2 — "<step, at most 160 characters>": <words>`. The message goes after the current chat's draft. ARK does not send it. The notes then clear.
+10. Storage. Settings keeps the notes per plan in UserDefaults (`ark.plan.notes`): at most 50 notes for each plan and the 40 newest plans. Each set keeps its goal; a plan number with another goal starts empty. No message text is stored.
+
+### Stays ARK's own
+
+- No scripts, no network, no HTML in a card. No new dependency, runtime command or wire field.
+- The owner sends the notes. The model does not see them before that.
+
+### Consequences
+
+- A card with a bad key shows as code. Agents must follow the grammar exactly.
+- Gallery scenes: `ARK_ISLAND_GALLERY_ONLY=visuals` renders 54-ark-visual and 54-plan-notes, each dark and light. It also renders 54-plan-notes-full-dark: a plan at the 50-note limit.
+
+### Checker fixes (2026-11-06)
+
+An independent checker reviewed this batch. These changes follow:
+
+1. A `stats` block can have an optional `title`. The card shows it above the tiles, as for the other blocks. Copy and VoiceOver use it.
+2. The prompt now says that chart points have only `label` and `value`, that each label is different, and that any block can have a title.
+3. A title, label, unit, column, value, note or cell with a hidden character (for example U+202E) is refused. The whole card then shows as code.
+4. At 50 notes, the note editor turns off "Add note" and shows "50 notes max". Before, the 51st note was lost with no message.
+5. A note line in the message is one line: `\r`, `\r\n`, U+2028 and U+2029 become spaces.
+6. The goal in `Notes on the plan "<goal>":` is one line, with double quotes made single, at most 80 characters.
+7. Send notes clears the notes only after the chat box draft is saved. If the save fails, the draft goes back to what it was, the notes stay, and the list shows a short error line.
+8. Send notes is off when no chat is open.
+9. Tests: the byte limit uses a valid card padded past 64,000 bytes; `1e400` and 200 levels of nesting show as code; the prompt's example card parses. `ArkVisualTests.promptExample` and `ARK_VISUAL_EXAMPLE` in native-core.test.ts hold the same text, and the TypeScript test checks that the prompt holds it.
+
+Intended: a plan number that comes back with the same goal shows its old notes again. The key is the plan number and the goal, so this is the same plan to the owner.

@@ -156,6 +156,8 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
     public var subAgents: [HelperSubAgent]
     /// ADR-098: its labels, sorted.
     public var labels: [String]
+    /// ADR-273: a running agent with no tool call or progress for 8 minutes; when it last moved. Nil when it is not quiet.
+    public var quietSince: Date?
     public var isFinished: Bool { state == .done || state == .failed }
     /// ADR-094: a done task (not one of Tinker's) can become a skill.
     public var canBecomeSkill: Bool { state == .done && reviews == nil }
@@ -166,8 +168,9 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
                 comments: Int = 0, goal: String? = nil, parentId: Int? = nil, goalId: Int? = nil, goalEnded: Bool = false,
                 resumable: Bool = false, held: String? = nil, interrupted: Bool = false, planFirst: Bool = false, planStatus: String? = nil,
                 planSummary: String? = nil, rating: String? = nil, reviews: Int? = nil, autoRetries: Int = 0,
-                subAgents: [HelperSubAgent] = [], labels: [String] = [], recoveryNeeded: Bool = false, retryOf: Int? = nil, retriedAs: Int? = nil, advisory: Bool = false, chatId: String? = nil) {
+                subAgents: [HelperSubAgent] = [], labels: [String] = [], recoveryNeeded: Bool = false, retryOf: Int? = nil, retriedAs: Int? = nil, advisory: Bool = false, chatId: String? = nil, quietSince: Date? = nil) {
         self.chatId = chatId
+        self.quietSince = quietSince
         self.id = id
         self.task = task
         self.state = state
