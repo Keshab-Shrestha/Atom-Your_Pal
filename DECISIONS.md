@@ -5286,3 +5286,37 @@ The owner likes the translucent main window of Ghostex (github.com/maddada/Ghost
 - Nothing changes until the owner turns the setting on. No golden changed.
 - `WindowTranslucencyTests` checks the contrast floor for every theme at High over white and black, the strength order, the material per theme, the default, storage, and the Reduce Transparency and Increase Contrast fallbacks.
 - Not checked: GPU and WindowServer cost of the blur over a long session; the blur over a real wallpaper (the live captures had a dark app window behind the ARK window).
+
+## ADR-278 — Rust migration plan (2026-11-11)
+
+**Status:** Proposed. The plan is in [docs/rust-migration-plan.md](docs/rust-migration-plan.md). No migration code exists yet.
+
+### Context
+
+The owner wants Rust for the back end and the front end, because it is fast. The owner chose Rune (github.com/anomalyco/rune, MIT, © 2026 Anomaly) as the UI base: a Rust GPU UI framework that renders headless to PNG and dumps the element tree. The owner wants to copy Rune and change it as needed, plan everything first, and then move in many small PRs. Old Swift and Node code stay until the Rust version of an area reaches parity. Then the old area moves to `legacy/swift` or `legacy/node`; it is not deleted. Today ARK has about 53 000 lines of Swift (app) and 40 000 lines of TypeScript (runtime), with about 37 000 lines of tests.
+
+### Decision
+
+1. Move ARK to Rust in five phases (strangler order): 0 toolchain, Rune copy and hello window; 1 pure logic in `ark-core` with shared JSON parity vectors and shadow mode; 2 `ark-runtime` takes over the Node runtime one area at a time behind the unchanged island protocol; 3 Rune screens replace Swift screens one at a time, least risky first, with the composer and floating panels last; 4 cutover with the same bundle identifier and signing identity, then the legacy move.
+2. Use Rune at `dev` commit `b556a38a1ff88aa8690d21b45ebf9b9167038674` as the UI base. Keep its MIT licence in the copy and in the app bundle.
+3. Keep these outside Rust while Rust cannot do them well: the Claude Agent SDK (Node sidecar `claude-bridge`, ADR-055), Parakeet dictation (Swift helper), EventKit and PDF text (existing Swift helpers), Kokoro TTS (Node worker until ported), the Cua driver and `agent-browser` (external programs).
+4. The policy stays in Rust code at every step. Sidecars send each tool call and permission question back to the Rust runtime (CLAUDE.md §12).
+
+### Alternatives considered
+
+- Stay on Swift and Node: no migration cost, but the owner's goal (one fast language) is not met.
+- Rust core and keep the Swift UI: lowest risk (no text input or panel risk), but the owner wants Rust for the front end too. This is the state after Phase 2, so it stays a fallback.
+- Tauri: the UI is a web view (HTML and JavaScript), so the front end is not Rust.
+- egui: immediate mode, weak text input and accessibility, not a native-feeling Mac app.
+- iced: no headless render and tree dump for agent tests; text input and accessibility less complete than Rune's.
+- Slint: its own markup language for the UI, and a licence choice (GPL-3, royalty-free with attribution, or commercial).
+- GPUI (Zed): Mac-first and fast, but built for Zed, with little documentation for outside apps and no headless PNG and tree tools.
+- Rune: chosen. Headless PNG, tree and script tools fit ARK's golden tests; AccessKit, IME, rich text, overlays, global shortcuts and native menus exist; rune-kit has a diff view and Markdown. It is pre-release and takes no pull requests, so ARK carries its own patches.
+
+### Consequences
+
+- About 60 to 85 PRs. Each one moves one capability and proves parity.
+- Rune lacks a macOS status item, a web view, a terminal, the `.hudWindow` and `.sidebar` materials, hover in a non-key panel, per-display overlays, charts, and AppKit text services. ARK patches its copy or adds objc2 code for each, and opens an upstream issue.
+- Node stays required while `claude-bridge` exists. A Rust toolchain becomes required for builds and updates.
+- The Swift app stays the daily app until Phase 4. The 73 Swift goldens stay until then. Rune screens get their own goldens and tree assertions.
+- Owner decisions are listed in section 9 of the plan. Claims not checked by build are listed in section 10 and are checked in Phase 0.

@@ -1,5 +1,9 @@
 # ARK Task Plan
 
+## Rust migration plan — 11 November 2026
+
+- ADR-278 (Proposed; UI base: Rune, MIT): docs/rust-migration-plan.md plans the move from Swift and Node to Rust in five phases of small PRs. Docs only; no Rust code. Next: the owner answers the decisions in section 9, then Phase 0 PR 1 (`rust/` workspace, pinned toolchain, Rune copy at `b556a38`, CI job, headless hello window).
+
 ## README for new users — 7 November 2026
 
 - Docs only: README.md is rewritten for new users (Quick start first, short feature groups, Contributing, an honest Status). docs/features.md holds the full, checked feature list. Three new images: Workers card, result card and translucent window. Fresh renders replace the Studio, chat, chart and logo images. Safety lines say where Full access skips a question. No license file exists yet.
