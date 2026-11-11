@@ -6,4 +6,5 @@ pub mod jobs;
 pub mod js;
 pub mod org;
 pub mod policy;
+pub mod visual;
 
