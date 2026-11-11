@@ -235,6 +235,7 @@ Every PR follows CLAUDE.md §3 and §21: one capability, tests, verify, docs, st
 
 ### Phase 0: toolchain, Rune copy, hello window (3 to 4 PRs)
 
+- Status: PR 1 (Phase 0.1) is done. It adds the `rust/` workspace, toolchain 1.99.1, the Rune copy at `b556a38`, the `ark-hello` window (headless PNG and `--tree`) and the CI job `rust`. The text, window and native-view spike checks are still open.
 - Scope: `rust/` workspace, pinned toolchain, Rune copy at `b556a38`, CI job `rust` on `macos-latest` (`cargo test`, `cargo clippy`), `ark-app` hello window.
 - Deliverables: a headless PNG and `--tree` JSON of the hello window as CI artifacts; `UPSTREAM.md`; `THIRD_PARTY.txt`.
 - Spike checks, build: clean and incremental build time; binary size. Record the numbers in STATUS.md.

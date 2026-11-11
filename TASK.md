@@ -1,5 +1,13 @@
 # ARK Task Plan
 
+## Rust Phase 0.1: workspace, Rune copy and hello window — 11 November 2026
+
+- ADR-278, Phase 0 PR 1: `rust/` is a Cargo workspace with toolchain 1.99.1. `rust/vendor/rune` is a copy of Rune at `b556a38`. It holds the 9 crates of the migration plan. It also holds `procwatch`, `rune-ref` and `themes/opencode`, because the build and the tests need them. `rust/vendor/rune/UPSTREAM.md` records the source, the dropped parts and the update steps. `rust/THIRD_PARTY.txt` lists the licences.
+- `rust/crates/ark-hello` draws a hello window. `--snap` writes a PNG and `--tree` writes the element and accessibility tree. The CI workflow `rust.yml` builds, lints and tests it and keeps the PNG and tree as an artifact. It runs only when a file under `rust/` changes.
+- The plan names the hello crate `ark-app`. This PR uses `ark-hello`, so `ark-app` stays free for the real app in Phase 3.
+- `ark-hello` turns off Rune's default feature `ogg-audio`. So the build has no MPL-2.0 crates.
+- Next: the Phase 0 spike checks, one PR each: text input, VoiceOver, windows and native views.
+
 ## Rust migration plan — 11 November 2026
 
 - ADR-278 (Accepted; UI base: Rune, MIT): docs/rust-migration-plan.md plans the move from Swift and Node to Rust in five phases of small PRs. Docs only; no Rust code. Next: Phase 0 PR 1 (`rust/` workspace, pinned toolchain, Rune copy at `b556a38`, CI job, headless hello window).
