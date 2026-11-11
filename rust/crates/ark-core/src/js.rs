@@ -86,7 +86,7 @@ pub fn collapse_runs(text: &str, class: impl Fn(char) -> bool) -> String {
 const JS_SPACE_CLASS: &str = r"\t\n\x0B\x0C\r \x{A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}\x{FEFF}";
 
 /// A JavaScript regular expression (no `u` flag) as a Rust one: `\s`/`\S` get JavaScript's white space, and `\w`/`\b`
-/// are ASCII, as in JavaScript. `\d` is not used by the ported patterns.
+/// and `\d` are ASCII, as in JavaScript.
 // ponytail: a textual rewrite of the escapes the ported patterns use; a new pattern with other JS-only syntax needs a check.
 /// Only for the fixed patterns of this crate: a pattern that does not compile panics (every test run compiles them all).
 #[allow(clippy::expect_used)]
@@ -115,6 +115,8 @@ pub fn js_regex(pattern: &str, ignore_case: bool) -> Regex {
                     out.push_str(JS_SPACE_CLASS);
                     out.push(']');
                 }
+                ('d', true) => out.push_str("0-9"),
+                ('d', false) => out.push_str("[0-9]"),
                 ('w', true) => out.push_str("A-Za-z0-9_"),
                 ('w', false) => out.push_str("[A-Za-z0-9_]"),
                 // fancy-regex has no `(?-u:\b)`: the ASCII word boundary as look-arounds.

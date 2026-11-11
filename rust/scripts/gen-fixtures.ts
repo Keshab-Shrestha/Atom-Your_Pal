@@ -7,6 +7,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { classifyCommand, expandHome, folderForTask, hasGitPart, isImportantName, isInside, isPushCommand, toolPaths } from "../../services/helpers/src/grants.ts";
 import { parseWriteScope, writeScopesOverlap } from "../../services/helpers/src/write-scopes.ts";
+import { canMove, isFinal, isRetryable, makesCycle, move, type JobState } from "../../services/helpers/src/jobs.ts";
+import { quietWatch } from "../../apps/mac/src/job-quiet.ts";
 import { callable, checkReportsTo, delegationProblem, handBackLine, handBackNeed, orgAgentIds, orgPrompt, resolveOrg, teamLine } from "../../apps/mac/src/org.ts";
 
 type Case = { fn: string; args: unknown[]; out: unknown };
@@ -132,4 +134,70 @@ function write(module: string, source: string, cases: Case[]): void {
   for (const a of team) add("teamLine", [a, chart, team, upper], () => teamLine(a, chart, team, namer(upper)));
   add("teamLine", ["bo", chart, team, {}], () => teamLine("bo", chart, team, namer({})));
   write("org", "apps/mac/src/org.ts", cases);
+}
+
+// ---- jobs (jobs.ts, job-quiet.ts) ----
+{
+  const cases: Case[] = [];
+  const add = (fn: string, args: unknown[], value: () => unknown) => cases.push({ fn, args, out: run(value) });
+  const states: JobState[] = ["queued", "running", "done", "failed", "stopped"];
+  for (const s of states) add("isFinal", [s], () => isFinal(s));
+  for (const from of states) {
+    for (const to of states) {
+      add("canMove", [from, to], () => canMove(from, to));
+      add("move", [from, to], () => move(from, to));
+    }
+  }
+  for (const e of ["Took longer than 15 minutes", "Claude Code ended without a report.", "The report came back in the wrong shape (body).", "It took more than 40 steps",
+    "The app was closed while this job ran", "COULD NOT RUN", "Sid needs the Claude plan for research.", "Your Claude plan limit is reached.", "took more than ٤ steps", "", "ſtook longer than"]) {
+    add("isRetryable", [e], () => isRetryable(e));
+  }
+  add("isRetryable", [null], () => isRetryable(undefined));
+  const graphs: [Record<string, number[]>, number, number[]][] = [
+    [{ 2: [1], 3: [2], 4: [] }, 1, [3]], [{ 2: [1], 3: [2], 4: [] }, 1, [4]], [{ 2: [1], 3: [2], 4: [] }, 5, [3, 4]], [{}, 1, [1]], [{ 1: [2], 2: [1] }, 3, [1]], [{ 1: [2], 2: [3] }, 3, [1]],
+  ];
+  for (const [edges, id, blockers] of graphs) {
+    add("makesCycle", [edges, id, blockers], () => makesCycle(new Map(Object.entries(edges).map(([k, v]) => [Number(k), v])), id, blockers));
+  }
+
+  // The quiet watch on a fake store: each scenario is a list of steps; the answer is each step's result.
+  type Job = { id: number; parentId?: number; state: string; chatId?: string };
+  type Step = { tick: number } | { move: number } | { sweep: true } | { since: number } | { set: Job };
+  const scenario = (jobs: Job[], steps: Step[]) => {
+    const table = new Map(jobs.map((j) => [j.id, { ...j }]));
+    let clock = 1_000_000;
+    let listener: ((change: { action: string; job: number }) => void) | undefined;
+    const logs: Record<string, unknown>[] = [];
+    let heard = 0;
+    const store = {
+      list: () => [{ jobs: [...table.values()] }],
+      get: (id: number) => table.get(id),
+      onChange: (l: typeof listener) => { listener = l; return () => undefined; },
+    };
+    const watch = quietWatch(store as never, { now: () => clock, sweepMs: 0, log: (_event, fields) => void logs.push(fields) });
+    watch.onChange(() => void heard++);
+    return steps.map((step) => {
+      if ("tick" in step) { clock += step.tick; return null; }
+      if ("move" in step) { const before = heard; listener!({ action: "step", job: step.move }); return heard - before; }
+      if ("sweep" in step) { const before = logs.length, heardBefore = heard; watch.sweep(); return { logs: logs.slice(before), heard: heard - heardBefore }; }
+      if ("since" in step) return watch.since(step.since)?.getTime() ?? null;
+      table.set(step.set.id, { ...step.set });
+      return null;
+    });
+  };
+  const Q = 8 * 60_000;
+  const minutes: Step[] = Array.from({ length: 20 }, () => [{ tick: 60_000 }, { move: 3 }, { sweep: true }] as Step[]).flat();
+  const scenarios: [Job[], Step[]][] = [
+    [[{ id: 1, state: "running", chatId: "c" }, { id: 2, parentId: 1, state: "running", chatId: "c" }],
+      [{ sweep: true }, { tick: Q - 1 }, { sweep: true }, { since: 2 }, { tick: 1 }, { sweep: true }, { since: 2 }, { since: 1 }, { tick: Q }, { sweep: true },
+        { move: 2 }, { since: 2 }, { since: 1 }, { tick: Q - 1 }, { sweep: true }, { since: 2 }]],
+    [[{ id: 1, state: "running", chatId: "c" }, { id: 2, parentId: 1, state: "running", chatId: "c" }, { id: 3, parentId: 2, state: "running", chatId: "c" }],
+      [{ sweep: true }, ...minutes, { since: 1 }, { since: 2 }, { since: 3 }, { tick: Q }, { move: 1 }, { sweep: true }, { since: 1 }, { since: 2 }, { since: 3 }]],
+    [[{ id: 1, state: "running", chatId: "c" }],
+      [{ sweep: true }, { tick: Q }, { sweep: true }, { since: 1 }, { set: { id: 1, state: "stopped", chatId: "c" } }, { move: 1 }, { sweep: true }, { since: 1 }]],
+    [[{ id: 1, state: "running" }, { id: 2, state: "queued", chatId: "c" }, { id: 3, state: "running", chatId: "c", parentId: 4 }, { id: 4, state: "running", chatId: "c", parentId: 3 }],
+      [{ sweep: true }, { tick: Q + 5 }, { sweep: true }, { move: 3 }, { since: 3 }, { since: 4 }, { tick: Q }, { sweep: true }, { since: 1 }]],
+  ];
+  for (const [jobs, steps] of scenarios) add("quietScenario", [jobs, steps], () => scenario(jobs, steps));
+  write("jobs", "services/helpers/src/jobs.ts, apps/mac/src/job-quiet.ts", cases);
 }

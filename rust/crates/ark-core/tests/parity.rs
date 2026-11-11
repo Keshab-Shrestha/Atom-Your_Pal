@@ -69,6 +69,82 @@ fn org() {
     });
 }
 
+fn state(value: &Value) -> ark_core::jobs::JobState {
+    ark_core::jobs::JobState::parse(value.as_str().unwrap()).unwrap()
+}
+
+/// Replays a quiet-watch scenario of gen-fixtures.ts on the Rust watch.
+fn quiet_scenario(jobs: &[Value], steps: &[Value]) -> Value {
+    use ark_core::jobs::*;
+    let mut table: Vec<Value> = jobs.to_vec();
+    let mut clock: i64 = 1_000_000;
+    let mut watch = QuietWatch::default();
+    let answers: Vec<Value> = steps
+        .iter()
+        .map(|step| {
+            if let Some(ms) = step.get("tick") {
+                clock += ms.as_i64().unwrap();
+                return Value::Null;
+            }
+            if let Some(job) = step.get("move") {
+                let parent_of = |id: i64| table.iter().find(|j| j["id"] == id).and_then(|j| j.get("parentId")).and_then(Value::as_i64);
+                return json!(i32::from(watch.moved(job.as_i64().unwrap(), parent_of, clock)));
+            }
+            if step.get("sweep").is_some() {
+                let running: Vec<RunningJob> = table
+                    .iter()
+                    .filter(|j| j["state"] == "running" && j.get("chatId").is_some_and(|c| c.as_str().is_some_and(|c| !c.is_empty())))
+                    .map(|j| RunningJob { id: j["id"].as_i64().unwrap(), parent: j.get("parentId").and_then(Value::as_i64) })
+                    .collect();
+                let events = watch.sweep(&running, clock);
+                let logs: Vec<Value> = events
+                    .iter()
+                    .map(|e| match e.parent {
+                        Some(p) => json!({ "job": e.job, "parent": p }),
+                        None => json!({ "job": e.job }),
+                    })
+                    .collect();
+                return json!({ "logs": logs, "heard": i32::from(!events.is_empty()) });
+            }
+            if let Some(job) = step.get("since") {
+                return json!(watch.since(job.as_i64().unwrap()));
+            }
+            let job = step["set"].clone();
+            let at = table.iter().position(|j| j["id"] == job["id"]).unwrap();
+            table[at] = job;
+            Value::Null
+        })
+        .collect();
+    json!(answers)
+}
+
+#[test]
+fn jobs() {
+    use ark_core::jobs::*;
+    use std::collections::HashMap;
+    check("jobs", |name, args| match name {
+        "isFinal" => json!(state(&args[0]).is_final()),
+        "canMove" => json!(state(&args[0]).can_move(state(&args[1]))),
+        "move" => match move_job(state(&args[0]), state(&args[1])) {
+            Ok(s) => json!(s.name()),
+            Err(error) => json!({ "error": error }),
+        },
+        "isRetryable" => json!(is_retryable(args[0].as_str())),
+        "makesCycle" => {
+            let edges: HashMap<i64, Vec<i64>> = args[0]
+                .as_object()
+                .unwrap()
+                .iter()
+                .map(|(k, v)| (k.parse().unwrap(), v.as_array().unwrap().iter().map(|n| n.as_i64().unwrap()).collect()))
+                .collect();
+            let blockers: Vec<i64> = args[2].as_array().unwrap().iter().map(|n| n.as_i64().unwrap()).collect();
+            json!(makes_cycle(&edges, args[1].as_i64().unwrap(), &blockers))
+        }
+        "quietScenario" => quiet_scenario(args[0].as_array().unwrap(), args[1].as_array().unwrap()),
+        other => panic!("no Rust port for {other}"),
+    });
+}
+
 #[test]
 fn policy() {
     use ark_core::policy::*;

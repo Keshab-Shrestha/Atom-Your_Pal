@@ -2,6 +2,7 @@
 //! returns its answer. Each module ports one TypeScript or Swift source; the module comment names it.
 #![forbid(unsafe_code)]
 
+pub mod jobs;
 pub mod js;
 pub mod org;
 pub mod policy;
