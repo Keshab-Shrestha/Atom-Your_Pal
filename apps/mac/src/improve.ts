@@ -175,14 +175,22 @@ export interface ImproveStore { read(): ImproveState; write(state: ImproveState)
 /** Held in memory; `path` is read once and rewritten after each change (mode 0600). Unreadable reads as the default. */
 export function createImproveStore(path?: string): ImproveStore {
   let state: ImproveState = { enabled: true, notes: [], dismissed: {}, resolved: [] };
-  if (path) {
+  /** ADR-278: the Rust runtime also writes this file, so it is read again when its time stamp changes. */
+  let seen = 0;
+  const stamp = () => { try { return statSync(path!).mtimeMs; } catch { return 0; } };
+  const load = () => {
+    seen = stamp();
     try {
-      const raw = JSON.parse(readFileSync(path, "utf8")) as Partial<ImproveState>;
+      const raw = JSON.parse(readFileSync(path!, "utf8")) as Partial<ImproveState>;
       state = { enabled: raw.enabled !== false, ...(raw.lastRunAt ? { lastRunAt: raw.lastRunAt } : {}), notes: Array.isArray(raw.notes) ? raw.notes.filter((n): n is Note => Boolean(n) && typeof n.id === "string") : [], dismissed: raw.dismissed && typeof raw.dismissed === "object" ? raw.dismissed : {}, resolved: Array.isArray(raw.resolved) ? raw.resolved.filter((r): r is Resolved => Boolean(r) && typeof r.id === "string") : [] };
     } catch { /* none yet, or damaged */ }
-  }
+  };
+  if (path) load();
   return {
-    read: () => ({ ...state, notes: [...state.notes], dismissed: { ...state.dismissed }, resolved: [...state.resolved] }),
+    read: () => {
+      if (path && stamp() !== seen) load();
+      return { ...state, notes: [...state.notes], dismissed: { ...state.dismissed }, resolved: [...state.resolved] };
+    },
     write(next) {
       state = { ...next, notes: [...next.notes], dismissed: { ...next.dismissed }, resolved: [...next.resolved] };
       if (!path) return;
@@ -191,6 +199,7 @@ export function createImproveStore(path?: string): ImproveStore {
         const temp = `${path}.tmp`;
         writeFileSync(temp, JSON.stringify(state), { mode: 0o600 });
         renameSync(temp, path);
+        seen = stamp();
       } catch { /* the notes still show this session */ }
     },
   };

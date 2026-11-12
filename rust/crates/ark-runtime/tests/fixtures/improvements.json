@@ -1,0 +1,750 @@
+{
+ "source": "apps/mac/src/improve.ts",
+ "seed": {
+  "enabled": true,
+  "lastRunAt": "2026-11-05T00:00:00.000Z",
+  "surplus": 1,
+  "notes": [
+   {
+    "id": "n1",
+    "kind": "tool",
+    "title": "T n1",
+    "evidence": "E n1",
+    "severity": 2,
+    "why": "w",
+    "change": "c",
+    "createdAt": "2026-11-01T00:00:00.000Z"
+   },
+   {
+    "id": "n2",
+    "kind": "tool",
+    "title": "T n2",
+    "evidence": "E n2",
+    "severity": 3,
+    "why": "w",
+    "change": "c",
+    "createdAt": "2026-11-01T00:00:00.000Z",
+    "fixStartedAt": "2026-11-02T00:00:00.000Z"
+   },
+   {
+    "id": "n3",
+    "kind": "tool",
+    "title": "T n3",
+    "evidence": "E n3",
+    "severity": 2,
+    "why": "w",
+    "change": "c",
+    "createdAt": "2026-11-01T00:00:00.000Z",
+    "cameBack": true,
+    "extra": "kept"
+   }
+  ],
+  "dismissed": {
+   "old": "2026-10-01T00:00:00.000Z"
+  },
+  "resolved": [
+   {
+    "id": "r1",
+    "title": "R1",
+    "how": "fixed",
+    "resolvedAt": "2026-11-03T00:00:00.000Z",
+    "createdAt": "2026-10-30T00:00:00.000Z"
+   }
+  ]
+ },
+ "get": {
+  "type": "improvements",
+  "enabled": true,
+  "running": true,
+  "lastRunAt": "2026-11-05T00:00:00.000Z",
+  "notes": [
+   {
+    "id": "n1",
+    "title": "T n1",
+    "evidence": "E n1",
+    "severity": 2,
+    "why": "w",
+    "change": "c",
+    "fixing": false,
+    "cameBack": false
+   },
+   {
+    "id": "n2",
+    "title": "T n2",
+    "evidence": "E n2",
+    "severity": 3,
+    "why": "w",
+    "change": "c",
+    "fixing": true,
+    "cameBack": false
+   },
+   {
+    "id": "n3",
+    "title": "T n3",
+    "evidence": "E n3",
+    "severity": 2,
+    "why": "w",
+    "change": "c",
+    "fixing": false,
+    "cameBack": true
+   }
+  ],
+  "resolved": [
+   {
+    "id": "r1",
+    "title": "R1",
+    "how": "fixed",
+    "resolvedAt": "2026-11-03T00:00:00.000Z"
+   }
+  ]
+ },
+ "steps": [
+  {
+   "cmd": {
+    "type": "improvement.fixing",
+    "id": "n1"
+   },
+   "file": {
+    "enabled": true,
+    "lastRunAt": "2026-11-05T00:00:00.000Z",
+    "notes": [
+     {
+      "id": "n1",
+      "kind": "tool",
+      "title": "T n1",
+      "evidence": "E n1",
+      "severity": 2,
+      "why": "w",
+      "change": "c",
+      "createdAt": "2026-11-01T00:00:00.000Z",
+      "fixStartedAt": "2026-11-12T21:08:56.959Z"
+     },
+     {
+      "id": "n2",
+      "kind": "tool",
+      "title": "T n2",
+      "evidence": "E n2",
+      "severity": 3,
+      "why": "w",
+      "change": "c",
+      "createdAt": "2026-11-01T00:00:00.000Z",
+      "fixStartedAt": "2026-11-02T00:00:00.000Z"
+     },
+     {
+      "id": "n3",
+      "kind": "tool",
+      "title": "T n3",
+      "evidence": "E n3",
+      "severity": 2,
+      "why": "w",
+      "change": "c",
+      "createdAt": "2026-11-01T00:00:00.000Z",
+      "cameBack": true,
+      "extra": "kept"
+     }
+    ],
+    "dismissed": {
+     "old": "2026-10-01T00:00:00.000Z"
+    },
+    "resolved": [
+     {
+      "id": "r1",
+      "title": "R1",
+      "how": "fixed",
+      "resolvedAt": "2026-11-03T00:00:00.000Z",
+      "createdAt": "2026-10-30T00:00:00.000Z"
+     }
+    ]
+   },
+   "event": {
+    "type": "improvements",
+    "enabled": true,
+    "running": true,
+    "lastRunAt": "2026-11-05T00:00:00.000Z",
+    "notes": [
+     {
+      "id": "n1",
+      "title": "T n1",
+      "evidence": "E n1",
+      "severity": 2,
+      "why": "w",
+      "change": "c",
+      "fixing": true,
+      "cameBack": false
+     },
+     {
+      "id": "n2",
+      "title": "T n2",
+      "evidence": "E n2",
+      "severity": 3,
+      "why": "w",
+      "change": "c",
+      "fixing": true,
+      "cameBack": false
+     },
+     {
+      "id": "n3",
+      "title": "T n3",
+      "evidence": "E n3",
+      "severity": 2,
+      "why": "w",
+      "change": "c",
+      "fixing": false,
+      "cameBack": true
+     }
+    ],
+    "resolved": [
+     {
+      "id": "r1",
+      "title": "R1",
+      "how": "fixed",
+      "resolvedAt": "2026-11-03T00:00:00.000Z"
+     }
+    ]
+   }
+  },
+  {
+   "cmd": {
+    "type": "improvement.fixing",
+    "id": "n1"
+   },
+   "file": {
+    "enabled": true,
+    "lastRunAt": "2026-11-05T00:00:00.000Z",
+    "notes": [
+     {
+      "id": "n1",
+      "kind": "tool",
+      "title": "T n1",
+      "evidence": "E n1",
+      "severity": 2,
+      "why": "w",
+      "change": "c",
+      "createdAt": "2026-11-01T00:00:00.000Z",
+      "fixStartedAt": "2026-11-12T21:08:56.959Z"
+     },
+     {
+      "id": "n2",
+      "kind": "tool",
+      "title": "T n2",
+      "evidence": "E n2",
+      "severity": 3,
+      "why": "w",
+      "change": "c",
+      "createdAt": "2026-11-01T00:00:00.000Z",
+      "fixStartedAt": "2026-11-02T00:00:00.000Z"
+     },
+     {
+      "id": "n3",
+      "kind": "tool",
+      "title": "T n3",
+      "evidence": "E n3",
+      "severity": 2,
+      "why": "w",
+      "change": "c",
+      "createdAt": "2026-11-01T00:00:00.000Z",
+      "cameBack": true,
+      "extra": "kept"
+     }
+    ],
+    "dismissed": {
+     "old": "2026-10-01T00:00:00.000Z"
+    },
+    "resolved": [
+     {
+      "id": "r1",
+      "title": "R1",
+      "how": "fixed",
+      "resolvedAt": "2026-11-03T00:00:00.000Z",
+      "createdAt": "2026-10-30T00:00:00.000Z"
+     }
+    ]
+   },
+   "event": {
+    "type": "improvements",
+    "enabled": true,
+    "running": true,
+    "lastRunAt": "2026-11-05T00:00:00.000Z",
+    "notes": [
+     {
+      "id": "n1",
+      "title": "T n1",
+      "evidence": "E n1",
+      "severity": 2,
+      "why": "w",
+      "change": "c",
+      "fixing": true,
+      "cameBack": false
+     },
+     {
+      "id": "n2",
+      "title": "T n2",
+      "evidence": "E n2",
+      "severity": 3,
+      "why": "w",
+      "change": "c",
+      "fixing": true,
+      "cameBack": false
+     },
+     {
+      "id": "n3",
+      "title": "T n3",
+      "evidence": "E n3",
+      "severity": 2,
+      "why": "w",
+      "change": "c",
+      "fixing": false,
+      "cameBack": true
+     }
+    ],
+    "resolved": [
+     {
+      "id": "r1",
+      "title": "R1",
+      "how": "fixed",
+      "resolvedAt": "2026-11-03T00:00:00.000Z"
+     }
+    ]
+   }
+  },
+  {
+   "cmd": {
+    "type": "improvement.fixing",
+    "id": "none"
+   },
+   "file": {
+    "enabled": true,
+    "lastRunAt": "2026-11-05T00:00:00.000Z",
+    "notes": [
+     {
+      "id": "n1",
+      "kind": "tool",
+      "title": "T n1",
+      "evidence": "E n1",
+      "severity": 2,
+      "why": "w",
+      "change": "c",
+      "createdAt": "2026-11-01T00:00:00.000Z",
+      "fixStartedAt": "2026-11-12T21:08:56.959Z"
+     },
+     {
+      "id": "n2",
+      "kind": "tool",
+      "title": "T n2",
+      "evidence": "E n2",
+      "severity": 3,
+      "why": "w",
+      "change": "c",
+      "createdAt": "2026-11-01T00:00:00.000Z",
+      "fixStartedAt": "2026-11-02T00:00:00.000Z"
+     },
+     {
+      "id": "n3",
+      "kind": "tool",
+      "title": "T n3",
+      "evidence": "E n3",
+      "severity": 2,
+      "why": "w",
+      "change": "c",
+      "createdAt": "2026-11-01T00:00:00.000Z",
+      "cameBack": true,
+      "extra": "kept"
+     }
+    ],
+    "dismissed": {
+     "old": "2026-10-01T00:00:00.000Z"
+    },
+    "resolved": [
+     {
+      "id": "r1",
+      "title": "R1",
+      "how": "fixed",
+      "resolvedAt": "2026-11-03T00:00:00.000Z",
+      "createdAt": "2026-10-30T00:00:00.000Z"
+     }
+    ]
+   },
+   "event": {
+    "type": "improvements",
+    "enabled": true,
+    "running": true,
+    "lastRunAt": "2026-11-05T00:00:00.000Z",
+    "notes": [
+     {
+      "id": "n1",
+      "title": "T n1",
+      "evidence": "E n1",
+      "severity": 2,
+      "why": "w",
+      "change": "c",
+      "fixing": true,
+      "cameBack": false
+     },
+     {
+      "id": "n2",
+      "title": "T n2",
+      "evidence": "E n2",
+      "severity": 3,
+      "why": "w",
+      "change": "c",
+      "fixing": true,
+      "cameBack": false
+     },
+     {
+      "id": "n3",
+      "title": "T n3",
+      "evidence": "E n3",
+      "severity": 2,
+      "why": "w",
+      "change": "c",
+      "fixing": false,
+      "cameBack": true
+     }
+    ],
+    "resolved": [
+     {
+      "id": "r1",
+      "title": "R1",
+      "how": "fixed",
+      "resolvedAt": "2026-11-03T00:00:00.000Z"
+     }
+    ]
+   }
+  },
+  {
+   "cmd": {
+    "type": "improvement.dismiss",
+    "id": "n3"
+   },
+   "file": {
+    "enabled": true,
+    "lastRunAt": "2026-11-05T00:00:00.000Z",
+    "notes": [
+     {
+      "id": "n1",
+      "kind": "tool",
+      "title": "T n1",
+      "evidence": "E n1",
+      "severity": 2,
+      "why": "w",
+      "change": "c",
+      "createdAt": "2026-11-01T00:00:00.000Z",
+      "fixStartedAt": "2026-11-12T21:08:56.959Z"
+     },
+     {
+      "id": "n2",
+      "kind": "tool",
+      "title": "T n2",
+      "evidence": "E n2",
+      "severity": 3,
+      "why": "w",
+      "change": "c",
+      "createdAt": "2026-11-01T00:00:00.000Z",
+      "fixStartedAt": "2026-11-02T00:00:00.000Z"
+     }
+    ],
+    "dismissed": {
+     "old": "2026-10-01T00:00:00.000Z",
+     "n3": "2026-11-12T21:08:56.960Z"
+    },
+    "resolved": [
+     {
+      "id": "r1",
+      "title": "R1",
+      "how": "fixed",
+      "resolvedAt": "2026-11-03T00:00:00.000Z",
+      "createdAt": "2026-10-30T00:00:00.000Z"
+     }
+    ]
+   },
+   "event": {
+    "type": "improvements",
+    "enabled": true,
+    "running": true,
+    "lastRunAt": "2026-11-05T00:00:00.000Z",
+    "notes": [
+     {
+      "id": "n1",
+      "title": "T n1",
+      "evidence": "E n1",
+      "severity": 2,
+      "why": "w",
+      "change": "c",
+      "fixing": true,
+      "cameBack": false
+     },
+     {
+      "id": "n2",
+      "title": "T n2",
+      "evidence": "E n2",
+      "severity": 3,
+      "why": "w",
+      "change": "c",
+      "fixing": true,
+      "cameBack": false
+     }
+    ],
+    "resolved": [
+     {
+      "id": "r1",
+      "title": "R1",
+      "how": "fixed",
+      "resolvedAt": "2026-11-03T00:00:00.000Z"
+     }
+    ]
+   }
+  },
+  {
+   "cmd": {
+    "type": "improvement.dismiss",
+    "id": "none"
+   },
+   "file": {
+    "enabled": true,
+    "lastRunAt": "2026-11-05T00:00:00.000Z",
+    "notes": [
+     {
+      "id": "n1",
+      "kind": "tool",
+      "title": "T n1",
+      "evidence": "E n1",
+      "severity": 2,
+      "why": "w",
+      "change": "c",
+      "createdAt": "2026-11-01T00:00:00.000Z",
+      "fixStartedAt": "2026-11-12T21:08:56.959Z"
+     },
+     {
+      "id": "n2",
+      "kind": "tool",
+      "title": "T n2",
+      "evidence": "E n2",
+      "severity": 3,
+      "why": "w",
+      "change": "c",
+      "createdAt": "2026-11-01T00:00:00.000Z",
+      "fixStartedAt": "2026-11-02T00:00:00.000Z"
+     }
+    ],
+    "dismissed": {
+     "old": "2026-10-01T00:00:00.000Z",
+     "n3": "2026-11-12T21:08:56.960Z",
+     "none": "2026-11-12T21:08:56.961Z"
+    },
+    "resolved": [
+     {
+      "id": "r1",
+      "title": "R1",
+      "how": "fixed",
+      "resolvedAt": "2026-11-03T00:00:00.000Z",
+      "createdAt": "2026-10-30T00:00:00.000Z"
+     }
+    ]
+   },
+   "event": {
+    "type": "improvements",
+    "enabled": true,
+    "running": true,
+    "lastRunAt": "2026-11-05T00:00:00.000Z",
+    "notes": [
+     {
+      "id": "n1",
+      "title": "T n1",
+      "evidence": "E n1",
+      "severity": 2,
+      "why": "w",
+      "change": "c",
+      "fixing": true,
+      "cameBack": false
+     },
+     {
+      "id": "n2",
+      "title": "T n2",
+      "evidence": "E n2",
+      "severity": 3,
+      "why": "w",
+      "change": "c",
+      "fixing": true,
+      "cameBack": false
+     }
+    ],
+    "resolved": [
+     {
+      "id": "r1",
+      "title": "R1",
+      "how": "fixed",
+      "resolvedAt": "2026-11-03T00:00:00.000Z"
+     }
+    ]
+   }
+  },
+  {
+   "cmd": {
+    "type": "improvements.set",
+    "enabled": false
+   },
+   "file": {
+    "enabled": false,
+    "lastRunAt": "2026-11-05T00:00:00.000Z",
+    "notes": [
+     {
+      "id": "n1",
+      "kind": "tool",
+      "title": "T n1",
+      "evidence": "E n1",
+      "severity": 2,
+      "why": "w",
+      "change": "c",
+      "createdAt": "2026-11-01T00:00:00.000Z",
+      "fixStartedAt": "2026-11-12T21:08:56.959Z"
+     },
+     {
+      "id": "n2",
+      "kind": "tool",
+      "title": "T n2",
+      "evidence": "E n2",
+      "severity": 3,
+      "why": "w",
+      "change": "c",
+      "createdAt": "2026-11-01T00:00:00.000Z",
+      "fixStartedAt": "2026-11-02T00:00:00.000Z"
+     }
+    ],
+    "dismissed": {
+     "old": "2026-10-01T00:00:00.000Z",
+     "n3": "2026-11-12T21:08:56.960Z",
+     "none": "2026-11-12T21:08:56.961Z"
+    },
+    "resolved": [
+     {
+      "id": "r1",
+      "title": "R1",
+      "how": "fixed",
+      "resolvedAt": "2026-11-03T00:00:00.000Z",
+      "createdAt": "2026-10-30T00:00:00.000Z"
+     }
+    ]
+   },
+   "event": {
+    "type": "improvements",
+    "enabled": false,
+    "running": true,
+    "lastRunAt": "2026-11-05T00:00:00.000Z",
+    "notes": [
+     {
+      "id": "n1",
+      "title": "T n1",
+      "evidence": "E n1",
+      "severity": 2,
+      "why": "w",
+      "change": "c",
+      "fixing": true,
+      "cameBack": false
+     },
+     {
+      "id": "n2",
+      "title": "T n2",
+      "evidence": "E n2",
+      "severity": 3,
+      "why": "w",
+      "change": "c",
+      "fixing": true,
+      "cameBack": false
+     }
+    ],
+    "resolved": [
+     {
+      "id": "r1",
+      "title": "R1",
+      "how": "fixed",
+      "resolvedAt": "2026-11-03T00:00:00.000Z"
+     }
+    ]
+   }
+  },
+  {
+   "cmd": {
+    "type": "improvements.set",
+    "enabled": true
+   },
+   "file": {
+    "enabled": true,
+    "lastRunAt": "2026-11-05T00:00:00.000Z",
+    "notes": [
+     {
+      "id": "n1",
+      "kind": "tool",
+      "title": "T n1",
+      "evidence": "E n1",
+      "severity": 2,
+      "why": "w",
+      "change": "c",
+      "createdAt": "2026-11-01T00:00:00.000Z",
+      "fixStartedAt": "2026-11-12T21:08:56.959Z"
+     },
+     {
+      "id": "n2",
+      "kind": "tool",
+      "title": "T n2",
+      "evidence": "E n2",
+      "severity": 3,
+      "why": "w",
+      "change": "c",
+      "createdAt": "2026-11-01T00:00:00.000Z",
+      "fixStartedAt": "2026-11-02T00:00:00.000Z"
+     }
+    ],
+    "dismissed": {
+     "old": "2026-10-01T00:00:00.000Z",
+     "n3": "2026-11-12T21:08:56.960Z",
+     "none": "2026-11-12T21:08:56.961Z"
+    },
+    "resolved": [
+     {
+      "id": "r1",
+      "title": "R1",
+      "how": "fixed",
+      "resolvedAt": "2026-11-03T00:00:00.000Z",
+      "createdAt": "2026-10-30T00:00:00.000Z"
+     }
+    ]
+   },
+   "event": {
+    "type": "improvements",
+    "enabled": true,
+    "running": true,
+    "lastRunAt": "2026-11-05T00:00:00.000Z",
+    "notes": [
+     {
+      "id": "n1",
+      "title": "T n1",
+      "evidence": "E n1",
+      "severity": 2,
+      "why": "w",
+      "change": "c",
+      "fixing": true,
+      "cameBack": false
+     },
+     {
+      "id": "n2",
+      "title": "T n2",
+      "evidence": "E n2",
+      "severity": 3,
+      "why": "w",
+      "change": "c",
+      "fixing": true,
+      "cameBack": false
+     }
+    ],
+    "resolved": [
+     {
+      "id": "r1",
+      "title": "R1",
+      "how": "fixed",
+      "resolvedAt": "2026-11-03T00:00:00.000Z"
+     }
+    ]
+   }
+  }
+ ]
+}
