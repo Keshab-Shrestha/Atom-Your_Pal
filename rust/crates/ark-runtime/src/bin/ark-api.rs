@@ -32,5 +32,6 @@ fn main() {
         }
     };
     eprintln!("ark-api: listening on 127.0.0.1:{port}");
-    Server::new(token, std::env::var("ARK_API_HOST").ok().as_deref(), native.memory_db().to_path_buf(), Arc::new(ChatBackend(chat))).serve(listener);
+    let helpers = std::env::var("ARK_HELPERS_FILE").ok().filter(|v| !v.is_empty()).unwrap_or_else(|| "data/helpers.db".into());
+    Server::with_helpers_db(token, std::env::var("ARK_API_HOST").ok().as_deref(), native.memory_db().to_path_buf(), Some(folder.join(helpers)), Arc::new(ChatBackend(chat))).serve(listener);
 }

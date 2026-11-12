@@ -13,6 +13,7 @@ use std::time::{Duration, Instant};
 use serde_json::{Value, json};
 
 use crate::chat::Chat;
+use crate::routes;
 use crate::store;
 
 pub const DEFAULT_PORT: u16 = 4790;
@@ -23,6 +24,7 @@ const LOCK_WINDOW: Duration = Duration::from_secs(60);
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 /// Routes that Node serves and Rust does not yet.
 const NODE_ONLY: &[&str] = &["goals", "tasks", "memories", "brain", "audit", "needs", "hooks"];
+// ("memories", "brain" and "audit" answer for GET only; any other method on them still gets 501.)
 
 /// The status code and message of a refused request.
 pub type ApiError = (u16, String);
@@ -89,6 +91,7 @@ pub struct Server {
     token: String,
     hosts: HashSet<String>,
     db: PathBuf,
+    helpers_db: Option<PathBuf>,
     backend: Arc<dyn Backend>,
     wrong: Mutex<Vec<Instant>>,
 }
@@ -96,9 +99,14 @@ pub struct Server {
 impl Server {
     /// `extra_host`: the one private name allowed besides this machine's (`ARK_API_HOST`).
     pub fn new(token: String, extra_host: Option<&str>, db: PathBuf, backend: Arc<dyn Backend>) -> Arc<Server> {
+        Self::with_helpers_db(token, extra_host, db, None, backend)
+    }
+
+    /// Like `new`, with the helpers file (`data/helpers.db`) for `/v1/audit`.
+    pub fn with_helpers_db(token: String, extra_host: Option<&str>, db: PathBuf, helpers_db: Option<PathBuf>, backend: Arc<dyn Backend>) -> Arc<Server> {
         let mut hosts: HashSet<String> = ["127.0.0.1", "localhost"].iter().map(|s| s.to_string()).collect();
         hosts.extend(extra_host.map(|h| h.trim().to_lowercase()).filter(|h| !h.is_empty()));
-        Arc::new(Server { token, hosts, db, backend, wrong: Mutex::default() })
+        Arc::new(Server { token, hosts, db, helpers_db, backend, wrong: Mutex::default() })
     }
 
     /// Serves until the process ends. Each connection has its own thread.
@@ -170,6 +178,9 @@ impl Server {
             ("POST", ["v1", "chat"]) => self.chat(&req.body),
             ("GET", ["v1", "noah", "chats"]) => self.chats().map_or_else(|e| e, |data| (200, data)),
             ("GET", ["v1", "noah", "chats", id]) if valid_chat_id(id) => self.chat_messages(id).map_or_else(|e| e, |data| (200, data)),
+            ("GET", ["v1", "memories"]) => routes::memories(&self.db).map_or_else(|e| e, |data| (200, data)),
+            ("GET", ["v1", "brain", "notes"]) => routes::brain_notes(&self.db).map_or_else(|e| e, |data| (200, data)),
+            ("GET", ["v1", "audit"]) => routes::audit(self.helpers_db.as_deref(), req.path.split_once('?').map_or("", |(_, q)| q)).map_or_else(|e| e, |data| (200, data)),
             (_, ["v1", name, ..]) if NODE_ONLY.contains(name) => (501, json!("The Rust runtime does not serve this endpoint yet.")),
             _ => (404, json!("There is no such endpoint.")),
         }
@@ -363,6 +374,7 @@ mod tests {
             assert_eq!(ok("GET", &format!("/v1/noah/chats/{gone}"), "").0, 404, "{gone}");
         }
         assert_eq!(ok("GET", "/v1/tasks", "").0, 501);
+        assert_eq!(ok("GET", "/v1/memories", "").0, 503, "the fixture has no memory table");
         assert_eq!(ok("GET", "/v1/nothing", "").0, 404);
         // A body that is announced as too large is refused before it is read.
         let mut s = TcpStream::connect(&addr).unwrap();

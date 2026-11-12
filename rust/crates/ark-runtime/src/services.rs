@@ -25,6 +25,7 @@ struct Running {
 pub struct ApiHost {
     token_file: PathBuf,
     db: PathBuf,
+    helpers_db: PathBuf,
     port: u16,
     host: Option<String>,
     chat: Arc<Chat>,
@@ -35,7 +36,8 @@ impl ApiHost {
     /// `folder`: the ARK folder (the token is `data/api-token`). `port` and `host` follow `ARK_API_PORT` and `ARK_API_HOST`.
     pub fn new(folder: &std::path::Path, db: PathBuf, chat: Arc<Chat>, env: impl Fn(&str) -> Option<String>) -> ApiHost {
         let port = env("ARK_API_PORT").and_then(|p| p.trim().parse::<u16>().ok()).filter(|p| *p > 0).unwrap_or(DEFAULT_PORT);
-        ApiHost { token_file: folder.join("data/api-token"), db, port, host: env("ARK_API_HOST"), chat, running: Mutex::new(None) }
+        let helpers = ["ARK_HELPERS_FILE", "ATOM_HELPERS_FILE", "ZENO_HELPERS_FILE"].iter().find_map(|n| env(n)).filter(|v| !v.is_empty()).unwrap_or_else(|| "data/helpers.db".into());
+        ApiHost { token_file: folder.join("data/api-token"), db, helpers_db: folder.join(helpers), port, host: env("ARK_API_HOST"), chat, running: Mutex::new(None) }
     }
 
     fn status(&self, on: bool, error: Option<String>) -> String {
@@ -48,7 +50,7 @@ impl ApiHost {
             if e.kind() == std::io::ErrorKind::AddrInUse { format!("Port {} is in use. Set ARK_API_PORT in .env to another port, then restart ARK.", self.port) } else { e.to_string() }
         })?;
         let stop = Arc::new(AtomicBool::new(false));
-        let server = Server::new(token, self.host.as_deref(), self.db.clone(), Arc::new(ChatBackend(Arc::clone(&self.chat))));
+        let server = Server::with_helpers_db(token, self.host.as_deref(), self.db.clone(), Some(self.helpers_db.clone()), Arc::new(ChatBackend(Arc::clone(&self.chat))));
         let flag = Arc::clone(&stop);
         let thread = std::thread::spawn(move || server.serve_until(listener, &flag));
         *self.running.lock().map_err(|_| "lock poisoned".to_string())? = Some(Running { stop, thread });

@@ -45,6 +45,19 @@
 - The token comes from `ARK_TELEGRAM_BOT_TOKEN` (with `ARK_TELEGRAM_CHAT_ID`, `ARK_TELEGRAM_USER_ID`) through `Config::from_env`, or from the caller. The log gets names and codes, never text or the token.
 - Verified: 5 tests (message split; backlog and sender filter; split send with buttons; retry rules; wrong token, with a check that the token is not in the log) against a local mock Bot API server. Clippy is clean. No live Telegram call.
 
+## Rust Phase 2 step 19: API routes for memories, notes and audit; the Node list — 12 November 2026
+
+- ADR-278, Phase 2: the Rust API now answers `GET /v1/memories` (newest 500 kept facts), `GET /v1/brain/notes` (notes without ghosts and memory copies, text cut at 1500 UTF-16 units, `omitted` from the graph) and `GET /v1/audit?limit=` (from `data/helpers.db`, or `ARK_HELPERS_FILE`). The code is in `ark-runtime/src/routes.rs`. They answer 503 when the file is missing, and 400 for a bad `limit`, as in Node.
+- Verified: 3 route tests on copies of the fixtures (order and fields; ghost and memory copy skipped, long text cut; audit order, limit and errors), and the API route test. Clippy is clean. These routes have no TypeScript fixture yet: the JSON follows `api-server.ts` by reading.
+- Still 501 in the Rust API: `goals`, `tasks`, `needs` and `hooks`, and every POST on `memories` and `brain`. They need the helper team and the approval list, which live in Node.
+
+### What Node still answers (step 5 list)
+
+- Of the 160 protocol commands, the runtime answers 9 itself: `text.send` (plain text only), `approval.answer` and `chat.question.answer` (its own ids), `brain.note`, `brain.search`, `brain.get`, `api.set`, `api.regenerate` and `telegram.set` (only when it owns the bot). The other 151 go to Node.
+- Largest groups that go to Node: `skill.*` (14), `job.*` (13), `chat.*` (11), `project.*` (8), `suggestions.*` (5), `helper.*` (5), `foreground.*`, `brief.*`, `routine.*` and `mcp.*` (4 each), then `talk.*`, `improvements.*`, `app.*`, `memory.*`, `brain.*` (write), `chats.*`, `git.*`, `reply.*`, `plan.*`, `agent.*`, `proposal.*`, `testcase.*` and `computer.*` (3 each).
+- Also in Node: text turns with files, notes, skills or projects; the team (helpers, jobs, goals, routines, workflows); voice (Kokoro and speech); the computer bridge; the file permission notice, workflow route, kept-chat hits, episode recall and context byte budget in the prompt; `/tasks`, `/report` and `/steer` of the Telegram bot.
+- Not ported in this step: the `memory.*` group. `memory.forget` and `memory.clear` also change the brain mirror, and `memory.list` starts the change feed. That needs a design for the feed first.
+
 ## Rust Phase 2 step 18: command sandbox — 12 November 2026
 
 - ADR-278, Phase 2, CLAUDE.md rule 13: `run_command` now runs under macOS `sandbox-exec` (`ark-agent/src/sandbox.rs`). The profile denies all writes except the folders the chat may change, `/private/tmp`, the per-user temporary folders and a few devices. It denies all network. It denies reads of `~/.ssh`, `~/.aws`, `~/.gnupg`, `~/.config/gh`, keychains, `~/.claude`, `~/.hermes`, `~/.docker`, `.netrc`, `.npmrc` and `.pypirc`.

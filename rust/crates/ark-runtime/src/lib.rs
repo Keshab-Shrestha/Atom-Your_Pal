@@ -3,6 +3,7 @@
 pub mod ask;
 pub mod brain;
 pub mod native;
+pub mod routes;
 pub mod scheduler;
 pub mod store;
 pub mod mcp;
