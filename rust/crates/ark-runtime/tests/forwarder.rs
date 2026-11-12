@@ -105,3 +105,64 @@ fn reports_a_program_that_cannot_start() {
     assert_eq!(output.status.code(), Some(127));
     assert!(String::from_utf8_lossy(&output.stderr).contains("cannot start /nonexistent/ark-node"));
 }
+
+/// A scratch folder with the fixture data file at `data/memory.db`.
+fn folder_with_data(name: &str) -> std::path::PathBuf {
+    let dir = std::env::temp_dir().join(format!("ark-runtime-it-{name}-{}", std::process::id()));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(dir.join("data")).unwrap();
+    std::fs::copy(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/brain.db"), dir.join("data/memory.db")).unwrap();
+    dir
+}
+
+#[test]
+fn answers_brain_reads_itself_and_forwards_the_rest() {
+    let dir = folder_with_data("native");
+    let mut child = Command::new(env!("CARGO_BIN_EXE_ark-runtime"))
+        .args(["cat"])
+        .current_dir(&dir)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    let mut ask = |line: &str| {
+        stdin.write_all(format!("{line}\n").as_bytes()).unwrap();
+        let mut back = String::new();
+        stdout.read_line(&mut back).unwrap();
+        back
+    };
+    let note = ask(r#"{"type":"brain.note","id":1}"#);
+    assert!(note.starts_with('{') && note.contains(r#""type":"brain.note""#) && note.contains("Oslo trip"), "{note}");
+    let hits = ask(r#"{"type":"brain.search","query":"oslo"}"#);
+    assert!(hits.contains(r#""type":"brain.hits""#) && hits.contains("Oslo trip"), "{hits}");
+    // A command Rust does not answer reaches the child (`cat` echoes it back unchanged).
+    let echoed = r#"{"type":"memory.list"}"#;
+    assert_eq!(ask(echoed).trim_end(), echoed);
+    // A note that is gone is Node's to answer ("That note is gone."): it is forwarded.
+    let gone = r#"{"type":"brain.note","id":999}"#;
+    assert_eq!(ask(gone).trim_end(), gone);
+    drop(stdin);
+    assert_eq!(child.wait().unwrap().code(), Some(0));
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn native_answers_can_be_turned_off() {
+    let dir = folder_with_data("off");
+    let mut child = Command::new(env!("CARGO_BIN_EXE_ark-runtime"))
+        .args(["cat"])
+        .current_dir(&dir)
+        .env("ARK_RUNTIME_NATIVE", "0")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let line = r#"{"type":"brain.note","id":1}"#;
+    child.stdin.take().unwrap().write_all(format!("{line}\n").as_bytes()).unwrap();
+    let out = child.wait_with_output().unwrap();
+    assert_eq!(String::from_utf8(out.stdout).unwrap().trim_end(), line);
+    std::fs::remove_dir_all(&dir).ok();
+}

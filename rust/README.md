@@ -15,7 +15,8 @@ This folder holds the Rust build of ARK (ADR-278, docs/rust-migration-plan.md). 
 - `crates/ark-hello/`: a hello window. It proves that the Rune copy builds, draws headless and reports its tree.
 - `crates/ark-spike/`: the Phase 0.2 spike checks (text input, windows, native views, accessibility). ARK does not ship it. `cargo run -p ark-spike -- --check text|windows|views|a11y` opens one check. `crates/ark-spike/CHECKLIST.md` gives the steps, `docs/rust-phase-0-results.md` the results.
 
-- `crates/ark-runtime/`: the runtime forwarder between the Swift app and the Node runtime.
+- `crates/ark-protocol/`: the island commands and events as serde types, with a line codec.
+- `crates/ark-runtime/`: the runtime forwarder between the Swift app and the Node runtime. It answers `brain.note` and `brain.search` itself.
 - `THIRD_PARTY.txt`: the third-party licences of the Rust build.
 
 ## Crates

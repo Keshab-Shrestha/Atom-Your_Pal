@@ -22,10 +22,17 @@
 - Rune patches found (not made): hover in a panel while another app is active; native child views in the accessibility tree; `.hudWindow` and `.sidebar` cases in `SystemMaterial`. Decide each in Phase 3 (decision 11: patch and open an upstream issue).
 - Next: the owner fills in the checklist. Then Phase 1 starts.
 
+## Rust Phase 2 chunk A.2: native read-only commands — 12 November 2026
+
+- ADR-278, Phase 2 step 2: `ark-runtime` answers `brain.note` and `brain.search` itself. It reads `memory.db` with rusqlite (bundled, read-only, busy timeout 250 ms). The SQL is the SQL of `services/memory/src/brain.ts`. The file comes from `ARK_MEMORY_FILE` (then `ATOM_`, then `ZENO_`), from `.env`, or `data/memory.db`.
+- Rust never writes. It forwards the command to Node when it cannot give Node's answer: a missing or unreadable file, a note that is gone, a note with a connected source copy, a bad id. `ARK_RUNTIME_NATIVE=0` turns the native answers off.
+- `memory.list`, `brain.get` and `chats.list` stay in Node. Each one starts a push of later changes. Rust has no change feed yet.
+- Next: the scheduler, the ticker and the simple tools (time, file read in granted folders).
+
 ## Rust Phase 2 chunk A.1: ark-protocol crate — 12 November 2026
 
 - ADR-278, Phase 2: `rust/crates/ark-protocol` holds the island protocol as serde types. It has a `Command` enum (about 140 typed commands, plus `Other` for the commands whose shape lives in another TypeScript module) and an `Event` enum (the small events typed, the rest `Other`). `parse_command` and `Event::to_line` are the line codec. The shape check is structural. Node keeps the full value check.
-- `rust/scripts/gen-fixtures.ts` writes `crates/ark-protocol/tests/fixtures/protocol.json` from the TypeScript parser and encoder. The Rust test compares the command names, the parse result of 65 lines and the round trip of 30 events.
+- `rust/scripts/gen-fixtures.ts` writes `crates/ark-protocol/tests/fixtures/protocol.json` from the TypeScript parser and encoder. The Rust test compares the command names, the parse result of 64 lines and the round trip of 30 events.
 
 ## Rust Phase 2.1: ark-runtime forwarder — 12 November 2026
 

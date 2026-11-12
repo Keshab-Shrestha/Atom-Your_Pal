@@ -1,0 +1,433 @@
+{
+ "source": "services/memory/src/brain.ts",
+ "notes": [
+  {
+   "id": 1,
+   "note": {
+    "id": 1,
+    "title": "Oslo trip",
+    "body": "Plan the trip with [[Anna Berg]] and see [[Packing list]]. #travel #norway\nFlights are cheap in March. A longer line to test the snippet, with the word fjord near the end of a sentence about the west coast.",
+    "kind": "note",
+    "ghost": false,
+    "tags": [
+     "norway",
+     "travel"
+    ],
+    "links": [
+     {
+      "id": 2,
+      "title": "Anna Berg",
+      "kind": "note",
+      "ghost": false,
+      "auto": false
+     },
+     {
+      "id": 3,
+      "title": "Packing list",
+      "kind": "note",
+      "ghost": false,
+      "auto": false
+     }
+    ],
+    "backlinks": [
+     {
+      "id": 3,
+      "title": "Packing list",
+      "kind": "note",
+      "auto": false
+     }
+    ],
+    "updatedAt": "2026-11-01T09:00:00.000Z"
+   }
+  },
+  {
+   "id": 2,
+   "note": {
+    "id": 2,
+    "title": "Anna Berg",
+    "body": "Anna Berg lives in Oslo and works at Equinor. Anna Berg likes cats.",
+    "kind": "note",
+    "ghost": false,
+    "tags": [],
+    "links": [
+     {
+      "id": 8,
+      "title": "Oslo",
+      "kind": "entity",
+      "ghost": false,
+      "auto": true
+     }
+    ],
+    "backlinks": [
+     {
+      "id": 1,
+      "title": "Oslo trip",
+      "kind": "note",
+      "auto": false
+     }
+    ],
+    "updatedAt": "2026-11-01T09:00:00.000Z"
+   }
+  },
+  {
+   "id": 3,
+   "note": {
+    "id": 3,
+    "title": "Packing list",
+    "body": "Passport, charger, #travel gear. Back to [[Oslo trip]].",
+    "kind": "note",
+    "ghost": false,
+    "tags": [
+     "travel"
+    ],
+    "links": [
+     {
+      "id": 8,
+      "title": "Oslo",
+      "kind": "entity",
+      "ghost": false,
+      "auto": true
+     },
+     {
+      "id": 1,
+      "title": "Oslo trip",
+      "kind": "note",
+      "ghost": false,
+      "auto": false
+     }
+    ],
+    "backlinks": [
+     {
+      "id": 1,
+      "title": "Oslo trip",
+      "kind": "note",
+      "auto": false
+     }
+    ],
+    "updatedAt": "2026-11-01T09:00:00.000Z"
+   }
+  },
+  {
+   "id": 4,
+   "note": {
+    "id": 4,
+    "title": "Café plans",
+    "body": "Naïve résumé of the café — 日本語のメモ and emoji 😀 in the body. #food",
+    "kind": "note",
+    "ghost": false,
+    "tags": [
+     "food"
+    ],
+    "links": [],
+    "backlinks": [],
+    "updatedAt": "2026-11-01T09:00:00.000Z"
+   }
+  },
+  {
+   "id": 5,
+   "note": {
+    "id": 5,
+    "title": "Empty",
+    "body": "",
+    "kind": "note",
+    "ghost": false,
+    "tags": [],
+    "links": [],
+    "backlinks": [],
+    "updatedAt": "2026-11-01T09:00:00.000Z"
+   }
+  },
+  {
+   "id": 6,
+   "note": {
+    "id": 6,
+    "title": "Long note",
+    "body": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word needle after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after after",
+    "kind": "note",
+    "ghost": false,
+    "tags": [],
+    "links": [],
+    "backlinks": [],
+    "updatedAt": "2026-11-01T09:00:00.000Z"
+   }
+  },
+  {
+   "id": 7,
+   "note": {
+    "id": 7,
+    "title": "Memory fact",
+    "body": "Keshab likes green tea.",
+    "kind": "memory",
+    "ghost": false,
+    "tags": [],
+    "links": [],
+    "backlinks": [],
+    "updatedAt": "2026-11-01T09:00:00.000Z"
+   }
+  },
+  {
+   "id": 8,
+   "note": {
+    "id": 8,
+    "title": "Oslo",
+    "body": "",
+    "kind": "entity",
+    "ghost": false,
+    "tags": [],
+    "links": [],
+    "backlinks": [
+     {
+      "id": 2,
+      "title": "Anna Berg",
+      "kind": "note",
+      "auto": true
+     },
+     {
+      "id": 3,
+      "title": "Packing list",
+      "kind": "note",
+      "auto": true
+     }
+    ],
+    "updatedAt": "2026-11-01T09:00:00.000Z"
+   }
+  },
+  {
+   "id": 9,
+   "note": null
+  },
+  {
+   "id": 10,
+   "note": null
+  },
+  {
+   "id": 11,
+   "note": null
+  },
+  {
+   "id": 12,
+   "note": null
+  },
+  {
+   "id": 13,
+   "note": null
+  },
+  {
+   "id": 14,
+   "note": null
+  }
+ ],
+ "searches": [
+  {
+   "query": "oslo",
+   "hits": [
+    {
+     "id": 8,
+     "title": "Oslo",
+     "kind": "entity",
+     "snippet": ""
+    },
+    {
+     "id": 3,
+     "title": "Packing list",
+     "kind": "note",
+     "snippet": "…sport, charger, #travel gear. Back to [[Oslo trip]]."
+    },
+    {
+     "id": 2,
+     "title": "Anna Berg",
+     "kind": "note",
+     "snippet": "Anna Berg lives in Oslo and works at Equinor. Anna Berg likes cats."
+    },
+    {
+     "id": 1,
+     "title": "Oslo trip",
+     "kind": "note",
+     "snippet": "Plan the trip with [[Anna Berg]] and see [[Packing list]]. #travel #norway Flights are cheap in March. A longer line to test the snippet, wi…"
+    }
+   ]
+  },
+  {
+   "query": "Oslo trip",
+   "hits": [
+    {
+     "id": 3,
+     "title": "Packing list",
+     "kind": "note",
+     "snippet": "…sport, charger, #travel gear. Back to [[Oslo trip]]."
+    },
+    {
+     "id": 1,
+     "title": "Oslo trip",
+     "kind": "note",
+     "snippet": "Plan the trip with [[Anna Berg]] and see [[Packing list]]. #travel #norway Flights are cheap in March. A longer line to test the snippet, wi…"
+    }
+   ]
+  },
+  {
+   "query": "fjord",
+   "hits": [
+    {
+     "id": 1,
+     "title": "Oslo trip",
+     "kind": "note",
+     "snippet": "…line to test the snippet, with the word fjord near the end of a sentence about the west coast."
+    }
+   ]
+  },
+  {
+   "query": "travel",
+   "hits": [
+    {
+     "id": 3,
+     "title": "Packing list",
+     "kind": "note",
+     "snippet": "Passport, charger, #travel gear. Back to [[Oslo trip]]."
+    },
+    {
+     "id": 1,
+     "title": "Oslo trip",
+     "kind": "note",
+     "snippet": "…[Anna Berg]] and see [[Packing list]]. #travel #norway Flights are cheap in March. A longer line to test the snippet, with the word fjord ne…"
+    }
+   ]
+  },
+  {
+   "query": "anna",
+   "hits": [
+    {
+     "id": 2,
+     "title": "Anna Berg",
+     "kind": "note",
+     "snippet": "Anna Berg lives in Oslo and works at Equinor. Anna Berg likes cats."
+    },
+    {
+     "id": 1,
+     "title": "Oslo trip",
+     "kind": "note",
+     "snippet": "Plan the trip with [[Anna Berg]] and see [[Packing list]]. #travel #norway Flights are cheap in March. A longer line to test the snippet, wi…"
+    }
+   ]
+  },
+  {
+   "query": "ann",
+   "hits": [
+    {
+     "id": 2,
+     "title": "Anna Berg",
+     "kind": "note",
+     "snippet": "Anna Berg lives in Oslo and works at Equinor. Anna Berg likes cats."
+    },
+    {
+     "id": 1,
+     "title": "Oslo trip",
+     "kind": "note",
+     "snippet": "Plan the trip with [[Anna Berg]] and see [[Packing list]]. #travel #norway Flights are cheap in March. A longer line to test the snippet, wi…"
+    }
+   ]
+  },
+  {
+   "query": "café",
+   "hits": [
+    {
+     "id": 4,
+     "title": "Café plans",
+     "kind": "note",
+     "snippet": "Naïve résumé of the café — 日本語のメモ and emoji 😀 in the body. #food"
+    }
+   ]
+  },
+  {
+   "query": "日本語",
+   "hits": [
+    {
+     "id": 4,
+     "title": "Café plans",
+     "kind": "note",
+     "snippet": "Naïve résumé of the café — 日本語のメモ and emoji 😀 in the body. #food"
+    }
+   ]
+  },
+  {
+   "query": "needle",
+   "hits": [
+    {
+     "id": 6,
+     "title": "Long note",
+     "kind": "note",
+     "snippet": "…word word word word word word word word needle after after after after after after after after after after after after after after after aft…"
+    }
+   ]
+  },
+  {
+   "query": "green tea",
+   "hits": [
+    {
+     "id": 7,
+     "title": "Memory fact",
+     "kind": "memory",
+     "snippet": "Keshab likes green tea."
+    }
+   ]
+  },
+  {
+   "query": "  leading",
+   "hits": []
+  },
+  {
+   "query": "word",
+   "hits": [
+    {
+     "id": 6,
+     "title": "Long note",
+     "kind": "note",
+     "snippet": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word …"
+    },
+    {
+     "id": 1,
+     "title": "Oslo trip",
+     "kind": "note",
+     "snippet": "…nger line to test the snippet, with the word fjord near the end of a sentence about the west coast."
+    }
+   ]
+  },
+  {
+   "query": "zzz",
+   "hits": []
+  },
+  {
+   "query": "",
+   "hits": []
+  },
+  {
+   "query": "!!!",
+   "hits": []
+  },
+  {
+   "query": "a b c d e f g h i j",
+   "hits": []
+  },
+  {
+   "query": "emoji",
+   "hits": [
+    {
+     "id": 4,
+     "title": "Café plans",
+     "kind": "note",
+     "snippet": "Naïve résumé of the café — 日本語のメモ and emoji 😀 in the body. #food"
+    }
+   ]
+  },
+  {
+   "query": "naïve",
+   "hits": [
+    {
+     "id": 4,
+     "title": "Café plans",
+     "kind": "note",
+     "snippet": "Naïve résumé of the café — 日本語のメモ and emoji 😀 in the body. #food"
+    }
+   ]
+  }
+ ]
+}

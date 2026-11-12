@@ -1,9 +1,14 @@
-//! `ark-runtime <program> [args...]`: Phase 2.1 of ADR-278, a pure forwarder.
+//! `ark-runtime <program> [args...]`: Phase 2 of ADR-278, a forwarder that answers some commands itself.
 //!
 //! It starts `<program>` (the Node runtime) with the same working folder and environment, then copies
-//! every stdin line to the child and every child stdout line back, byte for byte. The child's stderr is
+//! every stdin line to the child and every child stdout line back, byte for byte. Exception: a read-only
+//! command that `native::Native` can answer (`brain.note`, `brain.search`) gets its answer from the data
+//! file at once and does not reach the child. `ARK_RUNTIME_NATIVE=0` turns that off. The child's stderr is
 //! inherited. Blocking writes give back-pressure; lines have no length limit. SIGTERM, SIGINT, SIGHUP and
 //! SIGQUIT go to the child. The forwarder exits with the child's exit code, or dies by the child's signal.
+
+mod brain;
+mod native;
 
 use std::io::{self, BufRead, BufReader, Write};
 use std::os::unix::process::ExitStatusExt;
@@ -46,6 +51,37 @@ fn forward_lines(reader: impl BufRead, mut writer: impl Write) -> io::Result<()>
         writer.write_all(&line)?;
         writer.flush()?;
     }
+}
+
+/// Like `forward_lines`, but a line that `native` answers goes to `out`, not to `writer`.
+fn route_lines(reader: impl BufRead, mut writer: impl Write, native: Option<&native::Native>, mut out: impl Write) -> io::Result<()> {
+    let mut reader = reader;
+    let mut line = Vec::new();
+    loop {
+        line.clear();
+        if reader.read_until(b'\n', &mut line)? == 0 {
+            return Ok(());
+        }
+        let answer = native.and_then(|n| std::str::from_utf8(&line).ok().and_then(|text| n.try_answer(text)));
+        match answer {
+            Some(reply) => {
+                out.write_all(reply.as_bytes())?;
+                out.flush()?;
+            }
+            None => {
+                writer.write_all(&line)?;
+                writer.flush()?;
+            }
+        }
+    }
+}
+
+fn native_from_process() -> Option<native::Native> {
+    if std::env::var("ARK_RUNTIME_NATIVE").as_deref() == Ok("0") {
+        return None;
+    }
+    let folder = std::env::current_dir().ok()?;
+    Some(native::Native::from_environment(&folder, |name| std::env::var(name).ok()))
 }
 
 fn start(program: &str, args: &[String]) -> io::Result<Child> {
@@ -95,9 +131,10 @@ fn main() {
     };
     // Stdin: when the app closes it (or the child stops reading), dropping `child_in` closes the child's stdin.
     // This thread is not joined: it can stay blocked on our stdin after the child exits.
-    thread::spawn(move || forward_lines(io::stdin().lock(), child_in));
+    let native = native_from_process();
+    thread::spawn(move || route_lines(io::stdin().lock(), child_in, native.as_ref(), io::stdout()));
     let to_app = thread::spawn(move || {
-        if forward_lines(BufReader::new(child_out), io::stdout().lock()).is_err() {
+        if forward_lines(BufReader::new(child_out), io::stdout()).is_err() {
             // The app closed our stdout: stop the child, as the app can no longer hear it.
             forward_signal(libc::SIGTERM);
         }

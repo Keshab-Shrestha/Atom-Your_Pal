@@ -243,3 +243,17 @@ The Phase 4 app bundle ships this file.
    ark-spike adds one crate to the list in section 3:
 
    objc2-web-kit v0.3.2 Zlib OR Apache-2.0 OR MIT
+
+5. Crates only in the ark-runtime build (Phase 2, ADR-278)
+   ark-runtime reads the data file with rusqlite (bundled SQLite, which is in the public domain).
+   Every crate below has a permissive licence.
+   To make this list again, run this command in rust/:
+   cargo tree -p ark-runtime -e normal,build --target aarch64-apple-darwin --prefix none -f '{p} {l}'
+
+   fallible-iterator v0.3.0 MIT/Apache-2.0
+   fallible-streaming-iterator v0.1.9 MIT/Apache-2.0
+   hashlink v0.12.2 MIT OR Apache-2.0
+   libsqlite3-sys v0.40.0 MIT
+   pkg-config v0.3.34 MIT OR Apache-2.0
+   rusqlite v0.42.0 MIT
+   vcpkg v0.2.15 MIT/Apache-2.0

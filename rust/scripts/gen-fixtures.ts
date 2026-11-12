@@ -2,7 +2,9 @@
 // answer to rust/crates/ark-core/tests/fixtures/<module>.json; the Rust test `parity` checks its answers against them.
 // Run from the repository root: node rust/scripts/gen-fixtures.ts
 // Only TypeScript sources have fixtures. The Swift-only modules (ark-visual, questions, diffs) keep their ported tests.
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { DatabaseSync } from "node:sqlite";
+import { openBrain } from "../../services/memory/src/brain.ts";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { classifyCommand, expandHome, folderForTask, hasGitPart, isImportantName, isInside, isPushCommand, toolPaths } from "../../services/helpers/src/grants.ts";
@@ -242,7 +244,7 @@ function write(module: string, source: string, cases: Case[]): void {
   const set = /const COMMANDS = new Set<[^>]*>\(\[([\s\S]*?)\]\);/.exec(source)?.[1] ?? "";
   const commandNames = [...set.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
   const lines = [
-    "", "   ", "not json", "[1]", "3", "{}", '{"type":3}', '{"type":"nope"}', '{"type":"x".repeat}',
+    "", "   ", "not json", "[1]", "3", "{}", '{"type":3}', '{"type":"nope"}',
     '{"type":"talk.start"}', '{"type":"talk.send"}', '{"type":"talk.cancel"}', '{"type":"conversation.reset"}', '{"type":"quit"}',
     '{"type":"talk.start","extra":1}', '{"type":"model.set","provider":"gemini","model":"gemini-3.6-flash"}', '{"type":"model.set","provider":"gemini"}',
     '{"type":"approval.answer","id":"a1","approved":true}', '{"type":"approval.answer","id":"a1","approved":true,"rememberFile":true}', '{"type":"approval.answer","id":"a1","approved":"yes"}',
@@ -282,4 +284,36 @@ function write(module: string, source: string, cases: Case[]): void {
   const eventCases = events.map((event) => ({ line: encodeEvent(event as Parameters<typeof encodeEvent>[0]), typed: !["info", "capabilities", "plan.usage"].includes((event as { type: string }).type) }));
   writeFileSync(join(protocolOut, "protocol.json"), `${JSON.stringify({ source: "apps/mac/src/island-commands.ts, apps/mac/src/island-protocol.ts", commandNames, cases, eventCases }, null, 1)}\n`);
   console.log(`protocol: ${commandNames.length} command names, ${cases.length} command lines, ${eventCases.length} events`);
+}
+
+// ---- brain (services/memory/src/brain.ts): the data file and the answers for rust/crates/ark-runtime ----
+{
+  const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "crates", "ark-runtime", "tests", "fixtures");
+  mkdirSync(dir, { recursive: true });
+  const dbFile = join(dir, "brain.db");
+  rmSync(dbFile, { force: true });
+  const db = new DatabaseSync(dbFile);
+  const brain = openBrain(db, () => new Date("2026-11-01T09:00:00.000Z")); // a fixed clock: the file is the same on each run
+  const notes: [string, string][] = [
+    ["Oslo trip", "Plan the trip with [[Anna Berg]] and see [[Packing list]]. #travel #norway\nFlights are cheap in March. A longer line to test the snippet, with the word fjord near the end of a sentence about the west coast."],
+    ["Packing list", "Passport, charger, #travel gear. Back to [[Oslo trip]]."],
+    ["Anna Berg", "Anna Berg lives in Oslo and works at Equinor. Anna Berg likes cats."],
+    ["Café plans", "Naïve résumé of the café — 日本語のメモ and emoji \u{1F600} in the body. #food"],
+    ["Empty", ""],
+    ["Long note", `${"word ".repeat(60)}needle ${"after ".repeat(60)}`],
+  ];
+  for (const [title, body] of notes) brain.save({ title, body });
+  brain.save({ title: "Memory fact", body: "Keshab likes green tea.", kind: "memory", ref: "memory:1" });
+  brain.autolink();
+  const ids = Array.from({ length: 14 }, (_, i) => i + 1);
+  const queries = ["oslo", "Oslo trip", "fjord", "travel", "anna", "ann", "café", "日本語", "needle", "green tea", "  leading", "word", "zzz", "", "!!!", "a b c d e f g h i j", "emoji", "naïve"];
+  db.close();
+  const reopened = new DatabaseSync(dbFile);
+  const brain2 = openBrain(reopened, () => new Date("2026-11-01T09:00:00.000Z"));
+  const expectNotes = ids.map((id) => ({ id, note: (() => { const n = brain2.get(id); return n && { id: n.id, title: n.title, body: n.body, kind: n.kind, ghost: n.ghost, tags: n.tags, links: brain2.links(id), backlinks: brain2.backlinks(id), updatedAt: n.updatedAt.toISOString() }; })() ?? null }));
+  const expectSearch = queries.map((query) => ({ query, hits: brain2.search(query, 12) }));
+  reopened.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+  reopened.close();
+  writeFileSync(join(dir, "brain.json"), `${JSON.stringify({ source: "services/memory/src/brain.ts", notes: expectNotes, searches: expectSearch }, null, 1)}\n`);
+  console.log(`brain: ${expectNotes.length} notes, ${expectSearch.length} searches`);
 }
