@@ -96,8 +96,8 @@ impl Bridge {
     }
 
     /// The user's answer to an `approval.request`.
-    pub fn answer(&self, id: &str, approved: bool) {
-        self.send(&Command::ApprovalAnswer { id: id.to_owned(), approved, remember_file: None, remember_task: None, review_token: None });
+    pub fn answer(&self, id: &str, approved: bool, review_token: Option<String>) {
+        self.send(&Command::ApprovalAnswer { id: id.to_owned(), approved, remember_file: None, remember_task: None, review_token });
     }
 
     /// Takes every message that arrived since the last call, oldest first.

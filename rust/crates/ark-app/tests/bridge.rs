@@ -39,7 +39,7 @@ fn text_send_and_approval_round_trip() {
     pump(&bridge, &mut model, |m| m.approvals.len() == 1);
     assert_eq!(model.messages.last().map(|m| (m.role, m.text.as_str())), Some((Role::User, "hello")));
 
-    bridge.answer("a1", true);
+    bridge.answer("a1", true, None);
     pump(&bridge, &mut model, |m| m.approvals.is_empty() && m.messages.len() == 2);
     assert_eq!(model.messages[1].role, Role::Assistant);
 

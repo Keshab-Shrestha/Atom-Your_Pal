@@ -90,6 +90,16 @@ pub struct Approval {
     pub id: String,
     pub summary: String,
     pub reason: String,
+    /// A file change to review: path, text before, text after, and the token the answer must carry.
+    pub review: Option<FileReview>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FileReview {
+    pub path: String,
+    pub before: String,
+    pub after: String,
+    pub token: String,
 }
 
 /// One AI provider and its models (`info` event). Never carries keys.
@@ -503,7 +513,8 @@ impl Model {
             "approval.request" => {
                 let id = str_of(map, "id");
                 if !self.approvals.iter().any(|a| a.id == id) {
-                    self.approvals.push(Approval { id, summary: str_of(map, "summary"), reason: str_of(map, "reason") });
+                    let review = map.get("fileReview").and_then(Value::as_object).map(|r| FileReview { path: str_of(r, "path"), before: str_of(r, "before"), after: str_of(r, "after"), token: str_of(r, "token") });
+                    self.approvals.push(Approval { id, summary: str_of(map, "summary"), reason: str_of(map, "reason"), review });
                 }
             }
             _ => {}

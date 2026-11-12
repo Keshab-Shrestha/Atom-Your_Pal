@@ -65,7 +65,7 @@ fn tree_holds_chats_messages_tool_and_approval() {
 #[test]
 fn clicking_allow_closes_the_approval() {
     let tree = tree_after("allow", "chat.jsonl", Some(r#"[{"t":0.2,"type":"click","key":"allow-a1"}]"#));
-    assert!(!tree.contains("ARK asks first"), "the approval card is still there");
+    assert!(!tree.contains("The command changes files in target/."), "the approval card is still there");
     assert!(tree.contains("List the crates."), "the transcript is gone");
 }
 
@@ -168,5 +168,13 @@ fn a_task_opens_its_report_and_file_changes() {
     let tree = tree_after("job", "chat.jsonl", Some(steps));
     for want in ["Build fix", "File changes (2)", "src/lib.rs", "Undo", "Back to tasks"] {
         assert!(tree.contains(want), "task details lack {want:?}");
+    }
+}
+
+#[test]
+fn a_file_review_shows_the_diff() {
+    let tree = tree_after("diff", "chat.jsonl", None);
+    for want in ["docs/notes.txt", "+1 -1", "- two", "+ TWO"] {
+        assert!(tree.contains(want), "the review lacks {want:?}");
     }
 }

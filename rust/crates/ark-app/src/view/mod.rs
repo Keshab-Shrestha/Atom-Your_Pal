@@ -1,6 +1,7 @@
 //! The windows' views. `view` is Rune's view function: it reads the state and returns the element tree.
 
 mod chat;
+mod diff;
 mod form;
 mod palette;
 mod pages;

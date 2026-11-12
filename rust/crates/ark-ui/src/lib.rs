@@ -5,4 +5,4 @@
 pub mod find;
 mod model;
 
-pub use model::{ApiStatus, BRIEF_SWITCHES, Approval, BrainNode, Memory, ChatItem, Checkpoint, Thread, Conn, Helper, Job, JobState, Message, Model, Provider, Question, Role, Stats, ToolCall, ToolRow, ToolState, Work, WorkState};
+pub use model::{ApiStatus, BRIEF_SWITCHES, Approval, FileReview, BrainNode, Memory, ChatItem, Checkpoint, Thread, Conn, Helper, Job, JobState, Message, Model, Provider, Question, Role, Stats, ToolCall, ToolRow, ToolState, Work, WorkState};

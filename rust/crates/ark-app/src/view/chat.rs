@@ -102,6 +102,7 @@ fn approval_card(a: &Approval, k: &Kit) -> El {
         .child(text("ARK asks first").font(k.ty.small_medium).color(k.c.warning.fg))
         .child(text(a.summary.clone()).font(k.ty.ui_medium).color(k.c.text_base).wrap())
         .child(text(a.reason.clone()).font(k.ty.ui).color(k.c.text_muted).wrap())
+        .children(a.review.iter().map(|r| super::diff::card(&r.path, &r.before, &r.after, format!("review-{}", a.id), k)))
         .child(
             row()
                 .gap(8.0)
@@ -112,8 +113,9 @@ fn approval_card(a: &Approval, k: &Kit) -> El {
 }
 
 fn decide(app: &mut App, id: &str, approved: bool) {
+    let token = app.model.approvals.iter().find(|a| a.id == id).and_then(|a| a.review.as_ref().map(|r| r.token.clone()));
     if let Some(bridge) = &app.bridge {
-        bridge.answer(id, approved);
+        bridge.answer(id, approved, token);
     }
     app.model.close_approval(id);
 }
