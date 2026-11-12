@@ -45,6 +45,14 @@
 - The token comes from `ARK_TELEGRAM_BOT_TOKEN` (with `ARK_TELEGRAM_CHAT_ID`, `ARK_TELEGRAM_USER_ID`) through `Config::from_env`, or from the caller. The log gets names and codes, never text or the token.
 - Verified: 5 tests (message split; backlog and sender filter; split send with buttons; retry rules; wrong token, with a check that the token is not in the log) against a local mock Bot API server. Clippy is clean. No live Telegram call.
 
+## Rust Phase 2 step 10: native chat turn — 12 November 2026
+
+- ADR-278, Phase 2: `ark-runtime` can answer a plain `text.send` itself with `ark-agent` and `ark-llm`. It is off by default. Set `ARK_RUNTIME_NATIVE_CHAT=1` and give `ANTHROPIC_API_KEY`, or `ARK_CLAUDE_BRIDGE` (the helper script), to turn it on. `ARK_NATIVE_CHAT_MODEL` sets the model.
+- The forwarder reads Node's `chats` and `chat.opened` events to know the open chat. It takes a `text.send` only for a saved chat that is writable, not archived, not in a project and not shared. Files, notes, `/skill`, a new unsaved chat and a busy chat go to Node. The app gets `transcript`, `state`, `reply`, `state` and `turn.complete` in the Node line format.
+- The turn is appended to `chat_messages` in the Node database in one `BEGIN IMMEDIATE` transaction. It refuses if Node changed the chat meanwhile. Then Rust sends `chat.open` to Node, so Node reloads the chat. Only `current_time` is allowed as a tool.
+- `floor` and `tools` moved from `ark-runtime` to `ark-agent`, so `ark-runtime` can use the agent without a crate cycle.
+- Verified: 4 tests (answer, save and sync on a fixture database; every case that goes to Node; a changed chat is not overwritten; the replay window). Clippy is clean. No live model call.
+
 ## Rust Phase 2 step 9: agent loop skeleton — 12 November 2026
 
 - ADR-278, Phase 2: the new crate `ark-agent` is the agent loop skeleton: model, proposed tool call, policy check, tool, result, model, until the model answers without a tool call. The `Policy` trait decides, never the model (CLAUDE.md rules 8 and 12). `FloorPolicy` refuses every tool not on its allow-list and applies the disk-reading floor of `ark-runtime` to `read_file`. A refused call never reaches a tool. The model gets `Refused by policy: <reason>` as an error result. `RuntimeTools` runs `current_time` and `read_file` from `ark-runtime`. A step limit (12) ends a loop.

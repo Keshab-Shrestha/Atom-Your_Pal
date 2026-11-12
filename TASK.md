@@ -37,6 +37,12 @@
 - Add `rust/crates/ark-telegram` (`Telegram::start`, `send`, `answer`, `stop`, `Config`).
 - Not done: the bot logic of `telegram-bot.ts` (needs, approvals, turns), and wiring the channel into the runtime.
 
+## Rust Phase 2 step 10: native chat turn — 12 November 2026
+
+- Add `rust/crates/ark-runtime/src/chat.rs` and wire it in the forwarder behind `ARK_RUNTIME_NATIVE_CHAT=1`.
+- Not done: the system prompt, memory and brief of Node, titles for new chats, project chats, attachments, live text, bridge tool calls, and write and command tools.
+
+
 ## Rust Phase 2 step 9: agent loop skeleton — 12 November 2026
 
 - Add `rust/crates/ark-agent` (`Agent::run`, `Policy`, `FloorPolicy`, `ToolRunner`, `RuntimeTools`).

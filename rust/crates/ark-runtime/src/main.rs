@@ -7,12 +7,14 @@
 //! inherited. Blocking writes give back-pressure; lines have no length limit. SIGTERM, SIGINT, SIGHUP and
 //! SIGQUIT go to the child. The forwarder exits with the child's exit code, or dies by the child's signal.
 
+use ark_runtime::chat::{self, Chat, Sink};
 use ark_runtime::native;
 
 use std::io::{self, BufRead, BufReader, Write};
 use std::os::unix::process::ExitStatusExt;
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicI32, Ordering};
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 /// The child's pid for the signal handler; 0 before the start.
@@ -41,7 +43,7 @@ fn install_signal_forwarding() {
 
 /// Copies `reader` to `writer` one line at a time and flushes after each line.
 /// Returns at end of input or at the first error (the other side closed).
-fn forward_lines(reader: impl BufRead, mut writer: impl Write) -> io::Result<()> {
+fn forward_lines(reader: impl BufRead, mut writer: impl Write, observe: impl Fn(&str)) -> io::Result<()> {
     let mut reader = reader;
     let mut line = Vec::new();
     loop {
@@ -49,19 +51,27 @@ fn forward_lines(reader: impl BufRead, mut writer: impl Write) -> io::Result<()>
         if reader.read_until(b'\n', &mut line)? == 0 {
             return Ok(());
         }
+        if let Ok(text) = std::str::from_utf8(&line) {
+            observe(text);
+        }
         writer.write_all(&line)?;
         writer.flush()?;
     }
 }
 
 /// Like `forward_lines`, but a line that `native` answers goes to `out`, not to `writer`.
-fn route_lines(reader: impl BufRead, mut writer: impl Write, native: Option<&native::Native>, mut out: impl Write) -> io::Result<()> {
+fn route_lines(reader: impl BufRead, mut writer: impl Write, native: Option<&native::Native>, chat: Option<(&Arc<Chat>, Sink, Sink)>, mut out: impl Write) -> io::Result<()> {
     let mut reader = reader;
     let mut line = Vec::new();
     loop {
         line.clear();
         if reader.read_until(b'\n', &mut line)? == 0 {
             return Ok(());
+        }
+        if let (Some((chat, to_app, to_node)), Ok(text)) = (&chat, std::str::from_utf8(&line))
+            && chat.handle(text, to_app.clone(), to_node.clone())
+        {
+            continue;
         }
         let answer = native.and_then(|n| std::str::from_utf8(&line).ok().and_then(|text| n.try_answer(text)));
         match answer {
@@ -75,6 +85,43 @@ fn route_lines(reader: impl BufRead, mut writer: impl Write, native: Option<&nat
             }
         }
     }
+}
+
+/// Writes `line` and flushes; a closed pipe is ignored (the forwarder ends on its own then).
+fn write_line(out: &mut impl Write, line: &str) {
+    out.write_all(line.as_bytes()).and_then(|()| out.flush()).ok();
+}
+
+/// A writer to Node's stdin that the stdin thread and the chat threads share.
+struct SharedWriter(Arc<Mutex<std::process::ChildStdin>>);
+
+impl Write for SharedWriter {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.0.lock().map_err(|_| io::Error::other("lock poisoned"))?.write(buf)
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        self.0.lock().map_err(|_| io::Error::other("lock poisoned"))?.flush()
+    }
+}
+
+/// Native chat when `ARK_RUNTIME_NATIVE_CHAT=1` and a model is reachable: `ANTHROPIC_API_KEY`, else the Claude
+/// bridge helper named by `ARK_CLAUDE_BRIDGE` (a TypeScript file run by `node`). Without either, Node answers.
+fn chat_from_process(memory_db: &std::path::Path) -> Option<Arc<Chat>> {
+    let env = |name: &str| std::env::var(name).ok().filter(|v| !v.is_empty());
+    if !chat::enabled(env) {
+        return None;
+    }
+    let provider: Arc<dyn ark_llm::Provider> = match (env("ANTHROPIC_API_KEY"), env("ARK_CLAUDE_BRIDGE")) {
+        (Some(key), _) => Arc::new(ark_llm::anthropic::AnthropicClient::new(key)),
+        (None, Some(script)) => Arc::new(ark_llm::bridge::ClaudeBridge::new("node", vec!["--disable-warning=ExperimentalWarning".into(), script])),
+        _ => return None,
+    };
+    let home = std::path::PathBuf::from(env("HOME")?);
+    let cwd = std::env::current_dir().ok()?;
+    let tools = ark_agent::tools::Tools { home: home.clone(), roots: Vec::new(), cwd: cwd.clone() };
+    let policy = ark_agent::FloorPolicy::new(&["current_time"], &home, Vec::new(), &cwd);
+    let model = env("ARK_NATIVE_CHAT_MODEL").unwrap_or_else(|| "claude-sonnet-5-5".into());
+    Some(Arc::new(Chat::new(memory_db.to_path_buf(), provider, Arc::new(ark_agent::RuntimeTools(tools)), Arc::new(policy), &model)))
 }
 
 fn native_from_process() -> Option<native::Native> {
@@ -145,9 +192,33 @@ fn main() {
             }
         });
     }
-    thread::spawn(move || route_lines(io::stdin().lock(), child_in, native.as_deref(), io::stdout()));
+    let node_in = Arc::new(Mutex::new(child_in));
+    let chat = native.as_deref().and_then(|n| chat_from_process(n.memory_db()));
+    let to_app: Sink = Arc::new(|line: &str| write_line(&mut io::stdout().lock(), line));
+    let to_node: Sink = {
+        let node_in = Arc::clone(&node_in);
+        Arc::new(move |line: &str| {
+            if let Ok(mut writer) = node_in.lock() {
+                write_line(&mut *writer, line);
+            }
+        })
+    };
+    {
+        let (native, chat, to_app, node_in) = (native.clone(), chat.clone(), to_app.clone(), Arc::clone(&node_in));
+        let to_node = to_node.clone();
+        thread::spawn(move || {
+            let writer = SharedWriter(node_in);
+            let chat = chat.as_ref().map(|c| (c, to_app, to_node));
+            route_lines(io::stdin().lock(), writer, native.as_deref(), chat, io::stdout())
+        });
+    }
     let to_app = thread::spawn(move || {
-        if forward_lines(BufReader::new(child_out), io::stdout()).is_err() {
+        let observe = |line: &str| {
+            if let Some(chat) = &chat {
+                chat.observe(line);
+            }
+        };
+        if forward_lines(BufReader::new(child_out), io::stdout(), observe).is_err() {
             // The app closed our stdout: stop the child, as the app can no longer hear it.
             forward_signal(libc::SIGTERM);
         }

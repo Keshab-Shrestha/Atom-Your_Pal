@@ -6,12 +6,18 @@ publish = false
 description = "Phase 2: a forwarder between the Swift app and the Node runtime that answers some read-only commands itself (ADR-278)."
 
 [dependencies]
+ark-agent = { version = "0.0.1", path = "../ark-agent" }
 ark-core = { version = "0.0.1", path = "../ark-core" }
+ark-llm = { version = "0.0.1", path = "../ark-llm" }
 ark-protocol = { version = "0.0.1", path = "../ark-protocol" }
 jiff = "0.2"
 libc = "0.2"
 rusqlite = { version = "0.42.0", features = ["bundled"] }
 serde_json = "1.0.154"
+tokio = { version = "1", features = ["rt", "macros"] }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+futures-util = { version = "0.3", default-features = false, features = ["std"] }

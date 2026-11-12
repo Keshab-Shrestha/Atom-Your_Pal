@@ -32,6 +32,11 @@ impl Native {
         Native { memory_db, brain_watched: AtomicBool::new(false), feed: Mutex::new(Feed::default()) }
     }
 
+    /// The memory file path.
+    pub fn memory_db(&self) -> &Path {
+        &self.memory_db
+    }
+
     /// The lines to push after a change of the data file by another connection (Node). Call it every few hundred
     /// milliseconds. It sends nothing until `brain.get` was answered, and nothing when the graph did not change.
     pub fn poll_changes(&self) -> Vec<String> {

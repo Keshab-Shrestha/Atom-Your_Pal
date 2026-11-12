@@ -7,7 +7,9 @@
 //! The model only proposes. The [`Policy`] decides. A refused call never reaches the tool: the model gets the reason
 //! as an error result and can try something else. An unknown tool name is refused by default.
 
+pub mod floor;
 mod policy;
+pub mod tools;
 
 use ark_llm::{Answer, Block, Event, LlmError, Message, Provider, Request, ToolSpec, Usage, collect};
 use serde_json::{Map, Value};

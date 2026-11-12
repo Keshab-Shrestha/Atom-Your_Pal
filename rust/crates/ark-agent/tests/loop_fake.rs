@@ -60,7 +60,7 @@ fn fixture(name: &str) -> Fixture {
 fn parts(f: &Fixture) -> (FloorPolicy, RuntimeTools) {
     let home = f.dir.join("home");
     let roots = vec![home.join("work")];
-    let tools = ark_runtime::tools::Tools { home: home.clone(), roots: roots.clone(), cwd: home.clone() };
+    let tools = ark_agent::tools::Tools { home: home.clone(), roots: roots.clone(), cwd: home.clone() };
     (FloorPolicy::new(&["current_time", "read_file"], &home, roots, &home), RuntimeTools(tools))
 }
 
