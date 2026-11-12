@@ -1,0 +1,3743 @@
+{
+ "source": "services/helpers/src/skill-drafts.ts",
+ "before": {
+  "drafts": [
+   {
+    "id": 1,
+    "job_id": 1,
+    "helper": "sid",
+    "name": "fresh-skill",
+    "description": "Say \"hi\"\n  twice\tplease",
+    "body": "  Step one.\nStep two.\n\n",
+    "state": "pending",
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "decided_at": null
+   },
+   {
+    "id": 2,
+    "job_id": 2,
+    "helper": "sid",
+    "name": "ark-has",
+    "description": "Dup",
+    "body": "x",
+    "state": "pending",
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "decided_at": null
+   },
+   {
+    "id": 3,
+    "job_id": 3,
+    "helper": "sid",
+    "name": "user-has",
+    "description": "Dup",
+    "body": "x",
+    "state": "pending",
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "decided_at": null
+   },
+   {
+    "id": 4,
+    "job_id": 4,
+    "helper": "sid",
+    "name": "old-skill",
+    "description": "Old",
+    "body": "x",
+    "state": "approved",
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "decided_at": "2026-01-01T00:00:00.000Z"
+   },
+   {
+    "id": 5,
+    "job_id": 5,
+    "helper": "sid",
+    "name": "plain-skill",
+    "description": "Ünïcode — dash",
+    "body": "Body",
+    "state": "pending",
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "decided_at": null
+   }
+  ],
+  "edits": [
+   {
+    "id": 1,
+    "skill": "ark-one",
+    "job_id": 5,
+    "old_body": "step a\nstep b",
+    "new_body": "step a\n  step c  ",
+    "reason": "because",
+    "state": "pending",
+    "created_at": "2026-01-01T00:00:00.000Z"
+   },
+   {
+    "id": 2,
+    "skill": "user-has",
+    "job_id": 5,
+    "old_body": "your steps",
+    "new_body": "mine",
+    "reason": "because",
+    "state": "pending",
+    "created_at": "2026-01-01T00:00:00.000Z"
+   },
+   {
+    "id": 3,
+    "skill": "ark-two",
+    "job_id": 6,
+    "old_body": "before",
+    "new_body": "after the edit",
+    "reason": "because",
+    "state": "accepted",
+    "created_at": "2026-01-01T00:00:00.000Z"
+   },
+   {
+    "id": 4,
+    "skill": "ark-three",
+    "job_id": 6,
+    "old_body": "before",
+    "new_body": "what I wrote",
+    "reason": "because",
+    "state": "accepted",
+    "created_at": "2026-01-01T00:00:00.000Z"
+   },
+   {
+    "id": 5,
+    "skill": "hubbed",
+    "job_id": 7,
+    "old_body": "hub steps",
+    "new_body": "mine",
+    "reason": "because",
+    "state": "pending",
+    "created_at": "2026-01-01T00:00:00.000Z"
+   },
+   {
+    "id": 6,
+    "skill": "gone",
+    "job_id": 7,
+    "old_body": "x",
+    "new_body": "y",
+    "reason": "because",
+    "state": "pending",
+    "created_at": "2026-01-01T00:00:00.000Z"
+   },
+   {
+    "id": 7,
+    "skill": "ark-one",
+    "job_id": 8,
+    "old_body": "x",
+    "new_body": "y",
+    "reason": "because",
+    "state": "rejected",
+    "created_at": "2026-01-01T00:00:00.000Z"
+   },
+   {
+    "id": 8,
+    "skill": "shadowed",
+    "job_id": 9,
+    "old_body": "ark steps",
+    "new_body": "mine",
+    "reason": "because",
+    "state": "pending",
+    "created_at": "2026-01-01T00:00:00.000Z"
+   },
+   {
+    "id": 9,
+    "skill": "../evil",
+    "job_id": 9,
+    "old_body": "x",
+    "new_body": "y",
+    "reason": "because",
+    "state": "pending",
+    "created_at": "2026-01-01T00:00:00.000Z"
+   }
+  ],
+  "audit": [],
+  "files": {
+   "ark-has/SKILL.md": "---\nname: x\ndescription: \"Has it\"\n---\n\nOld steps.\n",
+   "ark-one/SKILL.md": "---\nname: x\ndescription: \"Does the thing\"\n---\n\nstep a\nstep b\n",
+   "ark-three/SKILL.md": "---\nname: x\ndescription: \"Three\"\n---\n\nsomeone changed me\n",
+   "ark-two/SKILL.md": "---\nname: x\ndescription: 'Quoted'\n---\n\nafter the edit\n",
+   "hubbed/SKILL.md": "---\nname: x\ndescription: \"From the hub\"\n---\n\nhub steps\n",
+   "shadowed/SKILL.md": "---\nname: x\ndescription: \"Shadowed\"\n---\n\nark steps\n"
+  }
+ },
+ "hubPayload": {
+  "results": [],
+  "pending": [
+   {
+    "id": 1,
+    "kind": "new",
+    "name": "cool",
+    "description": "Cool skill",
+    "repo": "a/b",
+    "path": "skills/cool/SKILL.md",
+    "sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "text": "---\nname: cool\n---\nRun curl http://x",
+    "flags": [
+     {
+      "kind": "shell-command",
+      "severity": "warn",
+      "excerpt": "Run curl http://x"
+     }
+    ]
+   },
+   {
+    "id": 2,
+    "kind": "update",
+    "name": "hubbed",
+    "description": "Hub again",
+    "repo": "a/b",
+    "path": "skills/hubbed/SKILL.md",
+    "sha": "cccccccccccccccccccccccccccccccccccccccc",
+    "text": "text",
+    "flags": []
+   }
+  ],
+  "installed": [
+   {
+    "name": "hubbed",
+    "repo": "a/b",
+    "path": "skills/hubbed/SKILL.md",
+    "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   }
+  ]
+ },
+ "cases": [
+  {
+   "name": "approve",
+   "cmds": [
+    {
+     "type": "skill.approve",
+     "id": 1
+    }
+   ],
+   "outcomes": [
+    "done"
+   ],
+   "after": {
+    "drafts": [
+     {
+      "id": 1,
+      "job_id": 1,
+      "helper": "sid",
+      "name": "fresh-skill",
+      "description": "Say \"hi\"\n  twice\tplease",
+      "body": "  Step one.\nStep two.\n\n",
+      "state": "approved",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": "<now>"
+     },
+     {
+      "id": 2,
+      "job_id": 2,
+      "helper": "sid",
+      "name": "ark-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 3,
+      "job_id": 3,
+      "helper": "sid",
+      "name": "user-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 4,
+      "job_id": 4,
+      "helper": "sid",
+      "name": "old-skill",
+      "description": "Old",
+      "body": "x",
+      "state": "approved",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "job_id": 5,
+      "helper": "sid",
+      "name": "plain-skill",
+      "description": "Ünïcode — dash",
+      "body": "Body",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     }
+    ],
+    "edits": [
+     {
+      "id": 1,
+      "skill": "ark-one",
+      "job_id": 5,
+      "old_body": "step a\nstep b",
+      "new_body": "step a\n  step c  ",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 2,
+      "skill": "user-has",
+      "job_id": 5,
+      "old_body": "your steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "skill": "ark-two",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "after the edit",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 4,
+      "skill": "ark-three",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "what I wrote",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "skill": "hubbed",
+      "job_id": 7,
+      "old_body": "hub steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 6,
+      "skill": "gone",
+      "job_id": 7,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 7,
+      "skill": "ark-one",
+      "job_id": 8,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "rejected",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 8,
+      "skill": "shadowed",
+      "job_id": 9,
+      "old_body": "ark steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 9,
+      "skill": "../evil",
+      "job_id": 9,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     }
+    ],
+    "audit": [
+     {
+      "action": "skillDraft",
+      "detail": {
+       "draft": 1,
+       "job": 1,
+       "skill": "fresh-skill",
+       "state": "approved"
+      }
+     }
+    ],
+    "files": {
+     "ark-has/SKILL.md": "---\nname: x\ndescription: \"Has it\"\n---\n\nOld steps.\n",
+     "ark-one/SKILL.md": "---\nname: x\ndescription: \"Does the thing\"\n---\n\nstep a\nstep b\n",
+     "ark-three/SKILL.md": "---\nname: x\ndescription: \"Three\"\n---\n\nsomeone changed me\n",
+     "ark-two/SKILL.md": "---\nname: x\ndescription: 'Quoted'\n---\n\nafter the edit\n",
+     "fresh-skill/SKILL.md": "---\nname: fresh-skill\ndescription: \"Say \\\"hi\\\" twice please\"\n---\n\nStep one.\nStep two.\n",
+     "hubbed/SKILL.md": "---\nname: x\ndescription: \"From the hub\"\n---\n\nhub steps\n",
+     "shadowed/SKILL.md": "---\nname: x\ndescription: \"Shadowed\"\n---\n\nark steps\n"
+    }
+   }
+  },
+  {
+   "name": "approve twice",
+   "cmds": [
+    {
+     "type": "skill.approve",
+     "id": 1
+    },
+    {
+     "type": "skill.approve",
+     "id": 1
+    }
+   ],
+   "outcomes": [
+    "done",
+    "refused: No skill draft waits for an answer there."
+   ],
+   "after": {
+    "drafts": [
+     {
+      "id": 1,
+      "job_id": 1,
+      "helper": "sid",
+      "name": "fresh-skill",
+      "description": "Say \"hi\"\n  twice\tplease",
+      "body": "  Step one.\nStep two.\n\n",
+      "state": "approved",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": "<now>"
+     },
+     {
+      "id": 2,
+      "job_id": 2,
+      "helper": "sid",
+      "name": "ark-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 3,
+      "job_id": 3,
+      "helper": "sid",
+      "name": "user-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 4,
+      "job_id": 4,
+      "helper": "sid",
+      "name": "old-skill",
+      "description": "Old",
+      "body": "x",
+      "state": "approved",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "job_id": 5,
+      "helper": "sid",
+      "name": "plain-skill",
+      "description": "Ünïcode — dash",
+      "body": "Body",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     }
+    ],
+    "edits": [
+     {
+      "id": 1,
+      "skill": "ark-one",
+      "job_id": 5,
+      "old_body": "step a\nstep b",
+      "new_body": "step a\n  step c  ",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 2,
+      "skill": "user-has",
+      "job_id": 5,
+      "old_body": "your steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "skill": "ark-two",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "after the edit",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 4,
+      "skill": "ark-three",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "what I wrote",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "skill": "hubbed",
+      "job_id": 7,
+      "old_body": "hub steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 6,
+      "skill": "gone",
+      "job_id": 7,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 7,
+      "skill": "ark-one",
+      "job_id": 8,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "rejected",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 8,
+      "skill": "shadowed",
+      "job_id": 9,
+      "old_body": "ark steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 9,
+      "skill": "../evil",
+      "job_id": 9,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     }
+    ],
+    "audit": [
+     {
+      "action": "skillDraft",
+      "detail": {
+       "draft": 1,
+       "job": 1,
+       "skill": "fresh-skill",
+       "state": "approved"
+      }
+     }
+    ],
+    "files": {
+     "ark-has/SKILL.md": "---\nname: x\ndescription: \"Has it\"\n---\n\nOld steps.\n",
+     "ark-one/SKILL.md": "---\nname: x\ndescription: \"Does the thing\"\n---\n\nstep a\nstep b\n",
+     "ark-three/SKILL.md": "---\nname: x\ndescription: \"Three\"\n---\n\nsomeone changed me\n",
+     "ark-two/SKILL.md": "---\nname: x\ndescription: 'Quoted'\n---\n\nafter the edit\n",
+     "fresh-skill/SKILL.md": "---\nname: fresh-skill\ndescription: \"Say \\\"hi\\\" twice please\"\n---\n\nStep one.\nStep two.\n",
+     "hubbed/SKILL.md": "---\nname: x\ndescription: \"From the hub\"\n---\n\nhub steps\n",
+     "shadowed/SKILL.md": "---\nname: x\ndescription: \"Shadowed\"\n---\n\nark steps\n"
+    }
+   }
+  },
+  {
+   "name": "approve over an ARK skill",
+   "cmds": [
+    {
+     "type": "skill.approve",
+     "id": 2
+    }
+   ],
+   "outcomes": [
+    "refused: ARK already has a skill called \"ark-has\". Reject this draft."
+   ],
+   "after": {
+    "drafts": [
+     {
+      "id": 1,
+      "job_id": 1,
+      "helper": "sid",
+      "name": "fresh-skill",
+      "description": "Say \"hi\"\n  twice\tplease",
+      "body": "  Step one.\nStep two.\n\n",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 2,
+      "job_id": 2,
+      "helper": "sid",
+      "name": "ark-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 3,
+      "job_id": 3,
+      "helper": "sid",
+      "name": "user-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 4,
+      "job_id": 4,
+      "helper": "sid",
+      "name": "old-skill",
+      "description": "Old",
+      "body": "x",
+      "state": "approved",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "job_id": 5,
+      "helper": "sid",
+      "name": "plain-skill",
+      "description": "Ünïcode — dash",
+      "body": "Body",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     }
+    ],
+    "edits": [
+     {
+      "id": 1,
+      "skill": "ark-one",
+      "job_id": 5,
+      "old_body": "step a\nstep b",
+      "new_body": "step a\n  step c  ",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 2,
+      "skill": "user-has",
+      "job_id": 5,
+      "old_body": "your steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "skill": "ark-two",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "after the edit",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 4,
+      "skill": "ark-three",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "what I wrote",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "skill": "hubbed",
+      "job_id": 7,
+      "old_body": "hub steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 6,
+      "skill": "gone",
+      "job_id": 7,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 7,
+      "skill": "ark-one",
+      "job_id": 8,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "rejected",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 8,
+      "skill": "shadowed",
+      "job_id": 9,
+      "old_body": "ark steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 9,
+      "skill": "../evil",
+      "job_id": 9,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     }
+    ],
+    "audit": [],
+    "files": {
+     "ark-has/SKILL.md": "---\nname: x\ndescription: \"Has it\"\n---\n\nOld steps.\n",
+     "ark-one/SKILL.md": "---\nname: x\ndescription: \"Does the thing\"\n---\n\nstep a\nstep b\n",
+     "ark-three/SKILL.md": "---\nname: x\ndescription: \"Three\"\n---\n\nsomeone changed me\n",
+     "ark-two/SKILL.md": "---\nname: x\ndescription: 'Quoted'\n---\n\nafter the edit\n",
+     "hubbed/SKILL.md": "---\nname: x\ndescription: \"From the hub\"\n---\n\nhub steps\n",
+     "shadowed/SKILL.md": "---\nname: x\ndescription: \"Shadowed\"\n---\n\nark steps\n"
+    }
+   }
+  },
+  {
+   "name": "approve over one of yours",
+   "cmds": [
+    {
+     "type": "skill.approve",
+     "id": 3
+    }
+   ],
+   "outcomes": [
+    "refused: You already have a skill called \"user-has\" in ~/.claude/skills, and ARK never changes yours. Reject this draft."
+   ],
+   "after": {
+    "drafts": [
+     {
+      "id": 1,
+      "job_id": 1,
+      "helper": "sid",
+      "name": "fresh-skill",
+      "description": "Say \"hi\"\n  twice\tplease",
+      "body": "  Step one.\nStep two.\n\n",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 2,
+      "job_id": 2,
+      "helper": "sid",
+      "name": "ark-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 3,
+      "job_id": 3,
+      "helper": "sid",
+      "name": "user-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 4,
+      "job_id": 4,
+      "helper": "sid",
+      "name": "old-skill",
+      "description": "Old",
+      "body": "x",
+      "state": "approved",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "job_id": 5,
+      "helper": "sid",
+      "name": "plain-skill",
+      "description": "Ünïcode — dash",
+      "body": "Body",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     }
+    ],
+    "edits": [
+     {
+      "id": 1,
+      "skill": "ark-one",
+      "job_id": 5,
+      "old_body": "step a\nstep b",
+      "new_body": "step a\n  step c  ",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 2,
+      "skill": "user-has",
+      "job_id": 5,
+      "old_body": "your steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "skill": "ark-two",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "after the edit",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 4,
+      "skill": "ark-three",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "what I wrote",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "skill": "hubbed",
+      "job_id": 7,
+      "old_body": "hub steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 6,
+      "skill": "gone",
+      "job_id": 7,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 7,
+      "skill": "ark-one",
+      "job_id": 8,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "rejected",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 8,
+      "skill": "shadowed",
+      "job_id": 9,
+      "old_body": "ark steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 9,
+      "skill": "../evil",
+      "job_id": 9,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     }
+    ],
+    "audit": [],
+    "files": {
+     "ark-has/SKILL.md": "---\nname: x\ndescription: \"Has it\"\n---\n\nOld steps.\n",
+     "ark-one/SKILL.md": "---\nname: x\ndescription: \"Does the thing\"\n---\n\nstep a\nstep b\n",
+     "ark-three/SKILL.md": "---\nname: x\ndescription: \"Three\"\n---\n\nsomeone changed me\n",
+     "ark-two/SKILL.md": "---\nname: x\ndescription: 'Quoted'\n---\n\nafter the edit\n",
+     "hubbed/SKILL.md": "---\nname: x\ndescription: \"From the hub\"\n---\n\nhub steps\n",
+     "shadowed/SKILL.md": "---\nname: x\ndescription: \"Shadowed\"\n---\n\nark steps\n"
+    }
+   }
+  },
+  {
+   "name": "approve a decided draft",
+   "cmds": [
+    {
+     "type": "skill.approve",
+     "id": 4
+    }
+   ],
+   "outcomes": [
+    "refused: No skill draft waits for an answer there."
+   ],
+   "after": {
+    "drafts": [
+     {
+      "id": 1,
+      "job_id": 1,
+      "helper": "sid",
+      "name": "fresh-skill",
+      "description": "Say \"hi\"\n  twice\tplease",
+      "body": "  Step one.\nStep two.\n\n",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 2,
+      "job_id": 2,
+      "helper": "sid",
+      "name": "ark-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 3,
+      "job_id": 3,
+      "helper": "sid",
+      "name": "user-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 4,
+      "job_id": 4,
+      "helper": "sid",
+      "name": "old-skill",
+      "description": "Old",
+      "body": "x",
+      "state": "approved",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "job_id": 5,
+      "helper": "sid",
+      "name": "plain-skill",
+      "description": "Ünïcode — dash",
+      "body": "Body",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     }
+    ],
+    "edits": [
+     {
+      "id": 1,
+      "skill": "ark-one",
+      "job_id": 5,
+      "old_body": "step a\nstep b",
+      "new_body": "step a\n  step c  ",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 2,
+      "skill": "user-has",
+      "job_id": 5,
+      "old_body": "your steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "skill": "ark-two",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "after the edit",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 4,
+      "skill": "ark-three",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "what I wrote",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "skill": "hubbed",
+      "job_id": 7,
+      "old_body": "hub steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 6,
+      "skill": "gone",
+      "job_id": 7,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 7,
+      "skill": "ark-one",
+      "job_id": 8,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "rejected",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 8,
+      "skill": "shadowed",
+      "job_id": 9,
+      "old_body": "ark steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 9,
+      "skill": "../evil",
+      "job_id": 9,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     }
+    ],
+    "audit": [],
+    "files": {
+     "ark-has/SKILL.md": "---\nname: x\ndescription: \"Has it\"\n---\n\nOld steps.\n",
+     "ark-one/SKILL.md": "---\nname: x\ndescription: \"Does the thing\"\n---\n\nstep a\nstep b\n",
+     "ark-three/SKILL.md": "---\nname: x\ndescription: \"Three\"\n---\n\nsomeone changed me\n",
+     "ark-two/SKILL.md": "---\nname: x\ndescription: 'Quoted'\n---\n\nafter the edit\n",
+     "hubbed/SKILL.md": "---\nname: x\ndescription: \"From the hub\"\n---\n\nhub steps\n",
+     "shadowed/SKILL.md": "---\nname: x\ndescription: \"Shadowed\"\n---\n\nark steps\n"
+    }
+   }
+  },
+  {
+   "name": "approve unicode",
+   "cmds": [
+    {
+     "type": "skill.approve",
+     "id": 5
+    }
+   ],
+   "outcomes": [
+    "done"
+   ],
+   "after": {
+    "drafts": [
+     {
+      "id": 1,
+      "job_id": 1,
+      "helper": "sid",
+      "name": "fresh-skill",
+      "description": "Say \"hi\"\n  twice\tplease",
+      "body": "  Step one.\nStep two.\n\n",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 2,
+      "job_id": 2,
+      "helper": "sid",
+      "name": "ark-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 3,
+      "job_id": 3,
+      "helper": "sid",
+      "name": "user-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 4,
+      "job_id": 4,
+      "helper": "sid",
+      "name": "old-skill",
+      "description": "Old",
+      "body": "x",
+      "state": "approved",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "job_id": 5,
+      "helper": "sid",
+      "name": "plain-skill",
+      "description": "Ünïcode — dash",
+      "body": "Body",
+      "state": "approved",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": "<now>"
+     }
+    ],
+    "edits": [
+     {
+      "id": 1,
+      "skill": "ark-one",
+      "job_id": 5,
+      "old_body": "step a\nstep b",
+      "new_body": "step a\n  step c  ",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 2,
+      "skill": "user-has",
+      "job_id": 5,
+      "old_body": "your steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "skill": "ark-two",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "after the edit",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 4,
+      "skill": "ark-three",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "what I wrote",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "skill": "hubbed",
+      "job_id": 7,
+      "old_body": "hub steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 6,
+      "skill": "gone",
+      "job_id": 7,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 7,
+      "skill": "ark-one",
+      "job_id": 8,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "rejected",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 8,
+      "skill": "shadowed",
+      "job_id": 9,
+      "old_body": "ark steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 9,
+      "skill": "../evil",
+      "job_id": 9,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     }
+    ],
+    "audit": [
+     {
+      "action": "skillDraft",
+      "detail": {
+       "draft": 5,
+       "job": 5,
+       "skill": "plain-skill",
+       "state": "approved"
+      }
+     }
+    ],
+    "files": {
+     "ark-has/SKILL.md": "---\nname: x\ndescription: \"Has it\"\n---\n\nOld steps.\n",
+     "ark-one/SKILL.md": "---\nname: x\ndescription: \"Does the thing\"\n---\n\nstep a\nstep b\n",
+     "ark-three/SKILL.md": "---\nname: x\ndescription: \"Three\"\n---\n\nsomeone changed me\n",
+     "ark-two/SKILL.md": "---\nname: x\ndescription: 'Quoted'\n---\n\nafter the edit\n",
+     "hubbed/SKILL.md": "---\nname: x\ndescription: \"From the hub\"\n---\n\nhub steps\n",
+     "plain-skill/SKILL.md": "---\nname: plain-skill\ndescription: \"Ünïcode — dash\"\n---\n\nBody\n",
+     "shadowed/SKILL.md": "---\nname: x\ndescription: \"Shadowed\"\n---\n\nark steps\n"
+    }
+   }
+  },
+  {
+   "name": "approve unknown",
+   "cmds": [
+    {
+     "type": "skill.approve",
+     "id": 99
+    }
+   ],
+   "outcomes": [
+    "refused: No skill draft waits for an answer there."
+   ],
+   "after": {
+    "drafts": [
+     {
+      "id": 1,
+      "job_id": 1,
+      "helper": "sid",
+      "name": "fresh-skill",
+      "description": "Say \"hi\"\n  twice\tplease",
+      "body": "  Step one.\nStep two.\n\n",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 2,
+      "job_id": 2,
+      "helper": "sid",
+      "name": "ark-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 3,
+      "job_id": 3,
+      "helper": "sid",
+      "name": "user-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 4,
+      "job_id": 4,
+      "helper": "sid",
+      "name": "old-skill",
+      "description": "Old",
+      "body": "x",
+      "state": "approved",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "job_id": 5,
+      "helper": "sid",
+      "name": "plain-skill",
+      "description": "Ünïcode — dash",
+      "body": "Body",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     }
+    ],
+    "edits": [
+     {
+      "id": 1,
+      "skill": "ark-one",
+      "job_id": 5,
+      "old_body": "step a\nstep b",
+      "new_body": "step a\n  step c  ",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 2,
+      "skill": "user-has",
+      "job_id": 5,
+      "old_body": "your steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "skill": "ark-two",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "after the edit",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 4,
+      "skill": "ark-three",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "what I wrote",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "skill": "hubbed",
+      "job_id": 7,
+      "old_body": "hub steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 6,
+      "skill": "gone",
+      "job_id": 7,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 7,
+      "skill": "ark-one",
+      "job_id": 8,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "rejected",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 8,
+      "skill": "shadowed",
+      "job_id": 9,
+      "old_body": "ark steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 9,
+      "skill": "../evil",
+      "job_id": 9,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     }
+    ],
+    "audit": [],
+    "files": {
+     "ark-has/SKILL.md": "---\nname: x\ndescription: \"Has it\"\n---\n\nOld steps.\n",
+     "ark-one/SKILL.md": "---\nname: x\ndescription: \"Does the thing\"\n---\n\nstep a\nstep b\n",
+     "ark-three/SKILL.md": "---\nname: x\ndescription: \"Three\"\n---\n\nsomeone changed me\n",
+     "ark-two/SKILL.md": "---\nname: x\ndescription: 'Quoted'\n---\n\nafter the edit\n",
+     "hubbed/SKILL.md": "---\nname: x\ndescription: \"From the hub\"\n---\n\nhub steps\n",
+     "shadowed/SKILL.md": "---\nname: x\ndescription: \"Shadowed\"\n---\n\nark steps\n"
+    }
+   }
+  },
+  {
+   "name": "accept",
+   "cmds": [
+    {
+     "type": "skill.edit.accept",
+     "id": 1
+    }
+   ],
+   "outcomes": [
+    "done"
+   ],
+   "after": {
+    "drafts": [
+     {
+      "id": 1,
+      "job_id": 1,
+      "helper": "sid",
+      "name": "fresh-skill",
+      "description": "Say \"hi\"\n  twice\tplease",
+      "body": "  Step one.\nStep two.\n\n",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 2,
+      "job_id": 2,
+      "helper": "sid",
+      "name": "ark-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 3,
+      "job_id": 3,
+      "helper": "sid",
+      "name": "user-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 4,
+      "job_id": 4,
+      "helper": "sid",
+      "name": "old-skill",
+      "description": "Old",
+      "body": "x",
+      "state": "approved",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "job_id": 5,
+      "helper": "sid",
+      "name": "plain-skill",
+      "description": "Ünïcode — dash",
+      "body": "Body",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     }
+    ],
+    "edits": [
+     {
+      "id": 1,
+      "skill": "ark-one",
+      "job_id": 5,
+      "old_body": "step a\nstep b",
+      "new_body": "step a\n  step c  ",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 2,
+      "skill": "user-has",
+      "job_id": 5,
+      "old_body": "your steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "skill": "ark-two",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "after the edit",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 4,
+      "skill": "ark-three",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "what I wrote",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "skill": "hubbed",
+      "job_id": 7,
+      "old_body": "hub steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 6,
+      "skill": "gone",
+      "job_id": 7,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 7,
+      "skill": "ark-one",
+      "job_id": 8,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "rejected",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 8,
+      "skill": "shadowed",
+      "job_id": 9,
+      "old_body": "ark steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 9,
+      "skill": "../evil",
+      "job_id": 9,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     }
+    ],
+    "audit": [
+     {
+      "action": "skillEdit",
+      "detail": {
+       "edit": 1,
+       "job": 5,
+       "skill": "ark-one",
+       "state": "accepted"
+      }
+     }
+    ],
+    "files": {
+     "ark-has/SKILL.md": "---\nname: x\ndescription: \"Has it\"\n---\n\nOld steps.\n",
+     "ark-one/SKILL.md": "---\nname: ark-one\ndescription: \"Does the thing\"\n---\n\nstep a\n  step c\n",
+     "ark-three/SKILL.md": "---\nname: x\ndescription: \"Three\"\n---\n\nsomeone changed me\n",
+     "ark-two/SKILL.md": "---\nname: x\ndescription: 'Quoted'\n---\n\nafter the edit\n",
+     "hubbed/SKILL.md": "---\nname: x\ndescription: \"From the hub\"\n---\n\nhub steps\n",
+     "shadowed/SKILL.md": "---\nname: x\ndescription: \"Shadowed\"\n---\n\nark steps\n"
+    }
+   }
+  },
+  {
+   "name": "accept then undo",
+   "cmds": [
+    {
+     "type": "skill.edit.accept",
+     "id": 1
+    },
+    {
+     "type": "skill.edit.undo",
+     "id": 1
+    }
+   ],
+   "outcomes": [
+    "done",
+    "done"
+   ],
+   "after": {
+    "drafts": [
+     {
+      "id": 1,
+      "job_id": 1,
+      "helper": "sid",
+      "name": "fresh-skill",
+      "description": "Say \"hi\"\n  twice\tplease",
+      "body": "  Step one.\nStep two.\n\n",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 2,
+      "job_id": 2,
+      "helper": "sid",
+      "name": "ark-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 3,
+      "job_id": 3,
+      "helper": "sid",
+      "name": "user-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 4,
+      "job_id": 4,
+      "helper": "sid",
+      "name": "old-skill",
+      "description": "Old",
+      "body": "x",
+      "state": "approved",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "job_id": 5,
+      "helper": "sid",
+      "name": "plain-skill",
+      "description": "Ünïcode — dash",
+      "body": "Body",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     }
+    ],
+    "edits": [
+     {
+      "id": 1,
+      "skill": "ark-one",
+      "job_id": 5,
+      "old_body": "step a\nstep b",
+      "new_body": "step a\n  step c  ",
+      "reason": "because",
+      "state": "undone",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 2,
+      "skill": "user-has",
+      "job_id": 5,
+      "old_body": "your steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "skill": "ark-two",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "after the edit",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 4,
+      "skill": "ark-three",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "what I wrote",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "skill": "hubbed",
+      "job_id": 7,
+      "old_body": "hub steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 6,
+      "skill": "gone",
+      "job_id": 7,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 7,
+      "skill": "ark-one",
+      "job_id": 8,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "rejected",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 8,
+      "skill": "shadowed",
+      "job_id": 9,
+      "old_body": "ark steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 9,
+      "skill": "../evil",
+      "job_id": 9,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     }
+    ],
+    "audit": [
+     {
+      "action": "skillEdit",
+      "detail": {
+       "edit": 1,
+       "job": 5,
+       "skill": "ark-one",
+       "state": "accepted"
+      }
+     },
+     {
+      "action": "skillEdit",
+      "detail": {
+       "edit": 1,
+       "job": 5,
+       "skill": "ark-one",
+       "state": "undone"
+      }
+     }
+    ],
+    "files": {
+     "ark-has/SKILL.md": "---\nname: x\ndescription: \"Has it\"\n---\n\nOld steps.\n",
+     "ark-one/SKILL.md": "---\nname: ark-one\ndescription: \"Does the thing\"\n---\n\nstep a\nstep b\n",
+     "ark-three/SKILL.md": "---\nname: x\ndescription: \"Three\"\n---\n\nsomeone changed me\n",
+     "ark-two/SKILL.md": "---\nname: x\ndescription: 'Quoted'\n---\n\nafter the edit\n",
+     "hubbed/SKILL.md": "---\nname: x\ndescription: \"From the hub\"\n---\n\nhub steps\n",
+     "shadowed/SKILL.md": "---\nname: x\ndescription: \"Shadowed\"\n---\n\nark steps\n"
+    }
+   }
+  },
+  {
+   "name": "accept twice",
+   "cmds": [
+    {
+     "type": "skill.edit.accept",
+     "id": 1
+    },
+    {
+     "type": "skill.edit.accept",
+     "id": 1
+    }
+   ],
+   "outcomes": [
+    "done",
+    "refused: No skill edit waits for an answer there."
+   ],
+   "after": {
+    "drafts": [
+     {
+      "id": 1,
+      "job_id": 1,
+      "helper": "sid",
+      "name": "fresh-skill",
+      "description": "Say \"hi\"\n  twice\tplease",
+      "body": "  Step one.\nStep two.\n\n",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 2,
+      "job_id": 2,
+      "helper": "sid",
+      "name": "ark-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 3,
+      "job_id": 3,
+      "helper": "sid",
+      "name": "user-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 4,
+      "job_id": 4,
+      "helper": "sid",
+      "name": "old-skill",
+      "description": "Old",
+      "body": "x",
+      "state": "approved",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "job_id": 5,
+      "helper": "sid",
+      "name": "plain-skill",
+      "description": "Ünïcode — dash",
+      "body": "Body",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     }
+    ],
+    "edits": [
+     {
+      "id": 1,
+      "skill": "ark-one",
+      "job_id": 5,
+      "old_body": "step a\nstep b",
+      "new_body": "step a\n  step c  ",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 2,
+      "skill": "user-has",
+      "job_id": 5,
+      "old_body": "your steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "skill": "ark-two",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "after the edit",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 4,
+      "skill": "ark-three",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "what I wrote",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "skill": "hubbed",
+      "job_id": 7,
+      "old_body": "hub steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 6,
+      "skill": "gone",
+      "job_id": 7,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 7,
+      "skill": "ark-one",
+      "job_id": 8,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "rejected",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 8,
+      "skill": "shadowed",
+      "job_id": 9,
+      "old_body": "ark steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 9,
+      "skill": "../evil",
+      "job_id": 9,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     }
+    ],
+    "audit": [
+     {
+      "action": "skillEdit",
+      "detail": {
+       "edit": 1,
+       "job": 5,
+       "skill": "ark-one",
+       "state": "accepted"
+      }
+     }
+    ],
+    "files": {
+     "ark-has/SKILL.md": "---\nname: x\ndescription: \"Has it\"\n---\n\nOld steps.\n",
+     "ark-one/SKILL.md": "---\nname: ark-one\ndescription: \"Does the thing\"\n---\n\nstep a\n  step c\n",
+     "ark-three/SKILL.md": "---\nname: x\ndescription: \"Three\"\n---\n\nsomeone changed me\n",
+     "ark-two/SKILL.md": "---\nname: x\ndescription: 'Quoted'\n---\n\nafter the edit\n",
+     "hubbed/SKILL.md": "---\nname: x\ndescription: \"From the hub\"\n---\n\nhub steps\n",
+     "shadowed/SKILL.md": "---\nname: x\ndescription: \"Shadowed\"\n---\n\nark steps\n"
+    }
+   }
+  },
+  {
+   "name": "accept a skill of yours",
+   "cmds": [
+    {
+     "type": "skill.edit.accept",
+     "id": 2
+    }
+   ],
+   "outcomes": [
+    "refused: \"user-has\" is not one of ARK's own skills any more, and the skills in ~/.claude/skills are never edited."
+   ],
+   "after": {
+    "drafts": [
+     {
+      "id": 1,
+      "job_id": 1,
+      "helper": "sid",
+      "name": "fresh-skill",
+      "description": "Say \"hi\"\n  twice\tplease",
+      "body": "  Step one.\nStep two.\n\n",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 2,
+      "job_id": 2,
+      "helper": "sid",
+      "name": "ark-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 3,
+      "job_id": 3,
+      "helper": "sid",
+      "name": "user-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 4,
+      "job_id": 4,
+      "helper": "sid",
+      "name": "old-skill",
+      "description": "Old",
+      "body": "x",
+      "state": "approved",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "job_id": 5,
+      "helper": "sid",
+      "name": "plain-skill",
+      "description": "Ünïcode — dash",
+      "body": "Body",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     }
+    ],
+    "edits": [
+     {
+      "id": 1,
+      "skill": "ark-one",
+      "job_id": 5,
+      "old_body": "step a\nstep b",
+      "new_body": "step a\n  step c  ",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 2,
+      "skill": "user-has",
+      "job_id": 5,
+      "old_body": "your steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "skill": "ark-two",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "after the edit",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 4,
+      "skill": "ark-three",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "what I wrote",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "skill": "hubbed",
+      "job_id": 7,
+      "old_body": "hub steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 6,
+      "skill": "gone",
+      "job_id": 7,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 7,
+      "skill": "ark-one",
+      "job_id": 8,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "rejected",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 8,
+      "skill": "shadowed",
+      "job_id": 9,
+      "old_body": "ark steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 9,
+      "skill": "../evil",
+      "job_id": 9,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     }
+    ],
+    "audit": [],
+    "files": {
+     "ark-has/SKILL.md": "---\nname: x\ndescription: \"Has it\"\n---\n\nOld steps.\n",
+     "ark-one/SKILL.md": "---\nname: x\ndescription: \"Does the thing\"\n---\n\nstep a\nstep b\n",
+     "ark-three/SKILL.md": "---\nname: x\ndescription: \"Three\"\n---\n\nsomeone changed me\n",
+     "ark-two/SKILL.md": "---\nname: x\ndescription: 'Quoted'\n---\n\nafter the edit\n",
+     "hubbed/SKILL.md": "---\nname: x\ndescription: \"From the hub\"\n---\n\nhub steps\n",
+     "shadowed/SKILL.md": "---\nname: x\ndescription: \"Shadowed\"\n---\n\nark steps\n"
+    }
+   }
+  },
+  {
+   "name": "accept a hub skill",
+   "cmds": [
+    {
+     "type": "skill.edit.accept",
+     "id": 5
+    }
+   ],
+   "outcomes": [
+    "refused: \"hubbed\" is not one of ARK's own skills any more, and the skills in ~/.claude/skills are never edited."
+   ],
+   "after": {
+    "drafts": [
+     {
+      "id": 1,
+      "job_id": 1,
+      "helper": "sid",
+      "name": "fresh-skill",
+      "description": "Say \"hi\"\n  twice\tplease",
+      "body": "  Step one.\nStep two.\n\n",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 2,
+      "job_id": 2,
+      "helper": "sid",
+      "name": "ark-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 3,
+      "job_id": 3,
+      "helper": "sid",
+      "name": "user-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 4,
+      "job_id": 4,
+      "helper": "sid",
+      "name": "old-skill",
+      "description": "Old",
+      "body": "x",
+      "state": "approved",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "job_id": 5,
+      "helper": "sid",
+      "name": "plain-skill",
+      "description": "Ünïcode — dash",
+      "body": "Body",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     }
+    ],
+    "edits": [
+     {
+      "id": 1,
+      "skill": "ark-one",
+      "job_id": 5,
+      "old_body": "step a\nstep b",
+      "new_body": "step a\n  step c  ",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 2,
+      "skill": "user-has",
+      "job_id": 5,
+      "old_body": "your steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "skill": "ark-two",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "after the edit",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 4,
+      "skill": "ark-three",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "what I wrote",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "skill": "hubbed",
+      "job_id": 7,
+      "old_body": "hub steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 6,
+      "skill": "gone",
+      "job_id": 7,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 7,
+      "skill": "ark-one",
+      "job_id": 8,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "rejected",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 8,
+      "skill": "shadowed",
+      "job_id": 9,
+      "old_body": "ark steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 9,
+      "skill": "../evil",
+      "job_id": 9,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     }
+    ],
+    "audit": [],
+    "files": {
+     "ark-has/SKILL.md": "---\nname: x\ndescription: \"Has it\"\n---\n\nOld steps.\n",
+     "ark-one/SKILL.md": "---\nname: x\ndescription: \"Does the thing\"\n---\n\nstep a\nstep b\n",
+     "ark-three/SKILL.md": "---\nname: x\ndescription: \"Three\"\n---\n\nsomeone changed me\n",
+     "ark-two/SKILL.md": "---\nname: x\ndescription: 'Quoted'\n---\n\nafter the edit\n",
+     "hubbed/SKILL.md": "---\nname: x\ndescription: \"From the hub\"\n---\n\nhub steps\n",
+     "shadowed/SKILL.md": "---\nname: x\ndescription: \"Shadowed\"\n---\n\nark steps\n"
+    }
+   }
+  },
+  {
+   "name": "accept a gone skill",
+   "cmds": [
+    {
+     "type": "skill.edit.accept",
+     "id": 6
+    }
+   ],
+   "outcomes": [
+    "refused: \"gone\" is not one of ARK's own skills any more, and the skills in ~/.claude/skills are never edited."
+   ],
+   "after": {
+    "drafts": [
+     {
+      "id": 1,
+      "job_id": 1,
+      "helper": "sid",
+      "name": "fresh-skill",
+      "description": "Say \"hi\"\n  twice\tplease",
+      "body": "  Step one.\nStep two.\n\n",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 2,
+      "job_id": 2,
+      "helper": "sid",
+      "name": "ark-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 3,
+      "job_id": 3,
+      "helper": "sid",
+      "name": "user-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 4,
+      "job_id": 4,
+      "helper": "sid",
+      "name": "old-skill",
+      "description": "Old",
+      "body": "x",
+      "state": "approved",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "job_id": 5,
+      "helper": "sid",
+      "name": "plain-skill",
+      "description": "Ünïcode — dash",
+      "body": "Body",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     }
+    ],
+    "edits": [
+     {
+      "id": 1,
+      "skill": "ark-one",
+      "job_id": 5,
+      "old_body": "step a\nstep b",
+      "new_body": "step a\n  step c  ",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 2,
+      "skill": "user-has",
+      "job_id": 5,
+      "old_body": "your steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "skill": "ark-two",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "after the edit",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 4,
+      "skill": "ark-three",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "what I wrote",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "skill": "hubbed",
+      "job_id": 7,
+      "old_body": "hub steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 6,
+      "skill": "gone",
+      "job_id": 7,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 7,
+      "skill": "ark-one",
+      "job_id": 8,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "rejected",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 8,
+      "skill": "shadowed",
+      "job_id": 9,
+      "old_body": "ark steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 9,
+      "skill": "../evil",
+      "job_id": 9,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     }
+    ],
+    "audit": [],
+    "files": {
+     "ark-has/SKILL.md": "---\nname: x\ndescription: \"Has it\"\n---\n\nOld steps.\n",
+     "ark-one/SKILL.md": "---\nname: x\ndescription: \"Does the thing\"\n---\n\nstep a\nstep b\n",
+     "ark-three/SKILL.md": "---\nname: x\ndescription: \"Three\"\n---\n\nsomeone changed me\n",
+     "ark-two/SKILL.md": "---\nname: x\ndescription: 'Quoted'\n---\n\nafter the edit\n",
+     "hubbed/SKILL.md": "---\nname: x\ndescription: \"From the hub\"\n---\n\nhub steps\n",
+     "shadowed/SKILL.md": "---\nname: x\ndescription: \"Shadowed\"\n---\n\nark steps\n"
+    }
+   }
+  },
+  {
+   "name": "accept a rejected edit",
+   "cmds": [
+    {
+     "type": "skill.edit.accept",
+     "id": 7
+    }
+   ],
+   "outcomes": [
+    "refused: No skill edit waits for an answer there."
+   ],
+   "after": {
+    "drafts": [
+     {
+      "id": 1,
+      "job_id": 1,
+      "helper": "sid",
+      "name": "fresh-skill",
+      "description": "Say \"hi\"\n  twice\tplease",
+      "body": "  Step one.\nStep two.\n\n",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 2,
+      "job_id": 2,
+      "helper": "sid",
+      "name": "ark-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 3,
+      "job_id": 3,
+      "helper": "sid",
+      "name": "user-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 4,
+      "job_id": 4,
+      "helper": "sid",
+      "name": "old-skill",
+      "description": "Old",
+      "body": "x",
+      "state": "approved",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "job_id": 5,
+      "helper": "sid",
+      "name": "plain-skill",
+      "description": "Ünïcode — dash",
+      "body": "Body",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     }
+    ],
+    "edits": [
+     {
+      "id": 1,
+      "skill": "ark-one",
+      "job_id": 5,
+      "old_body": "step a\nstep b",
+      "new_body": "step a\n  step c  ",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 2,
+      "skill": "user-has",
+      "job_id": 5,
+      "old_body": "your steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "skill": "ark-two",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "after the edit",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 4,
+      "skill": "ark-three",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "what I wrote",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "skill": "hubbed",
+      "job_id": 7,
+      "old_body": "hub steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 6,
+      "skill": "gone",
+      "job_id": 7,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 7,
+      "skill": "ark-one",
+      "job_id": 8,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "rejected",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 8,
+      "skill": "shadowed",
+      "job_id": 9,
+      "old_body": "ark steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 9,
+      "skill": "../evil",
+      "job_id": 9,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     }
+    ],
+    "audit": [],
+    "files": {
+     "ark-has/SKILL.md": "---\nname: x\ndescription: \"Has it\"\n---\n\nOld steps.\n",
+     "ark-one/SKILL.md": "---\nname: x\ndescription: \"Does the thing\"\n---\n\nstep a\nstep b\n",
+     "ark-three/SKILL.md": "---\nname: x\ndescription: \"Three\"\n---\n\nsomeone changed me\n",
+     "ark-two/SKILL.md": "---\nname: x\ndescription: 'Quoted'\n---\n\nafter the edit\n",
+     "hubbed/SKILL.md": "---\nname: x\ndescription: \"From the hub\"\n---\n\nhub steps\n",
+     "shadowed/SKILL.md": "---\nname: x\ndescription: \"Shadowed\"\n---\n\nark steps\n"
+    }
+   }
+  },
+  {
+   "name": "accept a shadowed skill",
+   "cmds": [
+    {
+     "type": "skill.edit.accept",
+     "id": 8
+    }
+   ],
+   "outcomes": [
+    "refused: \"shadowed\" is not one of ARK's own skills any more, and the skills in ~/.claude/skills are never edited."
+   ],
+   "after": {
+    "drafts": [
+     {
+      "id": 1,
+      "job_id": 1,
+      "helper": "sid",
+      "name": "fresh-skill",
+      "description": "Say \"hi\"\n  twice\tplease",
+      "body": "  Step one.\nStep two.\n\n",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 2,
+      "job_id": 2,
+      "helper": "sid",
+      "name": "ark-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 3,
+      "job_id": 3,
+      "helper": "sid",
+      "name": "user-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 4,
+      "job_id": 4,
+      "helper": "sid",
+      "name": "old-skill",
+      "description": "Old",
+      "body": "x",
+      "state": "approved",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "job_id": 5,
+      "helper": "sid",
+      "name": "plain-skill",
+      "description": "Ünïcode — dash",
+      "body": "Body",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     }
+    ],
+    "edits": [
+     {
+      "id": 1,
+      "skill": "ark-one",
+      "job_id": 5,
+      "old_body": "step a\nstep b",
+      "new_body": "step a\n  step c  ",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 2,
+      "skill": "user-has",
+      "job_id": 5,
+      "old_body": "your steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "skill": "ark-two",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "after the edit",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 4,
+      "skill": "ark-three",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "what I wrote",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "skill": "hubbed",
+      "job_id": 7,
+      "old_body": "hub steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 6,
+      "skill": "gone",
+      "job_id": 7,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 7,
+      "skill": "ark-one",
+      "job_id": 8,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "rejected",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 8,
+      "skill": "shadowed",
+      "job_id": 9,
+      "old_body": "ark steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 9,
+      "skill": "../evil",
+      "job_id": 9,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     }
+    ],
+    "audit": [],
+    "files": {
+     "ark-has/SKILL.md": "---\nname: x\ndescription: \"Has it\"\n---\n\nOld steps.\n",
+     "ark-one/SKILL.md": "---\nname: x\ndescription: \"Does the thing\"\n---\n\nstep a\nstep b\n",
+     "ark-three/SKILL.md": "---\nname: x\ndescription: \"Three\"\n---\n\nsomeone changed me\n",
+     "ark-two/SKILL.md": "---\nname: x\ndescription: 'Quoted'\n---\n\nafter the edit\n",
+     "hubbed/SKILL.md": "---\nname: x\ndescription: \"From the hub\"\n---\n\nhub steps\n",
+     "shadowed/SKILL.md": "---\nname: x\ndescription: \"Shadowed\"\n---\n\nark steps\n"
+    }
+   }
+  },
+  {
+   "name": "accept a path name",
+   "cmds": [
+    {
+     "type": "skill.edit.accept",
+     "id": 9
+    }
+   ],
+   "outcomes": [
+    "refused: \"../evil\" is not one of ARK's own skills any more, and the skills in ~/.claude/skills are never edited."
+   ],
+   "after": {
+    "drafts": [
+     {
+      "id": 1,
+      "job_id": 1,
+      "helper": "sid",
+      "name": "fresh-skill",
+      "description": "Say \"hi\"\n  twice\tplease",
+      "body": "  Step one.\nStep two.\n\n",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 2,
+      "job_id": 2,
+      "helper": "sid",
+      "name": "ark-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 3,
+      "job_id": 3,
+      "helper": "sid",
+      "name": "user-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 4,
+      "job_id": 4,
+      "helper": "sid",
+      "name": "old-skill",
+      "description": "Old",
+      "body": "x",
+      "state": "approved",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "job_id": 5,
+      "helper": "sid",
+      "name": "plain-skill",
+      "description": "Ünïcode — dash",
+      "body": "Body",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     }
+    ],
+    "edits": [
+     {
+      "id": 1,
+      "skill": "ark-one",
+      "job_id": 5,
+      "old_body": "step a\nstep b",
+      "new_body": "step a\n  step c  ",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 2,
+      "skill": "user-has",
+      "job_id": 5,
+      "old_body": "your steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "skill": "ark-two",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "after the edit",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 4,
+      "skill": "ark-three",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "what I wrote",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "skill": "hubbed",
+      "job_id": 7,
+      "old_body": "hub steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 6,
+      "skill": "gone",
+      "job_id": 7,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 7,
+      "skill": "ark-one",
+      "job_id": 8,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "rejected",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 8,
+      "skill": "shadowed",
+      "job_id": 9,
+      "old_body": "ark steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 9,
+      "skill": "../evil",
+      "job_id": 9,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     }
+    ],
+    "audit": [],
+    "files": {
+     "ark-has/SKILL.md": "---\nname: x\ndescription: \"Has it\"\n---\n\nOld steps.\n",
+     "ark-one/SKILL.md": "---\nname: x\ndescription: \"Does the thing\"\n---\n\nstep a\nstep b\n",
+     "ark-three/SKILL.md": "---\nname: x\ndescription: \"Three\"\n---\n\nsomeone changed me\n",
+     "ark-two/SKILL.md": "---\nname: x\ndescription: 'Quoted'\n---\n\nafter the edit\n",
+     "hubbed/SKILL.md": "---\nname: x\ndescription: \"From the hub\"\n---\n\nhub steps\n",
+     "shadowed/SKILL.md": "---\nname: x\ndescription: \"Shadowed\"\n---\n\nark steps\n"
+    }
+   }
+  },
+  {
+   "name": "undo",
+   "cmds": [
+    {
+     "type": "skill.edit.undo",
+     "id": 3
+    }
+   ],
+   "outcomes": [
+    "done"
+   ],
+   "after": {
+    "drafts": [
+     {
+      "id": 1,
+      "job_id": 1,
+      "helper": "sid",
+      "name": "fresh-skill",
+      "description": "Say \"hi\"\n  twice\tplease",
+      "body": "  Step one.\nStep two.\n\n",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 2,
+      "job_id": 2,
+      "helper": "sid",
+      "name": "ark-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 3,
+      "job_id": 3,
+      "helper": "sid",
+      "name": "user-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 4,
+      "job_id": 4,
+      "helper": "sid",
+      "name": "old-skill",
+      "description": "Old",
+      "body": "x",
+      "state": "approved",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "job_id": 5,
+      "helper": "sid",
+      "name": "plain-skill",
+      "description": "Ünïcode — dash",
+      "body": "Body",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     }
+    ],
+    "edits": [
+     {
+      "id": 1,
+      "skill": "ark-one",
+      "job_id": 5,
+      "old_body": "step a\nstep b",
+      "new_body": "step a\n  step c  ",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 2,
+      "skill": "user-has",
+      "job_id": 5,
+      "old_body": "your steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "skill": "ark-two",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "after the edit",
+      "reason": "because",
+      "state": "undone",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 4,
+      "skill": "ark-three",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "what I wrote",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "skill": "hubbed",
+      "job_id": 7,
+      "old_body": "hub steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 6,
+      "skill": "gone",
+      "job_id": 7,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 7,
+      "skill": "ark-one",
+      "job_id": 8,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "rejected",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 8,
+      "skill": "shadowed",
+      "job_id": 9,
+      "old_body": "ark steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 9,
+      "skill": "../evil",
+      "job_id": 9,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     }
+    ],
+    "audit": [
+     {
+      "action": "skillEdit",
+      "detail": {
+       "edit": 3,
+       "job": 6,
+       "skill": "ark-two",
+       "state": "undone"
+      }
+     }
+    ],
+    "files": {
+     "ark-has/SKILL.md": "---\nname: x\ndescription: \"Has it\"\n---\n\nOld steps.\n",
+     "ark-one/SKILL.md": "---\nname: x\ndescription: \"Does the thing\"\n---\n\nstep a\nstep b\n",
+     "ark-three/SKILL.md": "---\nname: x\ndescription: \"Three\"\n---\n\nsomeone changed me\n",
+     "ark-two/SKILL.md": "---\nname: ark-two\ndescription: \"Quoted\"\n---\n\nbefore\n",
+     "hubbed/SKILL.md": "---\nname: x\ndescription: \"From the hub\"\n---\n\nhub steps\n",
+     "shadowed/SKILL.md": "---\nname: x\ndescription: \"Shadowed\"\n---\n\nark steps\n"
+    }
+   }
+  },
+  {
+   "name": "undo a changed skill",
+   "cmds": [
+    {
+     "type": "skill.edit.undo",
+     "id": 4
+    }
+   ],
+   "outcomes": [
+    "refused: The ark-three skill has changed since this edit, so undoing it would overwrite newer steps."
+   ],
+   "after": {
+    "drafts": [
+     {
+      "id": 1,
+      "job_id": 1,
+      "helper": "sid",
+      "name": "fresh-skill",
+      "description": "Say \"hi\"\n  twice\tplease",
+      "body": "  Step one.\nStep two.\n\n",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 2,
+      "job_id": 2,
+      "helper": "sid",
+      "name": "ark-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 3,
+      "job_id": 3,
+      "helper": "sid",
+      "name": "user-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 4,
+      "job_id": 4,
+      "helper": "sid",
+      "name": "old-skill",
+      "description": "Old",
+      "body": "x",
+      "state": "approved",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "job_id": 5,
+      "helper": "sid",
+      "name": "plain-skill",
+      "description": "Ünïcode — dash",
+      "body": "Body",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     }
+    ],
+    "edits": [
+     {
+      "id": 1,
+      "skill": "ark-one",
+      "job_id": 5,
+      "old_body": "step a\nstep b",
+      "new_body": "step a\n  step c  ",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 2,
+      "skill": "user-has",
+      "job_id": 5,
+      "old_body": "your steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "skill": "ark-two",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "after the edit",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 4,
+      "skill": "ark-three",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "what I wrote",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "skill": "hubbed",
+      "job_id": 7,
+      "old_body": "hub steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 6,
+      "skill": "gone",
+      "job_id": 7,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 7,
+      "skill": "ark-one",
+      "job_id": 8,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "rejected",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 8,
+      "skill": "shadowed",
+      "job_id": 9,
+      "old_body": "ark steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 9,
+      "skill": "../evil",
+      "job_id": 9,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     }
+    ],
+    "audit": [],
+    "files": {
+     "ark-has/SKILL.md": "---\nname: x\ndescription: \"Has it\"\n---\n\nOld steps.\n",
+     "ark-one/SKILL.md": "---\nname: x\ndescription: \"Does the thing\"\n---\n\nstep a\nstep b\n",
+     "ark-three/SKILL.md": "---\nname: x\ndescription: \"Three\"\n---\n\nsomeone changed me\n",
+     "ark-two/SKILL.md": "---\nname: x\ndescription: 'Quoted'\n---\n\nafter the edit\n",
+     "hubbed/SKILL.md": "---\nname: x\ndescription: \"From the hub\"\n---\n\nhub steps\n",
+     "shadowed/SKILL.md": "---\nname: x\ndescription: \"Shadowed\"\n---\n\nark steps\n"
+    }
+   }
+  },
+  {
+   "name": "undo a pending edit",
+   "cmds": [
+    {
+     "type": "skill.edit.undo",
+     "id": 1
+    }
+   ],
+   "outcomes": [
+    "refused: Only an accepted skill edit can be undone."
+   ],
+   "after": {
+    "drafts": [
+     {
+      "id": 1,
+      "job_id": 1,
+      "helper": "sid",
+      "name": "fresh-skill",
+      "description": "Say \"hi\"\n  twice\tplease",
+      "body": "  Step one.\nStep two.\n\n",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 2,
+      "job_id": 2,
+      "helper": "sid",
+      "name": "ark-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 3,
+      "job_id": 3,
+      "helper": "sid",
+      "name": "user-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 4,
+      "job_id": 4,
+      "helper": "sid",
+      "name": "old-skill",
+      "description": "Old",
+      "body": "x",
+      "state": "approved",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "job_id": 5,
+      "helper": "sid",
+      "name": "plain-skill",
+      "description": "Ünïcode — dash",
+      "body": "Body",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     }
+    ],
+    "edits": [
+     {
+      "id": 1,
+      "skill": "ark-one",
+      "job_id": 5,
+      "old_body": "step a\nstep b",
+      "new_body": "step a\n  step c  ",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 2,
+      "skill": "user-has",
+      "job_id": 5,
+      "old_body": "your steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "skill": "ark-two",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "after the edit",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 4,
+      "skill": "ark-three",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "what I wrote",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "skill": "hubbed",
+      "job_id": 7,
+      "old_body": "hub steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 6,
+      "skill": "gone",
+      "job_id": 7,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 7,
+      "skill": "ark-one",
+      "job_id": 8,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "rejected",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 8,
+      "skill": "shadowed",
+      "job_id": 9,
+      "old_body": "ark steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 9,
+      "skill": "../evil",
+      "job_id": 9,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     }
+    ],
+    "audit": [],
+    "files": {
+     "ark-has/SKILL.md": "---\nname: x\ndescription: \"Has it\"\n---\n\nOld steps.\n",
+     "ark-one/SKILL.md": "---\nname: x\ndescription: \"Does the thing\"\n---\n\nstep a\nstep b\n",
+     "ark-three/SKILL.md": "---\nname: x\ndescription: \"Three\"\n---\n\nsomeone changed me\n",
+     "ark-two/SKILL.md": "---\nname: x\ndescription: 'Quoted'\n---\n\nafter the edit\n",
+     "hubbed/SKILL.md": "---\nname: x\ndescription: \"From the hub\"\n---\n\nhub steps\n",
+     "shadowed/SKILL.md": "---\nname: x\ndescription: \"Shadowed\"\n---\n\nark steps\n"
+    }
+   }
+  },
+  {
+   "name": "undo unknown",
+   "cmds": [
+    {
+     "type": "skill.edit.undo",
+     "id": 99
+    }
+   ],
+   "outcomes": [
+    "refused: Only an accepted skill edit can be undone."
+   ],
+   "after": {
+    "drafts": [
+     {
+      "id": 1,
+      "job_id": 1,
+      "helper": "sid",
+      "name": "fresh-skill",
+      "description": "Say \"hi\"\n  twice\tplease",
+      "body": "  Step one.\nStep two.\n\n",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 2,
+      "job_id": 2,
+      "helper": "sid",
+      "name": "ark-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 3,
+      "job_id": 3,
+      "helper": "sid",
+      "name": "user-has",
+      "description": "Dup",
+      "body": "x",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     },
+     {
+      "id": 4,
+      "job_id": 4,
+      "helper": "sid",
+      "name": "old-skill",
+      "description": "Old",
+      "body": "x",
+      "state": "approved",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "job_id": 5,
+      "helper": "sid",
+      "name": "plain-skill",
+      "description": "Ünïcode — dash",
+      "body": "Body",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "decided_at": null
+     }
+    ],
+    "edits": [
+     {
+      "id": 1,
+      "skill": "ark-one",
+      "job_id": 5,
+      "old_body": "step a\nstep b",
+      "new_body": "step a\n  step c  ",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 2,
+      "skill": "user-has",
+      "job_id": 5,
+      "old_body": "your steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "skill": "ark-two",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "after the edit",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 4,
+      "skill": "ark-three",
+      "job_id": 6,
+      "old_body": "before",
+      "new_body": "what I wrote",
+      "reason": "because",
+      "state": "accepted",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 5,
+      "skill": "hubbed",
+      "job_id": 7,
+      "old_body": "hub steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 6,
+      "skill": "gone",
+      "job_id": 7,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 7,
+      "skill": "ark-one",
+      "job_id": 8,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "rejected",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 8,
+      "skill": "shadowed",
+      "job_id": 9,
+      "old_body": "ark steps",
+      "new_body": "mine",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     },
+     {
+      "id": 9,
+      "skill": "../evil",
+      "job_id": 9,
+      "old_body": "x",
+      "new_body": "y",
+      "reason": "because",
+      "state": "pending",
+      "created_at": "2026-01-01T00:00:00.000Z"
+     }
+    ],
+    "audit": [],
+    "files": {
+     "ark-has/SKILL.md": "---\nname: x\ndescription: \"Has it\"\n---\n\nOld steps.\n",
+     "ark-one/SKILL.md": "---\nname: x\ndescription: \"Does the thing\"\n---\n\nstep a\nstep b\n",
+     "ark-three/SKILL.md": "---\nname: x\ndescription: \"Three\"\n---\n\nsomeone changed me\n",
+     "ark-two/SKILL.md": "---\nname: x\ndescription: 'Quoted'\n---\n\nafter the edit\n",
+     "hubbed/SKILL.md": "---\nname: x\ndescription: \"From the hub\"\n---\n\nhub steps\n",
+     "shadowed/SKILL.md": "---\nname: x\ndescription: \"Shadowed\"\n---\n\nark steps\n"
+    }
+   }
+  }
+ ]
+}

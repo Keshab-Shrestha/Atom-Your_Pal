@@ -19,6 +19,7 @@ pub mod helpers_plans;
 pub mod helpers_quiet;
 pub mod helpers_roster;
 pub mod helpers_settings;
+pub mod helpers_skills;
 pub mod helpers_runner;
 pub mod helpers_write;
 pub mod helpers_usage;

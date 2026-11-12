@@ -13,7 +13,7 @@ use serde_json::{Map, Value, json};
 use crate::{helpers_catalog, helpers_extras, helpers_org, helpers_jobs, helpers_plans, helpers_roster, helpers_routines, helpers_tests, helpers_usage};
 
 /// The keys of the event that Node alone knows.
-const NODE_KEYS: [&str; 3] = ["models", "skillHub", "paperclip"];
+const NODE_KEYS: [&str; 2] = ["models", "paperclip"];
 
 /// The folders the apps and the skills are listed from.
 #[derive(Clone, Debug)]
@@ -40,7 +40,7 @@ impl Host {
 
 /// Every table and column the event reads. A file with another schema is answered by Node.
 pub fn schema() -> Vec<(&'static str, &'static [&'static str])> {
-    [helpers_roster::SCHEMA, helpers_routines::SCHEMA, helpers_jobs::SCHEMA, helpers_tests::SCHEMA, helpers_extras::SCHEMA, helpers_plans::SCHEMA, helpers_usage::SCHEMA, &[("skill_hub", &["name"])]].concat()
+    [helpers_roster::SCHEMA, helpers_routines::SCHEMA, helpers_jobs::SCHEMA, helpers_tests::SCHEMA, helpers_extras::SCHEMA, helpers_plans::SCHEMA, helpers_usage::SCHEMA, crate::helpers_skills::HUB_SCHEMA].concat()
 }
 
 /// A read-only connection with the schema checked.
@@ -102,6 +102,9 @@ pub fn build_with(conn: &Connection, agents_dir: &Path, now: &jiff::Zoned, cache
         if let Some(value) = cached.get(key) {
             event.insert(key.into(), value.clone());
         }
+    }
+    if let Some(hub) = crate::helpers_skills::hub_payload(conn, cached.get("skillHub"))? {
+        event.insert("skillHub".into(), hub);
     }
     event.insert("allowLarge".into(), json!(helpers_extras::allow_large(conn)?));
     event.insert("skillDrafts".into(), Value::Array(helpers_extras::skill_drafts(conn)?));

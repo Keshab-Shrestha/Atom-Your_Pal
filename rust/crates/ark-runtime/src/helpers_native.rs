@@ -57,9 +57,10 @@ impl HelpersNative {
         self.db.parent().map_or_else(|| PathBuf::from("checkpoints"), |p| p.join("checkpoints"))
     }
 
-    /// `job.undo`, and `job.delete` of an ended task that kept file copies: the copies are rows and files, so both live here.
+    /// The writes that touch files: `job.undo`, `job.delete` of an ended task that kept file copies, and the skill decisions.
     fn files(&self, conn: &rusqlite::Connection, command: &Value) -> Option<()> {
         match command["type"].as_str()? {
+            "skill.approve" | "skill.edit.accept" | "skill.edit.undo" => crate::helpers_skills::apply(conn, command, self.host.ark_skills.as_deref()?, &self.host.user_skills),
             "job.undo" => crate::helpers_checkpoints::undo_job(conn, &self.checkpoints_dir(), self.host.home.as_deref()?, command),
             "job.delete" => {
                 let id = command["id"].as_i64()?;
