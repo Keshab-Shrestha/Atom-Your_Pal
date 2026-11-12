@@ -267,6 +267,7 @@ pub fn poll(app: &mut App, _: f64, _: &mut Tx) -> bool {
     if let Some(why) = gone {
         schedule_retry(app, why);
     }
+    crate::pointer::sync(app.model.computer_cursor, app.model.extras.point.as_ref());
     crate::overlay::sync(app.model.loop_state, !app.model.approvals.is_empty(), app.model.computer_step.as_deref());
     if let Some(answer) = app.update_result.lock().unwrap_or_else(|e| e.into_inner()).take() {
         app.update_note = Some(answer);

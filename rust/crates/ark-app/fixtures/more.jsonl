@@ -6,3 +6,5 @@
 {"type":"reply.context","id":"d1","items":[{"id":"n1","title":"Friday plan","revision":"a1","text":"Ship on Friday after tests."}]}
 {"type":"chats","chats":[],"projects":[{"id":"p1","name":"Atom","folderLabel":"~/Developer/atom"}]}
 {"type":"workspace","project":"p1","path":"","ok":true,"root":"/tmp","entries":[]}
+{"type":"computer.cursor","x":400,"y":300}
+{"type":"computer.point","x":120,"y":80,"w":90,"h":30,"label":"the settings button"}

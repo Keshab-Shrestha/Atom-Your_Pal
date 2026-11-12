@@ -11,7 +11,7 @@ pub const ACCESS: [(&str, &str); 4] = [("checked", "Saved permissions"), ("chat-
 pub const EFFORT: [(&str, &str); 6] = [("", "Model default"), ("low", "Low"), ("medium", "Medium"), ("high", "High"), ("xhigh", "Extra high"), ("max", "Max")];
 
 /// The page names saved in the prefs.
-pub const SCREENS: [&str; 9] = ["chat", "settings", "agents", "tasks", "memory", "projects", "branches", "dashboard", ""];
+pub const SCREENS: [&str; 16] = ["chat", "settings", "agents", "tasks", "memory", "projects", "branches", "dashboard", "workflows", "plugins", "skills", "backup", "replies", "plans", "terminal", ""];
 
 /// How the window looks: follow the system, or force light or dark.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
