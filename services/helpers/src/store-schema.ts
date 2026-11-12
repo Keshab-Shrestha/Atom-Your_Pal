@@ -14,6 +14,7 @@ export function createSchema(db: DatabaseSync) {
   db.exec(SKILL_HUB_SCHEMA); // B3.5
   db.exec(`
     PRAGMA journal_mode = WAL;
+    PRAGMA busy_timeout = 5000;
     CREATE TABLE IF NOT EXISTS helper_apps (
       helper TEXT PRIMARY KEY,
       app TEXT NOT NULL

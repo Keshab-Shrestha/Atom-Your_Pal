@@ -26,6 +26,13 @@
 - Verified: `cargo build --locked`, `cargo build --locked -p ark-spike`, clippy `--no-deps -D warnings` for both crates, `cargo test --locked` (2 pass) and `cargo test --locked -p ark-spike` (1 pass). The new lock entries: `ark-spike` and `objc2-web-kit` (Zlib OR Apache-2.0 OR MIT). CI builds and lints `ark-spike` and runs none of its checks.
 - Build: ark-spike adds 36 s to a clean debug build (it builds `rune` again with more objc2 features), 24 s of clippy and 6 s of tests.
 
+## Rust Phase 2 step 4: database access and change feed — 12 November 2026
+
+- ADR-278, Phase 2: `ark-runtime` answers `brain.get` (the graph, same as TypeScript on the fixture file) and pushes a new `brain` line when Node changes the graph. The feed polls `PRAGMA data_version` every 500 ms and sends a line only when the graph differs from the last one sent.
+- `store.rs`: read-write open in WAL mode with a 5 s busy timeout, and a schema check. The brain commands go to Node when a table or column is missing. Node's `memory.db` and `helpers.db` now set `busy_timeout = 5000` too (section 5f rule 1).
+- Decision for the owner: `memory.list` and `chats.list` stay in Node. `memory.list` shows the chats that Node is indexing now (memory held in the Node process). `chats.list` shows the current chat, its access and the read-only mark (also held in Node). Rust cannot give those from the file. Moving them needs a state channel from Node.
+- Verified: 17 unit tests and 10 integration tests pass. Clippy is clean. Tests use temporary files only. A test shows two writers taking turns.
+
 ## Rust Phase 2 step 3: ticker and simple tools — 12 November 2026
 
 - ADR-278, Phase 2: `ark-runtime` is now a library and a binary. The library has `scheduler` (a ticker with a test clock), `tools` (`current_time`, `read_file`) and `floor` (the disk-reading file policy).

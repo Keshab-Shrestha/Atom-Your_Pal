@@ -21,6 +21,8 @@ const FORWARDED_SIGNALS: [libc::c_int; 4] = [libc::SIGTERM, libc::SIGINT, libc::
 /// The shell's convention when a program cannot be started.
 const EXIT_CANNOT_START: i32 = 127;
 const EXIT_USAGE: i32 = 2;
+/// How often the change feed looks at the data file.
+const FEED_INTERVAL: std::time::Duration = std::time::Duration::from_millis(500);
 
 extern "C" fn forward_signal(signal: libc::c_int) {
     let pid = CHILD_PID.load(Ordering::SeqCst);
@@ -130,8 +132,20 @@ fn main() {
     };
     // Stdin: when the app closes it (or the child stops reading), dropping `child_in` closes the child's stdin.
     // This thread is not joined: it can stay blocked on our stdin after the child exits.
-    let native = native_from_process();
-    thread::spawn(move || route_lines(io::stdin().lock(), child_in, native.as_ref(), io::stdout()));
+    let native = native_from_process().map(std::sync::Arc::new);
+    if let Some(native) = native.clone() {
+        // The change feed: lines the app needs after Node changes the data file. Each line is one `write_all` on the locked stdout.
+        thread::spawn(move || loop {
+            thread::sleep(FEED_INTERVAL);
+            for line in native.poll_changes() {
+                let mut out = io::stdout().lock();
+                if out.write_all(line.as_bytes()).and_then(|()| out.flush()).is_err() {
+                    return;
+                }
+            }
+        });
+    }
+    thread::spawn(move || route_lines(io::stdin().lock(), child_in, native.as_deref(), io::stdout()));
     let to_app = thread::spawn(move || {
         if forward_lines(BufReader::new(child_out), io::stdout()).is_err() {
             // The app closed our stdout: stop the child, as the app can no longer hear it.

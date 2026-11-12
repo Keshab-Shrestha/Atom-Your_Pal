@@ -22,6 +22,12 @@
 - Rune patches found (not made): hover in a panel while another app is active; native child views in the accessibility tree; `.hudWindow` and `.sidebar` cases in `SystemMaterial`. Decide each in Phase 3 (decision 11: patch and open an upstream issue).
 - Next: the owner fills in the checklist. Then Phase 1 starts.
 
+## Rust Phase 2 step 4: database access and change feed — 12 November 2026
+
+- Add `brain::graph` (the `brain` event), `brain.get` native with a watch flag, `Native::poll_changes` (data_version feed, 500 ms thread in `main.rs`), `store.rs` (read-write open, schema check) and `busy_timeout` in the two Node stores.
+- `memory.list` and `chats.list` stay in Node until Node can give Rust its in-process state.
+- Next: the local API and MCP server in Rust.
+
 ## Rust Phase 2 step 3: ticker and simple tools — 12 November 2026
 
 - Add `scheduler` (named jobs with a period; late jobs run once; `Ticker` runs them on a thread), `tools::Tools::call` (`current_time` with an IANA zone, `read_file` capped at 100 000 bytes) and `floor` (port of `realish`, `floorProblem` and the secret-folder check).

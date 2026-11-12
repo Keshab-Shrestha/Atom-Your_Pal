@@ -3,20 +3,62 @@
 //! where Rust cannot give the answer Node would give). Rust never writes to the data folder.
 
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use ark_protocol::{Command, Event, Parsed, parse_command};
 
 use crate::brain;
 
 /// Where the Rust side reads from.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Native {
     memory_db: PathBuf,
+    /// `brain.get` was answered: from now on a change of the graph is pushed (as Node does after its own `brain.get`).
+    brain_watched: AtomicBool,
+    feed: Mutex<Feed>,
+}
+
+/// The change feed: one connection whose `PRAGMA data_version` changes when another connection commits.
+#[derive(Debug, Default)]
+struct Feed {
+    conn: Option<rusqlite::Connection>,
+    version: Option<i64>,
+    last_brain: Option<String>,
 }
 
 impl Native {
     pub fn new(memory_db: PathBuf) -> Native {
-        Native { memory_db }
+        Native { memory_db, brain_watched: AtomicBool::new(false), feed: Mutex::new(Feed::default()) }
+    }
+
+    /// The lines to push after a change of the data file by another connection (Node). Call it every few hundred
+    /// milliseconds. It sends nothing until `brain.get` was answered, and nothing when the graph did not change.
+    pub fn poll_changes(&self) -> Vec<String> {
+        if !self.brain_watched.load(Ordering::SeqCst) {
+            return Vec::new();
+        }
+        let Ok(mut feed) = self.feed.lock() else { return Vec::new() };
+        if feed.conn.is_none() {
+            feed.conn = brain::open_read_only(&self.memory_db);
+        }
+        let Some(conn) = feed.conn.as_ref() else { return Vec::new() };
+        let Ok(version) = conn.query_row("PRAGMA data_version", [], |r| r.get::<_, i64>(0)) else {
+            feed.conn = None;
+            return Vec::new();
+        };
+        if feed.version == Some(version) {
+            return Vec::new();
+        }
+        let line = brain::graph(conn).map(|graph| Event::Other(graph.as_object().cloned().unwrap_or_default()).to_line());
+        feed.version = Some(version);
+        match line {
+            Some(line) if feed.last_brain.as_deref() != Some(&line) => {
+                feed.last_brain = Some(line.clone());
+                vec![line]
+            }
+            _ => Vec::new(),
+        }
     }
 
     /// The memory file of the runtime started in `folder`: `ARK_MEMORY_FILE` (then `ATOM_`, then `ZENO_`) from the
@@ -39,6 +81,20 @@ impl Native {
             Command::BrainSearch { query } => {
                 let conn = brain::open_read_only(&self.memory_db)?;
                 Event::BrainHits { hits: brain::search(&conn, &query)?, query }
+            }
+            Command::BrainGet => {
+                let conn = brain::open_read_only(&self.memory_db)?;
+                // The version is read before the graph, so a commit in between is seen by the next poll.
+                let version = conn.query_row("PRAGMA data_version", [], |r| r.get(0)).ok();
+                let line = Event::Other(brain::graph(&conn)?.as_object().cloned()?).to_line();
+                // The feed starts from this answer: it pushes only what differs from it.
+                if let Ok(mut feed) = self.feed.lock() {
+                    feed.version = version;
+                    feed.last_brain = Some(line.clone());
+                    feed.conn = Some(conn);
+                }
+                self.brain_watched.store(true, Ordering::SeqCst);
+                return Some(line);
             }
             _ => return None,
         };
@@ -125,6 +181,26 @@ mod tests {
     }
 
     #[test]
+    fn brain_get_matches_typescript_and_the_feed_pushes_changes() {
+        let scratch = Scratch::new("graph");
+        let native = scratch.native();
+        assert!(native.poll_changes().is_empty(), "nothing is pushed before brain.get");
+        let reply = native.try_answer("{\"type\":\"brain.get\"}\n").expect("brain.get is answered");
+        assert_eq!(as_value(&reply), fixture()["graph"], "graph");
+        assert!(native.poll_changes().is_empty(), "no change yet");
+        // Node (a second connection) saves a note: the feed pushes the new graph once.
+        let writer = crate::store::open_read_write(&scratch.0.join("data/memory.db")).unwrap();
+        writer.execute("UPDATE brain_notes SET title = 'Oslo trip 2' WHERE id = 1", []).unwrap();
+        let pushed = native.poll_changes();
+        assert_eq!(pushed.len(), 1);
+        assert!(pushed[0].contains("Oslo trip 2"));
+        assert!(native.poll_changes().is_empty(), "the same graph is not pushed twice");
+        // A change that leaves the graph as it is pushes nothing.
+        writer.execute("CREATE TABLE IF NOT EXISTS other (x)", []).unwrap();
+        assert!(native.poll_changes().is_empty());
+    }
+
+    #[test]
     fn a_note_with_a_source_copy_goes_to_node() {
         let scratch = Scratch::new("source");
         let conn = rusqlite::Connection::open(scratch.0.join("data/memory.db")).unwrap();
@@ -139,7 +215,7 @@ mod tests {
     fn other_commands_and_a_missing_file_go_to_node() {
         let scratch = Scratch::new("other");
         let native = scratch.native();
-        for line in ["{\"type\":\"brain.save\",\"title\":\"t\",\"body\":\"b\"}", "{\"type\":\"memory.list\"}", "{\"type\":\"quit\"}", "not json", "", "{\"type\":\"brain.note\",\"id\":0}", "{\"type\":\"brain.note\",\"id\":-1}", "{\"type\":\"brain.note\"}"] {
+        for line in ["{\"type\":\"brain.save\",\"title\":\"t\",\"body\":\"b\"}", "{\"type\":\"memory.list\"}", "{\"type\":\"chats.list\"}", "{\"type\":\"quit\"}", "not json", "", "{\"type\":\"brain.note\",\"id\":0}", "{\"type\":\"brain.note\",\"id\":-1}", "{\"type\":\"brain.note\"}"] {
             assert_eq!(native.try_answer(&format!("{line}\n")), None, "{line}");
         }
         let missing = Native::new(scratch.0.join("nope.db"));

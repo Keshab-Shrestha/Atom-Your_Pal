@@ -312,8 +312,11 @@ function write(module: string, source: string, cases: Case[]): void {
   const brain2 = openBrain(reopened, () => new Date("2026-11-01T09:00:00.000Z"));
   const expectNotes = ids.map((id) => ({ id, note: (() => { const n = brain2.get(id); return n && { id: n.id, title: n.title, body: n.body, kind: n.kind, ghost: n.ghost, tags: n.tags, links: brain2.links(id), backlinks: brain2.backlinks(id), updatedAt: n.updatedAt.toISOString() }; })() ?? null }));
   const expectSearch = queries.map((query) => ({ query, hits: brain2.search(query, 12) }));
+  const g = brain2.graph();
+  const expectTags = brain2.tags();
   reopened.exec("PRAGMA wal_checkpoint(TRUNCATE)");
   reopened.close();
-  writeFileSync(join(dir, "brain.json"), `${JSON.stringify({ source: "services/memory/src/brain.ts", notes: expectNotes, searches: expectSearch }, null, 1)}\n`);
+  const expectGraph = { type: "brain", nodes: g.nodes.map((n) => ({ id: n.id, title: n.title, kind: n.kind, ghost: n.ghost, tags: n.tags, degree: n.degree, updatedAt: n.updatedAt.toISOString() })), edges: g.edges, omitted: g.omitted, tags: expectTags };
+  writeFileSync(join(dir, "brain.json"), `${JSON.stringify({ source: "services/memory/src/brain.ts", notes: expectNotes, searches: expectSearch, graph: expectGraph }, null, 1)}\n`);
   console.log(`brain: ${expectNotes.length} notes, ${expectSearch.length} searches`);
 }

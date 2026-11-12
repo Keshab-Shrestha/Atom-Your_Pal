@@ -429,5 +429,131 @@
     }
    ]
   }
- ]
+ ],
+ "graph": {
+  "type": "brain",
+  "nodes": [
+   {
+    "id": 1,
+    "title": "Oslo trip",
+    "kind": "note",
+    "ghost": false,
+    "tags": [
+     "norway",
+     "travel"
+    ],
+    "degree": 3,
+    "updatedAt": "2026-11-01T09:00:00.000Z"
+   },
+   {
+    "id": 3,
+    "title": "Packing list",
+    "kind": "note",
+    "ghost": false,
+    "tags": [
+     "travel"
+    ],
+    "degree": 3,
+    "updatedAt": "2026-11-01T09:00:00.000Z"
+   },
+   {
+    "id": 2,
+    "title": "Anna Berg",
+    "kind": "note",
+    "ghost": false,
+    "tags": [],
+    "degree": 2,
+    "updatedAt": "2026-11-01T09:00:00.000Z"
+   },
+   {
+    "id": 8,
+    "title": "Oslo",
+    "kind": "entity",
+    "ghost": false,
+    "tags": [],
+    "degree": 2,
+    "updatedAt": "2026-11-01T09:00:00.000Z"
+   },
+   {
+    "id": 4,
+    "title": "Café plans",
+    "kind": "note",
+    "ghost": false,
+    "tags": [
+     "food"
+    ],
+    "degree": 0,
+    "updatedAt": "2026-11-01T09:00:00.000Z"
+   },
+   {
+    "id": 5,
+    "title": "Empty",
+    "kind": "note",
+    "ghost": false,
+    "tags": [],
+    "degree": 0,
+    "updatedAt": "2026-11-01T09:00:00.000Z"
+   },
+   {
+    "id": 6,
+    "title": "Long note",
+    "kind": "note",
+    "ghost": false,
+    "tags": [],
+    "degree": 0,
+    "updatedAt": "2026-11-01T09:00:00.000Z"
+   },
+   {
+    "id": 7,
+    "title": "Memory fact",
+    "kind": "memory",
+    "ghost": false,
+    "tags": [],
+    "degree": 0,
+    "updatedAt": "2026-11-01T09:00:00.000Z"
+   }
+  ],
+  "edges": [
+   {
+    "a": 1,
+    "b": 2,
+    "auto": false
+   },
+   {
+    "a": 1,
+    "b": 3,
+    "auto": false
+   },
+   {
+    "a": 2,
+    "b": 8,
+    "auto": true
+   },
+   {
+    "a": 3,
+    "b": 1,
+    "auto": false
+   },
+   {
+    "a": 3,
+    "b": 8,
+    "auto": true
+   }
+  ],
+  "omitted": 0,
+  "tags": [
+   {
+    "tag": "travel",
+    "count": 2
+   },
+   {
+    "tag": "food",
+    "count": 1
+   },
+   {
+    "tag": "norway",
+    "count": 1
+   }
+  ]
+ }
 }

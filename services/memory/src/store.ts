@@ -231,6 +231,7 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
   const db = new DatabaseSync(path);
   db.exec(`
     PRAGMA journal_mode = WAL;
+    PRAGMA busy_timeout = 5000;
     CREATE TABLE IF NOT EXISTS memories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       text TEXT NOT NULL,

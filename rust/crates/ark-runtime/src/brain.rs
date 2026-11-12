@@ -19,6 +19,8 @@ const SNIPPET_LENGTH: usize = 140;
 pub fn open_read_only(path: &Path) -> Option<Connection> {
     let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX).ok()?;
     conn.busy_timeout(BUSY_TIMEOUT).ok()?;
+    // Rule 2 of section 5f: a file with another schema is Node's to read.
+    crate::store::check_schema(&conn, crate::store::BRAIN_SCHEMA).ok()?;
     Some(conn)
 }
 
@@ -134,4 +136,69 @@ pub fn search(conn: &Connection, query: &str) -> Option<Vec<BrainHit>> {
         })
         .ok()?;
     rows.collect::<Result<Vec<_>, _>>().ok()
+}
+
+const MAX_GRAPH_NODES: usize = 400;
+
+/// `new Date(text).toISOString()`; `None` when `text` is not a date.
+fn iso(text: &str) -> Option<String> {
+    let at: jiff::Timestamp = text.parse().ok()?;
+    Some(at.strftime("%Y-%m-%dT%H:%M:%S%.3fZ").to_string())
+}
+
+/// The `brain` event of `brain.get`: at most 400 notes (most linked first), their links, the tags with counts (`graph()` and `tags()` in brain.ts and brain-wiring.ts).
+/// `None` on any error or a date that JavaScript would not read as Node does.
+pub fn graph(conn: &Connection) -> Option<serde_json::Value> {
+    use serde_json::json;
+    use std::collections::HashMap;
+    let rows: Vec<(i64, String, String, i64, String)> = conn
+        .prepare_cached("SELECT id, title, kind, ghost, updated_at FROM brain_notes")
+        .ok()?
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)))
+        .ok()?
+        .collect::<Result<_, _>>()
+        .ok()?;
+    let edges: Vec<(i64, i64, i64)> = conn
+        .prepare_cached("SELECT src, dst, MIN(auto) AS auto FROM brain_links WHERE src != dst GROUP BY src, dst")
+        .ok()?
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+        .ok()?
+        .collect::<Result<_, _>>()
+        .ok()?;
+    let mut degree: HashMap<i64, u64> = HashMap::new();
+    for (a, b, _) in &edges {
+        *degree.entry(*a).or_default() += 1;
+        *degree.entry(*b).or_default() += 1;
+    }
+    let mut tags: HashMap<i64, Vec<String>> = HashMap::new();
+    let tag_rows: Vec<(i64, String)> =
+        conn.prepare_cached("SELECT note, tag FROM brain_tags ORDER BY tag").ok()?.query_map([], |r| Ok((r.get(0)?, r.get(1)?))).ok()?.collect::<Result<_, _>>().ok()?;
+    for (note, tag) in tag_rows {
+        tags.entry(note).or_default().push(tag);
+    }
+    let mut ranked: Vec<_> = rows.iter().map(|r| (r, degree.get(&r.0).copied().unwrap_or(0))).collect();
+    ranked.sort_by(|(x, dx), (y, dy)| dy.cmp(dx).then_with(|| y.4.cmp(&x.4)).then_with(|| x.0.cmp(&y.0)));
+    let kept = &ranked[..ranked.len().min(MAX_GRAPH_NODES)];
+    let ids: std::collections::HashSet<i64> = kept.iter().map(|(r, _)| r.0).collect();
+    let mut nodes = Vec::new();
+    for (r, d) in kept {
+        let kind = match kind_of(&r.2) {
+            NoteKind::Memory => "memory",
+            NoteKind::Episode => "episode",
+            NoteKind::Chat => "chat",
+            NoteKind::Project => "project",
+            NoteKind::Entity => "entity",
+            NoteKind::Note => "note",
+        };
+        nodes.push(json!({ "id": r.0, "title": r.1, "kind": kind, "ghost": r.3 == 1, "tags": tags.get(&r.0).cloned().unwrap_or_default(), "degree": d, "updatedAt": iso(&r.4)? }));
+    }
+    let edge_json: Vec<_> = edges.iter().filter(|(a, b, _)| ids.contains(a) && ids.contains(b)).map(|(a, b, auto)| json!({ "a": a, "b": b, "auto": *auto == 1 })).collect();
+    let tag_counts: Vec<serde_json::Value> = conn
+        .prepare_cached("SELECT tag, count(*) AS n FROM brain_tags GROUP BY tag ORDER BY n DESC, tag LIMIT 100")
+        .ok()?
+        .query_map([], |r| Ok(json!({ "tag": r.get::<_, String>(0)?, "count": r.get::<_, i64>(1)? })))
+        .ok()?
+        .collect::<Result<_, _>>()
+        .ok()?;
+    Some(json!({ "type": "brain", "nodes": nodes, "edges": edge_json, "omitted": rows.len().saturating_sub(kept.len()), "tags": tag_counts }))
 }
