@@ -66,6 +66,14 @@ Rust logic comes from `ark-core` where a module exists.
 | SetupViews, keys | API keys in the macOS Keychain (service `dev.ark.island`, account = variable name). The runtime child gets them in its environment at start. A key is never shown again or logged |
 | First run without Node | With a forwarder and no Node, the app starts `ark-runtime` with `/bin/cat` as the stand-in child and `ARK_RUNTIME_NATIVE_CHAT=1`. Commands only Node knows are dropped |
 
+## Done in the fifth round
+
+- Brain graph: the 24 most linked notes have a label button that opens the note.
+- States: every page that waits says why the runtime is down or that it starts. The app starts the runtime child again after it ends (1, 2, 4 ... 30 seconds).
+- Keyboard: Esc closes the top panel, Cmd+W closes the window, Cmd+Q quits. Message groups have the labels "You said" and "ARK said".
+- Window state: the page and sidebar width are saved in the prefs file. The window frame uses AppKit autosave (not run in a live window).
+- Gap report: test `gap_report_lists_swift_labels_missing_from_the_rust_screens` writes `gap-report.txt` to the parity folder. It lists Swift labels the Rust screens lack. Open gaps include Dashboard detail tiles, brain note editing, agent job lists and the Settings pages for login, updates and support.
+
 ## Tests added
 
 - `rust/crates/ark-runtime/tests/e2e.rs`: the app Bridge, the real `ark-runtime` binary and a mock Anthropic server on localhost.
