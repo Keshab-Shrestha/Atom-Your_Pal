@@ -22,6 +22,7 @@ pub struct HelpersNative {
     bus: Arc<Bus>,
     tail: Mutex<Tail>,
     runner: Mutex<Option<Arc<Runner>>>,
+    quiet: crate::helpers_quiet::Quiet,
 }
 
 impl HelpersNative {
@@ -29,7 +30,8 @@ impl HelpersNative {
     pub fn new(db: PathBuf) -> HelpersNative {
         let agents = db.parent().map_or_else(|| PathBuf::from("agents"), |p| p.join("agents"));
         let host = helpers_event::Host::of_this_mac(&db);
-        let native = HelpersNative { db, agents, cached: Mutex::new(None), host, bus: Arc::new(Bus::default()), tail: Mutex::new(Tail::default()), runner: Mutex::new(None) };
+        let native = HelpersNative { db, agents, cached: Mutex::new(None), host, bus: Arc::new(Bus::default()), tail: Mutex::new(Tail::default()), runner: Mutex::new(None), quiet: crate::helpers_quiet::Quiet::default() };
+        native.quiet.listen(&native.bus, native.db.clone());
         native.pump(); // marks the end of the audit log: only later changes reach the listeners
         native
     }
@@ -87,6 +89,9 @@ impl HelpersNative {
 
     /// Gives the listeners the changes that the audit log gained, from Node or from Rust. Call it often (the feed thread does).
     pub fn pump(&self) -> usize {
+        if let Some(conn) = helpers_event::open_read_only(&self.db) {
+            self.quiet.sweep(&conn); // cheap: the watch only marks a task once, after 8 minutes
+        }
         let (Some(conn), Ok(mut tail)) = (helpers_event::open_read_only(&self.db), self.tail.lock()) else { return 0 };
         tail.poll(&conn, &self.bus)
     }
@@ -129,7 +134,7 @@ impl HelpersNative {
             self.pump();
         }
         let conn = helpers_event::open_read_only(&self.db)?;
-        let event = helpers_event::build(&conn, &self.agents, &jiff::Zoned::now(), &cached, &self.host)?;
+        let event = helpers_event::build_with(&conn, &self.agents, &jiff::Zoned::now(), &cached, &self.host, Some(&self.quiet))?;
         Some(format!("{event}\n"))
     }
 }

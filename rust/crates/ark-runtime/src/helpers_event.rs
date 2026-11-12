@@ -62,7 +62,15 @@ fn has_stuck_dot(cached: &Value) -> bool {
 
 /// The event for the state of `conn` at `now`, or `None` when Node must answer.
 pub fn build(conn: &Connection, agents_dir: &Path, now: &jiff::Zoned, cached: &Value, host: &Host) -> Option<Value> {
-    if cached["type"] != "helpers" || has_stuck_dot(cached) {
+    if has_stuck_dot(cached) {
+        return None;
+    }
+    build_with(conn, agents_dir, now, cached, host, None)
+}
+
+/// Like `build`, with the stuck dots of Rust (`quiet`): Node's copy is then not needed for them.
+pub fn build_with(conn: &Connection, agents_dir: &Path, now: &jiff::Zoned, cached: &Value, host: &Host, quiet: Option<&crate::helpers_quiet::Quiet>) -> Option<Value> {
+    if cached["type"] != "helpers" {
         return None;
     }
     let (members, problems) = helpers_roster::roster(conn, agents_dir)?;
@@ -107,5 +115,9 @@ pub fn build(conn: &Connection, agents_dir: &Path, now: &jiff::Zoned, cached: &V
     if !problems.is_empty() {
         event.insert("agentProblems".into(), Value::Array(problems));
     }
-    Some(Value::Object(event))
+    let mut event = Value::Object(event);
+    if let Some(quiet) = quiet {
+        quiet.mark(&mut event);
+    }
+    Some(event)
 }
