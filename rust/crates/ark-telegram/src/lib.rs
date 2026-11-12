@@ -4,6 +4,7 @@
 //! never message text, never the token.
 #![forbid(unsafe_code)]
 
+pub mod bot;
 mod split;
 
 use std::collections::HashMap;

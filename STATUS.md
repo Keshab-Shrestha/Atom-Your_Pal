@@ -45,6 +45,12 @@
 - The token comes from `ARK_TELEGRAM_BOT_TOKEN` (with `ARK_TELEGRAM_CHAT_ID`, `ARK_TELEGRAM_USER_ID`) through `Config::from_env`, or from the caller. The log gets names and codes, never text or the token.
 - Verified: 5 tests (message split; backlog and sender filter; split send with buttons; retry rules; wrong token, with a check that the token is not in the log) against a local mock Bot API server. Clippy is clean. No live Telegram call.
 
+## Rust Phase 2 step 13: Telegram bot logic — 12 November 2026
+
+- ADR-098, Phase 2: `ark-telegram::bot` ports the bot logic of `telegram-bot.ts` on top of `Telegram`. It has the commands (`/help`, `/start`, `/needs`, unknown), a message for ARK as one turn at a time with a 10 minute limit, an outbox that tries a failed send again (30 s, 6 tries, 20 items), ARK's questions as one push with Allow and Decline buttons (`a:<id>:1|0`), the answer toasts, and the push setting (a routine result follows it, a reply always goes). A command is `/word` then a space, punctuation or the end, so `/tmp/x is big` is a message for ARK. The `Brain` trait gives the bot ARK's answers and questions, and `Wire` is the Telegram side, so the logic has tests with no network.
+- Not ported: the team parts (`/tasks`, `/report`, `/steer`, `/interrupt` and the Needs-you items for plans, proposals and skills), because Rust has no helper store. They answer "The team is not available." or "Steering is off.".
+- Verified: 6 tests on fakes (command parsing, commands, one turn at a time and the time limit, a question sent once and answered by a button, the outbox retry and the push setting) and the 4 mock-server tests as before. Clippy is clean. No live Telegram call.
+
 ## Rust Phase 2 step 12: write and command tools with approvals — 12 November 2026
 
 - ADR-278, Phase 2: `ark-agent` has two tools that change things. `write_file` writes a text file inside a folder the chat may change (1 MB at most). `run_command` runs one shell command in the working folder (60 s, output capped). `Decision::Ask` is new: the policy asks, and an `Approver` answers. With no approver, an Ask is a refusal.
