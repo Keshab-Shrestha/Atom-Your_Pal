@@ -45,6 +45,14 @@
 - The token comes from `ARK_TELEGRAM_BOT_TOKEN` (with `ARK_TELEGRAM_CHAT_ID`, `ARK_TELEGRAM_USER_ID`) through `Config::from_env`, or from the caller. The log gets names and codes, never text or the token.
 - Verified: 5 tests (message split; backlog and sender filter; split send with buttons; retry rules; wrong token, with a check that the token is not in the log) against a local mock Bot API server. Clippy is clean. No live Telegram call.
 
+## Rust Phase 2 step 12: write and command tools with approvals — 12 November 2026
+
+- ADR-278, Phase 2: `ark-agent` has two tools that change things. `write_file` writes a text file inside a folder the chat may change (1 MB at most). `run_command` runs one shell command in the working folder (60 s, output capped). `Decision::Ask` is new: the policy asks, and an `Approver` answers. With no approver, an Ask is a refusal.
+- `FloorPolicy` refuses a write outside the write folders, in `.git`, in a secret folder, or with `$` in the path. It refuses a command that `classify_command` refuses (push, delete, inline code, system changes). The user is not asked about a refused call. Every other command asks, because Rust has no sandbox yet. The tools check again before they act.
+- In `ark-runtime`, an Ask becomes an `approval.request` event with an id that starts with `rs-`. The app answers with `approval.answer`. No answer in 60 s is a no. `talk.cancel`, `talk.start`, `conversation.reset` and `chat.new` decline waiting questions. An answer for another id goes to Node. Turn on with `ARK_NATIVE_ACTIONS=1` and `ARK_NATIVE_WRITE_ROOTS` (absolute folders, separated by `:`).
+- Fix: the Node stdin pipe is held by the stdin thread alone, so end of input still closes Node's stdin.
+- Verified: 4 tests in `ark-agent` (yes, no, no approver, outside and `.git` paths, refused commands never start) and 2 in `ark-runtime` (an approval round trip on the wire for yes and no, and a cancel). Clippy is clean. Temp folders only.
+
 ## Rust Phase 2 step 11: bridge tool round trip — 12 November 2026
 
 - ADR-278, Phase 2: Claude on the plan can now call tools through Rust policy. The run line of `claude-bridge` lists the request tools. The helper makes each one an SDK tool that sends a `tool` line to Rust and waits for a `tool_result` line. Rust gives the call out as `ToolUse`, keeps the helper process parked, and the agent loop checks the call with its `Policy`. The next `stream` call sends the result to the same helper. Calls go one at a time. One parked run per bridge.

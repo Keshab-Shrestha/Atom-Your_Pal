@@ -37,6 +37,12 @@
 - Add `rust/crates/ark-telegram` (`Telegram::start`, `send`, `answer`, `stop`, `Config`).
 - Not done: the bot logic of `telegram-bot.ts` (needs, approvals, turns), and wiring the channel into the runtime.
 
+## Rust Phase 2 step 12: write and command tools with approvals — 12 November 2026
+
+- Add `ark-agent/src/actions.rs` (`ActionTools`, `Approver`, `Combined`) and the approval flow in `ark-runtime/src/chat.rs`.
+- Not done: `ask_user` (needs `chat.work` question cards), trash_file, edit by patch, a sandbox for commands, remember-file grants, and the review token of `approval.answer`.
+
+
 ## Rust Phase 2 step 11: bridge tool round trip — 12 November 2026
 
 - Change `ClaudeBridge` (park and resume) and `services/llm-gateway/src/providers/claude-bridge.ts` (`toolBridge`).

@@ -119,9 +119,19 @@ fn chat_from_process(memory_db: &std::path::Path) -> Option<Arc<Chat>> {
     let home = std::path::PathBuf::from(env("HOME")?);
     let cwd = std::env::current_dir().ok()?;
     let tools = ark_agent::tools::Tools { home: home.clone(), roots: Vec::new(), cwd: cwd.clone() };
-    let policy = ark_agent::FloorPolicy::new(&["current_time"], &home, Vec::new(), &cwd);
+    let mut runners: Vec<Arc<dyn ark_agent::ToolRunner>> = vec![Arc::new(ark_agent::RuntimeTools(tools))];
+    let mut allowed = vec!["current_time"];
+    let mut policy = ark_agent::FloorPolicy::new(&allowed, &home, Vec::new(), &cwd);
+    // `ARK_NATIVE_ACTIONS=1` adds write_file and run_command; each call asks the user. Writes go only to the folders in
+    // `ARK_NATIVE_WRITE_ROOTS` (absolute paths, separated by `:`).
+    if env("ARK_NATIVE_ACTIONS").as_deref() == Some("1") {
+        let roots: Vec<std::path::PathBuf> = env("ARK_NATIVE_WRITE_ROOTS").unwrap_or_default().split(':').filter(|r| r.starts_with('/')).map(Into::into).collect();
+        allowed.extend(["write_file", "run_command"]);
+        policy = ark_agent::FloorPolicy::new(&allowed, &home, Vec::new(), &cwd).with_write_roots(roots.clone());
+        runners.push(Arc::new(ark_agent::ActionTools { home: home.clone(), write_roots: roots, cwd: cwd.clone() }));
+    }
     let model = env("ARK_NATIVE_CHAT_MODEL").unwrap_or_else(|| "claude-sonnet-5-5".into());
-    Some(Arc::new(Chat::new(memory_db.to_path_buf(), provider, Arc::new(ark_agent::RuntimeTools(tools)), Arc::new(policy), &model)))
+    Some(Arc::new(Chat::new(memory_db.to_path_buf(), provider, Arc::new(ark_agent::Combined(runners)), Arc::new(policy), &model)))
 }
 
 fn native_from_process() -> Option<native::Native> {
@@ -196,15 +206,18 @@ fn main() {
     let chat = native.as_deref().and_then(|n| chat_from_process(n.memory_db()));
     let to_app: Sink = Arc::new(|line: &str| write_line(&mut io::stdout().lock(), line));
     let to_node: Sink = {
-        let node_in = Arc::clone(&node_in);
+        // Weak: only the stdin thread owns the pipe, so its end closes Node's stdin.
+        let node_in = Arc::downgrade(&node_in);
         Arc::new(move |line: &str| {
-            if let Ok(mut writer) = node_in.lock() {
+            if let Some(node_in) = node_in.upgrade()
+                && let Ok(mut writer) = node_in.lock()
+            {
                 write_line(&mut *writer, line);
             }
         })
     };
     {
-        let (native, chat, to_app, node_in) = (native.clone(), chat.clone(), to_app.clone(), Arc::clone(&node_in));
+        let (native, chat, to_app) = (native.clone(), chat.clone(), to_app.clone());
         let to_node = to_node.clone();
         thread::spawn(move || {
             let writer = SharedWriter(node_in);

@@ -7,6 +7,7 @@
 //! The model only proposes. The [`Policy`] decides. A refused call never reaches the tool: the model gets the reason
 //! as an error result and can try something else. An unknown tool name is refused by default.
 
+pub mod actions;
 pub mod floor;
 mod policy;
 pub mod tools;
@@ -14,6 +15,7 @@ pub mod tools;
 use ark_llm::{Answer, Block, Event, LlmError, Message, Provider, Request, ToolSpec, Usage, collect};
 use serde_json::{Map, Value};
 
+pub use actions::{ActionTools, Approver, Combined};
 pub use policy::{Decision, FloorPolicy, Policy, RuntimeTools, ToolRunner};
 
 #[derive(Debug)]
@@ -67,11 +69,13 @@ pub struct Agent<'a> {
     pub max_tokens: u32,
     /// The most model calls in one turn.
     pub max_steps: usize,
+    /// Answers `Decision::Ask`. None: an Ask is refused.
+    pub approver: Option<&'a dyn Approver>,
 }
 
 impl<'a> Agent<'a> {
     pub fn new(provider: &'a dyn Provider, policy: &'a dyn Policy, tools: &'a dyn ToolRunner, model: &str) -> Self {
-        Self { provider, policy, tools, model: model.into(), system: None, max_tokens: 4096, max_steps: 12 }
+        Self { provider, policy, tools, model: model.into(), system: None, max_tokens: 4096, max_steps: 12, approver: None }
     }
 
     /// Runs one turn: `history` plus the new user message, until the model answers without a tool call.
@@ -104,14 +108,24 @@ impl<'a> Agent<'a> {
     fn call(&self, id: String, name: &str, input: &Value, records: &mut Vec<CallRecord>) -> Block {
         let empty = Map::new();
         let input = input.as_object().unwrap_or(&empty);
+        let refuse = |why: String| (format!("Refused by policy: {why}"), true, Some(why));
         let (content, is_error, refused) = match self.policy.check(name, input) {
             Decision::Deny(reason) => (format!("Refused by policy: {reason}"), true, Some(reason)),
-            Decision::Allow => match self.tools.run(name, input) {
-                Ok(text) => (text, false, None),
-                Err(e) => (e, true, None),
+            Decision::Ask { summary, reason } => match self.approver {
+                None => refuse("it needs the user's approval and none is available".into()),
+                Some(approver) if approver.approve(&summary, &reason) => self.run_tool(name, input),
+                Some(_) => refuse("the user said no".into()),
             },
+            Decision::Allow => self.run_tool(name, input),
         };
         records.push(CallRecord { name: name.into(), refused, is_error });
         Block::ToolResult { tool_use_id: id, content, is_error }
+    }
+
+    fn run_tool(&self, name: &str, input: &Map<String, Value>) -> (String, bool, Option<String>) {
+        match self.tools.run(name, input) {
+            Ok(text) => (text, false, None),
+            Err(e) => (e, true, None),
+        }
     }
 }

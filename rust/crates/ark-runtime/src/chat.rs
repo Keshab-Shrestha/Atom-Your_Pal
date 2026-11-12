@@ -6,11 +6,13 @@
 //! gets `chat.open` so its in-memory chat matches the file.
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
-use ark_agent::{Agent, Policy, ToolRunner};
+use ark_agent::{Agent, Approver, Policy, ToolRunner};
 use ark_llm::{Block, Message, Provider};
 use ark_protocol::events::{ErrorStage, LoopState};
 use ark_protocol::{Command, Event, Parsed, parse_command};
@@ -35,6 +37,60 @@ pub struct Chat {
     pub model: String,
     current: Mutex<Option<String>>,
     busy: AtomicBool,
+    approvals: Arc<Approvals>,
+}
+
+/// How long a question waits for the app (the runtime declines by itself after this, as Node does).
+const APPROVAL_WAIT: Duration = Duration::from_secs(60);
+
+/// Questions that wait for `approval.answer`. Ids start with `rs-`, so an answer for a Node question goes to Node.
+#[derive(Default)]
+pub struct Approvals {
+    next: AtomicU64,
+    waiting: Mutex<HashMap<String, mpsc::Sender<bool>>>,
+}
+
+impl Approvals {
+    /// Gives the answer to the question `id`. `false` when no such question waits.
+    fn answer(&self, id: &str, approved: bool) -> bool {
+        let sender = self.waiting.lock().ok().and_then(|mut w| w.remove(id));
+        sender.is_some_and(|s| s.send(approved).is_ok())
+    }
+
+    /// Every waiting question gets a no (the turn was cancelled or the chat changed).
+    fn decline_all(&self) {
+        if let Ok(mut waiting) = self.waiting.lock() {
+            for (_, sender) in waiting.drain() {
+                sender.send(false).ok();
+            }
+        }
+    }
+}
+
+/// Asks the app through `approval.request`. No answer in time is a no.
+struct AppApprover {
+    approvals: Arc<Approvals>,
+    to_app: Sink,
+    wait: Duration,
+}
+
+impl Approver for AppApprover {
+    fn approve(&self, summary: &str, reason: &str) -> bool {
+        let id = format!("rs-{}", self.approvals.next.fetch_add(1, Ordering::SeqCst) + 1);
+        let (tx, rx) = mpsc::channel();
+        match self.approvals.waiting.lock() {
+            Ok(mut waiting) => waiting.insert(id.clone(), tx),
+            Err(_) => return false,
+        };
+        let request = Event::Other(json!({ "type": "approval.request", "id": id, "summary": summary, "reason": reason }).as_object().cloned().unwrap_or_default());
+        (self.to_app)(&request.to_line());
+        let approved = rx.recv_timeout(self.wait).unwrap_or(false);
+        if let Ok(mut waiting) = self.approvals.waiting.lock() {
+            waiting.remove(&id);
+        }
+        (self.to_app)(&Event::ApprovalClosed { id }.to_line());
+        approved
+    }
 }
 
 /// Chats another surface writes: the window does not write them (see `chat-owner.ts`).
@@ -44,7 +100,7 @@ fn is_shared(id: &str) -> bool {
 
 impl Chat {
     pub fn new(db: PathBuf, provider: Arc<dyn Provider>, tools: Arc<dyn ToolRunner>, policy: Arc<dyn Policy>, model: &str) -> Chat {
-        Chat { db, provider, tools, policy, model: model.into(), current: Mutex::new(None), busy: AtomicBool::new(false) }
+        Chat { db, provider, tools, policy, model: model.into(), current: Mutex::new(None), busy: AtomicBool::new(false), approvals: Arc::default() }
     }
 
     /// Looks at a line from Node to the app and keeps the id of the open chat.
@@ -67,6 +123,15 @@ impl Chat {
     /// Takes `line` when it is a plain `text.send` this runtime can answer. `false` means: give it to Node.
     pub fn handle(self: &Arc<Self>, line: &str, to_app: Sink, to_node: Sink) -> bool {
         let Parsed::Command(command) = parse_command(line) else { return false };
+        match *command {
+            Command::ApprovalAnswer { ref id, approved, .. } => return self.approvals.answer(id, approved),
+            // A command that ends the turn counts as "no" for a question that waits (the line still goes to Node).
+            Command::TalkCancel | Command::TalkStart | Command::ConversationReset | Command::ChatNew { .. } => {
+                self.approvals.decline_all();
+                return false;
+            }
+            _ => {}
+        }
         let Command::TextSend { text, files, notes, request, chat } = *command else { return false };
         let plain = files.is_none_or(|f| f.is_empty()) && notes.is_none_or(|n| n.is_empty()) && request.is_none() && chat.is_none();
         if !plain || text.trim().is_empty() || text.trim_start().starts_with('/') {
@@ -105,7 +170,7 @@ impl Chat {
         emit(Event::Transcript { text: text.into() });
         emit(Event::State { state: LoopState::Thinking });
         let started = Instant::now();
-        let result = self.answer(id, text);
+        let result = self.answer(id, text, to_app);
         match result {
             Ok(reply) => {
                 emit(Event::Reply { text: reply });
@@ -120,12 +185,14 @@ impl Chat {
     }
 
     /// Runs the agent on the saved history and appends the exchange. Gives the reply text.
-    fn answer(&self, id: &str, text: &str) -> Result<String, String> {
+    fn answer(&self, id: &str, text: &str, to_app: &Sink) -> Result<String, String> {
         let conn = store::open_read_write(&self.db).map_err(|e| format!("The chat file could not be opened: {e}"))?;
         let saved = read_history(&conn, id).map_err(|e| format!("The chat could not be read: {e}"))?;
         let history = replay_window(&saved, text)?;
         let mut agent = Agent::new(self.provider.as_ref(), self.policy.as_ref(), self.tools.as_ref(), &self.model);
         agent.system = Some(SYSTEM.into());
+        let approver = AppApprover { approvals: Arc::clone(&self.approvals), to_app: Arc::clone(to_app), wait: APPROVAL_WAIT };
+        agent.approver = Some(&approver);
         let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().map_err(|e| e.to_string())?;
         let outcome = runtime.block_on(agent.run(history, text, |_| {})).map_err(|e| e.to_string())?;
         append_exchange(&conn, id, saved.len(), text, &outcome.text).map_err(|e| format!("The answer could not be saved: {e}"))?;
@@ -287,5 +354,78 @@ mod tests {
         assert_eq!(window.len(), MAX_MESSAGES);
         assert!(matches!(&window[MAX_MESSAGES - 1].content[0], Block::Text { text } if text == "m299"));
         assert!(replay_window(&[], &"x".repeat(REPLAY_BYTES)).is_err());
+    }
+
+    /// Asks for `write_file` the first time, then answers with text.
+    struct WritesOnce(PathBuf, AtomicU64);
+    impl Provider for WritesOnce {
+        fn stream<'a>(&'a self, _: &'a Request) -> BoxFuture<'a, Result<EventStream, LlmError>> {
+            let first = self.1.fetch_add(1, Ordering::SeqCst) == 0;
+            let done = ark_llm::Event::Done { stop_reason: "x".into(), usage: Usage::default() };
+            let items = if first {
+                vec![Ok(ark_llm::Event::ToolUse { id: "t".into(), name: "write_file".into(), input: json!({"path": self.0, "content": "data"}) }), Ok(done)]
+            } else {
+                vec![Ok(ark_llm::Event::Text { text: "Done".into() }), Ok(done)]
+            };
+            Box::pin(async move { Ok(Box::pin(futures_util::stream::iter(items)) as EventStream) })
+        }
+    }
+
+    fn write_chat(db: PathBuf, file: PathBuf) -> Arc<Chat> {
+        use ark_agent::{ActionTools, Combined};
+        let dir = file.parent().unwrap().to_path_buf();
+        let home = std::fs::canonicalize(std::env::temp_dir()).unwrap();
+        let policy = FloorPolicy::new(&["write_file"], &home, vec![], &dir).with_write_roots(vec![dir.clone()]);
+        let tools = Combined(vec![Arc::new(ActionTools { home: home.clone(), write_roots: vec![dir.clone()], cwd: dir })]);
+        Arc::new(Chat::new(db, Arc::new(WritesOnce(file, AtomicU64::new(0))), Arc::new(tools), Arc::new(policy), "m"))
+    }
+
+    fn approval_round(answer: bool) -> (bool, Vec<Value>) {
+        let name = if answer { "yes" } else { "no" };
+        let dir = std::fs::canonicalize(std::env::temp_dir()).unwrap().join(format!("ark-chat-write-{name}-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("out.txt");
+        let chat = write_chat(scratch(&format!("w{name}")), file.clone());
+        chat.observe("{\"type\":\"chats\",\"chats\":[],\"current\":\"c1\"}\n");
+        let (app, app_rx) = sinks();
+        let (node, node_rx) = sinks();
+        assert!(chat.handle("{\"type\":\"text.send\",\"text\":\"write it\"}\n", app.clone(), node.clone()));
+        let mut seen = Vec::new();
+        let id = loop {
+            let line = app_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+            let v: Value = serde_json::from_str(&line).unwrap();
+            seen.push(v.clone());
+            if v["type"] == "approval.request" {
+                assert!(v["summary"].as_str().unwrap().contains("Write 4 bytes"));
+                break v["id"].as_str().unwrap().to_string();
+            }
+        };
+        assert!(!file.exists(), "nothing is written before the answer");
+        assert!(!chat.handle("{\"type\":\"approval.answer\",\"id\":\"a-node\",\"approved\":true}\n", app.clone(), node.clone()), "a Node question goes to Node");
+        assert!(chat.handle(&format!("{}\n", json!({"type": "approval.answer", "id": id, "approved": answer})), app, node));
+        node_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        seen.extend(app_rx.try_iter().map(|l| serde_json::from_str::<Value>(&l).unwrap()));
+        (file.exists(), seen)
+    }
+
+    #[test]
+    fn a_write_waits_for_approval_answer_and_a_no_writes_nothing() {
+        let (written, seen) = approval_round(true);
+        assert!(written);
+        assert!(seen.iter().any(|v| v["type"] == "approval.closed"));
+        assert!(seen.iter().any(|v| v["type"] == "reply" && v["text"] == "Done"));
+        let (written, _) = approval_round(false);
+        assert!(!written);
+    }
+
+    #[test]
+    fn a_cancel_declines_a_waiting_question() {
+        let approvals = Approvals::default();
+        let (tx, rx) = mpsc::channel();
+        approvals.waiting.lock().unwrap().insert("rs-1".into(), tx);
+        approvals.decline_all();
+        assert!(!rx.recv().unwrap());
+        assert!(!approvals.answer("rs-1", true), "a closed question is ignored");
     }
 }
