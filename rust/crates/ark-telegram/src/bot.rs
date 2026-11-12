@@ -1,7 +1,8 @@
 //! The bot logic of `apps/mac/src/telegram-bot.ts` (ADR-098) on top of [`Telegram`]: commands, one ARK turn at a time with a
 //! time limit, an outbox that tries a failed send again, ARK's questions with Allow and Decline buttons, and the push setting.
-//! Not ported yet: the team parts (`/tasks`, `/report`, `/steer`, `/interrupt` and the Needs-you items of tasks, plans, proposals
-//! and skills) because Rust has no helper store. Those commands answer "The team is not available." or "Steering is off.".
+//! The team parts (`/tasks`, `/report` and the Needs-you items of plans, proposals, skills and failed tasks) come from the
+//! brain (`needs`, `tasks`, `report`, `team_press`); a brain without a helper store leaves them at the defaults, and those commands
+//! answer "The team is not available.". `/steer` and `/interrupt` answer "Steering is off.".
 //! Logs names and counts only, never message text.
 
 use std::collections::{HashSet, VecDeque};
@@ -31,12 +32,37 @@ pub struct Ask {
     pub reason: String,
 }
 
+/// One thing that waits for the owner, with its buttons. `push`: sent by itself when new (a failed task shows in `/needs` only).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Need {
+    pub key: String,
+    pub push: bool,
+    pub text: String,
+    pub buttons: Vec<Vec<Button>>,
+}
+
 /// What the bot needs from ARK. The runtime implements it with the agent loop and its approvals.
 pub trait Brain: Send + Sync {
     /// One chat turn in the Telegram chat. Gives ARK's answer, or a reason it failed.
     fn ask(&self, text: String) -> BoxFut<'_, Result<String, String>>;
     fn pending_asks(&self) -> Vec<Ask>;
     fn answer_ask(&self, id: &str, approved: bool);
+    /// Everything that waits for the owner: the questions first (`a:<id>` buttons), then the team's items.
+    fn needs(&self) -> Vec<Need> {
+        self.pending_asks().iter().map(|a| Need { key: format!("ask-{}", a.id), push: true, text: ask_text(a), buttons: ask_buttons(&a.id) }).collect()
+    }
+    /// What a team button (`p`, `s`, `d`, `e`, `h`, `r`) does, and the short answer; `None` when there is no team.
+    fn team_press(&self, _data: &str) -> Option<String> {
+        None
+    }
+    /// The text of `/tasks`, or `None` when there is no team.
+    fn tasks(&self) -> Option<String> {
+        None
+    }
+    /// The text of `/report <id>`, or `None` when there is no team.
+    fn report(&self, _id: u64) -> Option<String> {
+        None
+    }
 }
 
 /// The Telegram side. [`Telegram`] is the real one.
@@ -111,7 +137,7 @@ fn ask_text(a: &Ask) -> String {
 
 impl Bot {
     pub fn new(wire: Arc<dyn Wire>, brain: Arc<dyn Brain>, opts: Options) -> Arc<Bot> {
-        let known = brain.pending_asks().into_iter().map(|a| a.id).collect();
+        let known = brain.needs().into_iter().map(|n| n.key).collect();
         Arc::new(Bot { wire, brain, opts, push: AtomicBool::new(true), turns: tokio::sync::Mutex::new(()), outbox: Mutex::default(), retrying: AtomicBool::new(false), known_asks: Mutex::new(known), stopped: AtomicBool::new(false) })
     }
 
@@ -173,14 +199,23 @@ impl Bot {
         }
     }
 
+    /// Counts what waits now as already sent (a team that joins after the start does not push the old items again).
+    pub fn mark_known(&self) {
+        let keys: HashSet<String> = self.brain.needs().into_iter().map(|n| n.key).collect();
+        if let Ok(mut known) = self.known_asks.lock() {
+            *known = keys;
+        }
+    }
+
     /// Call when ARK's list of questions changed: each new question is sent once, with its buttons.
     pub fn asks_changed(self: &Arc<Self>) {
-        let live = self.brain.pending_asks();
-        let fresh: Vec<Ask> = {
+        let live = self.brain.needs();
+        let fresh: Vec<Need> = {
             let Ok(mut known) = self.known_asks.lock() else { return };
-            let ids: HashSet<String> = live.iter().map(|a| a.id.clone()).collect();
-            known.retain(|id| ids.contains(id));
-            live.into_iter().filter(|a| known.insert(a.id.clone())).collect()
+            let keys: HashSet<String> = live.iter().map(|n| n.key.clone()).collect();
+            known.retain(|key| keys.contains(key));
+            // What is not pushed stays known; push off: do not pile the new ones up for when it is turned on.
+            live.into_iter().filter(|n| known.insert(n.key.clone()) && n.push).collect()
         };
         if fresh.is_empty() || !self.push.load(Ordering::SeqCst) {
             return;
@@ -188,8 +223,8 @@ impl Bot {
         (self.opts.log)("telegram.push", "needs");
         let me = Arc::clone(self);
         tokio::spawn(async move {
-            for a in fresh {
-                me.say(ask_text(&a), ask_buttons(&a.id)).await;
+            for n in fresh {
+                me.say(n.text, n.buttons).await;
             }
         });
     }
@@ -223,9 +258,9 @@ impl Bot {
         let number = |w: Option<&&str>| w.and_then(|w| w.trim_start_matches('#').parse::<u64>().ok()).filter(|n| *n >= 1);
         match name {
             "needs" => self.needs().await,
-            "tasks" => self.say("The team is not available.".into(), Vec::new()).await,
+            "tasks" => self.say(self.brain.tasks().unwrap_or_else(|| "The team is not available.".into()), Vec::new()).await,
             "report" if number(args.first()).is_none() => self.say("Send /report and a task number, for example /report 12.".into(), Vec::new()).await,
-            "report" => self.say("The team is not available.".into(), Vec::new()).await,
+            "report" => self.say(number(args.first()).and_then(|n| self.brain.report(n)).unwrap_or_else(|| "The team is not available.".into()), Vec::new()).await,
             "steer" | "interrupt" => self.say("Steering is off.".into(), Vec::new()).await,
             "help" | "start" => self.say(HELP.into(), Vec::new()).await,
             _ => self.say(format!("I do not know that command.\n\n{HELP}"), Vec::new()).await,
@@ -233,16 +268,16 @@ impl Bot {
     }
 
     async fn needs(self: &Arc<Self>) {
-        let asks = self.brain.pending_asks();
-        if asks.is_empty() {
+        let needs = self.brain.needs();
+        if needs.is_empty() {
             self.say("Nothing waits for you.".into(), Vec::new()).await;
             return;
         }
-        for a in asks.iter().take(NEEDS_SHOWN) {
-            self.say(ask_text(a), ask_buttons(&a.id)).await;
+        for n in needs.iter().take(NEEDS_SHOWN) {
+            self.say(n.text.clone(), n.buttons.clone()).await;
         }
-        if asks.len() > NEEDS_SHOWN {
-            self.say(format!("{} more wait in the ARK window.", asks.len() - NEEDS_SHOWN), Vec::new()).await;
+        if needs.len() > NEEDS_SHOWN {
+            self.say(format!("{} more wait in the ARK window.", needs.len() - NEEDS_SHOWN), Vec::new()).await;
         }
     }
 
@@ -256,7 +291,7 @@ impl Bot {
                 self.brain.answer_ask(id, yes);
                 if yes { "Allowed." } else { "Declined." }
             }
-            "p" | "s" | "d" | "e" | "h" | "r" => "The team is not available.",
+            "p" | "s" | "d" | "e" | "h" | "r" => &self.brain.team_press(data).unwrap_or_else(|| "The team is not available.".into()),
             _ => "That button is out of date.",
         };
         self.wire.answer(query_id, said).await;

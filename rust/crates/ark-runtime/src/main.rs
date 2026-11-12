@@ -174,6 +174,9 @@ fn main() {
         let folder = std::env::current_dir().ok()?;
         services::from_environment(&folder, n.memory_db(), chat.as_ref(), |name| std::env::var(name).ok().filter(|v| !v.is_empty()))
     });
+    if let (Some(s), Some((team, bus))) = (services.as_ref(), native.as_deref().and_then(native::Native::helpers_team)) {
+        s.attach_team(team, &bus);
+    }
     let mut envs = services.as_ref().map(Services::node_env).unwrap_or_default();
     // Rust writes the memory commands (forget, clear); Node watches the file to mirror the change into the brain.
     if native.is_some() {

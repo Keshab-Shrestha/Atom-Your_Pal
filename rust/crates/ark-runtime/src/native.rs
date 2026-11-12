@@ -49,6 +49,11 @@ impl Native {
         self.helpers.as_ref().map(HelpersNative::bus)
     }
 
+    /// The team and the change bus for the Telegram bot, when Rust owns the Helpers page.
+    pub fn helpers_team(&self) -> Option<(crate::helpers_team::Team, std::sync::Arc<crate::helpers_bus::Bus>)> {
+        self.helpers.as_ref().map(|h| (h.team(), h.bus()))
+    }
+
     /// Lets the Rust runner run the queued tasks with the chat engine's model (no-op when Rust does not own the Helpers page).
     pub fn attach_helpers_runner(&self, chat: &crate::chat::Chat) {
         if let Some(helpers) = &self.helpers {

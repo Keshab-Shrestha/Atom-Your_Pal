@@ -52,6 +52,11 @@ impl HelpersNative {
         runner.schedule();
     }
 
+    /// The team for the Telegram bot: the same files this page reads and writes.
+    pub fn team(&self) -> crate::helpers_team::Team {
+        crate::helpers_team::Team { db: self.db.clone(), agents: self.agents.clone(), ark_skills: self.host.ark_skills.clone(), user_skills: self.host.user_skills.clone() }
+    }
+
     /// The folder of the kept file copies (`checkpoints` beside the helpers file, as in `runtime.ts`).
     fn checkpoints_dir(&self) -> PathBuf {
         self.db.parent().map_or_else(|| PathBuf::from("checkpoints"), |p| p.join("checkpoints"))

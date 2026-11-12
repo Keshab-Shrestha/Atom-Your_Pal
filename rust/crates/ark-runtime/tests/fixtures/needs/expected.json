@@ -1,0 +1,174 @@
+{
+ "source": "apps/mac/src/telegram-bot.ts needsYou",
+ "asks": [
+  {
+   "id": "q1",
+   "summary": "Run a command",
+   "reason": "It lists files",
+   "fileReview": false
+  },
+  {
+   "id": "q2",
+   "summary": "Edit a file",
+   "reason": "Review it",
+   "fileReview": true
+  }
+ ],
+ "items": [
+  {
+   "key": "ask-q1",
+   "push": true,
+   "text": "ARK asks: Run a command\nIt lists files",
+   "buttons": [
+    [
+     {
+      "text": "Allow",
+      "data": "a:q1:1"
+     },
+     {
+      "text": "Decline",
+      "data": "a:q1:0"
+     }
+    ]
+   ]
+  },
+  {
+   "key": "ask-q2",
+   "push": true,
+   "text": "ARK asks: Edit a file\nReview it",
+   "buttons": [
+    [
+     {
+      "text": "Decline",
+      "data": "a:q2:0"
+     }
+    ]
+   ]
+  },
+  {
+   "key": "plan-7",
+   "push": true,
+   "text": "Kame's plan for #7 Child of the parser fix:\nThe plan.",
+   "buttons": [
+    [
+     {
+      "text": "Approve",
+      "data": "p:7:1"
+     },
+     {
+      "text": "Reject",
+      "data": "p:7:0"
+     }
+    ]
+   ]
+  },
+  {
+   "key": "proposal-3",
+   "push": true,
+   "text": "Tinker suggests a new personality for Sid:\nCurious, calm.\nWhy: Tone.\nTest cases: 1 better, 1 same, 1 not run",
+   "buttons": [
+    [
+     {
+      "text": "Accept",
+      "data": "s:3:1"
+     },
+     {
+      "text": "Reject",
+      "data": "s:3:0"
+     }
+    ]
+   ]
+  },
+  {
+   "key": "skill-draft-1",
+   "push": true,
+   "text": "Tinker drafted a skill: net-notes\nDoes a thing",
+   "buttons": [
+    [
+     {
+      "text": "Approve",
+      "data": "d:1:1"
+     },
+     {
+      "text": "Reject",
+      "data": "d:1:0"
+     }
+    ]
+   ]
+  },
+  {
+   "key": "skill-edit-1",
+   "push": true,
+   "text": "Tinker suggests an edit to the net-notes skill.\nWhy: Clearer\nTest cases: 1 worse",
+   "buttons": [
+    [
+     {
+      "text": "Accept",
+      "data": "e:1:1"
+     },
+     {
+      "text": "Reject",
+      "data": "e:1:0"
+     }
+    ]
+   ]
+  },
+  {
+   "key": "skill-hub-1",
+   "push": true,
+   "text": "A newer version of the hubbed skill is ready\na/b @ ccccccc\nFlags: url, html-comment\nRead it in the ARK window before you approve.",
+   "buttons": [
+    [
+     {
+      "text": "Approve",
+      "data": "h:1:1"
+     },
+     {
+      "text": "Reject",
+      "data": "h:1:0"
+     }
+    ]
+   ]
+  },
+  {
+   "key": "failed-9",
+   "push": false,
+   "text": "Mochi's task #9 Retried task was interrupted; its outcome is unconfirmed: ARK closed before this attempt's outcome was confirmed. Files may already have changed. Review the last step, tool history and file changes before trying again. Review this attempt in ARK on your Mac before retrying.",
+   "buttons": []
+  },
+  {
+   "key": "failed-5",
+   "push": false,
+   "text": "Sid's task #5 Doomed task was interrupted; its outcome is unconfirmed: It broke Review this attempt in ARK on your Mac before retrying.",
+   "buttons": []
+  },
+  {
+   "key": "failed-3",
+   "push": false,
+   "text": "Kame's task #3 Fix the parser was interrupted; its outcome is unconfirmed: ARK closed before this attempt's outcome was confirmed. Files may already have changed. Review the last step, tool history and file changes before trying again. Review this attempt in ARK on your Mac before retrying.",
+   "buttons": []
+  }
+ ],
+ "tasks": [
+  {
+   "id": 4,
+   "state": "queued"
+  },
+  {
+   "id": 1,
+   "state": "queued"
+  },
+  {
+   "id": 7,
+   "state": "queued"
+  },
+  {
+   "id": 10,
+   "state": "queued"
+  },
+  {
+   "id": 2,
+   "state": "queued"
+  }
+ ]
+}

@@ -104,6 +104,8 @@ impl ApiHost {
 /// The bot's view of the runtime: a turn in the chat `telegram`, and the questions that wait.
 pub struct TelegramBrain {
     pub chat: Arc<Chat>,
+    /// The team (`helpers_team`): set once the Helpers page is Rust's own. Without it the team commands say they are not available.
+    pub team: std::sync::OnceLock<crate::helpers_team::Team>,
 }
 
 impl Brain for TelegramBrain {
@@ -124,26 +126,73 @@ impl Brain for TelegramBrain {
     fn answer_ask(&self, id: &str, approved: bool) {
         self.chat.answer_ask(id, approved);
     }
+
+    fn needs(&self) -> Vec<ark_telegram::bot::Need> {
+        let questions = self.pending_asks().iter().map(|a| ark_telegram::bot::Need { key: format!("ask-{}", a.id), push: true, text: format!("ARK asks: {}\n{}", a.summary, a.reason), buttons: vec![vec![ark_telegram::Button { text: "Allow".into(), data: format!("a:{}:1", a.id) }, ark_telegram::Button { text: "Decline".into(), data: format!("a:{}:0", a.id) }]] }).collect();
+        match self.team.get() {
+            Some(team) => team.needs(questions),
+            None => questions,
+        }
+    }
+
+    fn team_press(&self, data: &str) -> Option<String> {
+        self.team.get()?.press(data)
+    }
+
+    fn tasks(&self) -> Option<String> {
+        self.team.get()?.tasks()
+    }
+
+    fn report(&self, id: u64) -> Option<String> {
+        self.team.get()?.report(id)
+    }
 }
 
 /// Starts the bot on its own tokio runtime. Keep the returned value alive as long as the bot should run.
 pub struct TelegramService {
     pub bot: Arc<Bot>,
+    brain: Arc<TelegramBrain>,
     _runtime: tokio::runtime::Runtime,
 }
+
+/// How long after a change of the team the bot looks at what waits (`SETTLE_MS` of `telegram-bot.ts`): one look for a burst of changes.
+const SETTLE: std::time::Duration = std::time::Duration::from_secs(1);
 
 impl TelegramService {
     pub fn start(cfg: Config, chat: Arc<Chat>) -> Option<TelegramService> {
         let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().ok()?;
         let _guard = runtime.enter();
-        let (bot, _telegram) = Bot::start(cfg, Arc::new(TelegramBrain { chat: Arc::clone(&chat) }), Options::default());
+        let brain = Arc::new(TelegramBrain { chat: Arc::clone(&chat), team: std::sync::OnceLock::new() });
+        let (bot, _telegram) = Bot::start(cfg, Arc::clone(&brain) as Arc<dyn Brain>, Options::default());
         let for_change = Arc::clone(&bot);
         let handle = runtime.handle().clone();
         chat.set_on_change(Arc::new(move || {
             let bot = Arc::clone(&for_change);
             handle.spawn(async move { bot.asks_changed() });
         }));
-        Some(TelegramService { bot, _runtime: runtime })
+        Some(TelegramService { bot, brain, _runtime: runtime })
+    }
+
+    /// Gives the bot the team and listens on the Helpers change bus: after any change but `step` and `usage`, the bot looks (once a
+    /// second at most) at what waits and pushes what is new. What waits now counts as sent already.
+    pub fn attach_team(&self, team: crate::helpers_team::Team, bus: &crate::helpers_bus::Bus) {
+        if self.brain.team.set(team).is_err() {
+            return;
+        }
+        self.bot.mark_known();
+        let (bot, handle) = (Arc::clone(&self.bot), self._runtime.handle().clone());
+        let scheduled = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        bus.subscribe(move |change| {
+            if matches!(change["action"].as_str(), Some("step" | "usage")) || scheduled.swap(true, std::sync::atomic::Ordering::SeqCst) {
+                return;
+            }
+            let (bot, scheduled) = (Arc::clone(&bot), Arc::clone(&scheduled));
+            handle.spawn(async move {
+                tokio::time::sleep(SETTLE).await;
+                scheduled.store(false, std::sync::atomic::Ordering::SeqCst);
+                bot.asks_changed();
+            });
+        });
     }
 
     /// Handles `telegram.set` (the push switch). `true` when the line was taken.
@@ -188,6 +237,13 @@ pub fn from_environment(folder: &std::path::Path, db: &std::path::Path, chat: Op
 }
 
 impl Services {
+    /// Gives the Telegram bot the team and the change bus, when the Helpers page is Rust's own.
+    pub fn attach_team(&self, team: crate::helpers_team::Team, bus: &crate::helpers_bus::Bus) {
+        if let Some(telegram) = &self.telegram {
+            telegram.attach_team(team, bus);
+        }
+    }
+
     /// The variables that tell Node to leave what the runtime owns.
     pub fn node_env(&self) -> Vec<(&'static str, &'static str)> {
         let mut vars = Vec::new();
@@ -289,7 +345,7 @@ mod tests {
     fn the_brain_runs_a_turn_in_the_telegram_chat_and_lists_no_questions() {
         let dir = folder("brain");
         let chat = chat(&dir);
-        let brain = TelegramBrain { chat: Arc::clone(&chat) };
+        let brain = TelegramBrain { chat: Arc::clone(&chat), team: std::sync::OnceLock::new() };
         let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
         assert_eq!(runtime.block_on(brain.ask("Ping".into())).unwrap(), "Pong");
         let conn = rusqlite::Connection::open(dir.join("memory.db")).unwrap();
