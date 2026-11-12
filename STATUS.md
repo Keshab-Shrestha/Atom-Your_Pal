@@ -1306,3 +1306,11 @@ Older steps are in TASK.md.
   - `helpers_runner.rs`: the runner. It starts each queued task that has no chat, runs one `ark-agent` turn with the helper's soul, and ends the task with a report or an error. A stop or a delete on the bus cancels the run. The time limit is 15 minutes.
   - `HelpersNative::attach_runner` makes `job.add`, `job.retry`, `job.steer`, `job.interrupt`, `job.fresh`, `job.stop` and the delete of a running task native. Without a runner they stay in Node. Tests use a scripted provider and a copy of the fixture file.
 - Not done in ADR-278 Phase 4: `job.undo` (file copies), the Tinker task that a failed skill use asks for, the delegation gate for child tasks, the native retry plans of a chat, Telegram and workflow listeners on the Rust bus, and the models, skill hub, Paperclip and stuck dot in `helpers.list`. The app does not attach the runner yet.
+
+## Rust migration of the owner pages (ADR-278)
+
+- Rust now answers `agent.create`, `project.add`, `project.remove`, `workflows.list`, `workflow.save`, `workflow.delete`, `suggestions.deny`, `suggestions.set`, `improvements.get`, `improvements.set`, `improvement.fixing` and `improvement.dismiss`.
+- Each command has a fixture test. A TypeScript script in `rust/scripts/` makes the fixture. The Rust test must leave the same files and rows.
+- Rust and Node both write `workflows.json` and `improvements.json`. Node reads each file again when its time stamp changes.
+- A command goes to Node when Rust cannot give the exact answer. The reasons are in `TASK.md`.
+- Not done: `project.create`, `workflow.run`, `suggestions.get`, `suggestions.accept`, `suggestions.undo`, `improvements.run`, `brief.*` and `memory.keepChat`.
