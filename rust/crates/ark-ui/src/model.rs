@@ -243,6 +243,8 @@ pub const BRIEF_SWITCHES: [(&str, &str); 9] = [
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Model {
+    /// The last brain search: the query and what it found (`brain.hits`).
+    pub brain_hits: Option<(String, Vec<ark_protocol::events::BrainHit>)>,
     /// The open chat's own settings (`chats` event): access, model and thinking. Empty: the default applies.
     pub chat_access: String,
     pub chat_model: Option<(String, String)>,
@@ -471,6 +473,7 @@ impl Model {
                 self.streaming.clear();
                 self.banner = Some(message.clone());
             }
+            Event::BrainHits { query, hits } => self.brain_hits = Some((query.clone(), hits.clone())),
             Event::BrainNote { note } => self.brain_note = Some(note.clone()),
             Event::Other(map) => self.apply_other(map),
             _ => {}

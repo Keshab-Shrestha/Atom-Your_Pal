@@ -428,6 +428,28 @@ pub fn memory(app: &App, k: &Kit) -> El {
     if let Some(open) = note_card(app, k) {
         cards.push(open);
     }
+    let search = rune_kit::TextArea::new(&app.brain_query)
+        .placeholder("Search the brain")
+        .label("Search the brain")
+        .auto_grow(1, 1)
+        .on_edit(|s: &mut App| &mut s.brain_query)
+        .on_submit(|s: &mut App, _| s.search_brain())
+        .build(k)
+        .key("brain-search")
+        .w_full();
+    cards.push(search);
+    if let Some((query, hits)) = &app.model.brain_hits {
+        let mut found = card(k, "brain-hits", &format!("{} found for \"{query}\"", hits.len()));
+        for h in hits.iter().take(30) {
+            let id = h.id;
+            found = found.child(
+                row().w_full().justify_between().items_center().gap(12.0)
+                    .child(col().grow(1.0).child(text(h.title.clone()).font(k.ty.ui_medium).color(k.c.text_base)).child(text(h.snippet.clone()).font(k.ty.small).color(k.c.text_muted).wrap()))
+                    .child(Button::new("Open").on_press(move |s: &mut App| s.send(&Command::BrainNote { id })).build(k).key(format!("hit-{id}"))),
+            );
+        }
+        cards.push(found);
+    }
     if let Some(nodes) = &app.model.brain {
         let mut brain = card(k, "brain-notes", "Brain notes");
         for n in nodes.iter().filter(|n| !n.ghost).take(80) {

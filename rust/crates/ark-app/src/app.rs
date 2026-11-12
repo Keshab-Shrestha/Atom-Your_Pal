@@ -32,6 +32,8 @@ pub struct App {
     /// An open form (soul, new agent, new task); it replaces the page while it is open.
     /// The shortcut waiting for a key press.
     pub recording: Option<ark_core::shortcuts::ShortcutAction>,
+    /// The brain search field.
+    pub brain_query: TextEdit,
     /// The chat details card is open above the transcript.
     pub details: bool,
     /// The task whose details are open on the Tasks page.
@@ -83,7 +85,7 @@ pub fn init() -> App {
     // Tests and snapshots open the find bar with a query.
     let find = std::env::var("ARK_UI_FIND").ok().map(|q| (TextEdit::new(q), 0));
     let welcome = std::env::var_os("ARK_UI_EVENTS").is_none() && !prefs.welcomed;
-    App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen, recording: None, details: std::env::var_os("ARK_UI_DETAILS").is_some(), open_job: std::env::var("ARK_UI_JOB").ok().and_then(|v| v.parse().ok()), prefs, confirm_full: false, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: welcome.then(|| crate::form::Form::owner(true, "")), form_error: None }
+    App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen, brain_query: TextEdit::new(std::env::var("ARK_UI_BRAIN_QUERY").unwrap_or_default()), recording: None, details: std::env::var_os("ARK_UI_DETAILS").is_some(), open_job: std::env::var("ARK_UI_JOB").ok().and_then(|v| v.parse().ok()), prefs, confirm_full: false, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: welcome.then(|| crate::form::Form::owner(true, "")), form_error: None }
 }
 
 /// Starts the runtime child once, with the waker that redraws the window when an event arrives.
@@ -243,6 +245,13 @@ impl App {
     pub fn apply_shortcuts(&self) {
         #[cfg(target_os = "macos")]
         crate::mac::apply_shortcuts(ark_core::shortcuts::ShortcutAction::ALL.iter().map(|a| (*a, self.prefs.combo(*a))).collect());
+    }
+
+    pub fn search_brain(&self) {
+        let query = self.brain_query.text.trim().to_owned();
+        if !query.is_empty() {
+            self.send(&ark_protocol::Command::BrainSearch { query });
+        }
     }
 
     pub fn set_translucent(&mut self, on: bool) {
