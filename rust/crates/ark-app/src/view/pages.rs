@@ -141,6 +141,22 @@ pub fn settings(app: &App, k: &Kit) -> El {
     if std::env::var_os("ARK_UI_EVENTS").is_some() {
         access = access.child(text("Permissions show in the running app.").font(k.ty.small).color(k.c.text_faint));
     }
+    let mut keys = card(k, "settings-keys", "API keys").child(text("Keys are kept in the macOS Keychain, never in a file. A saved key shows only as Saved.").font(k.ty.small).color(k.c.text_muted).wrap());
+    for (name, label) in crate::keychain::KEYS {
+        let saved = std::env::var_os("ARK_UI_EVENTS").is_none() && crate::keychain::get(name).is_some();
+        let mut r = row().w_full().justify_between().items_center().gap(8.0)
+            .child(text(label.to_owned()).font(k.ty.ui).color(k.c.text_base))
+            .child(text(if saved { "Saved" } else { "Not set" }.to_owned()).font(k.ty.small).color(k.c.text_muted))
+            .child(Button::new("Save typed key").on_press(move |s: &mut App| s.save_key(name)).build(k).key(format!("key-save-{name}")));
+        if saved {
+            r = r.child(Button::new("Remove").on_press(move |s: &mut App| s.remove_key(name)).build(k).key(format!("key-remove-{name}")));
+        }
+        keys = keys.child(r);
+    }
+    keys = keys.child(rune_kit::TextArea::new(&app.key_draft).secure().placeholder("Paste an API key").label("API key").auto_grow(1, 1).on_edit(|s: &mut App| &mut s.key_draft).build(k).key("key-field").w_full());
+    if let Some(note) = &app.key_note {
+        keys = keys.child(text(note.clone()).key("key-note").font(k.ty.small).color(k.c.text_muted).wrap());
+    }
     let mut shortcuts = card(k, "settings-shortcuts", "Shortcuts");
     for action in ark_core::shortcuts::ShortcutAction::ALL {
         let words = if app.recording == Some(action) { "Press the new shortcut (Esc cancels)".to_owned() } else { crate::prefs::describe(action, &app.prefs.combo(action)) };
@@ -152,7 +168,7 @@ pub fn settings(app: &App, k: &Kit) -> El {
         }
         shortcuts = shortcuts.child(row().w_full().justify_between().items_center().gap(12.0).child(text(crate::prefs::action_title(action).to_owned()).font(k.ty.ui).color(k.c.text_muted)).child(text(words).font(k.ty.ui).color(k.c.text_base)).child(buttons));
     }
-    let mut cards = vec![model, general, defaults, appearance, shortcuts, access, connections];
+    let mut cards = vec![model, general, defaults, appearance, keys, shortcuts, access, connections];
     if let Some(values) = m.brief {
         let mut brief = card(k, "settings-brief", "Morning brief");
         for (i, ((_, label), on)) in ark_ui::BRIEF_SWITCHES.iter().zip(values).enumerate() {

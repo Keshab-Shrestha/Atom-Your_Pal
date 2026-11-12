@@ -43,7 +43,13 @@ pub fn exit_words(code: Option<i32>) -> String {
 impl Bridge {
     /// Starts `program args...` with a pipe on each side. Its stderr goes to ours.
     pub fn spawn(program: &str, args: &[String], cwd: Option<&std::path::Path>, wake: Wake) -> std::io::Result<Bridge> {
+        Bridge::spawn_with_env(program, args, cwd, &[], wake)
+    }
+
+    /// Like `spawn`, with extra environment variables for the child (provider keys from the Keychain). Values are never logged.
+    pub fn spawn_with_env(program: &str, args: &[String], cwd: Option<&std::path::Path>, env: &[(String, String)], wake: Wake) -> std::io::Result<Bridge> {
         let mut process = Process::new(program);
+        process.envs(env.iter().map(|(k, v)| (k.as_str(), v.as_str())));
         if let Some(dir) = cwd {
             process.current_dir(dir);
         }

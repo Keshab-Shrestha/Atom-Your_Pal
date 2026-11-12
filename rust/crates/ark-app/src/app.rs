@@ -35,6 +35,9 @@ pub struct App {
     pub recording: Option<ark_core::shortcuts::ShortcutAction>,
     /// The brain search field.
     pub brain_query: TextEdit,
+    /// The key field in the setup card, and the last note about saving.
+    pub key_draft: TextEdit,
+    pub key_note: Option<String>,
     /// The chat details card is open above the transcript.
     pub details: bool,
     /// The task whose details are open on the Tasks page.
@@ -87,7 +90,7 @@ pub fn init() -> App {
     // Tests and snapshots open the find bar with a query.
     let find = std::env::var("ARK_UI_FIND").ok().map(|q| (TextEdit::new(q), 0));
     let welcome = std::env::var_os("ARK_UI_EVENTS").is_none() && !prefs.welcomed;
-    App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen, brain_query: TextEdit::new(std::env::var("ARK_UI_BRAIN_QUERY").unwrap_or_default()), recording: None, details: std::env::var_os("ARK_UI_DETAILS").is_some(), open_job: std::env::var("ARK_UI_JOB").ok().and_then(|v| v.parse().ok()), prefs, confirm_full: false, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: welcome.then(|| crate::form::Form::owner(true, "")), form_error: None }
+    App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen, brain_query: TextEdit::new(std::env::var("ARK_UI_BRAIN_QUERY").unwrap_or_default()), key_draft: TextEdit::new("").secure(), key_note: None, recording: None, details: std::env::var_os("ARK_UI_DETAILS").is_some(), open_job: std::env::var("ARK_UI_JOB").ok().and_then(|v| v.parse().ok()), prefs, confirm_full: false, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: welcome.then(|| crate::form::Form::owner(true, "")), form_error: None }
 }
 
 /// Starts the runtime child once, with the waker that redraws the window when an event arrives.
@@ -101,7 +104,8 @@ pub fn setup(app: &mut App, wake: Waker) {
     app.apply_shortcuts();
     let plan = crate::launch::real_plan();
     let bin = plan.program.clone();
-    match Bridge::spawn(&plan.program, &plan.args, plan.cwd.as_deref(), Arc::clone(&wake)) {
+    let env = crate::keychain::env_pairs(&|n| std::env::var(n).ok());
+    match Bridge::spawn_with_env(&plan.program, &plan.args, plan.cwd.as_deref(), &env, Arc::clone(&wake)) {
         Ok(bridge) => {
             app.bridge = Some(bridge);
             // Native clients ask for the work snapshots (docs/island-protocol.md, chat.work).
@@ -255,6 +259,23 @@ impl App {
         if !query.is_empty() {
             self.send(&ark_protocol::Command::BrainSearch { query });
         }
+    }
+
+    /// Saves the typed key under `name` in the Keychain and clears the field. The key applies at the next start.
+    pub fn save_key(&mut self, name: &str) {
+        let key = self.key_draft.text.trim().to_owned();
+        self.key_note = Some(match crate::keychain::save(name, &key) {
+            Ok(()) => "Saved in macOS Keychain. Restart ARK to use it.".to_owned(),
+            Err(why) => why,
+        });
+        self.key_draft = TextEdit::new("").secure();
+    }
+
+    pub fn remove_key(&mut self, name: &str) {
+        self.key_note = Some(match crate::keychain::remove(name) {
+            Ok(()) => "Key removed from Keychain.".to_owned(),
+            Err(why) => why,
+        });
     }
 
     pub fn set_translucent(&mut self, on: bool) {
