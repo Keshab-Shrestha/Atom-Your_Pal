@@ -201,6 +201,45 @@
    }
   ]
  },
+ "nodeParts": {
+  "models": [
+   {
+    "id": "claude-opus-5-5",
+    "name": "Claude Opus 5.5",
+    "tier": "large"
+   },
+   {
+    "id": "claude-sonnet-5-5",
+    "name": "Claude Sonnet 5.5",
+    "tier": "medium"
+   },
+   {
+    "id": "claude-haiku-4-5-20251001",
+    "name": "Claude Haiku 4.5",
+    "tier": "small"
+   }
+  ],
+  "paperclip": {
+   "issues": [
+    {
+     "id": "a",
+     "identifier": "ARK-1",
+     "title": "T",
+     "agent": "x",
+     "status": "open",
+     "createdAt": "2026-01-01T00:00:00.000Z",
+     "result": "r"
+    },
+    {
+     "id": "b",
+     "title": "U",
+     "agent": "y",
+     "status": "done",
+     "createdAt": "2026-01-02T00:00:00.000Z"
+    }
+   ]
+  }
+ },
  "cases": [
   {
    "name": "approve",

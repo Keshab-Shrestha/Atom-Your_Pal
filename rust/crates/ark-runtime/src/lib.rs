@@ -14,6 +14,7 @@ pub mod helpers_checkpoints;
 pub mod helpers_event;
 pub mod helpers_extras;
 pub mod helpers_native;
+pub mod helpers_nodeparts;
 pub mod helpers_org;
 pub mod helpers_plans;
 pub mod helpers_quiet;

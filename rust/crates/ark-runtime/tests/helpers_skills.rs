@@ -105,3 +105,11 @@ fn the_hub_part_is_the_one_the_typescript_builds() {
     let conn = Connection::open_with_flags(fixtures().join("base/helpers.db"), rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
     assert_eq!(helpers_skills::hub_payload(&conn, None).unwrap().unwrap(), want["hubPayload"]);
 }
+
+#[test]
+fn the_models_and_the_paperclip_issues_are_the_ones_the_typescript_builds() {
+    use ark_runtime::helpers_nodeparts as parts;
+    let want: Value = serde_json::from_str(&std::fs::read_to_string(fixtures().join("expected.json")).unwrap()).unwrap();
+    assert_eq!(parts::models(&Value::Null), want["nodeParts"]["models"]);
+    assert_eq!(parts::paperclip(&fixtures().join("paperclip.json"), Some("http://localhost:3100"), &Value::Null).unwrap(), want["nodeParts"]["paperclip"]);
+}

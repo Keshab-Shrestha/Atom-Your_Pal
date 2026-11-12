@@ -1,6 +1,6 @@
 //! `helpers.list` answered by Rust (ADR-278 Phase 4, slice 6), opt-in with `ARK_HELPERS_NATIVE=1`. Rust builds the event
 //! from `helpers.db` (`helpers_event::build`) and takes the parts that only Node knows from the last `helpers` event Node
-//! sent. Until Node has sent one, `helpers.list` goes to Node. Node keeps sending changes after that first answer, so the
+//! sent. Without one, `helpers_nodeparts` gives the models and Paperclip. Node keeps sending changes after that first answer, so the
 //! stuck dot of a task still shows. Writes (`job.*`, `skill.*`) stay in Node: its runner and Telegram listen to them.
 
 use std::path::{Path, PathBuf};
@@ -113,7 +113,7 @@ impl HelpersNative {
         if self.quiet.sweep(&conn).is_empty() {
             return None;
         }
-        let cached = self.cached.lock().ok()?.clone()?;
+        let cached = self.cached.lock().ok()?.clone().unwrap_or(Value::Null);
         let event = helpers_event::build_with(&conn, &self.agents, &jiff::Zoned::now(), &cached, &self.host, Some(&self.quiet))?;
         Some(format!("{event}\n"))
     }
@@ -158,7 +158,7 @@ impl HelpersNative {
             return None;
         }
         let command: Value = serde_json::from_str(line).ok()?;
-        let cached = self.cached.lock().ok()?.clone()?;
+        let cached = self.cached.lock().ok()?.clone().unwrap_or(Value::Null);
         if command["type"] != "helpers.list" {
             let conn = crate::store::open_read_write(&self.db).ok()?;
             if self.life(&conn, &command).is_none() && self.files(&conn, &command).is_none() && crate::helpers_settings::apply(&conn, &command).is_none() && crate::helpers_routine_edit::apply(&conn, &command, &self.agents).is_none() && crate::helpers_mcp_edit::apply(&conn, &command, &self.agents).is_none() && crate::helpers_agent_create::apply(&conn, &command, &self.agents).is_none() {
@@ -192,7 +192,7 @@ mod tests {
     }
 
     #[test]
-    fn it_is_off_unless_asked_and_goes_to_node_until_node_sent_an_event() {
+    fn it_is_off_unless_asked_and_needs_no_event_from_node() {
         assert!(HelpersNative::from_environment(Path::new("/x"), |_| None).is_none());
         let dir = scratch();
         let on = |name: &str| match name {
@@ -207,7 +207,9 @@ mod tests {
         let heard = Arc::new(Mutex::new(Vec::<Value>::new()));
         let sink = heard.clone();
         native.bus().subscribe(move |c| sink.lock().unwrap().push(c.clone()));
-        assert!(native.answer("{\"type\":\"helpers.list\"}\n").is_none(), "no event from Node yet");
+        let first: Value = serde_json::from_str(&native.answer("{\"type\":\"helpers.list\"}\n").expect("no event from Node needed")).unwrap();
+        assert_eq!(first["models"].as_array().unwrap().len(), 3, "the plan's table, until Node sends its live list");
+        assert!(first.get("paperclip").is_none() && first.get("skillHub").is_none());
         native.observe("{\"type\":\"helpers\",\"apps\":[\"Safari\"],\"models\":[],\"skills\":[]}\n");
         let line = native.answer("{\"type\":\"helpers.list\"}\n").unwrap();
         let event: Value = serde_json::from_str(&line).unwrap();

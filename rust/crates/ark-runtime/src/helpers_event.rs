@@ -2,8 +2,7 @@
 //! soul files. A port of `sendHelpers` in `apps/mac/src/island.ts`. Some parts live only in Node's memory (the installed
 //! apps, the plan's models, the skills folders, the skill hub, Paperclip, the stuck dot of a task). Who reports to whom is
 //! read from `org.json` (`helpers_org`).
-//! Rust takes them from the last `helpers` event that Node sent (`cached`); the apps and the skills it reads from the folders; with none, or with a stuck dot in it, `build`
-//! gives `None` and Node answers.
+//! The models, the skill hub search and the Paperclip flag take Node's last `helpers` event (`cached`) when there is one, and `helpers_nodeparts` when not; the apps and the skills come from the folders. `build` (without the stuck dots of Rust) still gives `None` for no cached event or a stuck dot in it.
 
 use std::path::{Path, PathBuf};
 
@@ -11,9 +10,6 @@ use rusqlite::Connection;
 use serde_json::{Map, Value, json};
 
 use crate::{helpers_catalog, helpers_extras, helpers_org, helpers_jobs, helpers_plans, helpers_roster, helpers_routines, helpers_tests, helpers_usage};
-
-/// The keys of the event that Node alone knows.
-const NODE_KEYS: [&str; 2] = ["models", "paperclip"];
 
 /// The folders the apps and the skills are listed from.
 #[derive(Clone, Debug)]
@@ -62,7 +58,7 @@ fn has_stuck_dot(cached: &Value) -> bool {
 
 /// The event for the state of `conn` at `now`, or `None` when Node must answer.
 pub fn build(conn: &Connection, agents_dir: &Path, now: &jiff::Zoned, cached: &Value, host: &Host) -> Option<Value> {
-    if has_stuck_dot(cached) {
+    if cached["type"] != "helpers" || has_stuck_dot(cached) {
         return None;
     }
     build_with(conn, agents_dir, now, cached, host, None)
@@ -70,9 +66,6 @@ pub fn build(conn: &Connection, agents_dir: &Path, now: &jiff::Zoned, cached: &V
 
 /// Like `build`, with the stuck dots of Rust (`quiet`): Node's copy is then not needed for them.
 pub fn build_with(conn: &Connection, agents_dir: &Path, now: &jiff::Zoned, cached: &Value, host: &Host, quiet: Option<&crate::helpers_quiet::Quiet>) -> Option<Value> {
-    if cached["type"] != "helpers" {
-        return None;
-    }
     let (members, problems) = helpers_roster::roster(conn, agents_dir)?;
     // Only agents that are not Tinker sit in the chart.
     let chart_ids: Vec<String> = members.iter().filter(|m| m.role != "improver").map(|m| m.id.clone()).collect();
@@ -98,10 +91,9 @@ pub fn build_with(conn: &Connection, agents_dir: &Path, now: &jiff::Zoned, cache
     let dirs: Vec<&Path> = host.app_dirs.iter().map(PathBuf::as_path).collect();
     event.insert("apps".into(), helpers_catalog::apps(&dirs, host.home.as_deref()));
     event.insert("skills".into(), helpers_catalog::skills(&host.user_skills, host.ark_skills.as_deref(), &hub_names(conn)?));
-    for key in NODE_KEYS {
-        if let Some(value) = cached.get(key) {
-            event.insert(key.into(), value.clone());
-        }
+    event.insert("models".into(), crate::helpers_nodeparts::models(cached));
+    if let Some(paperclip) = crate::helpers_nodeparts::paperclip(&agents_dir.with_file_name("paperclip.json"), std::env::var("ARK_PAPERCLIP_URL").ok().as_deref(), cached) {
+        event.insert("paperclip".into(), paperclip);
     }
     if let Some(hub) = crate::helpers_skills::hub_payload(conn, cached.get("skillHub"))? {
         event.insert("skillHub".into(), hub);

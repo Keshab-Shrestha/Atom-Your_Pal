@@ -1,0 +1,19 @@
+[
+  {
+    "id": "a",
+    "identifier": "ARK-1",
+    "title": "T",
+    "agent": "x",
+    "status": "open",
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "told": true,
+    "result": "r"
+  },
+  {
+    "id": "b",
+    "title": "U",
+    "agent": "y",
+    "status": "done",
+    "createdAt": "2026-01-02T00:00:00.000Z"
+  }
+]

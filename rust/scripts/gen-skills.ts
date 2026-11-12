@@ -6,6 +6,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { openHelperStore } from "../../services/helpers/src/store.ts";
+import { tieredModels } from "../../services/helpers/src/models.ts";
+import { issueTracker } from "../../apps/mac/src/paperclip.ts";
+import { PROVIDERS } from "../../packages/shared/src/config.ts";
 import { createHubCommands } from "../../apps/mac/src/hub-commands.ts";
 
 const out = join(dirname(fileURLToPath(import.meta.url)), "..", "crates", "ark-runtime", "tests", "fixtures", "skills");
@@ -52,6 +55,11 @@ const hubStore = open(base);
 const hubPayload = JSON.parse(JSON.stringify(createHubCommands({ store: hubStore, log: { info() {} } }).payload()));
 hubStore.close();
 for (const ext of ["-wal", "-shm"]) rmSync(join(base, `helpers.db${ext}`), { force: true });
+
+// The models and the Paperclip issues of the event (rust/crates/ark-runtime/src/helpers_nodeparts.rs).
+const tracked = join(out, "paperclip.json");
+writeFileSync(tracked, JSON.stringify([{ id: "a", identifier: "ARK-1", title: "T", agent: "x", status: "open", createdAt: "2026-01-01T00:00:00.000Z", told: true, result: "r" }, { id: "b", title: "U", agent: "y", status: "done", createdAt: "2026-01-02T00:00:00.000Z" }], null, 2));
+const nodeParts = { models: tieredModels(PROVIDERS["claude-plan"].models), paperclip: { issues: issueTracker(tracked).list().map(({ told: _told, ...item }) => item) } };
 
 const walk = (root: string, rel = ""): Record<string, string> => Object.assign({}, ...readdirSync(join(root, rel)).map((n) => {
   const p = join(rel, n);
@@ -110,5 +118,5 @@ const cases = ops.map((op, i) => {
   rmSync(dir, { recursive: true });
   return { name: op.name, cmds: op.steps.map((s) => s.cmd), outcomes, after };
 });
-writeFileSync(join(out, "expected.json"), `${JSON.stringify({ source: "services/helpers/src/skill-drafts.ts", before: dump(base), hubPayload, cases }, null, 1)}\n`);
+writeFileSync(join(out, "expected.json"), `${JSON.stringify({ source: "services/helpers/src/skill-drafts.ts", before: dump(base), hubPayload, nodeParts, cases }, null, 1)}\n`);
 console.log(cases.map((c) => `${c.name}=${c.outcomes.at(-1)}`).join("\n"));
