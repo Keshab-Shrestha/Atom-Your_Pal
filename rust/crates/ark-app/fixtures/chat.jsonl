@@ -19,3 +19,4 @@
 {"type":"git","branches":[{"repo":"/r","repoName":"atom","branch":"ark/task-3","task":3,"title":"Fix the build","base":"main","pushAllowed":true,"pushed":"no","commits":[{"sha":"abcdef123456","subject":"Fix linker flags","at":"x"}],"files":[{"path":"build.rs","added":3,"removed":1}]}]}
 {"type":"git.diff","repo":"/r","branch":"ark/task-3","text":"@@ -1 +1 @@\n-old\n+new"}
 {"type":"workspace","request":"r","chat":"c1","project":"p1","action":"list","path":"","ok":true,"entries":[{"path":"src","name":"src","directory":true},{"path":"README.md","name":"README.md","directory":false}]}
+{"type":"search.results","query":"rune","chats":[{"id":"c1","title":"Plan the Rust port","snippet":"Rune window","at":"x"}],"tasks":[{"id":1,"title":"Rune vs egui","snippet":"fits","at":"x"}],"reports":[],"pages":[{"id":"3","title":"Rune notes","snippet":"draws"}]}

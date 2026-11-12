@@ -22,7 +22,7 @@ pub struct Entry {
 /// Every entry, before the filter: actions first, then screens, then chats (newest first as the runtime sends them).
 pub fn entries(model: &Model) -> Vec<Entry> {
     let mut out = vec![Entry { title: "New chat".into(), action: Action::NewChat }, Entry { title: "Find in chat".into(), action: Action::Find }, Entry { title: "Chat details".into(), action: Action::Details }];
-    for (title, screen) in [("Agents", Screen::Agents), ("Tasks", Screen::Tasks), ("Memory", Screen::Memory), ("Projects", Screen::Projects), ("Branches", Screen::Branches), ("Dashboard", Screen::Dashboard), ("Settings", Screen::Settings)] {
+    for (title, screen) in [("Agents", Screen::Agents), ("Tasks", Screen::Tasks), ("Memory", Screen::Memory), ("Projects", Screen::Projects), ("Branches", Screen::Branches), ("Search", Screen::Search), ("Dashboard", Screen::Dashboard), ("Settings", Screen::Settings)] {
         out.push(Entry { title: format!("Go to {title}"), action: Action::Go(screen) });
     }
     for chat in &model.chats {

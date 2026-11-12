@@ -20,12 +20,13 @@ impl Screen {
             Screen::Memory => "memory",
             Screen::Projects => "projects",
             Screen::Branches => "branches",
+            Screen::Search => "search",
             Screen::Dashboard => "dashboard",
         }
     }
 
     pub fn from_name(name: &str) -> Screen {
-        [Screen::Settings, Screen::Agents, Screen::Tasks, Screen::Memory, Screen::Projects, Screen::Branches, Screen::Dashboard].into_iter().find(|s| s.name() == name).unwrap_or(Screen::Chat)
+        [Screen::Settings, Screen::Agents, Screen::Tasks, Screen::Memory, Screen::Projects, Screen::Branches, Screen::Search, Screen::Dashboard].into_iter().find(|s| s.name() == name).unwrap_or(Screen::Chat)
     }
 }
 
@@ -40,6 +41,7 @@ pub enum Screen {
     Memory,
     Projects,
     Branches,
+    Search,
     Dashboard,
 }
 
@@ -60,6 +62,8 @@ pub struct App {
     pub update_note: Option<String>,
     pub update_result: std::sync::Arc<std::sync::Mutex<Option<String>>>,
     pub login_note: Option<String>,
+    /// The search field.
+    pub search_query: TextEdit,
     /// "Forget all facts" waits for the second press.
     pub confirm_clear: bool,
     /// The project whose files are open on the Projects page.
@@ -123,7 +127,7 @@ pub fn init() -> App {
     // Tests and snapshots open the find bar with a query.
     let find = std::env::var("ARK_UI_FIND").ok().map(|q| (TextEdit::new(q), 0));
     let welcome = std::env::var_os("ARK_UI_EVENTS").is_none() && !prefs.welcomed;
-    App { model, bridge: None, draft, sidebar, screen, brain_query: TextEdit::new(std::env::var("ARK_UI_BRAIN_QUERY").unwrap_or_default()), key_draft: TextEdit::new("").secure(), key_note: None, wake: None, backoff: Default::default(), retry_at: None, update_note: None, update_result: Default::default(), login_note: None, confirm_clear: false, workspace_project: None, recording: None, details: std::env::var_os("ARK_UI_DETAILS").is_some(), open_job: std::env::var("ARK_UI_JOB").ok().and_then(|v| v.parse().ok()), prefs, confirm_full: false, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: welcome.then(|| crate::form::Form::owner(true, "")), form_error: None }
+    App { model, bridge: None, draft, sidebar, screen, brain_query: TextEdit::new(std::env::var("ARK_UI_BRAIN_QUERY").unwrap_or_default()), key_draft: TextEdit::new("").secure(), key_note: None, wake: None, backoff: Default::default(), retry_at: None, update_note: None, update_result: Default::default(), login_note: None, search_query: { let mut t = TextEdit::new(std::env::var("ARK_UI_SEARCH").unwrap_or_default()); t.focused = false; t }, confirm_clear: false, workspace_project: None, recording: None, details: std::env::var_os("ARK_UI_DETAILS").is_some(), open_job: std::env::var("ARK_UI_JOB").ok().and_then(|v| v.parse().ok()), prefs, confirm_full: false, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: welcome.then(|| crate::form::Form::owner(true, "")), form_error: None }
 }
 
 /// Starts the runtime child once, with the waker that redraws the window when an event arrives.
@@ -274,6 +278,7 @@ impl App {
             Screen::Settings => self.send(&ark_protocol::Command::BriefGet),
             Screen::Projects => {}
             Screen::Branches => self.send(&ark_protocol::Command::GitList),
+            Screen::Search => {}
             Screen::Chat => {}
         }
     }
@@ -405,6 +410,38 @@ impl App {
             Ok(()) => "ARK no longer opens at login.".to_owned(),
             Err(why) => why,
         });
+    }
+
+    /// Opens a search hit where it lives: a chat, a task, or a note; other groups only open their page.
+    pub fn open_hit(&mut self, group: &str, id: &str) {
+        match (group, id.parse::<u64>()) {
+            ("chats", _) => {
+                self.screen = Screen::Chat;
+                self.send(&ark_protocol::Command::ChatOpen { id: id.to_owned() });
+            }
+            ("tasks" | "reports", Ok(job)) => {
+                self.screen = Screen::Tasks;
+                self.open_job = Some(job);
+                self.send(&ark_protocol::Command::JobOpen { id: job });
+            }
+            ("pages", Ok(note)) => {
+                self.goto(Screen::Memory);
+                self.send(&ark_protocol::Command::BrainNote { id: note });
+            }
+            ("projects", _) => self.goto(Screen::Projects),
+            ("agents", _) => self.goto(Screen::Agents),
+            _ => self.goto(Screen::Memory),
+        }
+    }
+
+    /// Sends the search field as a `search` command.
+    pub fn run_search(&self) {
+        let query = self.search_query.text.trim().to_owned();
+        if query.is_empty() {
+            return;
+        }
+        let fields = serde_json::json!({ "type": "search", "query": query });
+        self.send(&ark_protocol::Command::Other { kind: "search".into(), fields: fields.as_object().cloned().unwrap_or_default() });
     }
 
     pub fn set_translucent(&mut self, on: bool) {

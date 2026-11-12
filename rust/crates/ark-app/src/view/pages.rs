@@ -783,3 +783,35 @@ fn brain_graph(nodes: &[ark_ui::BrainNode], edges: &[(u64, u64)], k: &Kit) -> El
         .child(text(format!("Graph: {} notes, {} links", placed.len(), drawn)).font(k.ty.ui_medium).color(k.c.text_base))
         .child(area)
 }
+
+/// Search over chats, tasks, reports, notes, facts and more (SearchViews.swift).
+pub fn search(app: &App, k: &Kit) -> El {
+    let input = rune_kit::TextArea::new(&app.search_query)
+        .placeholder("Search chats, tasks, notes and more")
+        .label("Search everything")
+        .auto_grow(1, 1)
+        .on_edit(|s: &mut App| &mut s.search_query)
+        .on_submit(|s: &mut App, _| s.run_search())
+        .build(k)
+        .key("search-input")
+        .w_full();
+    let mut cards = vec![input, row().justify_end().child(Button::new("Search").variant(ButtonVariant::Submit).on_press(|s: &mut App| s.run_search()).build(k).key("search-go"))];
+    match &app.model.search {
+        None => cards.push(text("Type a word and press Return.").key("search-hint").font(k.ty.ui).color(k.c.text_faint)),
+        Some(r) if r.groups.is_empty() => cards.push(text(format!("Nothing found for \"{}\".", r.query)).key("search-none").font(k.ty.ui).color(k.c.text_faint)),
+        Some(r) => {
+            for (group, hits) in &r.groups {
+                let mut c = card(k, &format!("search-{group}"), &format!("{} ({})", group[..1].to_uppercase() + &group[1..], hits.len()));
+                for (i, h) in hits.iter().take(20).enumerate() {
+                    let (group, id) = (*group, h.id.clone());
+                    let open = Button::new("Open").on_press(move |s: &mut App| s.open_hit(group, &id)).build(k).key(format!("hit-{group}-{i}"));
+                    c = c.child(row().w_full().justify_between().items_center().gap(12.0)
+                        .child(col().grow(1.0).child(text(h.title.clone()).font(k.ty.ui_medium).color(k.c.text_base)).child(text(h.snippet.clone()).font(k.ty.small).color(k.c.text_muted).wrap()))
+                        .child(open));
+                }
+                cards.push(c);
+            }
+        }
+    }
+    page(k, "search", "Search", cards)
+}

@@ -352,3 +352,23 @@ fn a_note_opens_in_the_editor() {
     let tree = tree_after("note-form", "chat.jsonl", Some(steps));
     assert!(tree.contains("New note") && tree.contains("Title") && tree.contains("Save"), "the note form is missing");
 }
+
+#[test]
+fn the_search_page_groups_hits() {
+    let steps = r#"[{"t":0.2,"type":"click","key":"search-go"}]"#;
+    let tree = fresh("search-tree.json");
+    let script = fresh("search-script.json");
+    std::fs::write(&script, steps).expect("script");
+    let out = Command::new(env!("CARGO_BIN_EXE_ark-app"))
+        .args(["--script", script.to_str().expect("utf-8"), "--tree", tree.to_str().expect("utf-8")])
+        .env("ARK_UI_EVENTS", fixture("chat.jsonl"))
+        .env("ARK_UI_SCREEN", "search")
+        .env("ARK_UI_SEARCH", "rune")
+        .output()
+        .expect("ark-app starts");
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let text = std::fs::read_to_string(&tree).expect("tree written");
+    for want in ["Chats (1)", "Tasks (1)", "Pages (1)", "Plan the Rust port", "Rune vs egui", "Search everything"] {
+        assert!(text.contains(want), "search page lacks {want:?}");
+    }
+}

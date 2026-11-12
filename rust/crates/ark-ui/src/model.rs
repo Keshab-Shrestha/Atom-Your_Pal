@@ -260,6 +260,23 @@ fn parse_usage(u: &Map<String, Value>) -> Usage {
     }
 }
 
+/// One search hit (`search.results`): the id as text (a chat id, a task number, a note id), title and snippet.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Hit {
+    pub id: String,
+    pub title: String,
+    pub snippet: String,
+}
+
+/// The answer to `search`: the query and the groups that have hits, in a fixed order.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct SearchResults {
+    pub query: String,
+    pub groups: Vec<(&'static str, Vec<Hit>)>,
+}
+
+const SEARCH_GROUPS: [&str; 9] = ["chats", "tasks", "reports", "pages", "facts", "notes", "projects", "agents", "skills"];
+
 /// One project: a folder with its own chats (`chats` event, `projects`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Project {
@@ -325,6 +342,7 @@ pub const BRIEF_SWITCHES: [(&str, &str); 9] = [
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Model {
+    pub search: Option<SearchResults>,
     pub usage: Option<Usage>,
     pub workspace: Option<Workspace>,
     /// The answer to the last `project.create`: (ok, error).
@@ -595,6 +613,21 @@ impl Model {
                 })
             }
             "project.created" => self.project_created = Some((bool_of(map, "ok"), opt_str(map, "error"))),
+            "search.results" => {
+                let id_text = |h: &Map<String, Value>| match h.get("id") {
+                    Some(Value::String(t)) => t.clone(),
+                    Some(Value::Number(n)) => n.to_string(),
+                    _ => String::new(),
+                };
+                self.search = Some(SearchResults {
+                    query: str_of(map, "query"),
+                    groups: SEARCH_GROUPS
+                        .iter()
+                        .map(|g| (*g, objects(map, g).map(|h| Hit { id: id_text(h), title: str_of(h, "title"), snippet: str_of(h, "snippet") }).collect::<Vec<_>>()))
+                        .filter(|(_, hits)| !hits.is_empty())
+                        .collect(),
+                });
+            }
             "git" => {
                 self.branches = Some(
                     objects(map, "branches")
