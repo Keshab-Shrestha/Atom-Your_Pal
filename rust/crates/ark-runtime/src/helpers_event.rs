@@ -1,0 +1,77 @@
+//! The `helpers` event (ADR-278 Phase 4, slice 6): the snapshot of the Helpers page, built from `helpers.db` and the
+//! soul files. A port of `sendHelpers` in `apps/mac/src/island.ts`. Some parts live only in Node's memory (the installed
+//! apps, the plan's models, the skills folders, the skill hub, Paperclip, who reports to whom, the stuck dot of a task).
+//! Rust takes them from the last `helpers` event that Node sent (`cached`); with none, or with a stuck dot in it, `build`
+//! gives `None` and Node answers.
+
+use std::path::Path;
+
+use rusqlite::Connection;
+use serde_json::{Map, Value, json};
+
+use crate::{helpers_extras, helpers_jobs, helpers_plans, helpers_roster, helpers_routines, helpers_tests, helpers_usage};
+
+/// The keys of the event that Node alone knows.
+const NODE_KEYS: [&str; 5] = ["apps", "models", "skills", "skillHub", "paperclip"];
+
+/// Every table and column the event reads. A file with another schema is answered by Node.
+pub fn schema() -> Vec<(&'static str, &'static [&'static str])> {
+    [helpers_roster::SCHEMA, helpers_routines::SCHEMA, helpers_jobs::SCHEMA, helpers_tests::SCHEMA, helpers_extras::SCHEMA, helpers_plans::SCHEMA, helpers_usage::SCHEMA].concat()
+}
+
+/// A read-only connection with the schema checked.
+pub fn open_read_only(path: &Path) -> Option<Connection> {
+    let conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX).ok()?;
+    conn.busy_timeout(crate::store::BUSY_TIMEOUT).ok()?;
+    crate::store::check_schema(&conn, &schema()).ok()?;
+    Some(conn)
+}
+
+fn has_stuck_dot(cached: &Value) -> bool {
+    cached["helpers"].as_array().is_some_and(|hs| hs.iter().any(|h| h["jobs"].as_array().is_some_and(|js| js.iter().any(|j| j.get("quietSince").is_some()))))
+}
+
+/// The event for the state of `conn` at `now`, or `None` when Node must answer.
+pub fn build(conn: &Connection, agents_dir: &Path, now: &jiff::Zoned, cached: &Value) -> Option<Value> {
+    if cached["type"] != "helpers" || has_stuck_dot(cached) {
+        return None;
+    }
+    let (members, problems) = helpers_roster::roster(conn, agents_dir)?;
+    let reports_to = |id: &str| cached["helpers"].as_array()?.iter().find(|h| h["id"] == id)?.get("reportsTo").cloned();
+    let mut helpers = Vec::new();
+    let mut names = Vec::new();
+    for m in &members {
+        let mut view = helpers_roster::member_core(conn, m)?;
+        names.push((m.id.clone(), view["name"].as_str()?.to_string()));
+        view["routines"] = Value::Array(helpers_routines::routines_of(conn, &m.id, now)?);
+        view["proposals"] = Value::Array(helpers_tests::proposals_of(conn, &m.id)?);
+        view["jobs"] = Value::Array(helpers_jobs::jobs_of(conn, &m.id)?);
+        if let Some(lead) = reports_to(&m.id) {
+            view["reportsTo"] = lead;
+        }
+        helpers.push(view);
+    }
+    let name_of = |id: &str| names.iter().find(|n| n.0 == id).map_or_else(|| id.to_string(), |n| n.1.clone());
+    let plans = helpers_plans::plans(conn, &name_of)?;
+    let mut event = Map::new();
+    event.insert("type".into(), json!("helpers"));
+    event.insert("helpers".into(), Value::Array(helpers));
+    for key in NODE_KEYS {
+        if let Some(value) = cached.get(key) {
+            event.insert(key.into(), value.clone());
+        }
+    }
+    event.insert("allowLarge".into(), json!(helpers_extras::allow_large(conn)?));
+    event.insert("skillDrafts".into(), Value::Array(helpers_extras::skill_drafts(conn)?));
+    event.insert("skillEdits".into(), Value::Array(helpers_extras::skill_edits(conn)?));
+    event.insert("testCases".into(), Value::Array(helpers_tests::test_cases(conn)?));
+    event.insert("mcp".into(), Value::Array(helpers_extras::mcp(conn)?));
+    event.insert("usage".into(), helpers_usage::summary(conn, now, &name_of)?);
+    if !plans.is_empty() {
+        event.insert("plans".into(), Value::Array(plans));
+    }
+    if !problems.is_empty() {
+        event.insert("agentProblems".into(), Value::Array(problems));
+    }
+    Some(Value::Object(event))
+}

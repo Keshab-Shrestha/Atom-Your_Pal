@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use ark_runtime::{helpers_usage as usage, helpers_plans as plans, helpers_extras as extras, helpers_jobs as jobs, helpers_roster as roster, helpers_tests as tests, helpers_routines as routines};
+use ark_runtime::{helpers_event as event, helpers_usage as usage, helpers_plans as plans, helpers_extras as extras, helpers_jobs as jobs, helpers_roster as roster, helpers_tests as tests, helpers_routines as routines};
 use rusqlite::{Connection, OpenFlags};
 use serde_json::Value;
 
@@ -98,4 +98,18 @@ fn usage_matches_typescript() {
     for key in want["usage"].as_object().unwrap().keys() {
         assert_eq!(got[key], want["usage"][key], "usage.{key}");
     }
+}
+
+#[test]
+fn the_helpers_event_matches_typescript() {
+    let (dir, conn) = fixture("event");
+    let want = expected();
+    let now: jiff::Timestamp = want["now"].as_str().unwrap().parse().unwrap();
+    let cached = serde_json::json!({ "type": "helpers", "apps": want["nodeParts"]["apps"], "models": want["nodeParts"]["models"], "skills": want["nodeParts"]["skills"] });
+    let got = event::build(&conn, &dir.join("agents"), &now.in_tz("Asia/Tokyo").unwrap(), &cached).unwrap();
+    for key in want["event"].as_object().unwrap().keys() {
+        assert_eq!(got[key], want["event"][key], "event.{key}");
+    }
+    assert_eq!(got.as_object().unwrap().len(), want["event"].as_object().unwrap().len());
+    assert!(event::build(&conn, &dir.join("agents"), &now.in_tz("Asia/Tokyo").unwrap(), &serde_json::json!({})).is_none(), "no cached event: Node answers");
 }

@@ -1,6 +1,1974 @@
 {
  "source": "apps/mac/src/island-helpers.ts list()",
- "now": "2026-11-12T11:30:00.000Z",
+ "now": "2026-11-01T09:01:03.000Z",
+ "nodeParts": {
+  "apps": [
+   "Safari",
+   "Xcode"
+  ],
+  "models": [
+   {
+    "id": "claude-sonnet-5-5",
+    "name": "Sonnet",
+    "tier": "small"
+   }
+  ],
+  "skills": [
+   {
+    "name": "web-search",
+    "description": "Search the web"
+   }
+  ]
+ },
+ "event": {
+  "type": "helpers",
+  "helpers": [
+   {
+    "id": "sid",
+    "name": "Sid",
+    "available": true,
+    "paused": false,
+    "role": "researcher",
+    "kit": "research",
+    "custom": false,
+    "soul": {
+     "name": "Sid",
+     "personality": "Curious and thorough. Always cites sources.",
+     "howItWorks": "Searches more than once, reads several good pages, compares what they say, and prefers primary and reputable sources.",
+     "rules": "Be brief.",
+     "lessons": ""
+    },
+    "soulVersion": 5,
+    "soulVersions": [
+     {
+      "version": 5,
+      "createdAt": "2026-11-01T09:00:42.000Z"
+     },
+     {
+      "version": 4,
+      "createdAt": "2026-11-01T09:00:06.000Z"
+     },
+     {
+      "version": 3,
+      "createdAt": "2026-11-01T09:00:05.000Z"
+     },
+     {
+      "version": 2,
+      "createdAt": "2026-11-01T09:00:04.000Z"
+     },
+     {
+      "version": 1,
+      "createdAt": "2026-11-01T09:00:00.000Z"
+     }
+    ],
+    "app": null,
+    "pinnedModel": "claude-sonnet-5-5",
+    "planFirst": false,
+    "browser": true,
+    "routines": [
+     {
+      "id": 1,
+      "task": "Summarise networking news",
+      "when": "Every day at 8:05 AM",
+      "schedule": {
+       "kind": "daily",
+       "minute": 485
+      },
+      "nextAt": "2026-11-01T23:05:00.000Z",
+      "notifyTelegram": true
+     },
+     {
+      "id": 3,
+      "task": "Hourly check",
+      "when": "Every 3 hours",
+      "schedule": {
+       "kind": "hours",
+       "every": 3
+      },
+      "nextAt": "2026-11-02T00:00:00.000Z"
+     }
+    ],
+    "grants": [],
+    "skills": [
+     "pdf",
+     "web-search"
+    ],
+    "proposals": [
+     {
+      "id": 3,
+      "field": "personality",
+      "text": "Curious, calm.",
+      "reason": "Tone.",
+      "jobId": 5,
+      "state": "pending",
+      "createdAt": "2026-11-01T09:00:41.000Z",
+      "tests": {
+       "better": 1,
+       "same": 1,
+       "worse": 0,
+       "notRun": 1,
+       "failed": 0,
+       "running": 0,
+       "results": [
+        {
+         "caseId": 100,
+         "task": "Same case",
+         "state": "done",
+         "better": "same",
+         "oldAnswer": "a",
+         "newAnswer": "b"
+        },
+        {
+         "caseId": 99,
+         "task": "A skipped case",
+         "state": "skipped",
+         "reason": "Too long"
+        },
+        {
+         "caseId": 1,
+         "task": "A finished example",
+         "state": "done",
+         "better": "new",
+         "reason": "Clearer.",
+         "oldAnswer": "Old xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…",
+         "newAnswer": "New answer."
+        }
+       ]
+      }
+     },
+     {
+      "id": 2,
+      "field": "lessons",
+      "text": "Check twice.",
+      "reason": "A miss.",
+      "jobId": 5,
+      "state": "rejected",
+      "createdAt": "2026-11-01T09:00:40.000Z"
+     },
+     {
+      "id": 1,
+      "field": "rules",
+      "text": "Be brief.",
+      "reason": "Too long.",
+      "jobId": 5,
+      "state": "accepted",
+      "createdAt": "2026-11-01T09:00:39.000Z"
+     }
+    ],
+    "jobs": [
+     {
+      "id": 11,
+      "task": "A finished example",
+      "state": "done",
+      "createdAt": "2026-11-01T09:00:43.000Z",
+      "endedAt": "2026-11-01T09:00:45.000Z",
+      "title": "Example",
+      "summary": "Example summary.",
+      "blockedBy": [],
+      "waitingFor": [],
+      "comments": 0
+     },
+     {
+      "id": 6,
+      "task": "Stopped task",
+      "state": "stopped",
+      "createdAt": "2026-11-01T09:00:31.000Z",
+      "endedAt": "2026-11-01T09:00:32.000Z",
+      "retriedAs": 9,
+      "blockedBy": [],
+      "waitingFor": [],
+      "comments": 0
+     },
+     {
+      "id": 5,
+      "task": "Doomed task",
+      "state": "failed",
+      "createdAt": "2026-11-01T09:00:28.000Z",
+      "endedAt": "2026-11-01T09:00:30.000Z",
+      "step": "Last step",
+      "partial": true,
+      "error": "It broke",
+      "recoveryNeeded": true,
+      "advisory": true,
+      "blockedBy": [],
+      "waitingFor": [],
+      "comments": 0,
+      "rating": "bad"
+     },
+     {
+      "chatId": "chat-9",
+      "id": 4,
+      "task": "Write the summary",
+      "state": "queued",
+      "createdAt": "2026-11-01T09:00:27.000Z",
+      "blockedBy": [
+       1,
+       3
+      ],
+      "waitingFor": [
+       1,
+       3
+      ],
+      "comments": 0,
+      "resumable": true,
+      "interrupted": true,
+      "planFirst": true,
+      "autoRetries": 2
+     },
+     {
+      "id": 1,
+      "task": "Research networking basics",
+      "state": "queued",
+      "createdAt": "2026-11-01T09:00:16.000Z",
+      "title": "Networking",
+      "summary": "Networking summary.",
+      "model": "claude-sonnet-5-5",
+      "modelReason": "cheap and enough",
+      "blockedBy": [],
+      "waitingFor": [],
+      "comments": 2,
+      "goal": "Learn networking",
+      "goalId": 1,
+      "goalEnded": true,
+      "rating": "good",
+      "labels": [
+       "alpha",
+       "research"
+      ]
+     }
+    ]
+   },
+   {
+    "id": "kame",
+    "name": "Kame",
+    "available": true,
+    "paused": false,
+    "role": "coder",
+    "kit": "folders",
+    "custom": false,
+    "soul": {
+     "name": "Kame",
+     "personality": "Steady and careful.",
+     "howItWorks": "Reads the code first, writes a test first, and makes small changes.",
+     "rules": "Never changes more than the task needs.",
+     "lessons": ""
+    },
+    "soulVersion": 1,
+    "soulVersions": [
+     {
+      "version": 1,
+      "createdAt": "2026-11-01T09:00:00.000Z"
+     }
+    ],
+    "app": "Xcode",
+    "pinnedModel": null,
+    "codexPinnedModel": "gpt-5-codex",
+    "planFirst": true,
+    "browser": false,
+    "routines": [
+     {
+      "id": 2,
+      "task": "Weekly review",
+      "when": "Every Monday at 9:30 PM",
+      "schedule": {
+       "kind": "weekly",
+       "weekday": 1,
+       "minute": 1290
+      },
+      "nextAt": "2026-11-02T12:30:00.000Z",
+      "webhook": true
+     }
+    ],
+    "grants": [
+     "/private/tmp/ark-helpers-fixture-home/proj"
+    ],
+    "skills": [],
+    "proposals": [],
+    "jobs": [
+     {
+      "id": 7,
+      "task": "Child of the parser fix",
+      "state": "queued",
+      "createdAt": "2026-11-01T09:00:33.000Z",
+      "blockedBy": [],
+      "waitingFor": [],
+      "comments": 0,
+      "planFirst": true,
+      "planStatus": "awaiting",
+      "planSummary": "The plan.",
+      "parentId": 3
+     },
+     {
+      "id": 3,
+      "task": "Fix the parser",
+      "state": "running",
+      "createdAt": "2026-11-01T09:00:25.000Z",
+      "step": "Reading code",
+      "blockedBy": [],
+      "waitingFor": [],
+      "comments": 0,
+      "planFirst": true
+     }
+    ]
+   },
+   {
+    "id": "puff",
+    "name": "Puff",
+    "available": false,
+    "paused": true,
+    "role": "designer",
+    "kit": "folders",
+    "custom": false,
+    "soul": {
+     "name": "Puff",
+     "personality": "Playful and visual. Explains every choice.",
+     "howItWorks": "Sketches options as HTML, CSS or SVG mock-ups and says why each one works.",
+     "rules": "Keeps to the look the project already has unless asked to change it.",
+     "lessons": ""
+    },
+    "soulVersion": 1,
+    "soulVersions": [
+     {
+      "version": 1,
+      "createdAt": "2026-11-01T09:00:00.000Z"
+     }
+    ],
+    "app": null,
+    "pinnedModel": null,
+    "planFirst": false,
+    "browser": false,
+    "routines": [],
+    "grants": [],
+    "skills": [],
+    "proposals": [],
+    "jobs": []
+   },
+   {
+    "id": "quill",
+    "name": "Quill",
+    "available": true,
+    "paused": false,
+    "role": "documenter",
+    "kit": "folders",
+    "custom": false,
+    "soul": {
+     "name": "Quill",
+     "personality": "Clear and plain.",
+     "howItWorks": "Writes in plain English with short sentences, one idea per sentence.",
+     "rules": "Never claims something the sources or the code do not show.",
+     "lessons": ""
+    },
+    "soulVersion": 1,
+    "soulVersions": [
+     {
+      "version": 1,
+      "createdAt": "2026-11-01T09:00:00.000Z"
+     }
+    ],
+    "app": null,
+    "pinnedModel": null,
+    "planFirst": false,
+    "browser": false,
+    "routines": [
+     {
+      "id": 5,
+      "task": "Midnight",
+      "when": "Every day at 12:00 AM",
+      "schedule": {
+       "kind": "daily",
+       "minute": 0
+      },
+      "nextAt": "2026-11-01T15:00:00.000Z"
+     }
+    ],
+    "grants": [],
+    "skills": [],
+    "proposals": [],
+    "jobs": [
+     {
+      "id": 8,
+      "task": "Quiet task",
+      "state": "done",
+      "createdAt": "2026-11-01T09:00:34.000Z",
+      "endedAt": "2026-11-01T09:00:36.000Z",
+      "title": "Quiet",
+      "summary": "Quiet summary.",
+      "blockedBy": [],
+      "waitingFor": [],
+      "comments": 0,
+      "reviews": 1
+     }
+    ]
+   },
+   {
+    "id": "penny",
+    "name": "Penny",
+    "available": true,
+    "paused": false,
+    "role": "financial adviser",
+    "kit": "research",
+    "custom": false,
+    "soul": {
+     "name": "Penny",
+     "personality": "Cautious. Numbers first.",
+     "howItWorks": "Finds current figures from reputable sources, shows the numbers, and states every assumption.",
+     "rules": "Says how old each figure is and where it comes from.",
+     "lessons": ""
+    },
+    "soulVersion": 1,
+    "soulVersions": [
+     {
+      "version": 1,
+      "createdAt": "2026-11-01T09:00:00.000Z"
+     }
+    ],
+    "app": null,
+    "pinnedModel": null,
+    "planFirst": false,
+    "browser": false,
+    "routines": [],
+    "grants": [],
+    "skills": [],
+    "proposals": [],
+    "jobs": []
+   },
+   {
+    "id": "hana",
+    "name": "Hana",
+    "available": true,
+    "paused": false,
+    "role": "hr",
+    "kit": "research",
+    "custom": false,
+    "soul": {
+     "name": "Hana",
+     "personality": "Warm, fair and discreet.",
+     "howItWorks": "Looks for current, reputable guidance and gives balanced, practical answers.",
+     "rules": "Notes when the answer depends on the country or the employer's own rules.",
+     "lessons": ""
+    },
+    "soulVersion": 1,
+    "soulVersions": [
+     {
+      "version": 1,
+      "createdAt": "2026-11-01T09:00:00.000Z"
+     }
+    ],
+    "app": null,
+    "pinnedModel": null,
+    "planFirst": false,
+    "browser": false,
+    "routines": [
+     {
+      "id": 6,
+      "task": "Sunday noon",
+      "when": "Every Sunday at 12:00 PM",
+      "schedule": {
+       "kind": "weekly",
+       "weekday": 0,
+       "minute": 720
+      },
+      "paused": true
+     }
+    ],
+    "grants": [],
+    "skills": [],
+    "proposals": [],
+    "jobs": []
+   },
+   {
+    "id": "tinker",
+    "name": "Tinker",
+    "available": false,
+    "paused": false,
+    "role": "improver",
+    "kit": "think",
+    "custom": false,
+    "soul": {
+     "name": "Tinker",
+     "personality": "Reflective and specific.",
+     "howItWorks": "Reads failed and poorly rated jobs and proposes one concrete change to a worker's soul, with the reason.",
+     "rules": "Proposes changes only; the user decides.",
+     "lessons": ""
+    },
+    "soulVersion": 1,
+    "soulVersions": [
+     {
+      "version": 1,
+      "createdAt": "2026-11-01T09:00:00.000Z"
+     }
+    ],
+    "app": null,
+    "pinnedModel": null,
+    "planFirst": false,
+    "browser": false,
+    "routines": [],
+    "grants": [],
+    "skills": [],
+    "proposals": [],
+    "jobs": [
+     {
+      "id": 10,
+      "task": "Review task 5 (Sid)",
+      "state": "queued",
+      "createdAt": "2026-11-01T09:00:38.000Z",
+      "blockedBy": [],
+      "waitingFor": [],
+      "comments": 0,
+      "reviews": 5
+     },
+     {
+      "id": 2,
+      "task": "Make a skill from task 1 (Sid)",
+      "state": "queued",
+      "createdAt": "2026-11-01T09:00:19.000Z",
+      "blockedBy": [],
+      "waitingFor": [],
+      "comments": 0,
+      "reviews": 1
+     }
+    ]
+   },
+   {
+    "id": "mochi",
+    "name": "Mochi",
+    "available": true,
+    "paused": false,
+    "role": "cat keeper",
+    "kit": "folders",
+    "custom": true,
+    "soul": {
+     "name": "Mochi",
+     "personality": "Sleepy.",
+     "howItWorks": "Line one.\n## not a heading\n\\## kept",
+     "rules": "Be soft.",
+     "lessons": ""
+    },
+    "soulVersion": 2,
+    "soulVersions": [
+     {
+      "version": 2,
+      "createdAt": "2026-11-01T09:00:07.000Z"
+     },
+     {
+      "version": 1,
+      "createdAt": "2026-11-01T09:00:01.000Z"
+     }
+    ],
+    "app": null,
+    "pinnedModel": null,
+    "planFirst": false,
+    "browser": false,
+    "routines": [
+     {
+      "id": 4,
+      "task": "Every hour",
+      "when": "Every hour",
+      "schedule": {
+       "kind": "hours",
+       "every": 1
+      },
+      "nextAt": "2026-11-01T10:00:11.000Z"
+     }
+    ],
+    "grants": [],
+    "skills": [],
+    "proposals": [],
+    "jobs": [
+     {
+      "id": 9,
+      "task": "Retried task",
+      "state": "queued",
+      "createdAt": "2026-11-01T09:00:37.000Z",
+      "retryOf": 6,
+      "blockedBy": [],
+      "waitingFor": [],
+      "comments": 0
+     }
+    ]
+   },
+   {
+    "id": "odd",
+    "name": "Odd",
+    "available": true,
+    "paused": false,
+    "role": "tester",
+    "kit": "think",
+    "custom": true,
+    "soul": {
+     "name": "Odd",
+     "personality": "Strange.",
+     "howItWorks": "",
+     "rules": "",
+     "lessons": ""
+    },
+    "soulVersion": 1,
+    "soulVersions": [
+     {
+      "version": 1,
+      "createdAt": "2026-11-01T09:00:02.000Z"
+     }
+    ],
+    "app": null,
+    "pinnedModel": null,
+    "planFirst": false,
+    "browser": false,
+    "routines": [],
+    "grants": [],
+    "skills": [],
+    "proposals": [],
+    "jobs": []
+   },
+   {
+    "id": "scout",
+    "name": "Scout",
+    "available": true,
+    "paused": false,
+    "role": "researcher",
+    "kit": "research",
+    "custom": true,
+    "soul": {
+     "name": "Scout",
+     "personality": "Quick.",
+     "howItWorks": "",
+     "rules": "",
+     "lessons": ""
+    },
+    "soulVersion": 1,
+    "soulVersions": [
+     {
+      "version": 1,
+      "createdAt": "2026-11-01T09:00:03.000Z"
+     }
+    ],
+    "app": null,
+    "pinnedModel": null,
+    "planFirst": false,
+    "browser": false,
+    "routines": [],
+    "grants": [],
+    "skills": [],
+    "proposals": [],
+    "jobs": []
+   }
+  ],
+  "apps": [
+   "Safari",
+   "Xcode"
+  ],
+  "allowLarge": false,
+  "models": [
+   {
+    "id": "claude-sonnet-5-5",
+    "name": "Sonnet",
+    "tier": "small"
+   }
+  ],
+  "skills": [
+   {
+    "name": "web-search",
+    "description": "Search the web"
+   }
+  ],
+  "skillDrafts": [
+   {
+    "id": 2,
+    "jobId": 11,
+    "helper": "sid",
+    "name": "other",
+    "description": "Does a thing",
+    "preview": "Short.",
+    "state": "approved",
+    "createdAt": "2026-11-01T10:00:00.000Z"
+   },
+   {
+    "id": 1,
+    "jobId": 1,
+    "helper": "sid",
+    "name": "net-notes",
+    "description": "Does a thing",
+    "preview": "Step one.\nyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy…",
+    "state": "pending",
+    "createdAt": "2026-11-01T10:00:00.000Z"
+   }
+  ],
+  "skillEdits": [
+   {
+    "id": 2,
+    "skill": "net-notes",
+    "jobId": 11,
+    "reason": "Clearer",
+    "before": "",
+    "after": "",
+    "state": "accepted",
+    "createdAt": "2026-11-01T10:00:00.000Z"
+   },
+   {
+    "id": 1,
+    "skill": "net-notes",
+    "jobId": 5,
+    "reason": "Clearer",
+    "before": "c\nd",
+    "after": "X\nd\ne\nf\ng\nh",
+    "state": "pending",
+    "createdAt": "2026-11-01T10:00:00.000Z",
+    "tests": {
+     "better": 0,
+     "same": 0,
+     "worse": 1,
+     "notRun": 0,
+     "failed": 0,
+     "running": 0,
+     "results": [
+      {
+       "caseId": 5,
+       "task": "A skill case",
+       "state": "done",
+       "better": "old",
+       "reason": "Worse.",
+       "oldAnswer": "o",
+       "newAnswer": "n"
+      }
+     ]
+    }
+   }
+  ],
+  "testCases": [
+   {
+    "id": 2,
+    "kind": "soul",
+    "target": "quill",
+    "jobId": 8,
+    "task": "Quiet task",
+    "createdAt": "2026-11-01T09:00:47.000Z"
+   },
+   {
+    "id": 1,
+    "kind": "soul",
+    "target": "sid",
+    "jobId": 11,
+    "task": "A finished example",
+    "createdAt": "2026-11-01T09:00:46.000Z"
+   }
+  ],
+  "mcp": [
+   {
+    "id": 1,
+    "name": "files",
+    "kind": "command",
+    "command": "npx",
+    "args": [
+     "-y",
+     "files"
+    ],
+    "transport": "http",
+    "envKeys": [
+     "ZED",
+     "ALPHA",
+     "MID"
+    ],
+    "headerKeys": [],
+    "enabled": true,
+    "trusted": true,
+    "workers": [
+     "kame",
+     "sid"
+    ],
+    "tools": [
+     "read",
+     "write"
+    ],
+    "testedAt": "2026-11-01T09:00:50.000Z"
+   },
+   {
+    "id": 2,
+    "name": "remote",
+    "kind": "url",
+    "args": [],
+    "url": "https://example.com/mcp",
+    "transport": "sse",
+    "envKeys": [],
+    "headerKeys": [
+     "7",
+     "123",
+     "Zeta",
+     "Auth"
+    ],
+    "enabled": false,
+    "trusted": false,
+    "workers": [],
+    "tools": [],
+    "testedAt": "2026-11-01T09:00:51.000Z",
+    "problem": "Could not connect."
+   }
+  ],
+  "usage": {
+   "today": {
+    "input": 6700,
+    "output": 1210,
+    "cacheRead": 420,
+    "cacheWrite": 330,
+    "dollars": 0.23997999999999997,
+    "runs": 7,
+    "day": "2026-11-01"
+   },
+   "week": {
+    "input": 7900,
+    "output": 1230,
+    "cacheRead": 460,
+    "cacheWrite": 390,
+    "dollars": 0.6399799999999999,
+    "runs": 9
+   },
+   "days": [
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-26"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-27"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-28"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-29"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-30"
+    },
+    {
+     "input": 1200,
+     "output": 20,
+     "cacheRead": 40,
+     "cacheWrite": 60,
+     "dollars": 0.4,
+     "runs": 2,
+     "day": "2026-10-31"
+    },
+    {
+     "input": 6700,
+     "output": 1210,
+     "cacheRead": 420,
+     "cacheWrite": 330,
+     "dollars": 0.23997999999999997,
+     "runs": 7,
+     "day": "2026-11-01"
+    }
+   ],
+   "history": [
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-04"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-05"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-06"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-07"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-08"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-09"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-10"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-11"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-12"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-13"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-14"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-15"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-16"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-17"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-18"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-19"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-20"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-21"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-22"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-23"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-24"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-25"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-26"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-27"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-28"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-29"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-30"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-08-31"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-01"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-02"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-03"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-04"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-05"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-06"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-07"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-08"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-09"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-10"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-11"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-12"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-13"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-14"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-15"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-16"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-17"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-18"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-19"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-20"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-21"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-22"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-23"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-24"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-25"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-26"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-27"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-28"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-29"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-09-30"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-01"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-02"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-03"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-04"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-05"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-06"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-07"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-08"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-09"
+    },
+    {
+     "input": 900,
+     "output": 10,
+     "cacheRead": 20,
+     "cacheWrite": 30,
+     "dollars": 0.7,
+     "runs": 1,
+     "day": "2026-10-10"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-11"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-12"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-13"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-14"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-15"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-16"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-17"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-18"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-19"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-20"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-21"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-22"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-23"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-24"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-25"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-26"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-27"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-28"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-29"
+    },
+    {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "dollars": 0,
+     "runs": 0,
+     "day": "2026-10-30"
+    },
+    {
+     "input": 1200,
+     "output": 20,
+     "cacheRead": 40,
+     "cacheWrite": 60,
+     "dollars": 0.4,
+     "runs": 2,
+     "day": "2026-10-31"
+    },
+    {
+     "input": 6700,
+     "output": 1210,
+     "cacheRead": 420,
+     "cacheWrite": 330,
+     "dollars": 0.23997999999999997,
+     "runs": 7,
+     "day": "2026-11-01"
+    }
+   ],
+   "byWorker": [
+    {
+     "input": 5400,
+     "output": 820,
+     "cacheRead": 40,
+     "cacheWrite": 260,
+     "dollars": 0.5272999999999999,
+     "runs": 6,
+     "helper": null,
+     "name": "ARK chat"
+    },
+    {
+     "input": 1500,
+     "output": 210,
+     "cacheRead": 420,
+     "cacheWrite": 80,
+     "dollars": 0.10428000000000001,
+     "runs": 2,
+     "helper": "sid",
+     "name": "Sid"
+    },
+    {
+     "input": 1000,
+     "output": 200,
+     "cacheRead": 0,
+     "cacheWrite": 50,
+     "dollars": 0.0084,
+     "runs": 1,
+     "helper": "kame",
+     "name": "Kame"
+    }
+   ],
+   "byModel": [
+    {
+     "input": 5400,
+     "output": 820,
+     "cacheRead": 40,
+     "cacheWrite": 260,
+     "dollars": 0.5335999999999999,
+     "runs": 6,
+     "model": "claude-opus-5-5"
+    },
+    {
+     "input": 1500,
+     "output": 210,
+     "cacheRead": 420,
+     "cacheWrite": 80,
+     "dollars": 0.10428000000000001,
+     "runs": 2,
+     "model": "claude-sonnet-5-5"
+    },
+    {
+     "input": 1000,
+     "output": 200,
+     "cacheRead": 0,
+     "cacheWrite": 50,
+     "dollars": 0.0021,
+     "runs": 1,
+     "model": "claude-haiku-4-5"
+    }
+   ],
+   "recent": [
+    {
+     "at": "2026-01-01T03:00:00.000Z",
+     "kind": "job",
+     "model": "claude-sonnet-5-5",
+     "input": 900,
+     "output": 10,
+     "cacheRead": 20,
+     "cacheWrite": 30
+    },
+    {
+     "at": "2026-10-10T03:00:00.000Z",
+     "kind": "job",
+     "model": "claude-sonnet-5-5",
+     "input": 900,
+     "output": 10,
+     "cacheRead": 20,
+     "cacheWrite": 30
+    },
+    {
+     "at": "2026-10-31T15:00:00.000Z",
+     "kind": "turn",
+     "model": "claude-opus-5-5",
+     "input": 700,
+     "output": 10,
+     "cacheRead": 20,
+     "cacheWrite": 30
+    },
+    {
+     "at": "2026-10-31T14:59:59.999Z",
+     "kind": "turn",
+     "model": "claude-opus-5-5",
+     "input": 700,
+     "output": 10,
+     "cacheRead": 20,
+     "cacheWrite": 30
+    },
+    {
+     "at": "2026-10-30T20:00:00.000Z",
+     "kind": "job",
+     "model": "claude-sonnet-5-5",
+     "input": 500,
+     "output": 10,
+     "cacheRead": 20,
+     "cacheWrite": 30
+    },
+    {
+     "at": "2026-11-01T09:01:02.000Z",
+     "kind": "turn",
+     "model": "claude-opus-5-5",
+     "input": 1000,
+     "output": 200,
+     "cacheRead": 0,
+     "cacheWrite": 50,
+     "gapMs": 3000
+    },
+    {
+     "at": "2026-11-01T09:01:01.000Z",
+     "kind": "other",
+     "model": "claude-opus-5-5",
+     "input": 1000,
+     "output": 200,
+     "cacheRead": 0,
+     "cacheWrite": 50
+    },
+    {
+     "at": "2026-11-01T09:01:00.000Z",
+     "kind": "note",
+     "model": "claude-haiku-4-5",
+     "input": 1000,
+     "output": 200,
+     "cacheRead": 0,
+     "cacheWrite": 50
+    }
+   ],
+   "chatCacheCold": false
+  },
+  "plans": [
+   {
+    "id": 3,
+    "goal": "Running",
+    "createdAt": "2026-11-01T09:00:54.000Z",
+    "portions": [
+     {
+      "n": 1,
+      "agent": "kame",
+      "name": "Kame",
+      "task": "Fix",
+      "after": [],
+      "job": 3,
+      "recovery": {
+       "schema": "atom.workflow-recovery/v1",
+       "kind": "working"
+      },
+      "state": "running"
+     },
+     {
+      "n": 2,
+      "agent": "ghost",
+      "name": "ghost",
+      "task": "Then",
+      "after": [
+       1
+      ],
+      "recovery": {
+       "schema": "atom.workflow-recovery/v1",
+       "kind": "waiting"
+      },
+      "state": "waiting"
+     }
+    ],
+    "complete": false,
+    "stuck": false
+   },
+   {
+    "id": 2,
+    "goal": "Quick one",
+    "createdAt": "2026-11-01T09:00:53.000Z",
+    "portions": [
+     {
+      "n": 1,
+      "agent": "quill",
+      "name": "Quill",
+      "task": "Do it",
+      "after": [],
+      "job": 8,
+      "recovery": {
+       "schema": "atom.workflow-recovery/v1",
+       "kind": "reported"
+      },
+      "state": "done"
+     }
+    ],
+    "complete": true,
+    "stuck": false
+   },
+   {
+    "id": 1,
+    "goal": "Ship the report",
+    "createdAt": "2026-11-01T09:00:52.000Z",
+    "portions": [
+     {
+      "n": 1,
+      "agent": "sid",
+      "name": "Sid",
+      "task": "Research",
+      "after": [],
+      "job": 11,
+      "recovery": {
+       "schema": "atom.workflow-recovery/v1",
+       "kind": "reported"
+      },
+      "state": "done"
+     },
+     {
+      "n": 2,
+      "agent": "kame",
+      "name": "Kame",
+      "task": "Build",
+      "after": [],
+      "job": 5,
+      "recovery": {
+       "schema": "atom.workflow-recovery/v1",
+       "kind": "interrupted"
+      },
+      "state": "failed"
+     },
+     {
+      "n": 3,
+      "agent": "quill",
+      "name": "Quill",
+      "task": "Write up",
+      "after": [
+       2
+      ],
+      "recovery": {
+       "schema": "atom.workflow-recovery/v1",
+       "kind": "blocked"
+      },
+      "state": "blocked"
+     },
+     {
+      "n": 4,
+      "agent": "scout",
+      "name": "Scout",
+      "task": "Review",
+      "after": [
+       1
+      ],
+      "recovery": {
+       "schema": "atom.workflow-recovery/v1",
+       "kind": "waiting"
+      },
+      "state": "waiting"
+     }
+    ],
+    "complete": false,
+    "stuck": false
+   }
+  ],
+  "agentProblems": [
+   {
+    "id": "bad",
+    "problem": "A name needs letters only (spaces, hyphens and apostrophes are fine)."
+   },
+   {
+    "id": "twin",
+    "problem": "Another worker is already called sid."
+   }
+  ]
+ },
  "testCases": [
   {
    "id": 2,
@@ -1345,7 +3313,7 @@
       "kind": "daily",
       "minute": 485
      },
-     "nextAt": "2026-11-12T23:05:00.000Z",
+     "nextAt": "2026-11-01T23:05:00.000Z",
      "notifyTelegram": true
     },
     {
@@ -1356,7 +3324,7 @@
       "kind": "hours",
       "every": 3
      },
-     "nextAt": "2026-11-12T12:00:00.000Z"
+     "nextAt": "2026-11-02T00:00:00.000Z"
     }
    ],
    "grants": [],
@@ -1546,7 +3514,7 @@
       "weekday": 1,
       "minute": 1290
      },
-     "nextAt": "2026-11-16T12:30:00.000Z",
+     "nextAt": "2026-11-02T12:30:00.000Z",
      "webhook": true
     }
    ],
@@ -1649,7 +3617,7 @@
       "kind": "daily",
       "minute": 0
      },
-     "nextAt": "2026-11-12T15:00:00.000Z"
+     "nextAt": "2026-11-01T15:00:00.000Z"
     }
    ],
    "grants": [],
@@ -1839,7 +3807,7 @@
       "kind": "hours",
       "every": 1
      },
-     "nextAt": "2026-11-12T12:00:11.000Z"
+     "nextAt": "2026-11-01T10:00:11.000Z"
     }
    ],
    "grants": [],

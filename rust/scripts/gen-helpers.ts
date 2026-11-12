@@ -156,12 +156,15 @@ old.run("2026-01-01T03:00:00.000Z", "job", "kame", "claude-sonnet-5-5", 900, 0.7
 raw4.close();
 const usageNow = new Date(Date.UTC(2026, 10, 1, 9, 0, tick));
 const problems = store.agentProblems();
-const NOW = new Date(Date.UTC(2026, 10, 12, 11, 30, 0)); // 2026-11-12 20:30 in Tokyo, a Thursday
-const island = islandHelpers(store, async () => [], () => [], () => [], () => NOW);
+const NOW = usageNow; // 2026-11-01 18:01 in Tokyo; one clock for routines and usage
+const nodeParts = { apps: ["Safari", "Xcode"], models: [{ id: "claude-sonnet-5-5", name: "Sonnet", tier: "small" }], skills: [{ name: "web-search", description: "Search the web" }] };
+const island = islandHelpers(store, async () => nodeParts.apps, () => nodeParts.models as never, () => nodeParts.skills, () => NOW);
 const view = JSON.parse(JSON.stringify(island.list()));
 const testCases = JSON.parse(JSON.stringify(island.testCases()));
+// The event as `sendHelpers` in apps/mac/src/island.ts builds it (no skill hub, no Paperclip, no stuck dot).
+const helpersEvent = JSON.parse(JSON.stringify({ type: "helpers", helpers: island.list(), apps: await island.apps(), ...{ allowLarge: island.allowLarge(), models: island.models(), skills: island.skills(), skillDrafts: island.skillDrafts(), skillEdits: island.skillEdits(), testCases: island.testCases(), mcp: island.mcp(), usage: island.usage(), ...(island.plans?.().length ? { plans: island.plans() } : {}) }, ...(island.agentProblems().length ? { agentProblems: island.agentProblems() } : {}) }));
 const extras = JSON.parse(JSON.stringify({ allowLarge: island.allowLarge(), mcp: island.mcp(), skillDrafts: island.skillDrafts(), skillEdits: island.skillEdits(), plans: island.plans(), usage: island.usage(), usageNow: usageNow.toISOString() }));
-writeFileSync(join(dir, "expected.json"), `${JSON.stringify({ source: "apps/mac/src/island-helpers.ts list()", now: NOW.toISOString(), testCases, extras, helpers: view, problems }, null, 1)}\n`);
+writeFileSync(join(dir, "expected.json"), `${JSON.stringify({ source: "apps/mac/src/island-helpers.ts list()", now: NOW.toISOString(), nodeParts, event: helpersEvent, testCases, extras, helpers: view, problems }, null, 1)}\n`);
 store.close?.();
 for (const ext of ["-wal", "-shm"]) rmSync(join(dir, `helpers.db${ext}`), { force: true });
 console.log(`helpers: ${view.length} members, ${problems.length} problems`);
