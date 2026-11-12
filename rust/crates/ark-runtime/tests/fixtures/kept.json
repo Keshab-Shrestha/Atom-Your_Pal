@@ -1,0 +1,651 @@
+{
+ "messages": [
+  [
+   "user",
+   "Message 0: Keshab likes green tea, tea cats and café 0.  Extra   spaces."
+  ],
+  [
+   "assistant",
+   "Message 1: Keshab likes green tea, tea cats and café 1.  Extra   spaces."
+  ],
+  [
+   "user",
+   "Message 2: Keshab likes green tea, tea cats and café 2.  Extra   spaces."
+  ],
+  [
+   "assistant",
+   "Message 3: Keshab likes green tea, tea cats and café 3.  Extra   spaces."
+  ],
+  [
+   "user",
+   "long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word end"
+  ],
+  [
+   "assistant",
+   "Message 5: Keshab likes green tea, tea cats and café 5.  Extra   spaces."
+  ],
+  [
+   "user",
+   "Message 6: Keshab likes green tea, tea cats and café 6.  Extra   spaces."
+  ],
+  [
+   "assistant",
+   "Message 7: Keshab likes green tea, tea cats and café 7.  Extra   spaces."
+  ],
+  [
+   "user",
+   "Message 8: Keshab likes green tea, tea cats and café 8.  Extra   spaces."
+  ],
+  [
+   "assistant",
+   "Message 9: Keshab likes green tea, tea cats and café 9.  Extra   spaces."
+  ],
+  [
+   "user",
+   "Message 10: Keshab likes green tea, tea cats and café 10.  Extra   spaces."
+  ],
+  [
+   "assistant",
+   "Message 11: Keshab likes green tea, tea cats and café 11.  Extra   spaces."
+  ],
+  [
+   "user",
+   "Message 12: Keshab likes green tea, tea cats and café 12.  Extra   spaces."
+  ],
+  [
+   "assistant",
+   "Message 13: Keshab likes green tea, tea cats and café 13.  Extra   spaces."
+  ],
+  [
+   "user",
+   "Message 14: Keshab likes green tea, tea cats and café 14.  Extra   spaces."
+  ],
+  [
+   "assistant",
+   "Message 15: Keshab likes green tea, tea cats and café 15.  Extra   spaces."
+  ],
+  [
+   "user",
+   "Message 16: Keshab likes green tea, tea cats and café 16.  Extra   spaces."
+  ],
+  [
+   "assistant",
+   "Message 17: Keshab likes green tea, tea cats and café 17.  Extra   spaces."
+  ],
+  [
+   "user",
+   "Message 18: Keshab likes green tea, tea cats and café 18.  Extra   spaces."
+  ],
+  [
+   "system",
+   "skipped"
+  ],
+  [
+   "user",
+   "   "
+  ]
+ ],
+ "cases": {
+  "plain": {
+   "chats": [
+    {
+     "chat_id": "c1",
+     "title": "Tea chat",
+     "summary": "Tea chat. Started with: Message 0: Keshab likes green tea, tea cats and café 0. Extra spaces. Keywords: long, word, message, keshab, likes, green.",
+     "messages": 21,
+     "kept_at": "2026-11-13T00:00:00.000Z",
+     "no_vec": 1
+    }
+   ],
+   "sections": [
+    {
+     "chat_id": "c1",
+     "seq": 0,
+     "heading": "Message 0: Keshab likes green tea, tea cats and café 0. Extra spaces.",
+     "body": "Message 0: Keshab likes green tea, tea cats and café 0.  Extra   spaces.\nMessage 1: Keshab likes green tea, tea cats and café 1.  Extra   spaces.\nMessage 2: Keshab likes green tea, tea cats and café 2.  Extra   spaces.\nMessage 3: Keshab likes green tea, tea cats and café 3.  Extra   spaces.\nlong word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word end\nMessage 5: Keshab likes green tea, tea cats and café 5.  Extra   spaces.\nMessage 6: Keshab likes green tea, tea cats and café 6.  Extra   spaces.\nMessage 7: Keshab likes green tea, tea cats and café 7.  Extra   spaces."
+    },
+    {
+     "chat_id": "c1",
+     "seq": 1,
+     "heading": "Message 8: Keshab likes green tea, tea cats and café 8. Extra spaces.",
+     "body": "Message 8: Keshab likes green tea, tea cats and café 8.  Extra   spaces.\nMessage 9: Keshab likes green tea, tea cats and café 9.  Extra   spaces.\nMessage 10: Keshab likes green tea, tea cats and café 10.  Extra   spaces.\nMessage 11: Keshab likes green tea, tea cats and café 11.  Extra   spaces.\nMessage 12: Keshab likes green tea, tea cats and café 12.  Extra   spaces.\nMessage 13: Keshab likes green tea, tea cats and café 13.  Extra   spaces.\nMessage 14: Keshab likes green tea, tea cats and café 14.  Extra   spaces.\nMessage 15: Keshab likes green tea, tea cats and café 15.  Extra   spaces."
+    },
+    {
+     "chat_id": "c1",
+     "seq": 2,
+     "heading": "Message 16: Keshab likes green tea, tea cats and café 16. Extra spaces.",
+     "body": "Message 16: Keshab likes green tea, tea cats and café 16.  Extra   spaces.\nMessage 17: Keshab likes green tea, tea cats and café 17.  Extra   spaces.\nMessage 18: Keshab likes green tea, tea cats and café 18.  Extra   spaces."
+    }
+   ],
+   "lines": [
+    {
+     "section_id": 1,
+     "seq": 0,
+     "role": "user",
+     "text": "Message 0: Keshab likes green tea, tea cats and café 0. Extra spaces."
+    },
+    {
+     "section_id": 1,
+     "seq": 1,
+     "role": "assistant",
+     "text": "Message 1: Keshab likes green tea, tea cats and café 1. Extra spaces."
+    },
+    {
+     "section_id": 1,
+     "seq": 2,
+     "role": "user",
+     "text": "Message 2: Keshab likes green tea, tea cats and café 2. Extra spaces."
+    },
+    {
+     "section_id": 1,
+     "seq": 3,
+     "role": "assistant",
+     "text": "Message 3: Keshab likes green tea, tea cats and café 3. Extra spaces."
+    },
+    {
+     "section_id": 1,
+     "seq": 4,
+     "role": "user",
+     "text": "long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word"
+    },
+    {
+     "section_id": 1,
+     "seq": 5,
+     "role": "user",
+     "text": "long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word end"
+    },
+    {
+     "section_id": 1,
+     "seq": 6,
+     "role": "assistant",
+     "text": "Message 5: Keshab likes green tea, tea cats and café 5. Extra spaces."
+    },
+    {
+     "section_id": 1,
+     "seq": 7,
+     "role": "user",
+     "text": "Message 6: Keshab likes green tea, tea cats and café 6. Extra spaces."
+    },
+    {
+     "section_id": 1,
+     "seq": 8,
+     "role": "assistant",
+     "text": "Message 7: Keshab likes green tea, tea cats and café 7. Extra spaces."
+    },
+    {
+     "section_id": 2,
+     "seq": 0,
+     "role": "user",
+     "text": "Message 8: Keshab likes green tea, tea cats and café 8. Extra spaces."
+    },
+    {
+     "section_id": 2,
+     "seq": 1,
+     "role": "assistant",
+     "text": "Message 9: Keshab likes green tea, tea cats and café 9. Extra spaces."
+    },
+    {
+     "section_id": 2,
+     "seq": 2,
+     "role": "user",
+     "text": "Message 10: Keshab likes green tea, tea cats and café 10. Extra spaces."
+    },
+    {
+     "section_id": 2,
+     "seq": 3,
+     "role": "assistant",
+     "text": "Message 11: Keshab likes green tea, tea cats and café 11. Extra spaces."
+    },
+    {
+     "section_id": 2,
+     "seq": 4,
+     "role": "user",
+     "text": "Message 12: Keshab likes green tea, tea cats and café 12. Extra spaces."
+    },
+    {
+     "section_id": 2,
+     "seq": 5,
+     "role": "assistant",
+     "text": "Message 13: Keshab likes green tea, tea cats and café 13. Extra spaces."
+    },
+    {
+     "section_id": 2,
+     "seq": 6,
+     "role": "user",
+     "text": "Message 14: Keshab likes green tea, tea cats and café 14. Extra spaces."
+    },
+    {
+     "section_id": 2,
+     "seq": 7,
+     "role": "assistant",
+     "text": "Message 15: Keshab likes green tea, tea cats and café 15. Extra spaces."
+    },
+    {
+     "section_id": 3,
+     "seq": 0,
+     "role": "user",
+     "text": "Message 16: Keshab likes green tea, tea cats and café 16. Extra spaces."
+    },
+    {
+     "section_id": 3,
+     "seq": 1,
+     "role": "assistant",
+     "text": "Message 17: Keshab likes green tea, tea cats and café 17. Extra spaces."
+    },
+    {
+     "section_id": 3,
+     "seq": 2,
+     "role": "user",
+     "text": "Message 18: Keshab likes green tea, tea cats and café 18. Extra spaces."
+    }
+   ],
+   "fts": [
+    {
+     "text": "Tea chat\nTea chat. Started with: Message 0: Keshab likes green tea, tea cats and café 0. Extra spaces. Keywords: long, word, message, keshab, likes, green.\nMessage 0: Keshab likes green tea, tea cats and café 0. Extra spaces.\nMessage 8: Keshab likes green tea, tea cats and café 8. Extra spaces.\nMessage 16: Keshab likes green tea, tea cats and café 16. Extra spaces.",
+     "level": 1,
+     "ref": "c1"
+    },
+    {
+     "text": "Message 0: Keshab likes green tea, tea cats and café 0. Extra spaces.\nMessage 0: Keshab likes green tea, tea cats and café 0.  Extra   spaces.\nMessage 1: Keshab likes green tea, tea cats and café 1.  Extra   spaces.\nMessage 2: Keshab likes green tea, tea cats and café 2.  Extra   spaces.\nMessage 3: Keshab likes green tea, tea cats and café 3.  Extra   spaces.\nlong word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word end\nMessage 5: Keshab likes green tea, tea cats and café 5.  Extra   spaces.\nMessage 6: Keshab likes green tea, tea cats and café 6.  Extra   spaces.\nMessage 7: Keshab likes green tea, tea cats and café 7.  Extra   spaces.",
+     "level": 2,
+     "ref": "1"
+    },
+    {
+     "text": "Message 0: Keshab likes green tea, tea cats and café 0. Extra spaces.",
+     "level": 3,
+     "ref": "1"
+    },
+    {
+     "text": "Message 1: Keshab likes green tea, tea cats and café 1. Extra spaces.",
+     "level": 3,
+     "ref": "2"
+    },
+    {
+     "text": "Message 2: Keshab likes green tea, tea cats and café 2. Extra spaces.",
+     "level": 3,
+     "ref": "3"
+    },
+    {
+     "text": "Message 3: Keshab likes green tea, tea cats and café 3. Extra spaces.",
+     "level": 3,
+     "ref": "4"
+    },
+    {
+     "text": "long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word",
+     "level": 3,
+     "ref": "5"
+    },
+    {
+     "text": "long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word end",
+     "level": 3,
+     "ref": "6"
+    },
+    {
+     "text": "Message 5: Keshab likes green tea, tea cats and café 5. Extra spaces.",
+     "level": 3,
+     "ref": "7"
+    },
+    {
+     "text": "Message 6: Keshab likes green tea, tea cats and café 6. Extra spaces.",
+     "level": 3,
+     "ref": "8"
+    },
+    {
+     "text": "Message 7: Keshab likes green tea, tea cats and café 7. Extra spaces.",
+     "level": 3,
+     "ref": "9"
+    },
+    {
+     "text": "Message 8: Keshab likes green tea, tea cats and café 8. Extra spaces.\nMessage 8: Keshab likes green tea, tea cats and café 8.  Extra   spaces.\nMessage 9: Keshab likes green tea, tea cats and café 9.  Extra   spaces.\nMessage 10: Keshab likes green tea, tea cats and café 10.  Extra   spaces.\nMessage 11: Keshab likes green tea, tea cats and café 11.  Extra   spaces.\nMessage 12: Keshab likes green tea, tea cats and café 12.  Extra   spaces.\nMessage 13: Keshab likes green tea, tea cats and café 13.  Extra   spaces.\nMessage 14: Keshab likes green tea, tea cats and café 14.  Extra   spaces.\nMessage 15: Keshab likes green tea, tea cats and café 15.  Extra   spaces.",
+     "level": 2,
+     "ref": "2"
+    },
+    {
+     "text": "Message 8: Keshab likes green tea, tea cats and café 8. Extra spaces.",
+     "level": 3,
+     "ref": "10"
+    },
+    {
+     "text": "Message 9: Keshab likes green tea, tea cats and café 9. Extra spaces.",
+     "level": 3,
+     "ref": "11"
+    },
+    {
+     "text": "Message 10: Keshab likes green tea, tea cats and café 10. Extra spaces.",
+     "level": 3,
+     "ref": "12"
+    },
+    {
+     "text": "Message 11: Keshab likes green tea, tea cats and café 11. Extra spaces.",
+     "level": 3,
+     "ref": "13"
+    },
+    {
+     "text": "Message 12: Keshab likes green tea, tea cats and café 12. Extra spaces.",
+     "level": 3,
+     "ref": "14"
+    },
+    {
+     "text": "Message 13: Keshab likes green tea, tea cats and café 13. Extra spaces.",
+     "level": 3,
+     "ref": "15"
+    },
+    {
+     "text": "Message 14: Keshab likes green tea, tea cats and café 14. Extra spaces.",
+     "level": 3,
+     "ref": "16"
+    },
+    {
+     "text": "Message 15: Keshab likes green tea, tea cats and café 15. Extra spaces.",
+     "level": 3,
+     "ref": "17"
+    },
+    {
+     "text": "Message 16: Keshab likes green tea, tea cats and café 16. Extra spaces.\nMessage 16: Keshab likes green tea, tea cats and café 16.  Extra   spaces.\nMessage 17: Keshab likes green tea, tea cats and café 17.  Extra   spaces.\nMessage 18: Keshab likes green tea, tea cats and café 18.  Extra   spaces.",
+     "level": 2,
+     "ref": "3"
+    },
+    {
+     "text": "Message 16: Keshab likes green tea, tea cats and café 16. Extra spaces.",
+     "level": 3,
+     "ref": "18"
+    },
+    {
+     "text": "Message 17: Keshab likes green tea, tea cats and café 17. Extra spaces.",
+     "level": 3,
+     "ref": "19"
+    },
+    {
+     "text": "Message 18: Keshab likes green tea, tea cats and café 18. Extra spaces.",
+     "level": 3,
+     "ref": "20"
+    }
+   ]
+  },
+  "model": {
+   "chats": [
+    {
+     "chat_id": "c1",
+     "title": "Tea chat",
+     "summary": "A chat about tea.",
+     "messages": 21,
+     "kept_at": "2026-11-13T00:00:00.000Z",
+     "no_vec": 1
+    }
+   ],
+   "sections": [
+    {
+     "chat_id": "c1",
+     "seq": 0,
+     "heading": "Tea talk",
+     "body": "Message 0: Keshab likes green tea, tea cats and café 0.  Extra   spaces.\nMessage 1: Keshab likes green tea, tea cats and café 1.  Extra   spaces.\nMessage 2: Keshab likes green tea, tea cats and café 2.  Extra   spaces.\nMessage 3: Keshab likes green tea, tea cats and café 3.  Extra   spaces.\nlong word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word end\nMessage 5: Keshab likes green tea, tea cats and café 5.  Extra   spaces.\nMessage 6: Keshab likes green tea, tea cats and café 6.  Extra   spaces.\nMessage 7: Keshab likes green tea, tea cats and café 7.  Extra   spaces."
+    },
+    {
+     "chat_id": "c1",
+     "seq": 1,
+     "heading": "Message 8: Keshab likes green tea, tea cats and café 8. Extra spaces.",
+     "body": "Message 8: Keshab likes green tea, tea cats and café 8.  Extra   spaces.\nMessage 9: Keshab likes green tea, tea cats and café 9.  Extra   spaces.\nMessage 10: Keshab likes green tea, tea cats and café 10.  Extra   spaces.\nMessage 11: Keshab likes green tea, tea cats and café 11.  Extra   spaces.\nMessage 12: Keshab likes green tea, tea cats and café 12.  Extra   spaces.\nMessage 13: Keshab likes green tea, tea cats and café 13.  Extra   spaces.\nMessage 14: Keshab likes green tea, tea cats and café 14.  Extra   spaces.\nMessage 15: Keshab likes green tea, tea cats and café 15.  Extra   spaces."
+    },
+    {
+     "chat_id": "c1",
+     "seq": 2,
+     "heading": "Message 16: Keshab likes green tea, tea cats and café 16. Extra spaces.",
+     "body": "Message 16: Keshab likes green tea, tea cats and café 16.  Extra   spaces.\nMessage 17: Keshab likes green tea, tea cats and café 17.  Extra   spaces.\nMessage 18: Keshab likes green tea, tea cats and café 18.  Extra   spaces."
+    }
+   ],
+   "lines": [
+    {
+     "section_id": 1,
+     "seq": 0,
+     "role": "user",
+     "text": "Message 0: Keshab likes green tea, tea cats and café 0. Extra spaces."
+    },
+    {
+     "section_id": 1,
+     "seq": 1,
+     "role": "assistant",
+     "text": "Message 1: Keshab likes green tea, tea cats and café 1. Extra spaces."
+    },
+    {
+     "section_id": 1,
+     "seq": 2,
+     "role": "user",
+     "text": "Message 2: Keshab likes green tea, tea cats and café 2. Extra spaces."
+    },
+    {
+     "section_id": 1,
+     "seq": 3,
+     "role": "assistant",
+     "text": "Message 3: Keshab likes green tea, tea cats and café 3. Extra spaces."
+    },
+    {
+     "section_id": 1,
+     "seq": 4,
+     "role": "user",
+     "text": "long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word"
+    },
+    {
+     "section_id": 1,
+     "seq": 5,
+     "role": "user",
+     "text": "long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word end"
+    },
+    {
+     "section_id": 1,
+     "seq": 6,
+     "role": "assistant",
+     "text": "Message 5: Keshab likes green tea, tea cats and café 5. Extra spaces."
+    },
+    {
+     "section_id": 1,
+     "seq": 7,
+     "role": "user",
+     "text": "Message 6: Keshab likes green tea, tea cats and café 6. Extra spaces."
+    },
+    {
+     "section_id": 1,
+     "seq": 8,
+     "role": "assistant",
+     "text": "Message 7: Keshab likes green tea, tea cats and café 7. Extra spaces."
+    },
+    {
+     "section_id": 2,
+     "seq": 0,
+     "role": "user",
+     "text": "Message 8: Keshab likes green tea, tea cats and café 8. Extra spaces."
+    },
+    {
+     "section_id": 2,
+     "seq": 1,
+     "role": "assistant",
+     "text": "Message 9: Keshab likes green tea, tea cats and café 9. Extra spaces."
+    },
+    {
+     "section_id": 2,
+     "seq": 2,
+     "role": "user",
+     "text": "Message 10: Keshab likes green tea, tea cats and café 10. Extra spaces."
+    },
+    {
+     "section_id": 2,
+     "seq": 3,
+     "role": "assistant",
+     "text": "Message 11: Keshab likes green tea, tea cats and café 11. Extra spaces."
+    },
+    {
+     "section_id": 2,
+     "seq": 4,
+     "role": "user",
+     "text": "Message 12: Keshab likes green tea, tea cats and café 12. Extra spaces."
+    },
+    {
+     "section_id": 2,
+     "seq": 5,
+     "role": "assistant",
+     "text": "Message 13: Keshab likes green tea, tea cats and café 13. Extra spaces."
+    },
+    {
+     "section_id": 2,
+     "seq": 6,
+     "role": "user",
+     "text": "Message 14: Keshab likes green tea, tea cats and café 14. Extra spaces."
+    },
+    {
+     "section_id": 2,
+     "seq": 7,
+     "role": "assistant",
+     "text": "Message 15: Keshab likes green tea, tea cats and café 15. Extra spaces."
+    },
+    {
+     "section_id": 3,
+     "seq": 0,
+     "role": "user",
+     "text": "Message 16: Keshab likes green tea, tea cats and café 16. Extra spaces."
+    },
+    {
+     "section_id": 3,
+     "seq": 1,
+     "role": "assistant",
+     "text": "Message 17: Keshab likes green tea, tea cats and café 17. Extra spaces."
+    },
+    {
+     "section_id": 3,
+     "seq": 2,
+     "role": "user",
+     "text": "Message 18: Keshab likes green tea, tea cats and café 18. Extra spaces."
+    }
+   ],
+   "fts": [
+    {
+     "text": "Tea chat\nA chat about tea.\nTea talk\nMessage 8: Keshab likes green tea, tea cats and café 8. Extra spaces.\nMessage 16: Keshab likes green tea, tea cats and café 16. Extra spaces.",
+     "level": 1,
+     "ref": "c1"
+    },
+    {
+     "text": "Tea talk\nMessage 0: Keshab likes green tea, tea cats and café 0.  Extra   spaces.\nMessage 1: Keshab likes green tea, tea cats and café 1.  Extra   spaces.\nMessage 2: Keshab likes green tea, tea cats and café 2.  Extra   spaces.\nMessage 3: Keshab likes green tea, tea cats and café 3.  Extra   spaces.\nlong word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word end\nMessage 5: Keshab likes green tea, tea cats and café 5.  Extra   spaces.\nMessage 6: Keshab likes green tea, tea cats and café 6.  Extra   spaces.\nMessage 7: Keshab likes green tea, tea cats and café 7.  Extra   spaces.",
+     "level": 2,
+     "ref": "1"
+    },
+    {
+     "text": "Message 0: Keshab likes green tea, tea cats and café 0. Extra spaces.",
+     "level": 3,
+     "ref": "1"
+    },
+    {
+     "text": "Message 1: Keshab likes green tea, tea cats and café 1. Extra spaces.",
+     "level": 3,
+     "ref": "2"
+    },
+    {
+     "text": "Message 2: Keshab likes green tea, tea cats and café 2. Extra spaces.",
+     "level": 3,
+     "ref": "3"
+    },
+    {
+     "text": "Message 3: Keshab likes green tea, tea cats and café 3. Extra spaces.",
+     "level": 3,
+     "ref": "4"
+    },
+    {
+     "text": "long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word",
+     "level": 3,
+     "ref": "5"
+    },
+    {
+     "text": "long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word end",
+     "level": 3,
+     "ref": "6"
+    },
+    {
+     "text": "Message 5: Keshab likes green tea, tea cats and café 5. Extra spaces.",
+     "level": 3,
+     "ref": "7"
+    },
+    {
+     "text": "Message 6: Keshab likes green tea, tea cats and café 6. Extra spaces.",
+     "level": 3,
+     "ref": "8"
+    },
+    {
+     "text": "Message 7: Keshab likes green tea, tea cats and café 7. Extra spaces.",
+     "level": 3,
+     "ref": "9"
+    },
+    {
+     "text": "Message 8: Keshab likes green tea, tea cats and café 8. Extra spaces.\nMessage 8: Keshab likes green tea, tea cats and café 8.  Extra   spaces.\nMessage 9: Keshab likes green tea, tea cats and café 9.  Extra   spaces.\nMessage 10: Keshab likes green tea, tea cats and café 10.  Extra   spaces.\nMessage 11: Keshab likes green tea, tea cats and café 11.  Extra   spaces.\nMessage 12: Keshab likes green tea, tea cats and café 12.  Extra   spaces.\nMessage 13: Keshab likes green tea, tea cats and café 13.  Extra   spaces.\nMessage 14: Keshab likes green tea, tea cats and café 14.  Extra   spaces.\nMessage 15: Keshab likes green tea, tea cats and café 15.  Extra   spaces.",
+     "level": 2,
+     "ref": "2"
+    },
+    {
+     "text": "Message 8: Keshab likes green tea, tea cats and café 8. Extra spaces.",
+     "level": 3,
+     "ref": "10"
+    },
+    {
+     "text": "Message 9: Keshab likes green tea, tea cats and café 9. Extra spaces.",
+     "level": 3,
+     "ref": "11"
+    },
+    {
+     "text": "Message 10: Keshab likes green tea, tea cats and café 10. Extra spaces.",
+     "level": 3,
+     "ref": "12"
+    },
+    {
+     "text": "Message 11: Keshab likes green tea, tea cats and café 11. Extra spaces.",
+     "level": 3,
+     "ref": "13"
+    },
+    {
+     "text": "Message 12: Keshab likes green tea, tea cats and café 12. Extra spaces.",
+     "level": 3,
+     "ref": "14"
+    },
+    {
+     "text": "Message 13: Keshab likes green tea, tea cats and café 13. Extra spaces.",
+     "level": 3,
+     "ref": "15"
+    },
+    {
+     "text": "Message 14: Keshab likes green tea, tea cats and café 14. Extra spaces.",
+     "level": 3,
+     "ref": "16"
+    },
+    {
+     "text": "Message 15: Keshab likes green tea, tea cats and café 15. Extra spaces.",
+     "level": 3,
+     "ref": "17"
+    },
+    {
+     "text": "Message 16: Keshab likes green tea, tea cats and café 16. Extra spaces.\nMessage 16: Keshab likes green tea, tea cats and café 16.  Extra   spaces.\nMessage 17: Keshab likes green tea, tea cats and café 17.  Extra   spaces.\nMessage 18: Keshab likes green tea, tea cats and café 18.  Extra   spaces.",
+     "level": 2,
+     "ref": "3"
+    },
+    {
+     "text": "Message 16: Keshab likes green tea, tea cats and café 16. Extra spaces.",
+     "level": 3,
+     "ref": "18"
+    },
+    {
+     "text": "Message 17: Keshab likes green tea, tea cats and café 17. Extra spaces.",
+     "level": 3,
+     "ref": "19"
+    },
+    {
+     "text": "Message 18: Keshab likes green tea, tea cats and café 18. Extra spaces.",
+     "level": 3,
+     "ref": "20"
+    }
+   ]
+  }
+ },
+ "brief": "Chat title: Tea chat\n\nSection 1:\nThe user: Message 0: Keshab likes green tea, tea cats and café 0. Extra spaces.\nARK: Message 1: Keshab likes green tea, tea cats and café 1. Extra spaces.\nThe user: Message 2: Keshab likes green tea, tea cats and café 2. Extra spaces.\nARK: Message 3: Keshab likes green tea, tea cats and café 3. Extra spaces.\nThe user: long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word long word…\nARK: Message 5: Keshab likes green tea, tea cats and café 5. Extra spaces.\nThe user: Message 6: Keshab likes green tea, tea cats and café 6. Extra spaces.\nARK: Message 7: Keshab likes green tea, tea cats and café 7. Extra spaces.\n\nSection 2:\nThe user: Message 8: Keshab likes green tea, tea cats and café 8. Extra spaces.\nARK: Message 9: Keshab likes green tea, tea cats and café 9. Extra spaces.\nThe user: Message 10: Keshab likes green tea, tea cats and café 10. Extra spaces.\nARK: Message 11: Keshab likes green tea, tea cats and café 11. Extra spaces.\nThe user: Message 12: Keshab likes green tea, tea cats and café 12. Extra spaces.\nARK: Message 13: Keshab likes green tea, tea cats and café 13. Extra spaces.\nThe user: Message 14: Keshab likes green tea, tea cats and café 14. Extra spaces.\nARK: Message 15: Keshab likes green tea, tea cats and café 15. Extra spaces.\n\nSection 3:\nThe user: Message 16: Keshab likes green tea, tea cats and café 16. Extra spaces.\nARK: Message 17: Keshab likes green tea, tea cats and café 17. Extra spaces.\nThe user: Message 18: Keshab likes green tea, tea cats and café 18. Extra spaces.",
+ "plain": {
+  "summary": "Tea chat. Started with: Message 0: Keshab likes green tea, tea cats and café 0. Extra spaces. Keywords: long, word, message, keshab, likes, green.",
+  "headings": [
+   "Message 0: Keshab likes green tea, tea cats and café 0. Extra spaces.",
+   "Message 8: Keshab likes green tea, tea cats and café 8. Extra spaces.",
+   "Message 16: Keshab likes green tea, tea cats and café 16. Extra spaces."
+  ]
+ }
+}

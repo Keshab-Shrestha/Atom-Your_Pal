@@ -30,7 +30,7 @@ fn line_of(value: &Value) -> String {
 impl Extras {
     /// Takes `line` when it is one of these commands. `false` means: give it to Node.
     pub fn handle(&self, chat: &Arc<Chat>, line: &str, to_app: &Sink) -> bool {
-        self.project(chat, line, to_app) || workflow(chat, line, to_app) || improvements(chat, line, to_app) || self.brief_commands(chat, line, to_app)
+        self.project(chat, line, to_app) || workflow(chat, line, to_app) || improvements(chat, line, to_app) || self.brief_commands(chat, line, to_app) || keep_chat(chat, line, to_app)
     }
 
     /// `project.create` and `project.create.cancel`.
@@ -263,6 +263,59 @@ fn improvements(chat: &Arc<Chat>, line: &str, to_app: &Sink) -> bool {
         let saved = store::write(&path, &next).is_some();
         store::set_running(false);
         to_app(&store::event(if saved { &next } else { &state }, false));
+    });
+    true
+}
+
+/// The `memory` line now (the Memory page).
+fn memory_line(db: &std::path::Path) -> Option<String> {
+    Some(line_of(&crate::memory::view(&crate::memory::open_read_only(db)?)?))
+}
+
+/// `memory.keepChat` (`kept_keep.rs`): the chat is kept in a thread; the page shows `indexing` until it ends.
+fn keep_chat(chat: &Arc<Chat>, line: &str, to_app: &Sink) -> bool {
+    use crate::{kept_keep as k, memory_kept};
+    if !line.contains("\"memory.keepChat\"") {
+        return false;
+    }
+    let Ok(command) = serde_json::from_str::<Value>(line) else { return false };
+    let (Some("memory.keepChat"), Some(id)) = (command["type"].as_str(), command["id"].as_str().filter(|i| !i.is_empty() && i.len() <= 100)) else { return false };
+    let Ok(conn) = store::open_read_write(&chat.db) else { return false };
+    let Ok(rows) = crate::chat::read_history(&conn, id) else { return false };
+    let Some(page) = memory_line(&chat.db) else { return false };
+    if memory_kept::is_indexing(id) {
+        to_app(&page);
+        return true;
+    }
+    if rows.is_empty() {
+        to_app(&Event::error(ark_protocol::events::ErrorStage::Settings, "That chat is gone, or memory is off.").to_line());
+        to_app(&page);
+        return true;
+    }
+    memory_kept::set_indexing(id, true);
+    if let Some(page) = memory_line(&chat.db) {
+        to_app(&page);
+    }
+    let (chat, to_app, id) = (Arc::clone(chat), to_app.clone(), id.to_string());
+    std::thread::spawn(move || {
+        let outcome = (|| -> Result<(), String> {
+            let conn = store::open_read_write(&chat.db).map_err(|e| e.to_string())?;
+            let messages = crate::chat::read_history(&conn, &id).map_err(|e| e.to_string())?;
+            let title: String = conn.query_row("SELECT title FROM chats WHERE id = ?", [&id], |r| r.get(0)).unwrap_or_else(|_| "Chat".into());
+            let sections = k::chat_sections(&messages);
+            let digest = crate::llm_once::ask(chat.provider.as_ref(), &chat.model, k::DIGEST_SYSTEM, &k::digest_brief(&title, &sections), 1024).and_then(|t| k::parse_digest(&t)).unwrap_or_else(|_| k::fallback_digest(&title, &sections));
+            let now = jiff::Timestamp::now().strftime("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
+            let embed = |texts: &[String]| crate::embedder::embed_shared(texts);
+            let total: i64 = conn.query_row("SELECT COUNT(*) FROM chat_messages WHERE chat_id = ?", [&id], |r| r.get(0)).map_err(|e| e.to_string())?;
+            k::keep(&conn, &id, &title, total, &sections, &digest, Some(&embed), &now).map(|_| ())
+        })();
+        memory_kept::set_indexing(&id, false);
+        if let Err(message) = outcome {
+            to_app(&Event::error(ark_protocol::events::ErrorStage::Settings, format!("The chat could not be kept: {message}")).to_line());
+        }
+        if let Some(page) = memory_line(&chat.db) {
+            to_app(&page);
+        }
     });
     true
 }

@@ -38,6 +38,7 @@ pub mod chats;
 pub mod projects_store;
 pub mod projects_add;
 pub mod project_create;
+pub mod kept_keep;
 pub mod embedder;
 pub mod brief;
 pub mod llm_once;

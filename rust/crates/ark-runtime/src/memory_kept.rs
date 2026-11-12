@@ -1,13 +1,16 @@
 //! `memory.dropChat` (ADR-278 Phase 3): a port of `drop` in `services/memory/src/chat-index.ts`. The chat's kept summary, sections, lines
-//! and words go in one transaction. `memory.keepChat` stays in Node: it asks the model for a digest and may make vectors.
+//! and words go in one transaction. `memory.keepChat` is `kept_keep.rs`.
 
 use std::path::Path;
+
+use std::collections::HashSet;
+use std::sync::{Mutex, OnceLock};
 
 use rusqlite::Connection;
 
 use crate::store;
 
-const STEPS: [&str; 6] = [
+pub(crate) const STEPS: [&str; 6] = [
     "DELETE FROM kept_fts WHERE level = 3 AND ref IN (SELECT CAST(l.id AS TEXT) FROM kept_lines l JOIN kept_sections s ON s.id = l.section_id WHERE s.chat_id = ?1)",
     "DELETE FROM kept_lines WHERE section_id IN (SELECT id FROM kept_sections WHERE chat_id = ?1)",
     "DELETE FROM kept_fts WHERE level = 2 AND ref IN (SELECT CAST(id AS TEXT) FROM kept_sections WHERE chat_id = ?1)",
@@ -15,6 +18,23 @@ const STEPS: [&str; 6] = [
     "DELETE FROM kept_fts WHERE level = 1 AND ref = ?1",
     "DELETE FROM kept_chats WHERE chat_id = ?1",
 ];
+
+// ponytail: one process-wide set of the chats that are being kept now (the `indexing` flag of the Memory page).
+static INDEXING: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+
+fn indexing() -> &'static Mutex<HashSet<String>> {
+    INDEXING.get_or_init(Mutex::default)
+}
+
+/// Marks a chat as being kept (or not). `false` when it was already marked and `on` is true.
+pub fn set_indexing(id: &str, on: bool) -> bool {
+    let Ok(mut set) = indexing().lock() else { return false };
+    if on { set.insert(id.to_string()) } else { set.remove(id) }
+}
+
+pub fn is_indexing(id: &str) -> bool {
+    indexing().lock().is_ok_and(|s| s.contains(id))
+}
 
 /// `Ok(true)` when the chat was kept and is dropped. `Ok(false)` when it was not kept (Node says so to the app).
 pub fn drop_chat_in(conn: &Connection, id: &str) -> rusqlite::Result<bool> {

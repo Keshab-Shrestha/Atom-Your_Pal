@@ -84,6 +84,9 @@ fn chats(conn: &Connection) -> Option<Vec<Value>> {
         .iter()
         .map(|(id, title, updated, messages)| {
             let mut item = json!({ "id": id, "title": title, "updatedAt": updated, "messages": messages, "kept": kept.contains_key(id) });
+            if crate::memory_kept::is_indexing(id) {
+                item["indexing"] = json!(true);
+            }
             if let Some((_, _, kept_at)) = kept.get(id) {
                 item["keptAt"] = json!(kept_at);
             }
