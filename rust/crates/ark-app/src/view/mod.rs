@@ -64,7 +64,20 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
         .build(k)
 }
 
-pub fn on_key(app: &mut App, ev: &rune::KeyEvent, _: &mut rune::Tx) -> bool {
+pub fn on_key(app: &mut App, ev: &rune::KeyEvent, tx: &mut rune::Tx) -> bool {
+    if ev.key == rune::Key::Escape && app.escape() {
+        return true;
+    }
+    if ev.mods.cmd && !ev.mods.shift && !ev.mods.alt {
+        if ev.is_command('w') {
+            tx.close_window();
+            return true;
+        }
+        if ev.is_command('q') {
+            tx.quit();
+            return true;
+        }
+    }
     if shell::is_sidebar_toggle(ev) {
         app.sidebar.toggle();
         return true;

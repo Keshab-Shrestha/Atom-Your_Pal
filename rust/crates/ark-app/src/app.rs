@@ -380,6 +380,28 @@ impl App {
         self.send_defaults();
     }
 
+    /// Esc closes the topmost open panel: palette, form, find bar, details card, task details, project files.
+    /// True when something closed (the key is used); false leaves Esc to the control that has focus.
+    pub fn escape(&mut self) -> bool {
+        if self.palette.take().is_some() {
+            return true;
+        }
+        if self.form.is_some() {
+            self.close_form();
+            return true;
+        }
+        if self.find.take().is_some() {
+            return true;
+        }
+        if std::mem::take(&mut self.details) {
+            return true;
+        }
+        if self.open_job.take().is_some() {
+            return true;
+        }
+        self.workspace_project.take().is_some()
+    }
+
     pub fn toggle_find(&mut self) {
         self.screen = Screen::Chat;
         self.find = match self.find {
@@ -449,5 +471,23 @@ impl App {
     pub fn can_type(&self) -> bool {
         let read_only = self.model.current.as_deref().and_then(|id| self.model.chats.iter().find(|c| c.id == id)).is_some_and(|c| c.read_only);
         self.model.conn == ark_ui::Conn::Ready && !read_only
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn escape_closes_one_panel_at_a_time_from_the_top() {
+        let mut app = init();
+        app.form = None; // the first-run welcome form, not part of this test
+        app.details = true;
+        app.find = Some((TextEdit::new("x"), 0));
+        app.palette = Some(TextEdit::new(""));
+        assert!(app.escape() && app.palette.is_none() && app.find.is_some());
+        assert!(app.escape() && app.find.is_none() && app.details);
+        assert!(app.escape() && !app.details);
+        assert!(!app.escape(), "nothing is open: Esc is left to the focused control");
     }
 }
