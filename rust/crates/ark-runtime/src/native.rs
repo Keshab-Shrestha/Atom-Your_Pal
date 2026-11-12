@@ -75,9 +75,16 @@ impl Native {
     /// The lines to push after a change of the data file by another connection (Node). Call it every few hundred
     /// milliseconds. It sends nothing until `brain.get` or `memory.list` was answered, and nothing for a view that did not change.
     pub fn poll_changes(&self) -> Vec<String> {
+        let mut lines = Vec::new();
         if let Some(helpers) = &self.helpers {
             helpers.pump();
+            lines.extend(helpers.quiet_event());
         }
+        lines.extend(self.poll_data_changes());
+        lines
+    }
+
+    fn poll_data_changes(&self) -> Vec<String> {
         let (brain, memory) = (self.brain_watched.load(Ordering::SeqCst), self.memory_watched.load(Ordering::SeqCst));
         if !brain && !memory {
             return Vec::new();

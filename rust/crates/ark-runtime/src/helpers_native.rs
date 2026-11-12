@@ -82,6 +82,17 @@ impl HelpersNative {
         }
     }
 
+    /// A task became quiet since the last call: the new `helpers` event for the app (the stuck dot shows without a request).
+    pub fn quiet_event(&self) -> Option<String> {
+        let conn = helpers_event::open_read_only(&self.db)?;
+        if self.quiet.sweep(&conn).is_empty() {
+            return None;
+        }
+        let cached = self.cached.lock().ok()?.clone()?;
+        let event = helpers_event::build_with(&conn, &self.agents, &jiff::Zoned::now(), &cached, &self.host, Some(&self.quiet))?;
+        Some(format!("{event}\n"))
+    }
+
     /// The change bus: the runner, Telegram and the workflows listen here (`HelperStore.onChange` of the TypeScript).
     pub fn bus(&self) -> Arc<Bus> {
         self.bus.clone()
@@ -89,9 +100,6 @@ impl HelpersNative {
 
     /// Gives the listeners the changes that the audit log gained, from Node or from Rust. Call it often (the feed thread does).
     pub fn pump(&self) -> usize {
-        if let Some(conn) = helpers_event::open_read_only(&self.db) {
-            self.quiet.sweep(&conn); // cheap: the watch only marks a task once, after 8 minutes
-        }
         let (Some(conn), Ok(mut tail)) = (helpers_event::open_read_only(&self.db), self.tail.lock()) else { return 0 };
         tail.poll(&conn, &self.bus)
     }
