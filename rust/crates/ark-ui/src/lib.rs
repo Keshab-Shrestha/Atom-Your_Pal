@@ -6,4 +6,4 @@ pub mod find;
 pub mod graph;
 mod model;
 
-pub use model::{ApiStatus, BRIEF_SWITCHES, Approval, FileReview, BrainNode, Memory, ChatItem, Checkpoint, Thread, Conn, Helper, Job, JobState, Message, Branch, Hit, Model, Project, SearchResults, Totals, Usage, Workspace, Provider, Question, Role, Stats, ToolCall, ToolRow, ToolState, Work, WorkState};
+pub use model::{ApiStatus, BRIEF_SWITCHES, Approval, FileReview, BrainNode, Memory, ChatItem, Checkpoint, Thread, Conn, Helper, Job, JobState, Message, Branch, Hit, Model, Project, Routine, SearchResults, Totals, Usage, Workspace, Provider, Question, Role, Stats, ToolCall, ToolRow, ToolState, Work, WorkState};

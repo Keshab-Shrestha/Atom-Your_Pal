@@ -236,6 +236,10 @@ fn helper_card(h: &Helper, k: &Kit) -> El {
     if h.available {
         actions = actions.child(Button::new("New task").on_press(move |s: &mut App| s.open_form(Form::new_task(&task_for))).build(k).key(format!("newtask-{}", h.id)));
     }
+    if h.available {
+        let routine_for = h.id.clone();
+        actions = actions.child(Button::new("New routine").on_press(move |s: &mut App| s.open_form(Form::routine(&routine_for))).build(k).key(format!("routine-new-{}", h.id)));
+    }
     if soul_of.soul.is_some() {
         actions = actions.child(
             Button::new("Edit agent")
@@ -267,6 +271,16 @@ fn helper_card(h: &Helper, k: &Kit) -> El {
                     s.open_job = Some(id);
                     s.send(&Command::JobOpen { id });
                 }).build(k).key(format!("agent-job-{id}"))),
+        );
+    }
+    for r in &h.routines {
+        let (id, paused) = (r.id, r.paused);
+        c = c.child(
+            row().w_full().justify_between().items_center().gap(8.0)
+                .child(text(format!("Scheduled: {} · {}{}", r.task, r.when, if paused { " (paused)" } else { "" })).font(k.ty.small).color(k.c.text_muted).wrap())
+                .child(row().gap(6.0)
+                    .child(Button::new(if paused { "Resume" } else { "Pause" }).on_press(move |s: &mut App| s.send(&Command::RoutinePause { id, paused: !paused })).build(k).key(format!("routine-pause-{id}")))
+                    .child(Button::new("Delete routine").on_press(move |s: &mut App| s.send(&Command::RoutineDelete { id })).build(k).key(format!("routine-delete-{id}")))),
         );
     }
     c.child(actions)

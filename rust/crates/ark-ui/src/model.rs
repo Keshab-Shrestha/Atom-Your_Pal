@@ -150,6 +150,18 @@ pub struct Helper {
     /// The soul text: personality, how it works, rules, lessons.
     pub soul: Option<[String; 4]>,
     pub jobs: Vec<Job>,
+    /// Scheduled tasks of this agent.
+    pub routines: Vec<Routine>,
+}
+
+/// A scheduled task (`routines` in the `helpers` event).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Routine {
+    pub id: u64,
+    pub task: String,
+    /// The schedule in words: "Every day at 8:00 AM".
+    pub when: String,
+    pub paused: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -450,7 +462,7 @@ fn parse_helpers(map: &Map<String, Value>) -> Vec<Helper> {
                     held: opt_str(j, "held"),
                 })
                 .collect();
-            Helper { name: str_of(h, "name"), role: str_of(h, "role"), available: bool_of(h, "available"), kit: opt_str(h, "kit"), custom: bool_of(h, "custom"), reports_to: opt_str(h, "reportsTo"), soul: h.get("soul").and_then(Value::as_object).map(|o| [str_of(o, "personality"), str_of(o, "howItWorks"), str_of(o, "rules"), str_of(o, "lessons")]), jobs, id }
+            Helper { name: str_of(h, "name"), role: str_of(h, "role"), available: bool_of(h, "available"), kit: opt_str(h, "kit"), custom: bool_of(h, "custom"), reports_to: opt_str(h, "reportsTo"), routines: objects(h, "routines").map(|r| Routine { id: u64_of(r, "id"), task: str_of(r, "task"), when: str_of(r, "when"), paused: bool_of(r, "paused") }).collect(), soul: h.get("soul").and_then(Value::as_object).map(|o| [str_of(o, "personality"), str_of(o, "howItWorks"), str_of(o, "rules"), str_of(o, "lessons")]), jobs, id }
         })
         .collect()
 }

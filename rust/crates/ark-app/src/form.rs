@@ -10,6 +10,8 @@ pub enum FormKind {
     /// Edit the soul of this helper (id); the name stays.
     Soul { helper: String, name: String },
     NewAgent,
+    /// A daily routine for this helper (id).
+    Routine { helper: String },
     /// Write or change a brain note (`Some(id)` changes it).
     Note { id: Option<u64> },
     /// Make a project: `new` (an empty folder), `git` (a clone of a URL) or `github` (owner/repo).
@@ -33,6 +35,7 @@ impl Form {
         match &self.kind {
             FormKind::Soul { name, .. } => format!("Soul of {name}"),
             FormKind::NewAgent => "New agent".into(),
+            FormKind::Routine { .. } => "New daily routine".into(),
             FormKind::Note { id: None } => "New note".into(),
             FormKind::Note { id: Some(_) } => "Edit note".into(),
             FormKind::ProjectSource { source: "new" } => "New empty project".into(),
@@ -51,6 +54,7 @@ impl Form {
             FormKind::Soul { .. } => &["Personality", "How it works", "Rules", "Lessons"],
             FormKind::NewAgent => &["Name", "Role", "Personality", "How it works", "Rules"],
             FormKind::NewTask { .. } => &["Task"],
+            FormKind::Routine { .. } => &["Task", "Time each day (HH:MM, 24 hours)"],
             FormKind::Note { .. } => &["Title", "Note"],
             FormKind::ProjectSource { source: "new" } => &["Name", "Parent folder"],
             FormKind::ProjectSource { source: "git" } => &["Name", "Parent folder", "Repository URL"],
@@ -89,6 +93,10 @@ impl Form {
 
     pub fn note(id: Option<u64>, title: &str, body: &str) -> Form {
         Form::fresh(FormKind::Note { id }, &[title, body])
+    }
+
+    pub fn routine(helper: &str) -> Form {
+        Form::fresh(FormKind::Routine { helper: helper.into() }, &["", "08:00"])
     }
 
     pub fn new_task(helper: &str) -> Form {
@@ -149,6 +157,23 @@ impl Form {
                 }
                 Ok(Command::BrainSave { id: *id, title: self.text(0), body: self.fields.get(1).map(|f| f.text.trim_end().to_owned()).unwrap_or_default() })
             }
+            FormKind::Routine { helper } => {
+                let minute = parse_time(&self.text(1)).ok_or("Write the time as HH:MM, for example 08:30.")?;
+                if self.text(0).is_empty() {
+                    return Err("Write what the routine does.");
+                }
+                Ok(Command::RoutineAdd(ark_protocol::commands::RoutineInput {
+                    helper: helper.clone(),
+                    task: self.text(0),
+                    kind: ark_protocol::commands::RoutineKind::Daily,
+                    minute: Some(minute),
+                    weekday: None,
+                    every: None,
+                    start_at: None,
+                    notify_telegram: None,
+                    webhook: None,
+                }))
+            }
             FormKind::NewTask { helper } => {
                 if self.text(0).is_empty() {
                     return Err("Write what the task is.");
@@ -157,6 +182,13 @@ impl Form {
             }
         }
     }
+}
+
+/// "08:30" as minutes after midnight.
+fn parse_time(text: &str) -> Option<u32> {
+    let (h, m) = text.split_once(':')?;
+    let (h, m) = (h.trim().parse::<u32>().ok()?, m.trim().parse::<u32>().ok()?);
+    (h < 24 && m < 60).then_some(h * 60 + m)
 }
 
 #[cfg(test)]
@@ -182,6 +214,16 @@ mod tests {
         assert!(f.submit().is_err(), "a clone needs a URL");
         f.fields[2] = TextEdit::new("https://example.com/a.git");
         assert!(matches!(f.submit(), Ok(Command::Other { ref kind, ref fields }) if kind == "project.create" && fields["remote"] == "https://example.com/a.git"));
+    }
+
+    #[test]
+    fn a_routine_needs_a_task_and_a_real_time() {
+        let mut f = Form::routine("sid");
+        assert!(f.submit().is_err());
+        f.fields[0] = TextEdit::new("Read the news");
+        assert!(matches!(f.submit(), Ok(Command::RoutineAdd(ref r)) if r.minute == Some(480)));
+        f.fields[1] = TextEdit::new("25:00");
+        assert!(f.submit().is_err());
     }
 
     #[test]
