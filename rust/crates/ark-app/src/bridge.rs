@@ -12,7 +12,7 @@ use ark_protocol::{Command, Event};
 /// What the background thread hands to the UI thread.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Inbound {
-    Event(Event),
+    Event(Box<Event>),
     /// The child ended. The text says how, in words for the user.
     Down(String),
 }
@@ -69,7 +69,7 @@ impl Bridge {
                 }
                 // A line that is not a JSON object is a runtime bug: skip it, never stop reading.
                 if let Ok(event) = Event::parse(&line) {
-                    lock(&queue).push(Inbound::Event(event));
+                    lock(&queue).push(Inbound::Event(Box::new(event)));
                     wake();
                 }
             }
@@ -82,7 +82,8 @@ impl Bridge {
 
     /// Queues one command. A command after the child ended is dropped.
     pub fn send(&self, command: &Command) {
-        let _ = self.out.send(command.to_line());
+        // A send fails only after the writer thread ended with the child: nothing is left to tell.
+        self.out.send(command.to_line()).ok();
     }
 
     /// A typed message to the open chat (`text.send`).
