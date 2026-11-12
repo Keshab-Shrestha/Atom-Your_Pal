@@ -1,0 +1,78 @@
+//! Runs the built ark-app headless with a scripted event file (no runtime, no screen), as CI does.
+//! `--snap` checks that the chat draws; `--tree` and `--script` check what a screen reader and a click reach.
+#![allow(clippy::expect_used)] // Test code: a failed step should stop the test with its message.
+
+use std::collections::HashSet;
+use std::io::Cursor;
+use std::path::PathBuf;
+use std::process::Command;
+
+fn fixture(name: &str) -> String {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixtures").join(name).to_str().expect("utf-8").to_owned()
+}
+
+fn fresh(name: &str) -> PathBuf {
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("ark-app");
+    std::fs::create_dir_all(&dir).expect("temp dir");
+    let path = dir.join(name);
+    if path.exists() {
+        std::fs::remove_file(&path).expect("remove old output");
+    }
+    path
+}
+
+fn run(events: &str, args: &[&str]) {
+    let out = Command::new(env!("CARGO_BIN_EXE_ark-app")).args(args).env("ARK_UI_EVENTS", fixture(events)).output().expect("ark-app starts");
+    assert!(out.status.success(), "ark-app {args:?} failed: {}", String::from_utf8_lossy(&out.stderr));
+}
+
+/// The text of the element tree and the accessibility tree, as one string.
+fn tree_after(tag: &str, events: &str, script: Option<&str>) -> String {
+    let tree = fresh(&format!("{tag}-tree.json"));
+    let path = tree.to_str().expect("utf-8");
+    match script {
+        None => run(events, &["--tree", path]),
+        Some(steps) => {
+            let file = fresh(&format!("{tag}-script.json"));
+            std::fs::write(&file, steps).expect("script written");
+            run(events, &["--script", file.to_str().expect("utf-8"), "--tree", path]);
+        }
+    }
+    std::fs::read_to_string(&tree).expect("tree written")
+}
+
+#[test]
+fn snap_draws_the_chat() {
+    let png = fresh("chat.png");
+    run("chat.jsonl", &["--snap", png.to_str().expect("utf-8"), "--size", "1040x700", "--scale", "1", "--theme", "dark"]);
+    let mut reader = png::Decoder::new(Cursor::new(std::fs::read(&png).expect("png written"))).read_info().expect("valid PNG");
+    let mut pixels = vec![0; reader.output_buffer_size().expect("buffer size")];
+    let info = reader.next_frame(&mut pixels).expect("PNG frame");
+    assert_eq!((info.width, info.height), (1040, 700));
+    let bpp = info.line_size / info.width as usize;
+    let colours: HashSet<&[u8]> = pixels[..info.buffer_size()].chunks_exact(bpp).collect();
+    assert!(colours.len() > 20, "the chat looks blank: {} colours", colours.len());
+}
+
+#[test]
+fn tree_holds_chats_messages_tool_and_approval() {
+    let tree = tree_after("plain", "chat.jsonl", None);
+    for want in ["Plan the Rust port", "Fix the notch bar", "List the crates.", "run_command", "ARK asks first", "Allow", "Decline", "Message ARK"] {
+        assert!(tree.contains(want), "tree lacks {want:?}");
+    }
+}
+
+#[test]
+fn clicking_allow_closes_the_approval() {
+    let tree = tree_after("allow", "chat.jsonl", Some(r#"[{"t":0.2,"type":"click","key":"allow-a1"}]"#));
+    assert!(!tree.contains("ARK asks first"), "the approval card is still there");
+    assert!(tree.contains("List the crates."), "the transcript is gone");
+}
+
+#[test]
+fn enter_sends_the_draft_and_clears_the_composer() {
+    let typed = tree_after("typed", "chat.jsonl", Some(r#"[{"t":0.1,"type":"type","text":"zzqx"}]"#));
+    assert!(typed.contains("zzqx"), "the draft is not in the composer");
+    let sent = tree_after("sent", "chat.jsonl", Some(r#"[{"t":0.1,"type":"type","text":"zzqx"},{"t":0.4,"type":"key","name":"Enter"}]"#));
+    assert!(!sent.contains("zzqx"), "the composer kept the draft after Enter");
+}
