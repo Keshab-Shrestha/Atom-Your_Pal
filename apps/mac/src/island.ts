@@ -625,6 +625,9 @@ export function runIsland(options: IslandOptions): IslandSession {
         }, "chat.open");
         return;
       }
+      case "core.new":
+        newChat(undefined, true);
+        return;
       case "core.resume": {
         // ADR-278: the Rust runtime already showed the chat to the app. Move the Core session, say nothing.
         const chats = options.chats;
@@ -1401,7 +1404,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     });
   }
   /** `conversation.reset` and `chat.new`: forget the conversation; a project chat starts inside its project. */
-  function newChat(projectId: string | undefined) {
+  function newChat(projectId: string | undefined, quiet = false) {
     options.computer?.cancelAll();
     loop.cancel();
     core.reset();
@@ -1413,6 +1416,7 @@ export function runIsland(options: IslandOptions): IslandSession {
       const problem = options.chats?.applyDefaults?.(core.sessionId, newChatDefaults);
       if (problem) options.log?.warn("chat.defaults_skipped", { reason: problem });
     }
+    if (quiet) return; // ADR-278: the Rust runtime already told the app
     send({ type: "conversation.reset", ...(projectId ? { projectId } : {}) });
     if (chatsWatched) sendChats(); // ADR-091: a new chat is now the current one
   }

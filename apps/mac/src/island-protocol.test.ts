@@ -254,6 +254,7 @@ test("parses the helper commands", () => {
     { type: "chat.open", id: "4f1c-aa" },
     { type: "core.resume", id: "4f1c-aa" },
     { type: "core.resume" },
+    { type: "core.new" },
     { type: "chat.delete", id: "4f1c-aa" },
     { type: "mcp.add", name: "notes", kind: "command", command: "notes-mcp", args: ["--stdio"], env: ["T=1"] },
     { type: "mcp.add", name: "linear", kind: "url", url: "https://x/mcp", transport: "sse", headers: ["A: b"] },

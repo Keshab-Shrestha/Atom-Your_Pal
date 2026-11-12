@@ -243,6 +243,20 @@ impl Chat {
             Command::ChatQuestionAnswer { ref chat, ref turn, ref id, ref text } => {
                 return crate::ask::Questions::is_ours(id) && self.questions.answer(chat, turn, id, text.as_deref());
             }
+            // A new chat outside a project: the app gets the reset and the list at once; Node mints its Core session quietly (`core.new`).
+            Command::ChatNew { project_id: None } if !self.busy.load(Ordering::SeqCst) && self.chats_line().is_some() => {
+                self.approvals.decline_all();
+                self.questions.skip_all();
+                if let Ok(mut c) = self.current.lock() {
+                    *c = None;
+                }
+                to_app(&Event::Other(json!({ "type": "conversation.reset" }).as_object().cloned().unwrap_or_default()).to_line());
+                if let Some(chats) = self.chats_line() {
+                    to_app(&chats);
+                }
+                to_node(&format!("{}\n", json!({ "type": "core.new" })));
+                return true;
+            }
             Command::TalkCancel | Command::TalkStart | Command::ConversationReset | Command::ChatNew { .. } => {
                 self.approvals.decline_all();
                 self.questions.skip_all();
@@ -687,6 +701,28 @@ mod tests {
         assert_eq!(serde_json::from_str::<Value>(&from_app.try_recv().unwrap()).unwrap()["type"], json!("chats"));
         let ((app, _), (node, _)) = (sinks(), sinks());
         assert!(!chat.handle("{\"type\":\"chat.delete\",\"id\":\"telegram\"}\n", app, node));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn chat_new_resets_the_app_and_node_mints_its_session_quietly() {
+        let dir = std::env::temp_dir().join(format!("ark-chat-new-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        let fixtures = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures");
+        std::fs::copy(format!("{fixtures}/chats-view.db"), dir.join("memory.db")).unwrap();
+        std::fs::copy(format!("{fixtures}/chats-view-state.json"), dir.join("ui-state.json")).unwrap();
+        let chat = chat(dir.join("memory.db"));
+        chat.observe("{\"type\":\"chats\",\"chats\":[],\"current\":\"plain-2\"}\n");
+        let ((app, from_app), (node, from_node)) = (sinks(), sinks());
+        assert!(chat.handle("{\"type\":\"chat.new\"}\n", app, node));
+        assert_eq!(serde_json::from_str::<Value>(&from_app.try_recv().unwrap()).unwrap()["type"], json!("conversation.reset"));
+        let list: Value = serde_json::from_str(&from_app.try_recv().unwrap()).unwrap();
+        assert_eq!(list["current"], json!(""));
+        assert_eq!(serde_json::from_str::<Value>(&from_node.try_recv().unwrap()).unwrap(), json!({ "type": "core.new" }));
+        // A project chat goes to Node.
+        let ((app, _), (node, _)) = (sinks(), sinks());
+        assert!(!chat.handle("{\"type\":\"chat.new\",\"projectId\":\"p-1\"}\n", app, node));
         std::fs::remove_dir_all(&dir).ok();
     }
 
