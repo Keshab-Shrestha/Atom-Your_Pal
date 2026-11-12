@@ -128,6 +128,19 @@ pub fn settings(app: &App, k: &Kit) -> El {
             let current = s.prefs.owner.clone();
             s.open_form(Form::owner(false, &current));
         }).build(k).key("owner-change")));
+    let mut access = card(k, "settings-permissions", "macOS permissions");
+    #[cfg(target_os = "macos")]
+    if app.screen == crate::app::Screen::Settings && std::env::var_os("ARK_UI_EVENTS").is_none() {
+        for (name, on) in crate::mac::permissions() {
+            access = access.child(line(k, name, if on { "Allowed".into() } else { "Not allowed".into() }));
+        }
+        access = access.child(row().justify_end().gap(8.0)
+            .child(Button::new("Input Monitoring…").on_press(|_: &mut App| crate::mac::open_privacy_pane("Privacy_ListenEvent")).build(k).key("perm-listen"))
+            .child(Button::new("Accessibility…").on_press(|_: &mut App| crate::mac::open_privacy_pane("Privacy_Accessibility")).build(k).key("perm-ax")));
+    }
+    if std::env::var_os("ARK_UI_EVENTS").is_some() {
+        access = access.child(text("Permissions show in the running app.").font(k.ty.small).color(k.c.text_faint));
+    }
     let mut shortcuts = card(k, "settings-shortcuts", "Shortcuts");
     for action in ark_core::shortcuts::ShortcutAction::ALL {
         let words = if app.recording == Some(action) { "Press the new shortcut (Esc cancels)".to_owned() } else { crate::prefs::describe(action, &app.prefs.combo(action)) };
@@ -139,7 +152,7 @@ pub fn settings(app: &App, k: &Kit) -> El {
         }
         shortcuts = shortcuts.child(row().w_full().justify_between().items_center().gap(12.0).child(text(crate::prefs::action_title(action).to_owned()).font(k.ty.ui).color(k.c.text_muted)).child(text(words).font(k.ty.ui).color(k.c.text_base)).child(buttons));
     }
-    let mut cards = vec![model, general, defaults, appearance, shortcuts, connections];
+    let mut cards = vec![model, general, defaults, appearance, shortcuts, access, connections];
     if let Some(values) = m.brief {
         let mut brief = card(k, "settings-brief", "Morning brief");
         for (i, ((_, label), on)) in ark_ui::BRIEF_SWITCHES.iter().zip(values).enumerate() {

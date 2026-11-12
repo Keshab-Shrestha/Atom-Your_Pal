@@ -281,3 +281,25 @@ pub fn install(wake: rune::Waker) {
         k.push(item.into_super());
     });
 }
+
+#[link(name = "ApplicationServices", kind = "framework")]
+unsafe extern "C" {
+    fn CGPreflightListenEventAccess() -> bool;
+    fn CGPreflightPostEventAccess() -> bool;
+    fn AXIsProcessTrusted() -> bool;
+}
+
+/// What macOS lets this app do: watch keys in other apps (Input Monitoring), and control other apps (Accessibility).
+/// These calls only read the state; they never show a prompt.
+pub fn permissions() -> [(&'static str, bool); 3] {
+    // SAFETY: plain C functions with no arguments that return a boolean.
+    unsafe { [("Input Monitoring (shortcuts)", CGPreflightListenEventAccess()), ("Accessibility (computer control)", AXIsProcessTrusted()), ("Post events (typing for you)", CGPreflightPostEventAccess())] }
+}
+
+/// Opens a Privacy and Security pane in System Settings.
+pub fn open_privacy_pane(pane: &str) {
+    let url = format!("x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?{pane}");
+    if let Err(e) = std::process::Command::new("open").arg(url).spawn() {
+        eprintln!("ark-app: could not open System Settings: {e}");
+    }
+}
