@@ -11,6 +11,7 @@ pub mod helpers_native;
 pub mod helpers_org;
 pub mod helpers_plans;
 pub mod helpers_roster;
+pub mod helpers_runner;
 pub mod helpers_write;
 pub mod helpers_usage;
 pub mod helpers_tests;
