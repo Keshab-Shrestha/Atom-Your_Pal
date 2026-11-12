@@ -1,6 +1,24 @@
 {
  "source": "apps/mac/src/island-helpers.ts list()",
  "now": "2026-11-12T11:30:00.000Z",
+ "testCases": [
+  {
+   "id": 2,
+   "kind": "soul",
+   "target": "quill",
+   "jobId": 8,
+   "task": "Quiet task",
+   "createdAt": "2026-11-01T09:00:47.000Z"
+  },
+  {
+   "id": 1,
+   "kind": "soul",
+   "target": "sid",
+   "jobId": 11,
+   "task": "A finished example",
+   "createdAt": "2026-11-01T09:00:46.000Z"
+  }
+ ],
  "helpers": [
   {
    "id": "sid",
@@ -14,11 +32,15 @@
     "name": "Sid",
     "personality": "Curious and thorough. Always cites sources.",
     "howItWorks": "Searches more than once, reads several good pages, compares what they say, and prefers primary and reputable sources.",
-    "rules": "Say plainly when sources disagree or when something could not be confirmed.",
+    "rules": "Be brief.",
     "lessons": ""
    },
-   "soulVersion": 4,
+   "soulVersion": 5,
    "soulVersions": [
+    {
+     "version": 5,
+     "createdAt": "2026-11-01T09:00:42.000Z"
+    },
     {
      "version": 4,
      "createdAt": "2026-11-01T09:00:06.000Z"
@@ -68,8 +90,81 @@
     "pdf",
     "web-search"
    ],
-   "proposals": [],
+   "proposals": [
+    {
+     "id": 3,
+     "field": "personality",
+     "text": "Curious, calm.",
+     "reason": "Tone.",
+     "jobId": 5,
+     "state": "pending",
+     "createdAt": "2026-11-01T09:00:41.000Z",
+     "tests": {
+      "better": 1,
+      "same": 1,
+      "worse": 0,
+      "notRun": 1,
+      "failed": 0,
+      "running": 0,
+      "results": [
+       {
+        "caseId": 100,
+        "task": "Same case",
+        "state": "done",
+        "better": "same",
+        "oldAnswer": "a",
+        "newAnswer": "b"
+       },
+       {
+        "caseId": 99,
+        "task": "A skipped case",
+        "state": "skipped",
+        "reason": "Too long"
+       },
+       {
+        "caseId": 1,
+        "task": "A finished example",
+        "state": "done",
+        "better": "new",
+        "reason": "Clearer.",
+        "oldAnswer": "Old xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…",
+        "newAnswer": "New answer."
+       }
+      ]
+     }
+    },
+    {
+     "id": 2,
+     "field": "lessons",
+     "text": "Check twice.",
+     "reason": "A miss.",
+     "jobId": 5,
+     "state": "rejected",
+     "createdAt": "2026-11-01T09:00:40.000Z"
+    },
+    {
+     "id": 1,
+     "field": "rules",
+     "text": "Be brief.",
+     "reason": "Too long.",
+     "jobId": 5,
+     "state": "accepted",
+     "createdAt": "2026-11-01T09:00:39.000Z"
+    }
+   ],
    "jobs": [
+    {
+     "id": 11,
+     "task": "A finished example",
+     "state": "done",
+     "createdAt": "2026-11-01T09:00:43.000Z",
+     "endedAt": "2026-11-01T09:00:45.000Z",
+     "title": "Example",
+     "summary": "Example summary.",
+     "blockedBy": [],
+     "waitingFor": [],
+     "comments": 0
+    },
     {
      "id": 6,
      "task": "Stopped task",
@@ -94,7 +189,8 @@
      "advisory": true,
      "blockedBy": [],
      "waitingFor": [],
-     "comments": 0
+     "comments": 0,
+     "rating": "bad"
     },
     {
      "chatId": "chat-9",
@@ -408,6 +504,16 @@
    "skills": [],
    "proposals": [],
    "jobs": [
+    {
+     "id": 10,
+     "task": "Review task 5 (Sid)",
+     "state": "queued",
+     "createdAt": "2026-11-01T09:00:38.000Z",
+     "blockedBy": [],
+     "waitingFor": [],
+     "comments": 0,
+     "reviews": 5
+    },
     {
      "id": 2,
      "task": "Make a skill from task 1 (Sid)",

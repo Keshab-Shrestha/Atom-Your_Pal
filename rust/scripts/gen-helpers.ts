@@ -90,10 +90,31 @@ raw.prepare("UPDATE jobs SET plan_status = 'awaiting', plan_summary = 'The plan.
 raw.prepare("UPDATE jobs SET retry_of = ?, retry_next = ? WHERE id = ?").run(j5, null, j8);
 raw.prepare("UPDATE jobs SET reviews = ? WHERE id = ?").run(j1, j7);
 raw.close();
+// Proposals (pending, accepted, rejected) and test cases with a run.
+store.rate(j4, false, "Not good");
+const review = store.list().find((h) => h.id === "tinker")!.jobs.find((j) => j.task.startsWith("Review task"))!.id;
+const p1 = store.addProposal(review, { field: "rules", text: "Be brief.", reason: "Too long." }).id;
+const p2 = store.addProposal(review, { field: "lessons", text: "Check twice.", reason: "A miss." }).id;
+const p3 = store.addProposal(review, { field: "personality", text: "Curious, calm.", reason: "Tone." }).id;
+store.acceptProposal(p1);
+store.rejectProposal(p2);
+const j9 = store.addJob("sid", "A finished example").id;
+store.start(j9);
+store.finish(j9, rep("Example"));
+const c1 = store.saveTestCase(j9, "soul", "sid");
+store.saveTestCase(j7, "soul", "quill");
+store.startTestRun("soul", p3, [c1]);
+store.finishTestCase("soul", p3, c1, { state: "done", better: "new", reason: "Clearer.", oldAnswer: "Old " + "x".repeat(900), newAnswer: "New answer." });
+const raw2 = new DatabaseSync(join(dir, "helpers.db"));
+raw2.prepare("INSERT INTO test_results (kind, item_id, case_id, task, state, better, reason, old_answer, new_answer, at) VALUES ('soul', ?, 99, 'A skipped case', 'skipped', NULL, 'Too long', NULL, NULL, '2026-11-01T10:00:00.000Z')").run(p3);
+raw2.prepare("INSERT INTO test_results (kind, item_id, case_id, task, state, better, reason, old_answer, new_answer, at) VALUES ('soul', ?, 100, 'Same case', 'done', 'same', NULL, 'a', 'b', '2026-11-01T10:00:00.000Z')").run(p3);
+raw2.close();
 const problems = store.agentProblems();
 const NOW = new Date(Date.UTC(2026, 10, 12, 11, 30, 0)); // 2026-11-12 20:30 in Tokyo, a Thursday
-const view = JSON.parse(JSON.stringify(islandHelpers(store, async () => [], () => [], () => [], () => NOW).list()));
-writeFileSync(join(dir, "expected.json"), `${JSON.stringify({ source: "apps/mac/src/island-helpers.ts list()", now: NOW.toISOString(), helpers: view, problems }, null, 1)}\n`);
+const island = islandHelpers(store, async () => [], () => [], () => [], () => NOW);
+const view = JSON.parse(JSON.stringify(island.list()));
+const testCases = JSON.parse(JSON.stringify(island.testCases()));
+writeFileSync(join(dir, "expected.json"), `${JSON.stringify({ source: "apps/mac/src/island-helpers.ts list()", now: NOW.toISOString(), testCases, helpers: view, problems }, null, 1)}\n`);
 store.close?.();
 for (const ext of ["-wal", "-shm"]) rmSync(join(dir, `helpers.db${ext}`), { force: true });
 console.log(`helpers: ${view.length} members, ${problems.length} problems`);

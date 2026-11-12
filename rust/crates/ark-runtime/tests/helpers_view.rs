@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use ark_runtime::{helpers_jobs as jobs, helpers_roster as roster, helpers_routines as routines};
+use ark_runtime::{helpers_jobs as jobs, helpers_roster as roster, helpers_tests as tests, helpers_routines as routines};
 use rusqlite::{Connection, OpenFlags};
 use serde_json::Value;
 
@@ -27,7 +27,7 @@ fn expected() -> Value {
 }
 
 /// The keys the later slices add.
-const LATER: [&str; 1] = ["proposals"];
+const LATER: [&str; 0] = [];
 
 #[test]
 fn roster_core_matches_typescript() {
@@ -41,6 +41,7 @@ fn roster_core_matches_typescript() {
         .iter()
         .map(|m| {
             let mut view = roster::member_core(&conn, m).unwrap();
+            view["proposals"] = Value::Array(tests::proposals_of(&conn, &m.id).unwrap());
             view["jobs"] = Value::Array(jobs::jobs_of(&conn, &m.id).unwrap());
             view["routines"] = Value::Array(routines::routines_of(&conn, &m.id, &now).unwrap());
             view
@@ -53,6 +54,7 @@ fn roster_core_matches_typescript() {
         }
     }
     assert_eq!(got, wanted);
+    assert_eq!(Value::Array(tests::test_cases(&conn).unwrap()), want["testCases"]);
 }
 
 #[test]
