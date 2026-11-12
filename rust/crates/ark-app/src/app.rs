@@ -124,7 +124,7 @@ pub fn poll(app: &mut App, _: f64, _: &mut Tx) -> bool {
             }
         };
     }
-    crate::overlay::sync(app.model.loop_state);
+    crate::overlay::sync(app.model.loop_state, !app.model.approvals.is_empty());
     changed
 }
 

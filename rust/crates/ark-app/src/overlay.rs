@@ -1,4 +1,4 @@
-//! A small pill at the top of the screen that shows the voice state ("Listening", "Transcribing"),
+//! A small pill at the top of the screen that shows the status ("Listening", "Thinking", "Needs you"),
 //! also when ARK is behind other apps, so the user knows the microphone is live.
 //! Rune draws overlays only in a real window run; headless runs skip them.
 
@@ -14,7 +14,7 @@ pub struct Pill {
 }
 
 static HANDLE: OnceLock<OverlayHandle<Pill>> = OnceLock::new();
-static LAST: Mutex<Option<LoopState>> = Mutex::new(None);
+static LAST: Mutex<Option<(Option<LoopState>, bool)>> = Mutex::new(None);
 
 fn view(pill: &Pill, _: &mut Cx<Pill>) -> El {
     let kit = rune_theme_opencode::kit(true);
@@ -36,24 +36,29 @@ pub fn install(handle: OverlayHandle<Pill>) {
     drop(HANDLE.set(handle));
 }
 
-/// The words for a loop state, or None when the pill stays hidden.
-pub fn label(state: Option<LoopState>) -> Option<&'static str> {
+/// The words for the status, or None when the pill stays hidden. An approval that waits comes first.
+pub fn label(state: Option<LoopState>, needs_you: bool) -> Option<&'static str> {
+    if needs_you {
+        return Some("Needs you");
+    }
     match state? {
         LoopState::Listening => Some("Listening…"),
         LoopState::Transcribing => Some("Transcribing…"),
-        _ => None,
+        LoopState::Thinking => Some("Thinking…"),
+        LoopState::Speaking => Some("Speaking…"),
+        LoopState::Idle => None,
     }
 }
 
 /// Shows, updates or hides the pill when the loop state changes. Cheap to call every frame.
-pub fn sync(state: Option<LoopState>) {
+pub fn sync(state: Option<LoopState>, needs_you: bool) {
     let Some(handle) = HANDLE.get() else { return };
     let mut last = LAST.lock().unwrap_or_else(|e| e.into_inner());
-    if *last == state {
+    if *last == Some((state, needs_you)) {
         return;
     }
-    *last = state;
-    match label(state) {
+    *last = Some((state, needs_you));
+    match label(state, needs_you) {
         Some(words) => {
             handle.update(move |p, _| p.label = words.to_owned());
             handle.show();
@@ -67,9 +72,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn only_the_voice_states_show_a_pill() {
-        assert_eq!(label(Some(LoopState::Listening)), Some("Listening…"));
-        assert_eq!(label(Some(LoopState::Thinking)), None);
-        assert_eq!(label(None), None);
+    fn the_pill_follows_the_status_and_an_approval_comes_first() {
+        assert_eq!(label(Some(LoopState::Listening), false), Some("Listening…"));
+        assert_eq!(label(Some(LoopState::Thinking), false), Some("Thinking…"));
+        assert_eq!(label(Some(LoopState::Idle), false), None);
+        assert_eq!(label(None, false), None);
+        assert_eq!(label(Some(LoopState::Idle), true), Some("Needs you"));
     }
 }
