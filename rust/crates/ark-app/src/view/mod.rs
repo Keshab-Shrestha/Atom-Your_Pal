@@ -1,6 +1,7 @@
 //! The windows' views. `view` is Rune's view function: it reads the state and returns the element tree.
 
 mod chat;
+mod pages;
 mod sidebar;
 
 use rune::{Chrome, Cx, El};
@@ -30,7 +31,10 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
     let k = pick_kit(cx.system_dark());
     let (title, main) = match app.screen {
         Screen::Chat => (app.model.current_title().to_owned(), chat::view(app, k)),
-        other => (format!("{other:?}"), chat::view(app, k)),
+        Screen::Settings => ("Settings".to_owned(), pages::settings(app, k)),
+        Screen::Agents => ("Agents".to_owned(), pages::agents(app, k)),
+        Screen::Tasks => ("Tasks".to_owned(), pages::tasks(app, k)),
+        Screen::Dashboard => ("Dashboard".to_owned(), pages::dashboard(app, k)),
     };
     let toolbar = Toolbar::new().title(title).trailing(chat::status(app, k, &status_line(app)));
     SplitView::new(main)

@@ -113,6 +113,16 @@ impl App {
         }
     }
 
+    /// Opens a screen and asks the runtime for the data it shows.
+    pub fn goto(&mut self, screen: Screen) {
+        self.screen = screen;
+        match screen {
+            Screen::Agents | Screen::Tasks => self.send(&ark_protocol::Command::HelpersList),
+            Screen::Dashboard => self.send(&ark_protocol::Command::StatsGet),
+            Screen::Chat | Screen::Settings => {}
+        }
+    }
+
     /// Sends the draft as a `text.send` and clears the composer.
     pub fn submit(&mut self) {
         let text = self.draft.text.trim().to_owned();

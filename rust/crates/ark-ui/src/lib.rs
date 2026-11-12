@@ -4,4 +4,4 @@
 
 mod model;
 
-pub use model::{Approval, ChatItem, Conn, Message, Model, Question, Role, ToolCall, ToolState, Work, WorkState};
+pub use model::{ApiStatus, Approval, ChatItem, Conn, Helper, Job, JobState, Message, Model, Provider, Question, Role, Stats, ToolCall, ToolRow, ToolState, Work, WorkState};

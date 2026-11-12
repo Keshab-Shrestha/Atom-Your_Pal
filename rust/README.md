@@ -17,6 +17,8 @@ This folder holds the Rust build of ARK (ADR-278, docs/rust-migration-plan.md). 
 
 - `crates/ark-protocol/`: the island commands and events as serde types, with a line codec.
 - `crates/ark-runtime/`: the runtime forwarder between the Swift app and the Node runtime. It answers `brain.note` and `brain.search` itself.
+- `crates/ark-ui/`: the UI state. `Model::apply` folds island events into what the views draw. No window code.
+- `crates/ark-app/`: the Rust ARK window (Phase 3). `cargo run -p ark-app` starts the runtime child from `ARK_RUNTIME_BIN` (default: `ark-runtime` next to the app) with `ARK_RUNTIME_ARGS` (default: the Node command). `ark-fake-runtime <script.jsonl>` is a scripted runtime for tests. Headless: `ARK_UI_EVENTS=crates/ark-app/fixtures/chat.jsonl cargo run -p ark-app -- --snap chat.png --size 1040x700 --theme dark`. `ARK_UI_SCREEN=settings|agents|tasks|dashboard` picks the screen.
 - `THIRD_PARTY.txt`: the third-party licences of the Rust build.
 
 ## Crates

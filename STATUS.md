@@ -1277,3 +1277,11 @@ Older steps are in TASK.md.
 - **Remembering by itself (ADR-131).** After a chat, ARK may show a quiet "Remember?" row above the chat box with a fact it noticed. It keeps the fact only when you press Remember. A switch in Settings → General turns it off. No tests; the Swift is not compiled; not tried in the app.
 - **Daily brief (ADR-132).** Once a day ARK can write a few short lines about your day: weather, events, reminders, finished tasks and what waits for you. It shows them as a card at the top of a new chat and on the Dashboard. It is off until you turn it on in Settings → General. No tests; the Swift is not compiled; not tried in the app.
 - **Review view, Ask ARK, quick actions, search keyboard (ADR-133, ADR-134).** Tinker's suggestions show as a diff. A note can be changed by asking ARK. ⌃⌥K reads the text selected in any app and offers Summarize, Translate, Fix, Shorter and more, with Replace. ↑ ↓ Return work in the search list. No tests; the Swift is not compiled; not tried in the app.
+
+## Rust Phase 3 start: ark-app — 12 November 2026
+
+- ADR-278, Phase 3: the new crates `ark-ui` (UI state, no window code) and `ark-app` (a Rune window) hold the Rust ARK app. The Swift app stays the shipping app.
+- `ark-app` starts the runtime child (`ARK_RUNTIME_BIN`, `ARK_RUNTIME_ARGS`) and talks the island protocol on a background thread. `ark-ui` folds each event into the model.
+- Screens: sidebar with chat list, chat (Markdown replies, tool cards, approval cards with Allow and Decline, ask-user cards, composer), settings, agents, tasks and dashboard. The look is the OpenCode theme of Rune.
+- The protocol has no text-delta event, so a reply appears whole, as `reply` sends it.
+- Verified: `ark-ui` unit tests, a bridge test against `ark-fake-runtime`, and headless tests (`--snap`, `--tree`, `--script` clicks and typing) with `ARK_UI_EVENTS`. Clippy is clean. No live run against the Node runtime. No GUI check by a person.

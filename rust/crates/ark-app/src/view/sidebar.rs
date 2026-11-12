@@ -35,5 +35,9 @@ pub fn view(app: &App, k: &Kit) -> El {
         }
         sidebar = sidebar.child(row.build(k).key(format!("chat-{id}")));
     }
+    for (screen, label) in [(Screen::Agents, "Agents"), (Screen::Tasks, "Tasks"), (Screen::Dashboard, "Dashboard"), (Screen::Settings, "Settings")] {
+        let row = SidebarRow::new(label).height(32.0).selected(app.screen == screen).on_select(move |s: &mut App, _| s.goto(screen));
+        sidebar = sidebar.footer(row.build(k).key(format!("nav-{}", label.to_lowercase())));
+    }
     sidebar.build(k)
 }

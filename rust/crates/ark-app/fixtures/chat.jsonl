@@ -5,3 +5,8 @@
 {"type":"state","state":"thinking"}
 {"type":"chat.work","chat":"c1","turn":"t1","startedAt":"2026-11-12T10:01:00Z","elapsedMs":2400,"state":"working","calls":[{"id":"k1","tool":"Read","state":"ok","ms":120},{"id":"k2","tool":"run_command","state":"started"}],"omitted":0,"questions":[]}
 {"type":"approval.request","id":"a1","summary":"Run `cargo test` in rust/","reason":"The command changes files in target/."}
+{"type":"info","provider":"claude","model":"opus","providers":[{"id":"claude","name":"Claude","available":true,"models":[{"id":"opus","name":"Opus"},{"id":"sonnet","name":"Sonnet"}]},{"id":"gemini","name":"Gemini","available":false,"models":[{"id":"flash","name":"Flash"}]}]}
+{"type":"api","on":true,"port":4317,"tokenFile":"/tmp/token"}
+{"type":"plan.usage","fiveHour":0.42,"sevenDay":0.18}
+{"type":"helpers","helpers":[{"id":"sid","name":"Sid","role":"researcher","available":true,"kit":"research","jobs":[{"id":1,"task":"Compare Rune and egui","state":"done","createdAt":"x","title":"Rune vs egui","summary":"Rune fits better."},{"id":2,"task":"Read the island protocol","state":"running","step":"Reading docs","createdAt":"x"}]},{"id":"dev","name":"Dev","role":"coder","available":true,"kit":"folders","jobs":[{"id":3,"task":"Fix the build","state":"failed","error":"cargo test failed","createdAt":"x"}]},{"id":"fin","name":"Fin","role":"financial adviser","available":false,"jobs":[]}],"apps":[]}
+{"type":"stats","days":7,"turns":14,"avgTurnMs":2300,"slowTurns":1,"totalCalls":52,"totalFailed":3,"tools":[{"name":"Read","calls":30,"failed":0,"avgMs":14,"repeats":0},{"name":"run_command","calls":12,"failed":3,"avgMs":820,"repeats":0}]}

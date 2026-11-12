@@ -92,6 +92,80 @@ pub struct Approval {
     pub reason: String,
 }
 
+/// One AI provider and its models (`info` event). Never carries keys.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Provider {
+    pub id: String,
+    pub name: String,
+    pub available: bool,
+    /// (id, name) of each model.
+    pub models: Vec<(String, String)>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JobState {
+    Queued,
+    Running,
+    Done,
+    Failed,
+    Stopped,
+}
+
+/// One task of a helper (`helpers` event, `jobs`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Job {
+    pub id: u64,
+    pub helper: String,
+    pub task: String,
+    pub state: JobState,
+    pub step: Option<String>,
+    pub title: Option<String>,
+    pub summary: Option<String>,
+    pub error: Option<String>,
+    /// Why a runnable task waits for the user (a plan to approve, an interrupted run).
+    pub held: Option<String>,
+}
+
+/// One helper, a worker agent (`helpers` event).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Helper {
+    pub id: String,
+    pub name: String,
+    pub role: String,
+    pub available: bool,
+    pub kit: Option<String>,
+    pub custom: bool,
+    pub jobs: Vec<Job>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ToolRow {
+    pub name: String,
+    pub calls: u64,
+    pub failed: u64,
+    pub avg_ms: u64,
+}
+
+/// The numbers of the Stats page (`stats` event).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Stats {
+    pub days: u64,
+    pub turns: u64,
+    pub avg_turn_ms: u64,
+    pub slow_turns: u64,
+    pub total_calls: u64,
+    pub total_failed: u64,
+    pub tools: Vec<ToolRow>,
+}
+
+/// The local API (`api` event).
+#[derive(Debug, Clone, PartialEq)]
+pub struct ApiStatus {
+    pub on: bool,
+    pub port: u16,
+    pub error: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Model {
     pub conn: Conn,
@@ -106,6 +180,17 @@ pub struct Model {
     pub approvals: Vec<Approval>,
     /// The last error or notice, in words for the user.
     pub banner: Option<String>,
+    pub providers: Vec<Provider>,
+    pub microphone: String,
+    pub voice: bool,
+    pub telegram: bool,
+    pub computer: bool,
+    pub api: Option<ApiStatus>,
+    /// None until the runtime answers `helpers.list`.
+    pub helpers: Option<Vec<Helper>>,
+    pub stats: Option<Stats>,
+    /// The share of the plan used: (five hours, seven days), 0 to 1.
+    pub plan_usage: (Option<f64>, Option<f64>),
 }
 
 fn str_of(map: &Map<String, Value>, key: &str) -> String {
@@ -122,6 +207,61 @@ fn u64_of(map: &Map<String, Value>, key: &str) -> u64 {
 
 fn objects<'a>(map: &'a Map<String, Value>, key: &str) -> impl Iterator<Item = &'a Map<String, Value>> {
     map.get(key).and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_object)
+}
+
+fn parse_providers(map: &Map<String, Value>) -> Vec<Provider> {
+    objects(map, "providers")
+        .map(|p| Provider {
+            id: str_of(p, "id"),
+            name: str_of(p, "name"),
+            available: bool_of(p, "available"),
+            models: objects(p, "models").map(|m| (str_of(m, "id"), str_of(m, "name"))).collect(),
+        })
+        .collect()
+}
+
+fn opt_str(map: &Map<String, Value>, key: &str) -> Option<String> {
+    map.get(key).and_then(Value::as_str).filter(|s| !s.is_empty()).map(str::to_owned)
+}
+
+fn parse_helpers(map: &Map<String, Value>) -> Vec<Helper> {
+    objects(map, "helpers")
+        .map(|h| {
+            let id = str_of(h, "id");
+            let jobs = objects(h, "jobs")
+                .map(|j| Job {
+                    id: u64_of(j, "id"),
+                    helper: id.clone(),
+                    task: str_of(j, "task"),
+                    state: match str_of(j, "state").as_str() {
+                        "running" => JobState::Running,
+                        "done" => JobState::Done,
+                        "failed" => JobState::Failed,
+                        "stopped" => JobState::Stopped,
+                        _ => JobState::Queued,
+                    },
+                    step: opt_str(j, "step"),
+                    title: opt_str(j, "title"),
+                    summary: opt_str(j, "summary"),
+                    error: opt_str(j, "error"),
+                    held: opt_str(j, "held"),
+                })
+                .collect();
+            Helper { name: str_of(h, "name"), role: str_of(h, "role"), available: bool_of(h, "available"), kit: opt_str(h, "kit"), custom: bool_of(h, "custom"), jobs, id }
+        })
+        .collect()
+}
+
+fn parse_stats(map: &Map<String, Value>) -> Stats {
+    Stats {
+        days: u64_of(map, "days"),
+        turns: u64_of(map, "turns"),
+        avg_turn_ms: u64_of(map, "avgTurnMs"),
+        slow_turns: u64_of(map, "slowTurns"),
+        total_calls: u64_of(map, "totalCalls"),
+        total_failed: u64_of(map, "totalFailed"),
+        tools: objects(map, "tools").map(|t| ToolRow { name: str_of(t, "name"), calls: u64_of(t, "calls"), failed: u64_of(t, "failed"), avg_ms: u64_of(t, "avgMs") }).collect(),
+    }
 }
 
 fn parse_work(map: &Map<String, Value>) -> Work {
@@ -187,6 +327,18 @@ impl Model {
             || self.work.as_ref().is_some_and(|w| w.state == WorkState::Working)
     }
 
+    /// Every task of every helper, running first, then queued, then the newest ended ones.
+    pub fn jobs(&self) -> Vec<&Job> {
+        let mut jobs: Vec<&Job> = self.helpers.iter().flatten().flat_map(|h| h.jobs.iter()).collect();
+        let rank = |j: &Job| match j.state {
+            JobState::Running => 0,
+            JobState::Queued => 1,
+            _ => 2,
+        };
+        jobs.sort_by(|a, b| rank(a).cmp(&rank(b)).then(b.id.cmp(&a.id)));
+        jobs
+    }
+
     pub fn current_title(&self) -> &str {
         self.current.as_deref().and_then(|id| self.chats.iter().find(|c| c.id == id)).map_or("New chat", |c| c.title.as_str())
     }
@@ -195,7 +347,11 @@ impl Model {
     pub fn apply(&mut self, event: &Event) -> bool {
         let before = self.clone();
         match event {
-            Event::Ready { provider, model, .. } => {
+            Event::Ready { provider, model, microphone, voice, telegram, computer, .. } => {
+                self.microphone.clone_from(microphone);
+                self.voice = *voice;
+                self.telegram = telegram.unwrap_or(false);
+                self.computer = computer.unwrap_or(false);
                 self.conn = Conn::Ready;
                 self.provider.clone_from(provider);
                 self.model.clone_from(model);
@@ -212,6 +368,7 @@ impl Model {
                 self.approvals.clear();
             }
             Event::ApprovalClosed { id } => self.close_approval(id),
+            Event::Api { on, port, error, .. } => self.api = Some(ApiStatus { on: *on, port: *port, error: error.clone() }),
             Event::Notice { message, .. } => self.banner = Some(message.clone()),
             Event::Error { message, .. } => self.banner = Some(message.clone()),
             Event::Other(map) => self.apply_other(map),
@@ -225,7 +382,11 @@ impl Model {
             "info" => {
                 self.provider = str_of(map, "provider");
                 self.model = str_of(map, "model");
+                self.providers = parse_providers(map);
             }
+            "helpers" => self.helpers = Some(parse_helpers(map)),
+            "stats" => self.stats = Some(parse_stats(map)),
+            "plan.usage" => self.plan_usage = (map.get("fiveHour").and_then(Value::as_f64), map.get("sevenDay").and_then(Value::as_f64)),
             "chats" => {
                 self.chats = parse_chats(map);
                 let current = str_of(map, "current");
@@ -301,6 +462,31 @@ mod tests {
         assert_eq!(m.approvals.len(), 1);
         feed(&mut m, &[r#"{"type":"reply","text":"x"}"#, r#"{"type":"conversation.reset"}"#]);
         assert!(m.messages.is_empty() && m.approvals.is_empty());
+    }
+
+    #[test]
+    fn folds_settings_agents_tasks_and_stats() {
+        let mut m = Model::default();
+        feed(
+            &mut m,
+            &[
+                r#"{"type":"ready","protocol":1,"provider":"claude","model":"opus","microphone":"Mac mini Mic","voice":true,"telegram":true}"#,
+                r#"{"type":"info","provider":"claude","model":"opus","providers":[{"id":"claude","name":"Claude","available":true,"models":[{"id":"opus","name":"Opus"},{"id":"sonnet","name":"Sonnet"}]}]}"#,
+                r#"{"type":"api","on":true,"port":4317,"tokenFile":"t"}"#,
+                r#"{"type":"helpers","helpers":[{"id":"sid","name":"Sid","role":"researcher","available":true,"kit":"research","jobs":[{"id":1,"task":"old","state":"done","createdAt":"x"},{"id":2,"task":"now","state":"running","step":"Reading","createdAt":"x"}]},{"id":"dev","name":"Dev","role":"coder","available":false,"jobs":[{"id":3,"task":"wait","state":"queued","held":"Plan waits","createdAt":"x"}]}],"apps":[]}"#,
+                r#"{"type":"stats","days":7,"turns":4,"avgTurnMs":900,"slowTurns":1,"totalCalls":10,"totalFailed":2,"tools":[{"name":"Read","calls":6,"failed":0,"avgMs":12,"repeats":0}]}"#,
+                r#"{"type":"plan.usage","fiveHour":0.42}"#,
+            ],
+        );
+        assert!(m.voice && m.telegram && !m.computer);
+        assert_eq!(m.providers[0].models.len(), 2);
+        assert_eq!(m.api.as_ref().map(|a| a.port), Some(4317));
+        let helpers = m.helpers.as_ref().map(Vec::len);
+        assert_eq!(helpers, Some(2));
+        let order: Vec<u64> = m.jobs().iter().map(|j| j.id).collect();
+        assert_eq!(order, vec![2, 3, 1]);
+        assert_eq!(m.stats.as_ref().map(|s| s.tools[0].calls), Some(6));
+        assert_eq!(m.plan_usage.0, Some(0.42));
     }
 
     #[test]

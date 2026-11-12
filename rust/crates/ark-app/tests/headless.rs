@@ -76,3 +76,24 @@ fn enter_sends_the_draft_and_clears_the_composer() {
     let sent = tree_after("sent", "chat.jsonl", Some(r#"[{"t":0.1,"type":"type","text":"zzqx"},{"t":0.4,"type":"key","name":"Enter"}]"#));
     assert!(!sent.contains("zzqx"), "the composer kept the draft after Enter");
 }
+
+#[test]
+fn the_sidebar_opens_the_pages() {
+    let page = |tag: &str, key: &str| tree_after(tag, "chat.jsonl", Some(&format!(r#"[{{"t":0.2,"type":"click","key":"{key}"}}]"#)));
+    let tasks = page("nav-tasks", "nav-tasks");
+    for want in ["Read the island protocol", "Fix the build", "cargo test failed", "Stop", "Retry"] {
+        assert!(tasks.contains(want), "tasks page lacks {want:?}");
+    }
+    let agents = page("nav-agents", "nav-agents");
+    for want in ["Sid", "researcher", "Coming soon", "Reading docs"] {
+        assert!(agents.contains(want), "agents page lacks {want:?}");
+    }
+    let dashboard = page("nav-dashboard", "nav-dashboard");
+    for want in ["Average answer", "2300 ms", "run_command", "12 calls"] {
+        assert!(dashboard.contains(want), "dashboard lacks {want:?}");
+    }
+    let settings = page("nav-settings", "nav-settings");
+    for want in ["Opus", "Sonnet", "Gemini (no key)", "On, port 4317", "42%"] {
+        assert!(settings.contains(want), "settings page lacks {want:?}");
+    }
+}

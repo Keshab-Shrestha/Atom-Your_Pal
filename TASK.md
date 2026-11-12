@@ -3001,3 +3001,9 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 - Recommended next after current acceptance checks: bounded provider context plus paged own-chat retrieval; clear durable work/approval/limit recovery; draft and attachment recovery; then reading/copying and the existing workspace/settings proposals. Existing kept-chat retrieval is acknowledged. No product, billing or permission behavior changed.
 - Verified local Markdown targets, pinned source references, named test paths and Git whitespace/diff scope. Application tests were not repeated for documentation-only edits. The unrelated `graphify-out/` directory remains untouched.
 - Next implementation capability remains a user choice; this review does not start the deferred chat plan or any other feature.
+
+## Rust Phase 3 start: ark-app — 12 November 2026
+
+- Add `rust/crates/ark-ui` (model) and `rust/crates/ark-app` (bridge, views, `ark-fake-runtime`).
+- Test: `cargo test -p ark-ui -p ark-app` in `rust/`. Headless runs read `ARK_UI_EVENTS=<file.jsonl>`; see `rust/crates/ark-app/fixtures/`.
+- Next: settings that write (speech, Telegram, API switches), agent soul editor, task creation, memory and brain pages, native menu and status item, attachments in the composer.
