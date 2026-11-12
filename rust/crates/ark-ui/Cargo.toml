@@ -1,0 +1,13 @@
+[package]
+name = "ark-ui"
+version = "0.0.1"
+edition.workspace = true
+publish = false
+description = "Phase 3: the UI state of the ARK app (ADR-278). It folds island events into a model. No window code."
+
+[dependencies]
+ark-protocol = { path = "../ark-protocol" }
+serde_json = "1"
+
+[lints]
+workspace = true

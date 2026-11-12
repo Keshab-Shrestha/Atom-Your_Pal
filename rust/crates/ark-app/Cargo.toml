@@ -1,0 +1,22 @@
+[package]
+name = "ark-app"
+version = "0.0.1"
+edition.workspace = true
+publish = false
+description = "Phase 3: the ARK app in Rust (ADR-278). A Rune window that talks to ark-runtime over the island protocol."
+default-run = "ark-app"
+
+[dependencies]
+ark-protocol = { path = "../ark-protocol" }
+ark-ui = { path = "../ark-ui" }
+# The same Rune features as ark-hello, and the Markdown component.
+rune = { path = "../../vendor/rune/crates/rune", default-features = false, features = ["accessibility", "embedded-fonts", "metal-backend", "svg"] }
+rune-kit = { path = "../../vendor/rune/crates/rune-kit", features = ["markdown"] }
+rune-theme-opencode = { path = "../../vendor/rune/themes/opencode" }
+serde_json = "1"
+
+[dev-dependencies]
+png = "0.18"
+
+[lints]
+workspace = true

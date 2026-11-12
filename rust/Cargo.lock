@@ -189,6 +189,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ark-app"
+version = "0.0.1"
+dependencies = [
+ "ark-protocol",
+ "ark-ui",
+ "png 0.18.1",
+ "rune",
+ "rune-kit",
+ "rune-theme-opencode",
+ "serde_json",
+]
+
+[[package]]
 name = "ark-core"
 version = "0.0.1"
 dependencies = [
@@ -262,6 +275,14 @@ dependencies = [
  "reqwest",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "ark-ui"
+version = "0.0.1"
+dependencies = [
+ "ark-protocol",
+ "serde_json",
 ]
 
 [[package]]
