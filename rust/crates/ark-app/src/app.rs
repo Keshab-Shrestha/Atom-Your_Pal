@@ -29,6 +29,8 @@ pub struct App {
     pub sidebar: PaneState,
     pub screen: Screen,
     /// An open form (soul, new agent, new task); it replaces the page while it is open.
+    /// The command palette's filter. None when it is closed.
+    pub palette: Option<TextEdit>,
     /// The find bar: the query and the selected match. None when the bar is closed.
     pub find: Option<(TextEdit, usize)>,
     /// Files attached to the next message (paths).
@@ -67,7 +69,7 @@ pub fn init() -> App {
     };
     // Tests and snapshots open the find bar with a query.
     let find = std::env::var("ARK_UI_FIND").ok().map(|q| (TextEdit::new(q), 0));
-    App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen, find, attachments: Vec::new(), form: None, form_error: None }
+    App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: None, form_error: None }
 }
 
 /// Starts the runtime child once, with the waker that redraws the window when an event arrives.

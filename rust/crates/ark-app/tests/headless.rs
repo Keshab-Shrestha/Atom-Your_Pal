@@ -137,3 +137,19 @@ fn find_in_chat_counts_matches() {
     let text = std::fs::read_to_string(&tree).expect("tree written");
     assert!(text.contains(" of ") && text.contains("Previous") && text.contains("List the crates."), "the find bar lacks its parts");
 }
+
+#[test]
+fn the_palette_lists_screens_and_chats() {
+    let tree = fresh("palette-tree.json");
+    let out = Command::new(env!("CARGO_BIN_EXE_ark-app"))
+        .args(["--tree", tree.to_str().expect("utf-8")])
+        .env("ARK_UI_EVENTS", fixture("chat.jsonl"))
+        .env("ARK_UI_PALETTE", "1")
+        .output()
+        .expect("ark-app starts");
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let text = std::fs::read_to_string(&tree).expect("tree written");
+    for want in ["Go to Settings", "New chat", "Open chat: Plan the Rust port"] {
+        assert!(text.contains(want), "the palette lacks {want:?}");
+    }
+}
