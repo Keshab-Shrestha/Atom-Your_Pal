@@ -22,6 +22,11 @@
 - Rune patches found (not made): hover in a panel while another app is active; native child views in the accessibility tree; `.hudWindow` and `.sidebar` cases in `SystemMaterial`. Decide each in Phase 3 (decision 11: patch and open an upstream issue).
 - Next: the owner fills in the checklist. Then Phase 1 starts.
 
+## Rust Phase 2 chunk A.1: ark-protocol crate — 12 November 2026
+
+- ADR-278, Phase 2: `rust/crates/ark-protocol` holds the island protocol as serde types. It has a `Command` enum (about 140 typed commands, plus `Other` for the commands whose shape lives in another TypeScript module) and an `Event` enum (the small events typed, the rest `Other`). `parse_command` and `Event::to_line` are the line codec. The shape check is structural. Node keeps the full value check.
+- `rust/scripts/gen-fixtures.ts` writes `crates/ark-protocol/tests/fixtures/protocol.json` from the TypeScript parser and encoder. The Rust test compares the command names, the parse result of 65 lines and the round trip of 30 events.
+
 ## Rust Phase 2.1: ark-runtime forwarder — 12 November 2026
 
 - ADR-278, Phase 2 PR 1: `rust/crates/ark-runtime` is a pure forwarder (std threads and `libc`, no tokio). `ark-runtime <program> [args...]` starts the Node runtime and copies each line both ways without a change. Stderr, the exit code and the stop signals pass through.

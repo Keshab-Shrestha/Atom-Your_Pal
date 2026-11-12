@@ -1,0 +1,876 @@
+{
+ "source": "apps/mac/src/island-commands.ts, apps/mac/src/island-protocol.ts",
+ "commandNames": [
+  "talk.start",
+  "talk.send",
+  "talk.cancel",
+  "conversation.reset",
+  "model.set",
+  "model.refresh",
+  "chat.reasoning",
+  "chat.access",
+  "chat.defaults",
+  "panels.list",
+  "watches.get",
+  "stats.get",
+  "improvements.get",
+  "improvements.run",
+  "improvements.set",
+  "improvement.dismiss",
+  "improvement.fixing",
+  "apps.list",
+  "app.open",
+  "app.remove",
+  "app.call",
+  "watch.remove",
+  "panel.save",
+  "panel.delete",
+  "workflows.list",
+  "workflow.save",
+  "workflow.delete",
+  "workflow.run",
+  "chat.model",
+  "approval.answer",
+  "memory.list",
+  "brain.get",
+  "brain.source",
+  "source.analysis",
+  "local.backup",
+  "brain.note",
+  "brain.save",
+  "brain.delete",
+  "brain.search",
+  "commands.list",
+  "skill.get",
+  "skill.save",
+  "chats.list",
+  "chats.export",
+  "chats.clear",
+  "chat.control",
+  "chat.question.answer",
+  "chat.work.watch",
+  "foreground.list",
+  "foreground.read",
+  "foreground.dismiss",
+  "foreground.ack",
+  "chat.new",
+  "chat.rename",
+  "project.add",
+  "project.create",
+  "project.create.cancel",
+  "project.rename",
+  "project.remove",
+  "project.archive",
+  "project.model",
+  "project.web",
+  "chat.open",
+  "chat.delete",
+  "memory.keepChat",
+  "memory.dropChat",
+  "git.list",
+  "git.push",
+  "git.diff",
+  "memory.forget",
+  "memory.clear",
+  "suggestions.get",
+  "suggestions.accept",
+  "suggestions.deny",
+  "suggestions.undo",
+  "suggestions.set",
+  "text.edit",
+  "reply.context",
+  "reply.draft",
+  "reply.cancel",
+  "text.edit.cancel",
+  "brief.get",
+  "brief.run",
+  "brief.set",
+  "brief.note",
+  "text.send",
+  "episode.forget",
+  "episode.clear",
+  "context.window",
+  "helpers.list",
+  "speech.set",
+  "telegram.set",
+  "api.set",
+  "owner.set",
+  "api.regenerate",
+  "tools.scan",
+  "ai.programs.scan",
+  "ai.programs.allow",
+  "chat.warm",
+  "helper.set",
+  "job.add",
+  "plan.approve",
+  "plan.reject",
+  "plan.dismiss",
+  "helper.planFirst",
+  "helper.browser",
+  "routine.delete",
+  "routine.pause",
+  "routine.add",
+  "routine.update",
+  "grant.add",
+  "helper.skills",
+  "job.rate",
+  "job.open",
+  "job.retry",
+  "mcp.add",
+  "mcp.remove",
+  "mcp.set",
+  "mcp.test",
+  "agent.create",
+  "agent.remove",
+  "agent.pause",
+  "proposal.accept",
+  "proposal.reject",
+  "proposal.undo",
+  "skill.make",
+  "skill.hub.search",
+  "skill.hub.preview",
+  "skill.hub.approve",
+  "skill.hub.reject",
+  "skill.hub.uninstall",
+  "skill.hub.update",
+  "skill.approve",
+  "skill.reject",
+  "skill.edit.accept",
+  "skill.edit.reject",
+  "skill.edit.undo",
+  "testcase.save",
+  "testcase.delete",
+  "testcase.run",
+  "grant.remove",
+  "job.stop",
+  "job.fresh",
+  "job.delete",
+  "helper.pin",
+  "helper.codex.pin",
+  "helper.reportsTo",
+  "helpers.settings",
+  "computer.mode",
+  "computer.decisions",
+  "computer.decision.result",
+  "soul.set",
+  "soul.restore",
+  "job.block",
+  "comment.add",
+  "job.steer",
+  "job.interrupt",
+  "job.undo",
+  "workspace",
+  "search",
+  "job.label.add",
+  "job.label.remove",
+  "thread.get",
+  "quit"
+ ],
+ "cases": [
+  {
+   "line": "",
+   "out": {
+    "blank": true
+   }
+  },
+  {
+   "line": "   ",
+   "out": {
+    "blank": true
+   }
+  },
+  {
+   "line": "not json",
+   "out": {
+    "error": "Command is not valid JSON."
+   }
+  },
+  {
+   "line": "[1]",
+   "out": {
+    "error": "Command must be a JSON object."
+   }
+  },
+  {
+   "line": "3",
+   "out": {
+    "error": "Command must be a JSON object."
+   }
+  },
+  {
+   "line": "{}",
+   "out": {
+    "error": "Command has no \"type\"."
+   }
+  },
+  {
+   "line": "{\"type\":3}",
+   "out": {
+    "error": "Command has no \"type\"."
+   }
+  },
+  {
+   "line": "{\"type\":\"nope\"}",
+   "out": {
+    "error": "Unknown command \"nope\"."
+   }
+  },
+  {
+   "line": "{\"type\":\"x\".repeat}",
+   "out": {
+    "error": "Command is not valid JSON."
+   }
+  },
+  {
+   "line": "{\"type\":\"talk.start\"}",
+   "out": {
+    "command": {
+     "type": "talk.start"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"talk.send\"}",
+   "out": {
+    "command": {
+     "type": "talk.send"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"talk.cancel\"}",
+   "out": {
+    "command": {
+     "type": "talk.cancel"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"conversation.reset\"}",
+   "out": {
+    "command": {
+     "type": "conversation.reset"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"quit\"}",
+   "out": {
+    "command": {
+     "type": "quit"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"talk.start\",\"extra\":1}",
+   "out": {
+    "command": {
+     "type": "talk.start"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"model.set\",\"provider\":\"gemini\",\"model\":\"gemini-3.6-flash\"}",
+   "out": {
+    "command": {
+     "type": "model.set",
+     "provider": "gemini",
+     "model": "gemini-3.6-flash"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"model.set\",\"provider\":\"gemini\"}",
+   "out": {
+    "error": "model.set needs a \"model\" string."
+   }
+  },
+  {
+   "line": "{\"type\":\"approval.answer\",\"id\":\"a1\",\"approved\":true}",
+   "out": {
+    "command": {
+     "type": "approval.answer",
+     "id": "a1",
+     "approved": true
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"approval.answer\",\"id\":\"a1\",\"approved\":true,\"rememberFile\":true}",
+   "out": {
+    "command": {
+     "type": "approval.answer",
+     "id": "a1",
+     "approved": true,
+     "rememberFile": true
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"approval.answer\",\"id\":\"a1\",\"approved\":\"yes\"}",
+   "out": {
+    "error": "approval.answer needs \"approved\" to be true or false."
+   }
+  },
+  {
+   "line": "{\"type\":\"brain.get\"}",
+   "out": {
+    "command": {
+     "type": "brain.get"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"brain.note\",\"id\":3}",
+   "out": {
+    "command": {
+     "type": "brain.note",
+     "id": 3
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"brain.note\",\"id\":\"3\"}",
+   "out": {
+    "error": "brain.note needs an \"id\" that is a whole number."
+   }
+  },
+  {
+   "line": "{\"type\":\"brain.search\",\"query\":\"oslo\"}",
+   "out": {
+    "command": {
+     "type": "brain.search",
+     "query": "oslo"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"brain.save\",\"title\":\"T\",\"body\":\"B\"}",
+   "out": {
+    "command": {
+     "type": "brain.save",
+     "title": "T",
+     "body": "B"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"brain.save\",\"id\":4,\"title\":\"T\",\"body\":\"B\"}",
+   "out": {
+    "command": {
+     "type": "brain.save",
+     "id": 4,
+     "title": "T",
+     "body": "B"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"memory.list\"}",
+   "out": {
+    "command": {
+     "type": "memory.list"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"memory.forget\",\"id\":3}",
+   "out": {
+    "command": {
+     "type": "memory.forget",
+     "id": 3
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"memory.clear\"}",
+   "out": {
+    "command": {
+     "type": "memory.clear"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"text.send\",\"text\":\"hi\"}",
+   "out": {
+    "command": {
+     "type": "text.send",
+     "text": "hi"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"text.send\",\"text\":\"hi\",\"files\":[\"/a/b\"]}",
+   "out": {
+    "command": {
+     "type": "text.send",
+     "text": "hi",
+     "files": [
+      "/a/b"
+     ]
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"text.edit\",\"id\":\"e1\",\"text\":\"abc\",\"selection\":[0,2],\"instruction\":\"shorter\"}",
+   "out": {
+    "command": {
+     "type": "text.edit",
+     "id": "e1",
+     "text": "abc",
+     "instruction": "shorter",
+     "selection": [
+      0,
+      2
+     ]
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"text.edit.cancel\",\"id\":\"e1\"}",
+   "out": {
+    "command": {
+     "type": "text.edit.cancel",
+     "id": "e1"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"brief.set\",\"change\":{\"enabled\":true,\"minute\":480}}",
+   "out": {
+    "command": {
+     "type": "brief.set",
+     "change": {
+      "enabled": true,
+      "minute": 480
+     }
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"brief.get\"}",
+   "out": {
+    "command": {
+     "type": "brief.get"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"chat.new\"}",
+   "out": {
+    "command": {
+     "type": "chat.new"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"chat.new\",\"projectId\":\"p1\"}",
+   "out": {
+    "command": {
+     "type": "chat.new",
+     "projectId": "p1"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"chat.open\",\"id\":\"c1\"}",
+   "out": {
+    "command": {
+     "type": "chat.open",
+     "id": "c1"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"job.add\",\"helper\":\"sid\",\"task\":\"Do it\",\"blockedBy\":[1]}",
+   "out": {
+    "command": {
+     "type": "job.add",
+     "helper": "sid",
+     "task": "Do it",
+     "blockedBy": [
+      1
+     ]
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"job.stop\",\"id\":12}",
+   "out": {
+    "command": {
+     "type": "job.stop",
+     "id": 12
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"job.rate\",\"id\":12,\"good\":false,\"comment\":\"Only one source\"}",
+   "out": {
+    "command": {
+     "type": "job.rate",
+     "id": 12,
+     "good": false,
+     "comment": "Only one source"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"helper.reportsTo\",\"helper\":\"sid\",\"lead\":null}",
+   "out": {
+    "command": {
+     "type": "helper.reportsTo",
+     "helper": "sid",
+     "lead": null
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"helper.reportsTo\",\"helper\":\"sid\",\"lead\":\"kame\"}",
+   "out": {
+    "command": {
+     "type": "helper.reportsTo",
+     "helper": "sid",
+     "lead": "kame"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"helpers.list\"}",
+   "out": {
+    "command": {
+     "type": "helpers.list"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"thread.get\",\"id\":5}",
+   "out": {
+    "command": {
+     "type": "thread.get",
+     "id": 5
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"search\",\"query\":\"x\"}",
+   "out": {
+    "command": {
+     "type": "search",
+     "query": "x"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"routine.add\",\"helper\":\"researcher\",\"task\":\"News\",\"kind\":\"daily\",\"minute\":480}",
+   "out": {
+    "command": {
+     "type": "routine.add",
+     "helper": "researcher",
+     "task": "News",
+     "kind": "daily",
+     "minute": 480
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"routine.update\",\"id\":2,\"helper\":\"researcher\",\"task\":\"News\",\"kind\":\"hours\",\"every\":4}",
+   "out": {
+    "command": {
+     "type": "routine.update",
+     "id": 2,
+     "helper": "researcher",
+     "task": "News",
+     "kind": "hours",
+     "every": 4
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"agent.create\",\"name\":\"Rumi\",\"role\":\"travel planner\",\"kit\":\"research\",\"personality\":\"p\",\"howItWorks\":\"h\",\"rules\":\"r\"}",
+   "out": {
+    "command": {
+     "type": "agent.create",
+     "name": "Rumi",
+     "role": "travel planner",
+     "kit": "research",
+     "personality": "p",
+     "howItWorks": "h",
+     "rules": "r"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"soul.set\",\"helper\":\"sid\",\"soul\":{\"name\":\"Sid\",\"personality\":\"p\",\"howItWorks\":\"h\",\"rules\":\"r\",\"lessons\":\"l\"}}",
+   "out": {
+    "command": {
+     "type": "soul.set",
+     "helper": "sid",
+     "soul": {
+      "name": "Sid",
+      "personality": "p",
+      "howItWorks": "h",
+      "rules": "r",
+      "lessons": "l"
+     }
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"grant.add\",\"helper\":\"kame\",\"path\":\"/Users/k/app\"}",
+   "out": {
+    "command": {
+     "type": "grant.add",
+     "helper": "kame",
+     "path": "/Users/k/app"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"context.window\",\"bundleId\":\"com.x\",\"name\":\"X\"}",
+   "out": {
+    "command": {
+     "type": "context.window",
+     "bundleId": "com.x",
+     "name": "X"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"speech.set\",\"reports\":true,\"updates\":false}",
+   "out": {
+    "command": {
+     "type": "speech.set",
+     "reports": true,
+     "updates": false
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"api.set\",\"on\":true}",
+   "out": {
+    "command": {
+     "type": "api.set",
+     "on": true
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"git.list\"}",
+   "out": {
+    "command": {
+     "type": "git.list"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"git.diff\",\"repo\":\"/r\",\"branch\":\"ark/t-1\"}",
+   "out": {
+    "error": "git.diff needs a \"repo\" (a full path) and a \"branch\" (ark/task-<id>)."
+   }
+  },
+  {
+   "line": "{\"type\":\"skill.get\",\"name\":\"pdf\"}",
+   "out": {
+    "command": {
+     "type": "skill.get",
+     "name": "pdf"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"commands.list\"}",
+   "out": {
+    "command": {
+     "type": "commands.list"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"job.undo\",\"id\":3,\"force\":true}",
+   "out": {
+    "command": {
+     "type": "job.undo",
+     "id": 3,
+     "force": true
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"mcp.set\",\"id\":1,\"enabled\":true}",
+   "out": {
+    "command": {
+     "type": "mcp.set",
+     "id": 1,
+     "enabled": true
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"project.add\",\"name\":\"P\",\"path\":\"/p\"}",
+   "out": {
+    "command": {
+     "type": "project.add",
+     "name": "P",
+     "path": "/p"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"workspace\",\"request\":\"11111111-1111-4111-8111-111111111111\",\"chat\":\"c\",\"project\":\"p\",\"action\":\"list\",\"path\":\"\"}",
+   "out": {
+    "command": {
+     "type": "workspace",
+     "request": "11111111-1111-4111-8111-111111111111",
+     "chat": "c",
+     "project": "p",
+     "action": "list",
+     "path": ""
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"brain.source\",\"request\":\"r1\",\"action\":\"get\"}",
+   "out": {
+    "command": {
+     "type": "brain.source",
+     "request": "r1",
+     "action": "get"
+    }
+   }
+  },
+  {
+   "line": "{\"type\":\"foreground.list\"}",
+   "out": {
+    "error": "Use the current recovery request ids and returned text cursor."
+   }
+  },
+  {
+   "line": "{\"type\":\"chat.control\",\"action\":\"x\"}",
+   "out": {
+    "error": "chat.control needs a saved chat, a known action and a request UUID."
+   }
+  }
+ ],
+ "eventCases": [
+  {
+   "line": "{\"type\":\"ready\",\"protocol\":1,\"provider\":\"gemini\",\"model\":\"m\",\"microphone\":\"Mic\",\"voice\":true}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"ready\",\"protocol\":1,\"provider\":\"gemini\",\"model\":\"m\",\"microphone\":\"Mic\",\"voice\":false,\"telegram\":true,\"computer\":false}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"state\",\"state\":\"thinking\"}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"mic.ready\"}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"mic.level\",\"peak\":0.5}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"mic.silent\",\"microphone\":\"Mic\"}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"transcript\",\"text\":\"hi\\nthere é\"}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"reply\",\"text\":\"ok\"}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"turn.complete\",\"speechMs\":0,\"transcriptionMs\":0,\"modelMs\":12,\"firstSoundMs\":3}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"turn.complete\",\"speechMs\":1,\"transcriptionMs\":2,\"modelMs\":3}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"notice\",\"kind\":\"too_short\",\"message\":\"m\"}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"conversation.reset\"}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"conversation.reset\",\"projectId\":\"p1\"}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"api\",\"on\":true,\"port\":8123,\"tokenFile\":\"/t\"}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"api\",\"on\":false,\"port\":8123,\"tokenFile\":\"/t\",\"error\":\"e\"}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"computer.step\",\"text\":\"Typing\"}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"computer.cursor\",\"x\":-10,\"y\":4.5}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"computer.end\"}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"settings.open\"}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"media.key\",\"key\":\"playpause\"}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"approval.closed\",\"id\":\"a1\"}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"timer\",\"id\":1,\"label\":\"l\",\"message\":\"m\"}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"worker.line\",\"line\":\"done\"}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"brain.hits\",\"query\":\"q\",\"hits\":[{\"id\":1,\"title\":\"T\",\"kind\":\"note\",\"snippet\":\"s\"}]}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"brain.note\",\"note\":{\"id\":1,\"title\":\"T\",\"body\":\"B\",\"kind\":\"note\",\"ghost\":false,\"tags\":[\"a\"],\"links\":[{\"id\":2,\"title\":\"U\",\"kind\":\"note\",\"ghost\":true,\"auto\":false}],\"backlinks\":[{\"id\":3,\"title\":\"V\",\"kind\":\"memory\",\"auto\":true}],\"updatedAt\":\"2026-11-01T00:00:00.000Z\"}}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"error\",\"stage\":\"settings\",\"message\":\"That note is gone.\"}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"error\",\"stage\":\"model\",\"message\":\"m\",\"kind\":\"rate\",\"retryable\":true}\n",
+   "typed": true
+  },
+  {
+   "line": "{\"type\":\"info\",\"provider\":\"p\",\"model\":\"m\",\"providers\":[]}\n",
+   "typed": false
+  },
+  {
+   "line": "{\"type\":\"capabilities\",\"items\":[]}\n",
+   "typed": false
+  },
+  {
+   "line": "{\"type\":\"plan.usage\",\"limited\":false,\"fiveHour\":0.5}\n",
+   "typed": false
+  }
+ ]
+}

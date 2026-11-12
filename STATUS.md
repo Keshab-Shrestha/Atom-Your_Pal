@@ -26,6 +26,12 @@
 - Verified: `cargo build --locked`, `cargo build --locked -p ark-spike`, clippy `--no-deps -D warnings` for both crates, `cargo test --locked` (2 pass) and `cargo test --locked -p ark-spike` (1 pass). The new lock entries: `ark-spike` and `objc2-web-kit` (Zlib OR Apache-2.0 OR MIT). CI builds and lints `ark-spike` and runs none of its checks.
 - Build: ark-spike adds 36 s to a clean debug build (it builds `rune` again with more objc2 features), 24 s of clippy and 6 s of tests.
 
+## Rust Phase 2 chunk A.1: ark-protocol — 12 November 2026
+
+- ADR-278, Phase 2: `ark-protocol` has the island commands and events as serde types and a line codec. 4 parity tests against TypeScript fixtures pass. `cargo clippy -p ark-protocol --all-targets -- -D warnings` is clean.
+- No new licence: `serde` and `serde_json` are in THIRD_PARTY.txt already.
+- Not done: typed shapes for the large events (`helpers`, `chats`, `thread`) and for the commands defined in other TypeScript modules. They stay `Other`.
+
 ## Rust Phase 2.1: ark-runtime forwarder — 12 November 2026
 
 - ADR-278, Phase 2 PR 1: `ark-runtime` forwards the island protocol between the Swift app and Node. The app uses it only with `ARK_RUNTIME=rust`. rust/README.md tells how to try it.

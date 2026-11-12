@@ -1,0 +1,13 @@
+[package]
+name = "ark-protocol"
+version = "0.0.1"
+edition.workspace = true
+publish = false
+description = "Phase 2: the island protocol (docs/island-protocol.md) as serde types and a line codec (ADR-278)."
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[lints]
+workspace = true

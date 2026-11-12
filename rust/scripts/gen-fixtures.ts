@@ -2,7 +2,7 @@
 // answer to rust/crates/ark-core/tests/fixtures/<module>.json; the Rust test `parity` checks its answers against them.
 // Run from the repository root: node rust/scripts/gen-fixtures.ts
 // Only TypeScript sources have fixtures. The Swift-only modules (ark-visual, questions, diffs) keep their ported tests.
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { classifyCommand, expandHome, folderForTask, hasGitPart, isImportantName, isInside, isPushCommand, toolPaths } from "../../services/helpers/src/grants.ts";
@@ -10,6 +10,8 @@ import { parseWriteScope, writeScopesOverlap } from "../../services/helpers/src/
 import { canMove, isFinal, isRetryable, makesCycle, move, type JobState } from "../../services/helpers/src/jobs.ts";
 import { quietWatch } from "../../apps/mac/src/job-quiet.ts";
 import { parseQuestions, toolName } from "../../apps/mac/src/chat-work.ts";
+import { parseCommand } from "../../apps/mac/src/island-commands.ts";
+import { encodeEvent, planUsageEvent } from "../../apps/mac/src/island-protocol.ts";
 import { callable, checkReportsTo, delegationProblem, handBackLine, handBackNeed, orgAgentIds, orgPrompt, resolveOrg, teamLine } from "../../apps/mac/src/org.ts";
 
 type Case = { fn: string; args: unknown[]; out: unknown };
@@ -229,4 +231,55 @@ function write(module: string, source: string, cases: Case[]): void {
     add("toolName", [name], () => toolName(name));
   }
   write("questions", "apps/mac/src/chat-work.ts (parseQuestions, toolName)", cases);
+}
+
+// ---- protocol (island-commands.ts, island-protocol.ts): fixtures of rust/crates/ark-protocol ----
+{
+  const protocolOut = join(dirname(fileURLToPath(import.meta.url)), "..", "crates", "ark-protocol", "tests", "fixtures");
+  mkdirSync(protocolOut, { recursive: true });
+  // The accepted command types: read from the TypeScript source, as the `COMMANDS` set is not exported.
+  const source = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "apps", "mac", "src", "island-commands.ts"), "utf8");
+  const set = /const COMMANDS = new Set<[^>]*>\(\[([\s\S]*?)\]\);/.exec(source)?.[1] ?? "";
+  const commandNames = [...set.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  const lines = [
+    "", "   ", "not json", "[1]", "3", "{}", '{"type":3}', '{"type":"nope"}', '{"type":"x".repeat}',
+    '{"type":"talk.start"}', '{"type":"talk.send"}', '{"type":"talk.cancel"}', '{"type":"conversation.reset"}', '{"type":"quit"}',
+    '{"type":"talk.start","extra":1}', '{"type":"model.set","provider":"gemini","model":"gemini-3.6-flash"}', '{"type":"model.set","provider":"gemini"}',
+    '{"type":"approval.answer","id":"a1","approved":true}', '{"type":"approval.answer","id":"a1","approved":true,"rememberFile":true}', '{"type":"approval.answer","id":"a1","approved":"yes"}',
+    '{"type":"brain.get"}', '{"type":"brain.note","id":3}', '{"type":"brain.note","id":"3"}', '{"type":"brain.search","query":"oslo"}', '{"type":"brain.save","title":"T","body":"B"}', '{"type":"brain.save","id":4,"title":"T","body":"B"}',
+    '{"type":"memory.list"}', '{"type":"memory.forget","id":3}', '{"type":"memory.clear"}', '{"type":"text.send","text":"hi"}', '{"type":"text.send","text":"hi","files":["/a/b"]}',
+    '{"type":"text.edit","id":"e1","text":"abc","selection":[0,2],"instruction":"shorter"}', '{"type":"text.edit.cancel","id":"e1"}',
+    '{"type":"brief.set","change":{"enabled":true,"minute":480}}', '{"type":"brief.get"}', '{"type":"chat.new"}', '{"type":"chat.new","projectId":"p1"}', '{"type":"chat.open","id":"c1"}',
+    '{"type":"job.add","helper":"sid","task":"Do it","blockedBy":[1]}', '{"type":"job.stop","id":12}', '{"type":"job.rate","id":12,"good":false,"comment":"Only one source"}',
+    '{"type":"helper.reportsTo","helper":"sid","lead":null}', '{"type":"helper.reportsTo","helper":"sid","lead":"kame"}', '{"type":"helpers.list"}', '{"type":"thread.get","id":5}', '{"type":"search","query":"x"}',
+    '{"type":"routine.add","helper":"researcher","task":"News","kind":"daily","minute":480}', '{"type":"routine.update","id":2,"helper":"researcher","task":"News","kind":"hours","every":4}',
+    '{"type":"agent.create","name":"Rumi","role":"travel planner","kit":"research","personality":"p","howItWorks":"h","rules":"r"}',
+    '{"type":"soul.set","helper":"sid","soul":{"name":"Sid","personality":"p","howItWorks":"h","rules":"r","lessons":"l"}}', '{"type":"grant.add","helper":"kame","path":"/Users/k/app"}',
+    '{"type":"context.window","bundleId":"com.x","name":"X"}', '{"type":"speech.set","reports":true,"updates":false}', '{"type":"api.set","on":true}', '{"type":"git.list"}', '{"type":"git.diff","repo":"/r","branch":"ark/t-1"}',
+    '{"type":"skill.get","name":"pdf"}', '{"type":"commands.list"}', '{"type":"job.undo","id":3,"force":true}', '{"type":"mcp.set","id":1,"enabled":true}',
+    '{"type":"project.add","name":"P","path":"/p"}', '{"type":"workspace","request":"11111111-1111-4111-8111-111111111111","chat":"c","project":"p","action":"list","path":""}',
+    '{"type":"brain.source","request":"r1","action":"get"}', '{"type":"foreground.list"}', '{"type":"chat.control","action":"x"}',
+  ];
+  const cases = lines.map((line) => {
+    const parsed = parseCommand(line);
+    return { line, out: "blank" in parsed ? { blank: true } : "error" in parsed ? { error: parsed.error } : { command: parsed.command } };
+  });
+  const events: unknown[] = [
+    { type: "ready", protocol: 1, provider: "gemini", model: "m", microphone: "Mic", voice: true },
+    { type: "ready", protocol: 1, provider: "gemini", model: "m", microphone: "Mic", voice: false, telegram: true, computer: false },
+    { type: "state", state: "thinking" }, { type: "mic.ready" }, { type: "mic.level", peak: 0.5 }, { type: "mic.silent", microphone: "Mic" },
+    { type: "transcript", text: "hi\nthere é" }, { type: "reply", text: "ok" },
+    { type: "turn.complete", speechMs: 0, transcriptionMs: 0, modelMs: 12, firstSoundMs: 3 }, { type: "turn.complete", speechMs: 1, transcriptionMs: 2, modelMs: 3 },
+    { type: "notice", kind: "too_short", message: "m" }, { type: "conversation.reset" }, { type: "conversation.reset", projectId: "p1" },
+    { type: "api", on: true, port: 8123, tokenFile: "/t" }, { type: "api", on: false, port: 8123, tokenFile: "/t", error: "e" },
+    { type: "computer.step", text: "Typing" }, { type: "computer.cursor", x: -10, y: 4.5 }, { type: "computer.end" }, { type: "settings.open" }, { type: "media.key", key: "playpause" },
+    { type: "approval.closed", id: "a1" }, { type: "timer", id: 1, label: "l", message: "m" }, { type: "worker.line", line: "done" },
+    { type: "brain.hits", query: "q", hits: [{ id: 1, title: "T", kind: "note", snippet: "s" }] },
+    { type: "brain.note", note: { id: 1, title: "T", body: "B", kind: "note", ghost: false, tags: ["a"], links: [{ id: 2, title: "U", kind: "note", ghost: true, auto: false }], backlinks: [{ id: 3, title: "V", kind: "memory", auto: true }], updatedAt: "2026-11-01T00:00:00.000Z" } },
+    { type: "error", stage: "settings", message: "That note is gone." }, { type: "error", stage: "model", message: "m", kind: "rate", retryable: true },
+    { type: "info", provider: "p", model: "m", providers: [] }, { type: "capabilities", items: [] }, planUsageEvent({ fiveHour: 0.5, limited: false }),
+  ];
+  const eventCases = events.map((event) => ({ line: encodeEvent(event as Parameters<typeof encodeEvent>[0]), typed: !["info", "capabilities", "plan.usage"].includes((event as { type: string }).type) }));
+  writeFileSync(join(protocolOut, "protocol.json"), `${JSON.stringify({ source: "apps/mac/src/island-commands.ts, apps/mac/src/island-protocol.ts", commandNames, cases, eventCases }, null, 1)}\n`);
+  console.log(`protocol: ${commandNames.length} command names, ${cases.length} command lines, ${eventCases.length} events`);
 }
