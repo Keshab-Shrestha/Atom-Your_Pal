@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 
 pub mod diff;
+pub mod facts;
 pub mod jobs;
 pub mod js;
 pub mod org;

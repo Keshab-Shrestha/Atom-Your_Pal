@@ -47,6 +47,7 @@ import { createChatUsageRecorder, createOverheadRecorder } from "./usage-report.
 import { makePrivate, ownFolders } from "./private-files.ts";
 import { createNativeCore, type NativeCore, type ChatContextPart } from "./native-core.ts";
 import { randomUUID } from "node:crypto";
+import { DatabaseSync } from "node:sqlite";
 import { createTinkerRun } from "./tinker.ts";
 import { startTinkerRunner, TINKER_TIME_LIMIT_MS, type TinkerRunner } from "./tinker-runner.ts";
 import { agentModel, createAgentTool } from "./native-agents.ts";
@@ -297,6 +298,30 @@ export function createRuntime(
     };
     memoryListeners.add(() => soon(1500));
     soon(3000); // at start, once the window is up
+  }
+  // ADR-278: the Rust runtime writes memory commands (forget, clear) itself when it says so (ARK_MEMORY_OWNER=rust). SQLite tells
+  // this connection that another one committed (PRAGMA data_version), and the listeners then run as after Node's own change:
+  // the brain mirror is made again. No other state of Node reads the memory file back.
+  if (memory && memoryFile !== ":memory:" && readEnv(process.env, "ARK_MEMORY_OWNER") === "rust") {
+    const probe = new DatabaseSync(memoryFile, { readOnly: true });
+    const version = () => Number((probe.prepare("PRAGMA data_version").get() as { data_version: number }).data_version);
+    // The brain sync writes the file too, so a new version alone is not enough: act only when the facts or summaries changed.
+    const shape = () => JSON.stringify(probe.prepare("SELECT (SELECT count(*) FROM memories) AS a, (SELECT coalesce(max(id), 0) FROM memories) AS b, (SELECT count(*) FROM episodes) AS c, (SELECT coalesce(max(id), 0) FROM episodes) AS d").get());
+    let seenVersion = version();
+    let seenShape = shape();
+    setInterval(() => {
+      try {
+        const now = version();
+        if (now === seenVersion) return;
+        seenVersion = now;
+        const changed = shape();
+        if (changed === seenShape) return;
+        seenShape = changed;
+        for (const listener of memoryListeners) listener();
+      } catch (error) {
+        log.warn("memory.watch_failed", { message: describe(error) });
+      }
+    }, 1000).unref();
   }
   // ADR-097: chats kept in memory. The digest is one no-tools run of the plan's small model; on any other provider, or
   // if it fails, the deterministic digest is used.

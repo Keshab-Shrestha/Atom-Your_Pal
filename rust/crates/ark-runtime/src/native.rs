@@ -1,6 +1,10 @@
-//! Commands the forwarder answers itself (Phase 2, step 2): the read-only ones. `try_answer` gives the event
-//! line to send to the app, or `None` when Node must handle the command (every other command, and every case
-//! where Rust cannot give the answer Node would give). Rust never writes to the data folder.
+//! Commands the forwarder answers itself (Phase 2, step 2): the brain reads, and the Memory page (`memory.list`,
+//! `memory.forget`, `memory.clear`, `episode.forget`, `episode.clear`). `try_answer` gives the event line to send to
+//! the app, or `None` when Node must handle the command (every other command, and every case where Rust cannot give
+//! the answer Node would give). The only writes are the five memory commands above, in the memory file.
+//! The change feed (`poll_changes`) is one channel for every watched view: `PRAGMA data_version` tells that another
+//! connection (Node) committed, and each watched view is built again and pushed when it differs from the last push.
+//! The way back, Node to Rust writes, is the same signal read by Node (`ARK_MEMORY_OWNER=rust`, see `runtime.ts`).
 
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -8,7 +12,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use ark_protocol::{Command, Event, Parsed, parse_command};
 
-use crate::brain;
+use crate::{brain, memory};
 
 /// Where the Rust side reads from.
 #[derive(Debug)]
@@ -16,6 +20,8 @@ pub struct Native {
     memory_db: PathBuf,
     /// `brain.get` was answered: from now on a change of the graph is pushed (as Node does after its own `brain.get`).
     brain_watched: AtomicBool,
+    /// `memory.list` was answered: from now on a change of the Memory page is pushed (as Node does after its own `memory.list`).
+    memory_watched: AtomicBool,
     feed: Mutex<Feed>,
 }
 
@@ -25,11 +31,12 @@ struct Feed {
     conn: Option<rusqlite::Connection>,
     version: Option<i64>,
     last_brain: Option<String>,
+    last_memory: Option<String>,
 }
 
 impl Native {
     pub fn new(memory_db: PathBuf) -> Native {
-        Native { memory_db, brain_watched: AtomicBool::new(false), feed: Mutex::new(Feed::default()) }
+        Native { memory_db, brain_watched: AtomicBool::new(false), memory_watched: AtomicBool::new(false), feed: Mutex::new(Feed::default()) }
     }
 
     /// The memory file path.
@@ -38,14 +45,15 @@ impl Native {
     }
 
     /// The lines to push after a change of the data file by another connection (Node). Call it every few hundred
-    /// milliseconds. It sends nothing until `brain.get` was answered, and nothing when the graph did not change.
+    /// milliseconds. It sends nothing until `brain.get` or `memory.list` was answered, and nothing for a view that did not change.
     pub fn poll_changes(&self) -> Vec<String> {
-        if !self.brain_watched.load(Ordering::SeqCst) {
+        let (brain, memory) = (self.brain_watched.load(Ordering::SeqCst), self.memory_watched.load(Ordering::SeqCst));
+        if !brain && !memory {
             return Vec::new();
         }
         let Ok(mut feed) = self.feed.lock() else { return Vec::new() };
         if feed.conn.is_none() {
-            feed.conn = brain::open_read_only(&self.memory_db);
+            feed.conn = brain::open_read_only(&self.memory_db).or_else(|| memory::open_plain(&self.memory_db));
         }
         let Some(conn) = feed.conn.as_ref() else { return Vec::new() };
         let Ok(version) = conn.query_row("PRAGMA data_version", [], |r| r.get::<_, i64>(0)) else {
@@ -55,15 +63,36 @@ impl Native {
         if feed.version == Some(version) {
             return Vec::new();
         }
-        let line = brain::graph(conn).map(|graph| Event::Other(graph.as_object().cloned().unwrap_or_default()).to_line());
+        let brain_line = brain.then(|| brain::graph(conn).map(|graph| Event::Other(graph.as_object().cloned().unwrap_or_default()).to_line())).flatten();
+        let memory_line = memory.then(|| memory::open_read_only(&self.memory_db).and_then(|c| memory::view(&c)).map(|v| line_of(&v))).flatten();
         feed.version = Some(version);
-        match line {
-            Some(line) if feed.last_brain.as_deref() != Some(&line) => {
-                feed.last_brain = Some(line.clone());
-                vec![line]
-            }
-            _ => Vec::new(),
+        let mut lines = Vec::new();
+        if let Some(line) = brain_line.filter(|l| feed.last_brain.as_deref() != Some(l)) {
+            feed.last_brain = Some(line.clone());
+            lines.push(line);
         }
+        if let Some(line) = memory_line.filter(|l| feed.last_memory.as_deref() != Some(l)) {
+            feed.last_memory = Some(line.clone());
+            lines.push(line);
+        }
+        lines
+    }
+
+    /// The `memory` line now. The feed starts from it: it pushes only what differs from it.
+    fn memory_line(&self) -> Option<String> {
+        // The version is read before the view, so a commit in between is seen by the next poll.
+        let probe = brain::open_read_only(&self.memory_db).or_else(|| memory::open_plain(&self.memory_db));
+        let version = probe.as_ref().and_then(|c| c.query_row("PRAGMA data_version", [], |r| r.get(0)).ok());
+        let line = line_of(&memory::view(&memory::open_read_only(&self.memory_db)?)?);
+        if let Ok(mut feed) = self.feed.lock() {
+            if feed.conn.is_none() {
+                feed.conn = probe;
+            }
+            feed.version = version.or(feed.version);
+            feed.last_memory = Some(line.clone());
+        }
+        self.memory_watched.store(true, Ordering::SeqCst);
+        Some(line)
     }
 
     /// The memory file of the runtime started in `folder`: `ARK_MEMORY_FILE` (then `ATOM_`, then `ZENO_`) from the
@@ -101,10 +130,19 @@ impl Native {
                 self.brain_watched.store(true, Ordering::SeqCst);
                 return Some(line);
             }
+            Command::MemoryList => return self.memory_line(),
+            Command::MemoryForget { id } => return memory::forget(&self.memory_db, id).ok().and_then(|()| self.memory_line()),
+            Command::MemoryClear => return memory::clear(&self.memory_db).ok().and_then(|()| self.memory_line()),
+            Command::EpisodeForget { id } => return memory::forget_episode(&self.memory_db, id).ok().and_then(|()| self.memory_line()),
+            Command::EpisodeClear => return memory::clear_episodes(&self.memory_db).ok().and_then(|()| self.memory_line()),
             _ => return None,
         };
         Some(reply.to_line())
     }
+}
+
+fn line_of(view: &serde_json::Value) -> String {
+    Event::Other(view.as_object().cloned().unwrap_or_default()).to_line()
 }
 
 /// `NAME=value` from `.env` text: the last assignment, with one pair of quotes removed. Comments and blank lines are skipped.
@@ -217,10 +255,38 @@ mod tests {
     }
 
     #[test]
+    fn memory_commands_match_typescript_and_the_feed_pushes_changes() {
+        let dir = std::env::temp_dir().join(format!("ark-runtime-memory-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(dir.join("data")).unwrap();
+        std::fs::copy(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/memory-view.db"), dir.join("data/memory.db")).unwrap();
+        let native = Native::from_environment(&dir, |_| None);
+        let expected: Value = serde_json::from_str(&std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/memory-view.json")).unwrap()).unwrap();
+        assert!(native.poll_changes().is_empty(), "nothing is pushed before memory.list");
+        assert_eq!(as_value(&native.try_answer("{\"type\":\"memory.list\"}\n").unwrap()), expected["event"]);
+        assert!(native.poll_changes().is_empty(), "no change yet");
+        // Node saves a fact (a second connection): the feed pushes the new page once.
+        let writer = crate::store::open_read_write(&dir.join("data/memory.db")).unwrap();
+        writer.execute("INSERT INTO memories (text, owner, source, created_at) VALUES ('New fact.', 'local', 'text', '2026-11-02T00:00:00.000Z')", []).unwrap();
+        let pushed = native.poll_changes();
+        assert_eq!(pushed.len(), 1);
+        assert_eq!(as_value(&pushed[0])["count"], 5);
+        assert!(native.poll_changes().is_empty(), "the same page is not pushed twice");
+        // The page answers its own writes at once, and the feed does not push that state again.
+        let after = as_value(&native.try_answer("{\"type\":\"memory.forget\",\"id\":1}\n").unwrap());
+        assert_eq!(after["count"], 4);
+        assert!(native.poll_changes().is_empty());
+        assert_eq!(as_value(&native.try_answer("{\"type\":\"memory.clear\"}\n").unwrap())["count"], 0);
+        assert_eq!(as_value(&native.try_answer("{\"type\":\"episode.clear\"}\n").unwrap())["episodes"], json!([]));
+        drop(writer);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn other_commands_and_a_missing_file_go_to_node() {
         let scratch = Scratch::new("other");
         let native = scratch.native();
-        for line in ["{\"type\":\"brain.save\",\"title\":\"t\",\"body\":\"b\"}", "{\"type\":\"memory.list\"}", "{\"type\":\"chats.list\"}", "{\"type\":\"quit\"}", "not json", "", "{\"type\":\"brain.note\",\"id\":0}", "{\"type\":\"brain.note\",\"id\":-1}", "{\"type\":\"brain.note\"}"] {
+        for line in ["{\"type\":\"brain.save\",\"title\":\"t\",\"body\":\"b\"}", "{\"type\":\"chats.list\"}", "{\"type\":\"quit\"}", "not json", "", "{\"type\":\"brain.note\",\"id\":0}", "{\"type\":\"brain.note\",\"id\":-1}", "{\"type\":\"brain.note\"}"] {
             assert_eq!(native.try_answer(&format!("{line}\n")), None, "{line}");
         }
         let missing = Native::new(scratch.0.join("nope.db"));

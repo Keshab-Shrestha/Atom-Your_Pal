@@ -45,6 +45,16 @@
 - The token comes from `ARK_TELEGRAM_BOT_TOKEN` (with `ARK_TELEGRAM_CHAT_ID`, `ARK_TELEGRAM_USER_ID`) through `Config::from_env`, or from the caller. The log gets names and codes, never text or the token.
 - Verified: 5 tests (message split; backlog and sender filter; split send with buttons; retry rules; wrong token, with a check that the token is not in the log) against a local mock Bot API server. Clippy is clean. No live Telegram call.
 
+## Rust Phase 2 step 20: the change channel and the Memory page — 12 November 2026
+
+- ADR-278, Phase 2: `ark-runtime` now answers `memory.list`, `memory.forget`, `memory.clear`, `episode.forget` and `episode.clear`. The code is in `ark-runtime/src/memory.rs`. The `memory` event has the same JSON as `runtime.ts` and `kept-chats.ts`: live facts (newest 500), summaries (newest 50) and chats (30 recent, then kept chats that are not recent). `memory.forget` also stores the fact hash in `denied_facts`, so ARK does not notice the fact again. The hash code is `ark-core/src/facts.rs` (NFKC fold and SHA-256, 32 hex digits).
+- The change channel. One signal runs both ways: SQLite `PRAGMA data_version` changes when another connection commits.
+  - Node to app: Rust polls it every 500 ms. After `brain.get` or `memory.list`, a changed view is built again and pushed when it differs from the last push. Node no longer needs `memoryWatched` for this.
+  - Rust to Node: Rust sets `ARK_MEMORY_OWNER=rust` in the environment of Node. Node then reads `data_version` of the memory file once a second. When the count or the last id of the facts or summaries changed, it runs its memory listeners. The brain mirror then updates in 1.5 seconds, as after a Node change. The brain sync alone does not trigger this.
+- Verified: 4 tests on a fixture made by the TypeScript store (`rust/scripts/gen-memory-view.ts`: event equal to TypeScript, hash equal to TypeScript, forget and the full-text index, clear, wrong schema), and 1 native test of the commands and the feed. Clippy is clean. The Node watcher has no test and no live run.
+- Limits: `memory.keepChat` and `memory.dropChat` stay in Node (model digest and embedder). The `indexing` flag of a chat is Node state, so a Rust push drops it until the work ends.
+- Design for `chats.list`, not built: the `chats` event has `current`, the model, the reasoning, the access mode and the projects. `current` is the chat in the Node Core, so Rust cannot answer it until Rust owns `chat.open`, `chat.new` and `chat.delete`. Those need the Core session (`resume`). The plan is to move them together with `project.*` and then feed `chats` from the same channel. `chat.*`, `job.*`, goals, skills and projects are not ported in this step.
+
 ## Rust Phase 2 step 19: API routes for memories, notes and audit; the Node list — 12 November 2026
 
 - ADR-278, Phase 2: the Rust API now answers `GET /v1/memories` (newest 500 kept facts), `GET /v1/brain/notes` (notes without ghosts and memory copies, text cut at 1500 UTF-16 units, `omitted` from the graph) and `GET /v1/audit?limit=` (from `data/helpers.db`, or `ARK_HELPERS_FILE`). The code is in `ark-runtime/src/routes.rs`. They answer 503 when the file is missing, and 400 for a bad `limit`, as in Node.
@@ -53,10 +63,10 @@
 
 ### What Node still answers (step 5 list)
 
-- Of the 160 protocol commands, the runtime answers 9 itself: `text.send` (plain text only), `approval.answer` and `chat.question.answer` (its own ids), `brain.note`, `brain.search`, `brain.get`, `api.set`, `api.regenerate` and `telegram.set` (only when it owns the bot). The other 151 go to Node.
+- Of the 160 protocol commands, the runtime answers 14 itself: `text.send` (plain text only), `approval.answer` and `chat.question.answer` (its own ids), `brain.note`, `brain.search`, `brain.get`, `memory.list`, `memory.forget`, `memory.clear`, `episode.forget`, `episode.clear`, `api.set`, `api.regenerate` and `telegram.set` (only when it owns the bot). The other 146 go to Node.
 - Largest groups that go to Node: `skill.*` (14), `job.*` (13), `chat.*` (11), `project.*` (8), `suggestions.*` (5), `helper.*` (5), `foreground.*`, `brief.*`, `routine.*` and `mcp.*` (4 each), then `talk.*`, `improvements.*`, `app.*`, `memory.*`, `brain.*` (write), `chats.*`, `git.*`, `reply.*`, `plan.*`, `agent.*`, `proposal.*`, `testcase.*` and `computer.*` (3 each).
 - Also in Node: text turns with files, notes, skills or projects; the team (helpers, jobs, goals, routines, workflows); voice (Kokoro and speech); the computer bridge; the file permission notice, workflow route, kept-chat hits, episode recall and context byte budget in the prompt; `/tasks`, `/report` and `/steer` of the Telegram bot.
-- Not ported in this step: the `memory.*` group. `memory.forget` and `memory.clear` also change the brain mirror, and `memory.list` starts the change feed. That needs a design for the feed first.
+- Not ported: `memory.keepChat` and `memory.dropChat`, and `chats.list` (see step 20).
 
 ## Rust Phase 2 step 18: command sandbox — 12 November 2026
 

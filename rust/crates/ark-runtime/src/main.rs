@@ -165,7 +165,11 @@ fn main() {
         let folder = std::env::current_dir().ok()?;
         services::from_environment(&folder, n.memory_db(), chat.as_ref(), |name| std::env::var(name).ok().filter(|v| !v.is_empty()))
     });
-    let envs = services.as_ref().map(Services::node_env).unwrap_or_default();
+    let mut envs = services.as_ref().map(Services::node_env).unwrap_or_default();
+    // Rust writes the memory commands (forget, clear); Node watches the file to mirror the change into the brain.
+    if native.is_some() {
+        envs.push(("ARK_MEMORY_OWNER", "rust"));
+    }
     let mut child = match start(program, rest, &envs) {
         Ok(child) => child,
         Err(error) => {

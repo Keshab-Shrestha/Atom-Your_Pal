@@ -1,0 +1,110 @@
+{
+ "source": "apps/mac/src/runtime.ts, kept-chats.ts, services/memory/src/suggestions.ts",
+ "owner": "local",
+ "event": {
+  "type": "memory",
+  "enabled": true,
+  "count": 4,
+  "memories": [
+   {
+    "id": 5,
+    "text": "A fact that expires.",
+    "createdAt": "2026-11-01T09:00:16.000Z",
+    "source": "text"
+   },
+   {
+    "id": 4,
+    "text": "New address in Tokyo.",
+    "createdAt": "2026-11-01T09:00:11.000Z",
+    "source": "voice"
+   },
+   {
+    "id": 2,
+    "text": "The cat is called Mochi.",
+    "createdAt": "2026-11-01T09:00:05.000Z",
+    "source": "voice"
+   },
+   {
+    "id": 1,
+    "text": "Keshab likes green tea.",
+    "createdAt": "2026-11-01T09:00:02.000Z",
+    "source": "text"
+   }
+  ],
+  "episodes": [
+   {
+    "id": 2,
+    "summary": "Fixed a bug in the build.",
+    "endedAt": "2026-11-01T09:00:18.000Z",
+    "exchanges": 7
+   },
+   {
+    "id": 1,
+    "summary": "Planned the Oslo trip.",
+    "endedAt": "2026-11-01T09:00:17.000Z",
+    "exchanges": 4
+   }
+  ],
+  "chats": [
+   {
+    "id": "c-pinned",
+    "title": "message 0",
+    "updatedAt": "2026-11-01T09:00:20.000Z",
+    "messages": 4,
+    "kept": false
+   },
+   {
+    "id": "c-archived",
+    "title": "message 0",
+    "updatedAt": "2026-11-01T09:00:22.000Z",
+    "messages": 2,
+    "kept": false
+   },
+   {
+    "id": "c-plain",
+    "title": "message 0",
+    "updatedAt": "2026-11-01T09:00:19.000Z",
+    "messages": 2,
+    "kept": true,
+    "keptAt": "2026-11-01T09:00:23.000Z"
+   },
+   {
+    "id": "c-gone",
+    "title": "message 0",
+    "messages": 2,
+    "kept": true,
+    "keptAt": "2026-11-01T09:00:24.000Z"
+   }
+  ]
+ },
+ "hashes": [
+  {
+   "text": "Keshab likes green tea.",
+   "hash": "e4a5f6934b4037103369140787acdaf3"
+  },
+  {
+   "text": "  Éclair  AT   café.。",
+   "hash": "4c8655f7ea42f9bc3038a1b2fea35067"
+  },
+  {
+   "text": "ＦＵＬＬ width",
+   "hash": "920c47335ffea2f55b2eb9f80227c199"
+  },
+  {
+   "text": "ﬁne",
+   "hash": "d14a58bae804a2b80b5b76a010239c88"
+  },
+  {
+   "text": "日本語。",
+   "hash": "77710aedc74ecfa33685e33a6c7df5cc"
+  },
+  {
+   "text": "x",
+   "hash": "2d711642b726b04401627ca9fbac32f5"
+  },
+  {
+   "text": "",
+   "hash": "e3b0c44298fc1c149afbf4c8996fb924"
+  }
+ ]
+}
