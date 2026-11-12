@@ -26,6 +26,12 @@
 - Verified: `cargo build --locked`, `cargo build --locked -p ark-spike`, clippy `--no-deps -D warnings` for both crates, `cargo test --locked` (2 pass) and `cargo test --locked -p ark-spike` (1 pass). The new lock entries: `ark-spike` and `objc2-web-kit` (Zlib OR Apache-2.0 OR MIT). CI builds and lints `ark-spike` and runs none of its checks.
 - Build: ark-spike adds 36 s to a clean debug build (it builds `rune` again with more objc2 features), 24 s of clippy and 6 s of tests.
 
+## Rust Phase 2 step 3: ticker and simple tools — 12 November 2026
+
+- ADR-278, Phase 2: `ark-runtime` is now a library and a binary. The library has `scheduler` (a ticker with a test clock), `tools` (`current_time`, `read_file`) and `floor` (the disk-reading file policy).
+- `read_file` uses the ark-core policy and the `floorProblem` rules of `grants.ts`: outside home, `~/Library`, hidden folders, important names, links that leave the folder, and the secret folders. Nothing calls these tools yet; the MCP server (next steps) calls them.
+- Verified: 14 unit tests and 10 integration tests pass. Clippy is clean. Tests use temporary folders only. New licence: jiff (MIT), in THIRD_PARTY.txt.
+
 ## Rust Phase 2 chunk A.2: native read-only commands — 12 November 2026
 
 - ADR-278, Phase 2 step 2: `ark-runtime` answers `brain.note` and `brain.search` from `memory.db`. The answers match the TypeScript answers on a fixture file that `node rust/scripts/gen-fixtures.ts` writes (14 notes, 18 searches, with Unicode and snippets).

@@ -22,6 +22,12 @@
 - Rune patches found (not made): hover in a panel while another app is active; native child views in the accessibility tree; `.hudWindow` and `.sidebar` cases in `SystemMaterial`. Decide each in Phase 3 (decision 11: patch and open an upstream issue).
 - Next: the owner fills in the checklist. Then Phase 1 starts.
 
+## Rust Phase 2 step 3: ticker and simple tools — 12 November 2026
+
+- Add `scheduler` (named jobs with a period; late jobs run once; `Ticker` runs them on a thread), `tools::Tools::call` (`current_time` with an IANA zone, `read_file` capped at 100 000 bytes) and `floor` (port of `realish`, `floorProblem` and the secret-folder check).
+- Weather, timers, notes, apps, media and calendar tools stay in Node.
+- Next: change feed and DB writes, then the local API and MCP server.
+
 ## Rust Phase 2 chunk A.2: native read-only commands — 12 November 2026
 
 - ADR-278, Phase 2 step 2: `ark-runtime` answers `brain.note` and `brain.search` itself. It reads `memory.db` with rusqlite (bundled, read-only, busy timeout 250 ms). The SQL is the SQL of `services/memory/src/brain.ts`. The file comes from `ARK_MEMORY_FILE` (then `ATOM_`, then `ZENO_`), from `.env`, or `data/memory.db`.

@@ -6,7 +6,9 @@ publish = false
 description = "Phase 2: a forwarder between the Swift app and the Node runtime that answers some read-only commands itself (ADR-278)."
 
 [dependencies]
+ark-core = { version = "0.0.1", path = "../ark-core" }
 ark-protocol = { version = "0.0.1", path = "../ark-protocol" }
+jiff = "0.2"
 libc = "0.2"
 rusqlite = { version = "0.42.0", features = ["bundled"] }
 serde_json = "1.0.154"

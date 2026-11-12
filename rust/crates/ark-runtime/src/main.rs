@@ -7,8 +7,7 @@
 //! inherited. Blocking writes give back-pressure; lines have no length limit. SIGTERM, SIGINT, SIGHUP and
 //! SIGQUIT go to the child. The forwarder exits with the child's exit code, or dies by the child's signal.
 
-mod brain;
-mod native;
+use ark_runtime::native;
 
 use std::io::{self, BufRead, BufReader, Write};
 use std::os::unix::process::ExitStatusExt;

@@ -257,3 +257,5 @@ The Phase 4 app bundle ships this file.
    pkg-config v0.3.34 MIT OR Apache-2.0
    rusqlite v0.42.0 MIT
    vcpkg v0.2.15 MIT/Apache-2.0
+   jiff v0.2.43 Unlicense OR MIT (ark-runtime tools: time zones; we use MIT)
+   jiff-core v0.1.5 Unlicense OR MIT
