@@ -1,0 +1,544 @@
+{
+ "source": "apps/mac/src/chat-work.ts (parseQuestions, toolName)",
+ "cases": [
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "questions": "[{\"question\":\"Which database?\",\"choices\":\"Postgres | Fits the stack (recommended)\\nSQLite\"},{\"question\":\"When?\"}]"
+    }
+   ],
+   "out": [
+    {
+     "prompt": "Which database?",
+     "choices": [
+      "Postgres | Fits the stack (recommended)",
+      "SQLite"
+     ]
+    },
+    {
+     "prompt": "When?",
+     "choices": []
+    }
+   ]
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "question": "Ship today?",
+     "choices": "Yes\nNo"
+    }
+   ],
+   "out": [
+    {
+     "prompt": "Ship today?",
+     "choices": [
+      "Yes",
+      "No"
+     ]
+    }
+   ]
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "question": "A?",
+     "questions": "[]"
+    }
+   ],
+   "out": {
+    "error": "Use either question (+ choices) or questions, not both."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "questions": "not json"
+    }
+   ],
+   "out": {
+    "error": "questions must be valid JSON: an array of {\"question\", \"choices\"} objects."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "questions": "[{\"question\":\"Q1?\"},{\"question\":\"Q2?\"},{\"question\":\"Q3?\"},{\"question\":\"Q4?\"},{\"question\":\"Q5?\"}]"
+    }
+   ],
+   "out": {
+    "error": "questions must be an array of one to four objects."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "questions": "[{\"question\":\"A?\",\"extra\":1}]"
+    }
+   ],
+   "out": {
+    "error": "Each question is an object with question and optional choices."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "question": "A?",
+     "choices": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+   ],
+   "out": {
+    "error": "Use at most four distinct choices per question, each at most 160 characters."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "question": "A?",
+     "choices": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+   ],
+   "out": [
+    {
+     "prompt": "A?",
+     "choices": [
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+     ]
+    }
+   ]
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "question": "Del‮ete​ the\u0007 file?\nWhy",
+     "choices": "Ye⁦s﻿\n‏\nN\u0000o"
+    }
+   ],
+   "out": [
+    {
+     "prompt": "Delete the file?\nWhy",
+     "choices": [
+      "Yes",
+      "No"
+     ]
+    }
+   ]
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "question": "‮​"
+    }
+   ],
+   "out": {
+    "error": "Use questions of at most 600 characters and up to four short newline-separated choices."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "questions": "[]"
+    }
+   ],
+   "out": {
+    "error": "questions must be an array of one to four objects."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "questions": 3
+    }
+   ],
+   "out": {
+    "error": "questions must be a JSON array string of at most 4000 characters."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "questions": null
+    }
+   ],
+   "out": {
+    "error": "questions must be a JSON array string of at most 4000 characters."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "choices": "a"
+    }
+   ],
+   "out": {
+    "error": "Use questions of at most 600 characters and up to four short newline-separated choices."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {}
+   ],
+   "out": {
+    "error": "Use questions of at most 600 characters and up to four short newline-separated choices."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "question": "A?",
+     "extra": true
+    }
+   ],
+   "out": {
+    "error": "Use only question, choices or questions."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "questions": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+   ],
+   "out": {
+    "error": "questions must be a JSON array string of at most 4000 characters."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "questions": "[null]"
+    }
+   ],
+   "out": {
+    "error": "Each question is an object with question and optional choices."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "questions": "[[]]"
+    }
+   ],
+   "out": {
+    "error": "Use questions of at most 600 characters and up to four short newline-separated choices."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "questions": "[[\"a\"]]"
+    }
+   ],
+   "out": {
+    "error": "Each question is an object with question and optional choices."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "questions": "[0]"
+    }
+   ],
+   "out": {
+    "error": "Each question is an object with question and optional choices."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "questions": "[\"text\"]"
+    }
+   ],
+   "out": {
+    "error": "Each question is an object with question and optional choices."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "questions": "[{}]"
+    }
+   ],
+   "out": {
+    "error": "Use questions of at most 600 characters and up to four short newline-separated choices."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "questions": "{\"question\":\"A?\"}"
+    }
+   ],
+   "out": {
+    "error": "questions must be an array of one to four objects."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "question": "A?",
+     "choices": "a\nb\nc\nd\ne"
+    }
+   ],
+   "out": {
+    "error": "Use at most four distinct choices per question, each at most 160 characters."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "question": "A?",
+     "choices": "a\na"
+    }
+   ],
+   "out": {
+    "error": "Use at most four distinct choices per question, each at most 160 characters."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "question": "A?",
+     "choices": "a\n\n  \nb"
+    }
+   ],
+   "out": [
+    {
+     "prompt": "A?",
+     "choices": [
+      "a",
+      "b"
+     ]
+    }
+   ]
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "question": "A?",
+     "choices": null
+    }
+   ],
+   "out": {
+    "error": "Use questions of at most 600 characters and up to four short newline-separated choices."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "question": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+   ],
+   "out": [
+    {
+     "prompt": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "choices": []
+    }
+   ]
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "question": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+   ],
+   "out": {
+    "error": "Use questions of at most 600 characters and up to four short newline-separated choices."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "question": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+    }
+   ],
+   "out": [
+    {
+     "prompt": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+     "choices": []
+    }
+   ]
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "question": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+    }
+   ],
+   "out": {
+    "error": "Use questions of at most 600 characters and up to four short newline-separated choices."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "question": "A?",
+     "choices": 4
+    }
+   ],
+   "out": {
+    "error": "Use questions of at most 600 characters and up to four short newline-separated choices."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "question": "  padded　"
+    }
+   ],
+   "out": [
+    {
+     "prompt": "padded",
+     "choices": []
+    }
+   ]
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "question": "A?",
+     "choices": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+   ],
+   "out": {
+    "error": "Use questions of at most 600 characters and up to four short newline-separated choices."
+   }
+  },
+  {
+   "fn": "parseQuestions",
+   "args": [
+    {
+     "questions": "[{\"question\":\"A?\",\"choices\":[\"a\"]}]"
+    }
+   ],
+   "out": {
+    "error": "Use questions of at most 600 characters and up to four short newline-separated choices."
+   }
+  },
+  {
+   "fn": "toolName",
+   "args": [
+    "Read"
+   ],
+   "out": "Read"
+  },
+  {
+   "fn": "toolName",
+   "args": [
+    "mcp__ark__remember"
+   ],
+   "out": "remember"
+  },
+  {
+   "fn": "toolName",
+   "args": [
+    "ark_time"
+   ],
+   "out": "time"
+  },
+  {
+   "fn": "toolName",
+   "args": [
+    "mcp__github__x"
+   ],
+   "out": "mcp__github__x"
+  },
+  {
+   "fn": "toolName",
+   "args": [
+    "bad name"
+   ],
+   "out": "Provider tool"
+  },
+  {
+   "fn": "toolName",
+   "args": [
+    ""
+   ],
+   "out": "Provider tool"
+  },
+  {
+   "fn": "toolName",
+   "args": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "out": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  {
+   "fn": "toolName",
+   "args": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "out": "Provider tool"
+  },
+  {
+   "fn": "toolName",
+   "args": [
+    "é"
+   ],
+   "out": "Provider tool"
+  },
+  {
+   "fn": "toolName",
+   "args": [
+    3
+   ],
+   "out": "Provider tool"
+  },
+  {
+   "fn": "toolName",
+   "args": [
+    null
+   ],
+   "out": "Provider tool"
+  },
+  {
+   "fn": "toolName",
+   "args": [
+    "a:b.c-d_e"
+   ],
+   "out": "a:b.c-d_e"
+  },
+  {
+   "fn": "toolName",
+   "args": [
+    "ark_mcp__ark__x"
+   ],
+   "out": "mcp__ark__x"
+  }
+ ]
+}

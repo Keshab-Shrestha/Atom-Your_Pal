@@ -1,0 +1,1319 @@
+{
+ "source": "services/helpers/src/jobs.ts, apps/mac/src/job-quiet.ts",
+ "cases": [
+  {
+   "fn": "isFinal",
+   "args": [
+    "queued"
+   ],
+   "out": false
+  },
+  {
+   "fn": "isFinal",
+   "args": [
+    "running"
+   ],
+   "out": false
+  },
+  {
+   "fn": "isFinal",
+   "args": [
+    "done"
+   ],
+   "out": true
+  },
+  {
+   "fn": "isFinal",
+   "args": [
+    "failed"
+   ],
+   "out": true
+  },
+  {
+   "fn": "isFinal",
+   "args": [
+    "stopped"
+   ],
+   "out": true
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "queued",
+    "queued"
+   ],
+   "out": false
+  },
+  {
+   "fn": "move",
+   "args": [
+    "queued",
+    "queued"
+   ],
+   "out": {
+    "error": "A queued job cannot become queued."
+   }
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "queued",
+    "running"
+   ],
+   "out": true
+  },
+  {
+   "fn": "move",
+   "args": [
+    "queued",
+    "running"
+   ],
+   "out": "running"
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "queued",
+    "done"
+   ],
+   "out": false
+  },
+  {
+   "fn": "move",
+   "args": [
+    "queued",
+    "done"
+   ],
+   "out": {
+    "error": "A queued job cannot become done."
+   }
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "queued",
+    "failed"
+   ],
+   "out": true
+  },
+  {
+   "fn": "move",
+   "args": [
+    "queued",
+    "failed"
+   ],
+   "out": "failed"
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "queued",
+    "stopped"
+   ],
+   "out": true
+  },
+  {
+   "fn": "move",
+   "args": [
+    "queued",
+    "stopped"
+   ],
+   "out": "stopped"
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "running",
+    "queued"
+   ],
+   "out": false
+  },
+  {
+   "fn": "move",
+   "args": [
+    "running",
+    "queued"
+   ],
+   "out": {
+    "error": "A running job cannot become queued."
+   }
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "running",
+    "running"
+   ],
+   "out": false
+  },
+  {
+   "fn": "move",
+   "args": [
+    "running",
+    "running"
+   ],
+   "out": {
+    "error": "A running job cannot become running."
+   }
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "running",
+    "done"
+   ],
+   "out": true
+  },
+  {
+   "fn": "move",
+   "args": [
+    "running",
+    "done"
+   ],
+   "out": "done"
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "running",
+    "failed"
+   ],
+   "out": true
+  },
+  {
+   "fn": "move",
+   "args": [
+    "running",
+    "failed"
+   ],
+   "out": "failed"
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "running",
+    "stopped"
+   ],
+   "out": true
+  },
+  {
+   "fn": "move",
+   "args": [
+    "running",
+    "stopped"
+   ],
+   "out": "stopped"
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "done",
+    "queued"
+   ],
+   "out": false
+  },
+  {
+   "fn": "move",
+   "args": [
+    "done",
+    "queued"
+   ],
+   "out": {
+    "error": "A done job cannot become queued."
+   }
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "done",
+    "running"
+   ],
+   "out": false
+  },
+  {
+   "fn": "move",
+   "args": [
+    "done",
+    "running"
+   ],
+   "out": {
+    "error": "A done job cannot become running."
+   }
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "done",
+    "done"
+   ],
+   "out": false
+  },
+  {
+   "fn": "move",
+   "args": [
+    "done",
+    "done"
+   ],
+   "out": {
+    "error": "A done job cannot become done."
+   }
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "done",
+    "failed"
+   ],
+   "out": false
+  },
+  {
+   "fn": "move",
+   "args": [
+    "done",
+    "failed"
+   ],
+   "out": {
+    "error": "A done job cannot become failed."
+   }
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "done",
+    "stopped"
+   ],
+   "out": false
+  },
+  {
+   "fn": "move",
+   "args": [
+    "done",
+    "stopped"
+   ],
+   "out": {
+    "error": "A done job cannot become stopped."
+   }
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "failed",
+    "queued"
+   ],
+   "out": false
+  },
+  {
+   "fn": "move",
+   "args": [
+    "failed",
+    "queued"
+   ],
+   "out": {
+    "error": "A failed job cannot become queued."
+   }
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "failed",
+    "running"
+   ],
+   "out": false
+  },
+  {
+   "fn": "move",
+   "args": [
+    "failed",
+    "running"
+   ],
+   "out": {
+    "error": "A failed job cannot become running."
+   }
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "failed",
+    "done"
+   ],
+   "out": false
+  },
+  {
+   "fn": "move",
+   "args": [
+    "failed",
+    "done"
+   ],
+   "out": {
+    "error": "A failed job cannot become done."
+   }
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "failed",
+    "failed"
+   ],
+   "out": false
+  },
+  {
+   "fn": "move",
+   "args": [
+    "failed",
+    "failed"
+   ],
+   "out": {
+    "error": "A failed job cannot become failed."
+   }
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "failed",
+    "stopped"
+   ],
+   "out": false
+  },
+  {
+   "fn": "move",
+   "args": [
+    "failed",
+    "stopped"
+   ],
+   "out": {
+    "error": "A failed job cannot become stopped."
+   }
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "stopped",
+    "queued"
+   ],
+   "out": false
+  },
+  {
+   "fn": "move",
+   "args": [
+    "stopped",
+    "queued"
+   ],
+   "out": {
+    "error": "A stopped job cannot become queued."
+   }
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "stopped",
+    "running"
+   ],
+   "out": false
+  },
+  {
+   "fn": "move",
+   "args": [
+    "stopped",
+    "running"
+   ],
+   "out": {
+    "error": "A stopped job cannot become running."
+   }
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "stopped",
+    "done"
+   ],
+   "out": false
+  },
+  {
+   "fn": "move",
+   "args": [
+    "stopped",
+    "done"
+   ],
+   "out": {
+    "error": "A stopped job cannot become done."
+   }
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "stopped",
+    "failed"
+   ],
+   "out": false
+  },
+  {
+   "fn": "move",
+   "args": [
+    "stopped",
+    "failed"
+   ],
+   "out": {
+    "error": "A stopped job cannot become failed."
+   }
+  },
+  {
+   "fn": "canMove",
+   "args": [
+    "stopped",
+    "stopped"
+   ],
+   "out": false
+  },
+  {
+   "fn": "move",
+   "args": [
+    "stopped",
+    "stopped"
+   ],
+   "out": {
+    "error": "A stopped job cannot become stopped."
+   }
+  },
+  {
+   "fn": "isRetryable",
+   "args": [
+    "Took longer than 15 minutes"
+   ],
+   "out": true
+  },
+  {
+   "fn": "isRetryable",
+   "args": [
+    "Claude Code ended without a report."
+   ],
+   "out": true
+  },
+  {
+   "fn": "isRetryable",
+   "args": [
+    "The report came back in the wrong shape (body)."
+   ],
+   "out": true
+  },
+  {
+   "fn": "isRetryable",
+   "args": [
+    "It took more than 40 steps"
+   ],
+   "out": true
+  },
+  {
+   "fn": "isRetryable",
+   "args": [
+    "The app was closed while this job ran"
+   ],
+   "out": true
+  },
+  {
+   "fn": "isRetryable",
+   "args": [
+    "COULD NOT RUN"
+   ],
+   "out": true
+  },
+  {
+   "fn": "isRetryable",
+   "args": [
+    "Sid needs the Claude plan for research."
+   ],
+   "out": false
+  },
+  {
+   "fn": "isRetryable",
+   "args": [
+    "Your Claude plan limit is reached."
+   ],
+   "out": false
+  },
+  {
+   "fn": "isRetryable",
+   "args": [
+    "took more than ٤ steps"
+   ],
+   "out": false
+  },
+  {
+   "fn": "isRetryable",
+   "args": [
+    ""
+   ],
+   "out": false
+  },
+  {
+   "fn": "isRetryable",
+   "args": [
+    "ſtook longer than"
+   ],
+   "out": true
+  },
+  {
+   "fn": "isRetryable",
+   "args": [
+    null
+   ],
+   "out": false
+  },
+  {
+   "fn": "makesCycle",
+   "args": [
+    {
+     "2": [
+      1
+     ],
+     "3": [
+      2
+     ],
+     "4": []
+    },
+    1,
+    [
+     3
+    ]
+   ],
+   "out": true
+  },
+  {
+   "fn": "makesCycle",
+   "args": [
+    {
+     "2": [
+      1
+     ],
+     "3": [
+      2
+     ],
+     "4": []
+    },
+    1,
+    [
+     4
+    ]
+   ],
+   "out": false
+  },
+  {
+   "fn": "makesCycle",
+   "args": [
+    {
+     "2": [
+      1
+     ],
+     "3": [
+      2
+     ],
+     "4": []
+    },
+    5,
+    [
+     3,
+     4
+    ]
+   ],
+   "out": false
+  },
+  {
+   "fn": "makesCycle",
+   "args": [
+    {},
+    1,
+    [
+     1
+    ]
+   ],
+   "out": true
+  },
+  {
+   "fn": "makesCycle",
+   "args": [
+    {
+     "1": [
+      2
+     ],
+     "2": [
+      1
+     ]
+    },
+    3,
+    [
+     1
+    ]
+   ],
+   "out": false
+  },
+  {
+   "fn": "makesCycle",
+   "args": [
+    {
+     "1": [
+      2
+     ],
+     "2": [
+      3
+     ]
+    },
+    3,
+    [
+     1
+    ]
+   ],
+   "out": true
+  },
+  {
+   "fn": "quietScenario",
+   "args": [
+    [
+     {
+      "id": 1,
+      "state": "running",
+      "chatId": "c"
+     },
+     {
+      "id": 2,
+      "parentId": 1,
+      "state": "running",
+      "chatId": "c"
+     }
+    ],
+    [
+     {
+      "sweep": true
+     },
+     {
+      "tick": 479999
+     },
+     {
+      "sweep": true
+     },
+     {
+      "since": 2
+     },
+     {
+      "tick": 1
+     },
+     {
+      "sweep": true
+     },
+     {
+      "since": 2
+     },
+     {
+      "since": 1
+     },
+     {
+      "tick": 480000
+     },
+     {
+      "sweep": true
+     },
+     {
+      "move": 2
+     },
+     {
+      "since": 2
+     },
+     {
+      "since": 1
+     },
+     {
+      "tick": 479999
+     },
+     {
+      "sweep": true
+     },
+     {
+      "since": 2
+     }
+    ]
+   ],
+   "out": [
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    null,
+    {
+     "logs": [
+      {
+       "job": 1
+      },
+      {
+       "job": 2,
+       "parent": 1
+      }
+     ],
+     "heard": 1
+    },
+    1000000,
+    1000000,
+    null,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    1,
+    null,
+    null,
+    null,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null
+   ]
+  },
+  {
+   "fn": "quietScenario",
+   "args": [
+    [
+     {
+      "id": 1,
+      "state": "running",
+      "chatId": "c"
+     },
+     {
+      "id": 2,
+      "parentId": 1,
+      "state": "running",
+      "chatId": "c"
+     },
+     {
+      "id": 3,
+      "parentId": 2,
+      "state": "running",
+      "chatId": "c"
+     }
+    ],
+    [
+     {
+      "sweep": true
+     },
+     {
+      "tick": 60000
+     },
+     {
+      "move": 3
+     },
+     {
+      "sweep": true
+     },
+     {
+      "tick": 60000
+     },
+     {
+      "move": 3
+     },
+     {
+      "sweep": true
+     },
+     {
+      "tick": 60000
+     },
+     {
+      "move": 3
+     },
+     {
+      "sweep": true
+     },
+     {
+      "tick": 60000
+     },
+     {
+      "move": 3
+     },
+     {
+      "sweep": true
+     },
+     {
+      "tick": 60000
+     },
+     {
+      "move": 3
+     },
+     {
+      "sweep": true
+     },
+     {
+      "tick": 60000
+     },
+     {
+      "move": 3
+     },
+     {
+      "sweep": true
+     },
+     {
+      "tick": 60000
+     },
+     {
+      "move": 3
+     },
+     {
+      "sweep": true
+     },
+     {
+      "tick": 60000
+     },
+     {
+      "move": 3
+     },
+     {
+      "sweep": true
+     },
+     {
+      "tick": 60000
+     },
+     {
+      "move": 3
+     },
+     {
+      "sweep": true
+     },
+     {
+      "tick": 60000
+     },
+     {
+      "move": 3
+     },
+     {
+      "sweep": true
+     },
+     {
+      "tick": 60000
+     },
+     {
+      "move": 3
+     },
+     {
+      "sweep": true
+     },
+     {
+      "tick": 60000
+     },
+     {
+      "move": 3
+     },
+     {
+      "sweep": true
+     },
+     {
+      "tick": 60000
+     },
+     {
+      "move": 3
+     },
+     {
+      "sweep": true
+     },
+     {
+      "tick": 60000
+     },
+     {
+      "move": 3
+     },
+     {
+      "sweep": true
+     },
+     {
+      "tick": 60000
+     },
+     {
+      "move": 3
+     },
+     {
+      "sweep": true
+     },
+     {
+      "tick": 60000
+     },
+     {
+      "move": 3
+     },
+     {
+      "sweep": true
+     },
+     {
+      "tick": 60000
+     },
+     {
+      "move": 3
+     },
+     {
+      "sweep": true
+     },
+     {
+      "tick": 60000
+     },
+     {
+      "move": 3
+     },
+     {
+      "sweep": true
+     },
+     {
+      "tick": 60000
+     },
+     {
+      "move": 3
+     },
+     {
+      "sweep": true
+     },
+     {
+      "tick": 60000
+     },
+     {
+      "move": 3
+     },
+     {
+      "sweep": true
+     },
+     {
+      "since": 1
+     },
+     {
+      "since": 2
+     },
+     {
+      "since": 3
+     },
+     {
+      "tick": 480000
+     },
+     {
+      "move": 1
+     },
+     {
+      "sweep": true
+     },
+     {
+      "since": 1
+     },
+     {
+      "since": 2
+     },
+     {
+      "since": 3
+     }
+    ]
+   ],
+   "out": [
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    0,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    0,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    0,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    0,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    0,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    0,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    0,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    0,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    0,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    0,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    0,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    0,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    0,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    0,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    0,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    0,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    0,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    0,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    0,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    0,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    null,
+    null,
+    null,
+    0,
+    {
+     "logs": [
+      {
+       "job": 2,
+       "parent": 1
+      },
+      {
+       "job": 3,
+       "parent": 2
+      }
+     ],
+     "heard": 1
+    },
+    null,
+    2200000,
+    2200000
+   ]
+  },
+  {
+   "fn": "quietScenario",
+   "args": [
+    [
+     {
+      "id": 1,
+      "state": "running",
+      "chatId": "c"
+     }
+    ],
+    [
+     {
+      "sweep": true
+     },
+     {
+      "tick": 480000
+     },
+     {
+      "sweep": true
+     },
+     {
+      "since": 1
+     },
+     {
+      "set": {
+       "id": 1,
+       "state": "stopped",
+       "chatId": "c"
+      }
+     },
+     {
+      "move": 1
+     },
+     {
+      "sweep": true
+     },
+     {
+      "since": 1
+     }
+    ]
+   ],
+   "out": [
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    {
+     "logs": [
+      {
+       "job": 1
+      }
+     ],
+     "heard": 1
+    },
+    1000000,
+    null,
+    1,
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null
+   ]
+  },
+  {
+   "fn": "quietScenario",
+   "args": [
+    [
+     {
+      "id": 1,
+      "state": "running"
+     },
+     {
+      "id": 2,
+      "state": "queued",
+      "chatId": "c"
+     },
+     {
+      "id": 3,
+      "state": "running",
+      "chatId": "c",
+      "parentId": 4
+     },
+     {
+      "id": 4,
+      "state": "running",
+      "chatId": "c",
+      "parentId": 3
+     }
+    ],
+    [
+     {
+      "sweep": true
+     },
+     {
+      "tick": 480005
+     },
+     {
+      "sweep": true
+     },
+     {
+      "move": 3
+     },
+     {
+      "since": 3
+     },
+     {
+      "since": 4
+     },
+     {
+      "tick": 480000
+     },
+     {
+      "sweep": true
+     },
+     {
+      "since": 1
+     }
+    ]
+   ],
+   "out": [
+    {
+     "logs": [],
+     "heard": 0
+    },
+    null,
+    {
+     "logs": [
+      {
+       "job": 3,
+       "parent": 4
+      },
+      {
+       "job": 4,
+       "parent": 3
+      }
+     ],
+     "heard": 1
+    },
+    1,
+    null,
+    null,
+    null,
+    {
+     "logs": [
+      {
+       "job": 3,
+       "parent": 4
+      },
+      {
+       "job": 4,
+       "parent": 3
+      }
+     ],
+     "heard": 1
+    },
+    null
+   ]
+  }
+ ]
+}

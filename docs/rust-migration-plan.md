@@ -247,6 +247,7 @@ Every PR follows CLAUDE.md §3 and §21: one capability, tests, verify, docs, st
 
 ### Phase 1: Rust core library for pure logic (8 to 10 PRs)
 
+- Status: `rust/crates/ark-core` has the safety policy (pure parts), org, job tree (with the quiet mark), `ark-visual`, questions, diffs and the shortcut matcher. The protocol codec (`ark-protocol`) is open. The parity fixtures come from the TypeScript code (`rust/scripts/gen-fixtures.ts`). The Swift-only areas have their Swift tests ported to Rust, but no shared vector file yet.
 - Scope: `ark-protocol` and `ark-core`. One PR per area:
   - protocol codec (`island-protocol.ts`, `Protocol.swift`);
   - safety policy (pure parts of `native-safety.ts`, `write-scopes.ts`, `grants.ts`);

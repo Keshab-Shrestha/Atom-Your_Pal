@@ -1,0 +1,1540 @@
+{
+ "source": "apps/mac/src/org.ts",
+ "cases": [
+  {
+   "fn": "orgAgentIds",
+   "args": [
+    [
+     {
+      "id": "sid",
+      "role": "researcher"
+     },
+     {
+      "id": "tinker",
+      "role": "improver"
+     },
+     {
+      "id": "kame",
+      "role": "coder"
+     }
+    ]
+   ],
+   "out": [
+    "sid",
+    "kame"
+   ]
+  },
+  {
+   "fn": "checkReportsTo",
+   "args": [
+    "nobody",
+    "kame",
+    {},
+    [
+     "kame",
+     "lyra",
+     "pk",
+     "sid",
+     "quill"
+    ]
+   ],
+   "out": {
+    "error": "That agent is not on your team."
+   }
+  },
+  {
+   "fn": "checkReportsTo",
+   "args": [
+    "sid",
+    "tinker",
+    {},
+    [
+     "kame",
+     "lyra",
+     "pk",
+     "sid",
+     "quill"
+    ]
+   ],
+   "out": {
+    "error": "The lead is not on your team."
+   }
+  },
+  {
+   "fn": "checkReportsTo",
+   "args": [
+    "sid",
+    "sid",
+    {},
+    [
+     "kame",
+     "lyra",
+     "pk",
+     "sid",
+     "quill"
+    ]
+   ],
+   "out": {
+    "error": "An agent cannot lead itself."
+   }
+  },
+  {
+   "fn": "checkReportsTo",
+   "args": [
+    "kame",
+    "sid",
+    {
+     "sid": "kame"
+    },
+    [
+     "kame",
+     "lyra",
+     "pk",
+     "sid",
+     "quill"
+    ]
+   ],
+   "out": {
+    "error": "sid already works under kame, so kame cannot report to sid."
+   }
+  },
+  {
+   "fn": "checkReportsTo",
+   "args": [
+    "kame",
+    "pk",
+    {
+     "sid": "kame",
+     "pk": "sid"
+    },
+    [
+     "kame",
+     "lyra",
+     "pk",
+     "sid",
+     "quill"
+    ]
+   ],
+   "out": {
+    "error": "pk already works under kame, so kame cannot report to pk."
+   }
+  },
+  {
+   "fn": "checkReportsTo",
+   "args": [
+    "quill",
+    "sid",
+    {
+     "lyra": "kame",
+     "pk": "lyra",
+     "sid": "pk"
+    },
+    [
+     "kame",
+     "lyra",
+     "pk",
+     "sid",
+     "quill"
+    ]
+   ],
+   "out": {
+    "error": "The team can be at most 4 levels below ARK."
+   }
+  },
+  {
+   "fn": "checkReportsTo",
+   "args": [
+    "kame",
+    "quill",
+    {
+     "lyra": "kame",
+     "pk": "lyra",
+     "sid": "pk"
+    },
+    [
+     "kame",
+     "lyra",
+     "pk",
+     "sid",
+     "quill"
+    ]
+   ],
+   "out": {
+    "error": "The team can be at most 4 levels below ARK."
+   }
+  },
+  {
+   "fn": "checkReportsTo",
+   "args": [
+    "quill",
+    "pk",
+    {
+     "lyra": "kame",
+     "pk": "lyra",
+     "sid": "pk"
+    },
+    [
+     "kame",
+     "lyra",
+     "pk",
+     "sid",
+     "quill"
+    ]
+   ],
+   "out": {
+    "lyra": "kame",
+    "pk": "lyra",
+    "sid": "pk",
+    "quill": "pk"
+   }
+  },
+  {
+   "fn": "checkReportsTo",
+   "args": [
+    "sid",
+    null,
+    {
+     "lyra": "kame",
+     "pk": "lyra",
+     "sid": "pk"
+    },
+    [
+     "kame",
+     "lyra",
+     "pk",
+     "sid",
+     "quill"
+    ]
+   ],
+   "out": {
+    "lyra": "kame",
+    "pk": "lyra"
+   }
+  },
+  {
+   "fn": "checkReportsTo",
+   "args": [
+    "sid",
+    "kame",
+    {},
+    [
+     "kame",
+     "lyra",
+     "pk",
+     "sid",
+     "quill"
+    ]
+   ],
+   "out": {
+    "sid": "kame"
+   }
+  },
+  {
+   "fn": "checkReportsTo",
+   "args": [
+    "kame",
+    null,
+    {},
+    [
+     "kame",
+     "lyra",
+     "pk",
+     "sid",
+     "quill"
+    ]
+   ],
+   "out": {}
+  },
+  {
+   "fn": "checkReportsTo",
+   "args": [
+    "lyra",
+    "quill",
+    {
+     "quill": "sid",
+     "sid": "kame"
+    },
+    [
+     "kame",
+     "lyra",
+     "pk",
+     "sid",
+     "quill"
+    ]
+   ],
+   "out": {
+    "quill": "sid",
+    "sid": "kame",
+    "lyra": "quill"
+   }
+  },
+  {
+   "fn": "checkReportsTo",
+   "args": [
+    "pk",
+    "lyra",
+    {
+     "lyra": "kame",
+     "kame": "sid"
+    },
+    [
+     "kame",
+     "lyra",
+     "pk",
+     "sid",
+     "quill"
+    ]
+   ],
+   "out": {
+    "lyra": "kame",
+    "kame": "sid",
+    "pk": "lyra"
+   }
+  },
+  {
+   "fn": "resolveOrg",
+   "args": [
+    {
+     "lyra": "kame",
+     "pk": "lyra",
+     "sid": "pk"
+    },
+    [
+     "kame",
+     "pk",
+     "sid"
+    ]
+   ],
+   "out": {
+    "pk": "kame",
+    "sid": "pk"
+   }
+  },
+  {
+   "fn": "resolveOrg",
+   "args": [
+    {
+     "lyra": "kame",
+     "pk": "lyra",
+     "sid": "pk"
+    },
+    [
+     "pk",
+     "sid"
+    ]
+   ],
+   "out": {
+    "sid": "pk"
+   }
+  },
+  {
+   "fn": "resolveOrg",
+   "args": [
+    {
+     "a": "b",
+     "b": "a"
+    },
+    [
+     "a",
+     "b"
+    ]
+   ],
+   "out": {}
+  },
+  {
+   "fn": "resolveOrg",
+   "args": [
+    {
+     "a": "b",
+     "b": "c",
+     "c": "d",
+     "d": "e",
+     "e": "f"
+    },
+    [
+     "a",
+     "b",
+     "c",
+     "d",
+     "e",
+     "f"
+    ]
+   ],
+   "out": {
+    "c": "d",
+    "d": "e",
+    "e": "f"
+   }
+  },
+  {
+   "fn": "resolveOrg",
+   "args": [
+    {
+     "a": "gone",
+     "gone": "b"
+    },
+    [
+     "a",
+     "b"
+    ]
+   ],
+   "out": {
+    "a": "b"
+   }
+  },
+  {
+   "fn": "resolveOrg",
+   "args": [
+    {
+     "a": "gone",
+     "gone": "a"
+    },
+    [
+     "a"
+    ]
+   ],
+   "out": {}
+  },
+  {
+   "fn": "resolveOrg",
+   "args": [
+    {},
+    [
+     "a"
+    ]
+   ],
+   "out": {}
+  },
+  {
+   "fn": "resolveOrg",
+   "args": [
+    {
+     "x": "a"
+    },
+    [
+     "a"
+    ]
+   ],
+   "out": {}
+  },
+  {
+   "fn": "orgPrompt",
+   "args": [
+    {},
+    {
+     "kame": "Kame",
+     "lyra": "Lyricists",
+     "pk": "ProjectK",
+     "sid": "Sid"
+    }
+   ],
+   "out": ""
+  },
+  {
+   "fn": "orgPrompt",
+   "args": [
+    {
+     "pk": "kame",
+     "lyra": "kame",
+     "kame": "sid"
+    },
+    {
+     "kame": "Kame",
+     "lyra": "Lyricists",
+     "pk": "ProjectK",
+     "sid": "Sid"
+    }
+   ],
+   "out": "Team: Kame leads Lyricists, ProjectK; Sid leads Kame.\nGive work for an agent with a lead to that lead (or plan it with plan_work); the lead hands parts to its people. Call such an agent directly only when the user named it.\nA report that ends with \"Hand back:\" means its agent left the choice to you: pick the agent for that need and start it."
+  },
+  {
+   "fn": "orgPrompt",
+   "args": [
+    {
+     "quill": "kame"
+    },
+    {
+     "kame": "Kame",
+     "lyra": "Lyricists",
+     "pk": "ProjectK",
+     "sid": "Sid"
+    }
+   ],
+   "out": "Team: Kame leads quill.\nGive work for an agent with a lead to that lead (or plan it with plan_work); the lead hands parts to its people. Call such an agent directly only when the user named it.\nA report that ends with \"Hand back:\" means its agent left the choice to you: pick the agent for that need and start it."
+  },
+  {
+   "fn": "handBackNeed",
+   "args": [
+    "Done. The table is filled in."
+   ],
+   "out": null
+  },
+  {
+   "fn": "handBackNeed",
+   "args": [
+    "Hand back: a designer\nThen I stopped."
+   ],
+   "out": null
+  },
+  {
+   "fn": "handBackNeed",
+   "args": [
+    "I could not do the logo.\n\nHand back: someone who can draw a logo  \n"
+   ],
+   "out": "someone who can draw a logo"
+  },
+  {
+   "fn": "handBackNeed",
+   "args": [
+    "hand back: a second\u0007line\rhere"
+   ],
+   "out": "a second line here"
+  },
+  {
+   "fn": "handBackNeed",
+   "args": [
+    "Hand back: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "out": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  {
+   "fn": "handBackNeed",
+   "args": [
+    "Hand back:   "
+   ],
+   "out": null
+  },
+  {
+   "fn": "handBackNeed",
+   "args": [
+    "HAND BACK:x​y­z"
+   ],
+   "out": "x y z"
+  },
+  {
+   "fn": "handBackNeed",
+   "args": [
+    "Hand back: 😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+   ],
+   "out": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+  },
+  {
+   "fn": "handBackNeed",
+   "args": [
+    "Hand back:﻿tabs\tand spaces"
+   ],
+   "out": "tabs and spaces"
+  },
+  {
+   "fn": "handBackNeed",
+   "args": [
+    "  Hand back: trimmed  \n\n\n"
+   ],
+   "out": "trimmed"
+  },
+  {
+   "fn": "handBackNeed",
+   "args": [
+    ""
+   ],
+   "out": null
+  },
+  {
+   "fn": "handBackLine",
+   "args": [
+    "Kame",
+    "a logo designer",
+    {
+     "kame": "sid"
+    },
+    {
+     "kame": "Kame",
+     "sid": "Sid"
+    }
+   ],
+   "out": "Kame handed back to ARK: a logo designer. Choose the agent for it (the chart: Sid leads Kame); the usual rules apply."
+  },
+  {
+   "fn": "handBackLine",
+   "args": [
+    "Kame",
+    "a logo designer",
+    {},
+    {
+     "kame": "Kame",
+     "sid": "Sid"
+    }
+   ],
+   "out": "Kame handed back to ARK: a logo designer. Choose the agent for it; the usual rules apply."
+  },
+  {
+   "fn": "callable",
+   "args": [
+    "ana",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ]
+   ],
+   "out": {
+    "reports": [
+     "bo",
+     "cy"
+    ],
+    "peers": [
+     "ed"
+    ]
+   }
+  },
+  {
+   "fn": "callable",
+   "args": [
+    "bo",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ]
+   ],
+   "out": {
+    "reports": [
+     "di"
+    ],
+    "peers": [
+     "cy"
+    ]
+   }
+  },
+  {
+   "fn": "callable",
+   "args": [
+    "cy",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ]
+   ],
+   "out": {
+    "reports": [],
+    "peers": [
+     "bo"
+    ]
+   }
+  },
+  {
+   "fn": "callable",
+   "args": [
+    "di",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ]
+   ],
+   "out": {
+    "reports": [],
+    "peers": []
+   }
+  },
+  {
+   "fn": "callable",
+   "args": [
+    "ed",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ]
+   ],
+   "out": {
+    "reports": [],
+    "peers": [
+     "ana"
+    ]
+   }
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "ana",
+    "ana",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": "You cannot give a task to yourself. Do the work, or end your turn with your report."
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "ana",
+    "bo",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": null
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "ana",
+    "cy",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": null
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "ana",
+    "di",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": "DI is not one of your reports or peers. You may call: BO (bo), CY (cy), ED (ed). Otherwise end your turn and say in your report who should do it."
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "ana",
+    "ed",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": null
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "bo",
+    "ana",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": "ANA is above you in the team. Do not call up: end your turn, and your report goes back to the one who gave you the task."
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "bo",
+    "bo",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": "You cannot give a task to yourself. Do the work, or end your turn with your report."
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "bo",
+    "cy",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": null
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "bo",
+    "di",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": null
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "bo",
+    "ed",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": "ED is not one of your reports or peers. You may call: DI (di), CY (cy). Otherwise end your turn and say in your report who should do it."
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "cy",
+    "ana",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": "ANA is above you in the team. Do not call up: end your turn, and your report goes back to the one who gave you the task."
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "cy",
+    "bo",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": null
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "cy",
+    "cy",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": "You cannot give a task to yourself. Do the work, or end your turn with your report."
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "cy",
+    "di",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": "DI is not one of your reports or peers. You may call: BO (bo). Otherwise end your turn and say in your report who should do it."
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "cy",
+    "ed",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": "ED is not one of your reports or peers. You may call: BO (bo). Otherwise end your turn and say in your report who should do it."
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "di",
+    "ana",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": "ANA is above you in the team. Do not call up: end your turn, and your report goes back to the one who gave you the task."
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "di",
+    "bo",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": "BO is above you in the team. Do not call up: end your turn, and your report goes back to the one who gave you the task."
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "di",
+    "cy",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": "CY is not one of your reports or peers. You have no one to call. Otherwise end your turn and say in your report who should do it."
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "di",
+    "di",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": "You cannot give a task to yourself. Do the work, or end your turn with your report."
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "di",
+    "ed",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": "ED is not one of your reports or peers. You have no one to call. Otherwise end your turn and say in your report who should do it."
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "ed",
+    "ana",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": null
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "ed",
+    "bo",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": "BO is not one of your reports or peers. You may call: ANA (ana). Otherwise end your turn and say in your report who should do it."
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "ed",
+    "cy",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": "CY is not one of your reports or peers. You may call: ANA (ana). Otherwise end your turn and say in your report who should do it."
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "ed",
+    "di",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": "DI is not one of your reports or peers. You may call: ANA (ana). Otherwise end your turn and say in your report who should do it."
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "ed",
+    "ed",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": "You cannot give a task to yourself. Do the work, or end your turn with your report."
+  },
+  {
+   "fn": "delegationProblem",
+   "args": [
+    "ana",
+    "zed",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {}
+   ],
+   "out": "zed is not one of your reports or peers. You may call: bo (bo), cy (cy), ed (ed). Otherwise end your turn and say in your report who should do it."
+  },
+  {
+   "fn": "teamLine",
+   "args": [
+    "ana",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": "Your reports: BO (bo), CY (cy).\nYour peers: ED (ed).\nYou may give a part of your task to one of them with the Agent tool (subagent_type: its id). Its report comes back to you; use it in your own report.\nYou report only by ending your turn: you have no tool to message ARK or the one who called you while you work."
+  },
+  {
+   "fn": "teamLine",
+   "args": [
+    "bo",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": "Your reports: DI (di).\nYour peers: CY (cy).\nYou may give a part of your task to one of them with the Agent tool (subagent_type: its id). Its report comes back to you; use it in your own report.\nYou report only by ending your turn: you have no tool to message ARK or the one who called you while you work."
+  },
+  {
+   "fn": "teamLine",
+   "args": [
+    "cy",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": "Your peers: BO (bo).\nYou may give a part of your task to one of them with the Agent tool (subagent_type: its id). Its report comes back to you; use it in your own report.\nYou report only by ending your turn: you have no tool to message ARK or the one who called you while you work."
+  },
+  {
+   "fn": "teamLine",
+   "args": [
+    "di",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": ""
+  },
+  {
+   "fn": "teamLine",
+   "args": [
+    "ed",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {
+     "ana": "ANA",
+     "bo": "BO",
+     "cy": "CY",
+     "di": "DI",
+     "ed": "ED"
+    }
+   ],
+   "out": "Your peers: ANA (ana).\nYou may give a part of your task to one of them with the Agent tool (subagent_type: its id). Its report comes back to you; use it in your own report.\nYou report only by ending your turn: you have no tool to message ARK or the one who called you while you work."
+  },
+  {
+   "fn": "teamLine",
+   "args": [
+    "bo",
+    {
+     "bo": "ana",
+     "cy": "ana",
+     "di": "bo"
+    },
+    [
+     "ana",
+     "bo",
+     "cy",
+     "di",
+     "ed"
+    ],
+    {}
+   ],
+   "out": "Your reports: di (di).\nYour peers: cy (cy).\nYou may give a part of your task to one of them with the Agent tool (subagent_type: its id). Its report comes back to you; use it in your own report.\nYou report only by ending your turn: you have no tool to message ARK or the one who called you while you work."
+  }
+ ]
+}
