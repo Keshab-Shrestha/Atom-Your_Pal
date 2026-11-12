@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use ark_runtime::helpers_roster as roster;
+use ark_runtime::{helpers_roster as roster, helpers_routines as routines};
 use rusqlite::{Connection, OpenFlags};
 use serde_json::Value;
 
@@ -27,7 +27,7 @@ fn expected() -> Value {
 }
 
 /// The keys the later slices add.
-const LATER: [&str; 3] = ["routines", "proposals", "jobs"];
+const LATER: [&str; 2] = ["proposals", "jobs"];
 
 #[test]
 fn roster_core_matches_typescript() {
@@ -35,7 +35,16 @@ fn roster_core_matches_typescript() {
     let (members, problems) = roster::roster(&conn, &dir.join("agents")).unwrap();
     let want = expected();
     assert_eq!(Value::Array(problems), want["problems"]);
-    let got: Vec<Value> = members.iter().map(|m| roster::member_core(&conn, m).unwrap()).collect();
+    let now: jiff::Timestamp = want["now"].as_str().unwrap().parse().unwrap();
+    let now = now.in_tz("Asia/Tokyo").unwrap();
+    let got: Vec<Value> = members
+        .iter()
+        .map(|m| {
+            let mut view = roster::member_core(&conn, m).unwrap();
+            view["routines"] = Value::Array(routines::routines_of(&conn, &m.id, &now).unwrap());
+            view
+        })
+        .collect();
     let mut wanted = want["helpers"].as_array().unwrap().clone();
     for helper in &mut wanted {
         for key in LATER {

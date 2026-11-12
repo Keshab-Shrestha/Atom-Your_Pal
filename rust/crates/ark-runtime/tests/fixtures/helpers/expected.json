@@ -1,5 +1,6 @@
 {
- "source": "services/helpers/src/store.ts list()",
+ "source": "apps/mac/src/island-helpers.ts list()",
+ "now": "2026-11-12T11:30:00.000Z",
  "helpers": [
   {
    "id": "sid",
@@ -39,7 +40,29 @@
    "pinnedModel": "claude-sonnet-5-5",
    "planFirst": false,
    "browser": true,
-   "routines": [],
+   "routines": [
+    {
+     "id": 1,
+     "task": "Summarise networking news",
+     "when": "Every day at 8:05 AM",
+     "schedule": {
+      "kind": "daily",
+      "minute": 485
+     },
+     "nextAt": "2026-11-12T23:05:00.000Z",
+     "notifyTelegram": true
+    },
+    {
+     "id": 3,
+     "task": "Hourly check",
+     "when": "Every 3 hours",
+     "schedule": {
+      "kind": "hours",
+      "every": 3
+     },
+     "nextAt": "2026-11-12T12:00:00.000Z"
+    }
+   ],
    "grants": [],
    "skills": [
     "pdf",
@@ -75,7 +98,20 @@
    "codexPinnedModel": "gpt-5-codex",
    "planFirst": true,
    "browser": false,
-   "routines": [],
+   "routines": [
+    {
+     "id": 2,
+     "task": "Weekly review",
+     "when": "Every Monday at 9:30 PM",
+     "schedule": {
+      "kind": "weekly",
+      "weekday": 1,
+      "minute": 1290
+     },
+     "nextAt": "2026-11-16T12:30:00.000Z",
+     "webhook": true
+    }
+   ],
    "grants": [
     "/private/tmp/ark-helpers-fixture-home/proj"
    ],
@@ -141,7 +177,18 @@
    "pinnedModel": null,
    "planFirst": false,
    "browser": false,
-   "routines": [],
+   "routines": [
+    {
+     "id": 5,
+     "task": "Midnight",
+     "when": "Every day at 12:00 AM",
+     "schedule": {
+      "kind": "daily",
+      "minute": 0
+     },
+     "nextAt": "2026-11-12T15:00:00.000Z"
+    }
+   ],
    "grants": [],
    "skills": [],
    "proposals": [],
@@ -205,7 +252,19 @@
    "pinnedModel": null,
    "planFirst": false,
    "browser": false,
-   "routines": [],
+   "routines": [
+    {
+     "id": 6,
+     "task": "Sunday noon",
+     "when": "Every Sunday at 12:00 PM",
+     "schedule": {
+      "kind": "weekly",
+      "weekday": 0,
+      "minute": 720
+     },
+     "paused": true
+    }
+   ],
    "grants": [],
    "skills": [],
    "proposals": [],
@@ -273,7 +332,18 @@
    "pinnedModel": null,
    "planFirst": false,
    "browser": false,
-   "routines": [],
+   "routines": [
+    {
+     "id": 4,
+     "task": "Every hour",
+     "when": "Every hour",
+     "schedule": {
+      "kind": "hours",
+      "every": 1
+     },
+     "nextAt": "2026-11-12T12:00:11.000Z"
+    }
+   ],
    "grants": [],
    "skills": [],
    "proposals": [],

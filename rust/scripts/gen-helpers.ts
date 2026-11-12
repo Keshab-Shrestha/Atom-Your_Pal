@@ -4,7 +4,9 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+process.env.TZ = "Asia/Tokyo"; // routines show their next time in local time; the Rust test uses the same zone
 import { openHelperStore } from "../../services/helpers/src/store.ts";
+import { islandHelpers } from "../../apps/mac/src/island-helpers.ts";
 import { writeAgent } from "../../services/helpers/src/agents.ts";
 
 const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "crates", "ark-runtime", "tests", "fixtures", "helpers");
@@ -44,9 +46,19 @@ store.setPlanFirst("kame", true);
 store.setBrowser("sid", true);
 store.setPaused("puff", true);
 
+store.addRoutine("sid", "Summarise networking news", { kind: "daily", minute: 8 * 60 + 5 }, undefined, true, false);
+const r2 = store.addRoutine("kame", "Weekly review", { kind: "weekly", weekday: 1, minute: 21 * 60 + 30 }, undefined, false, true);
+store.addRoutine("sid", "Hourly check", { kind: "hours", every: 3 }, new Date(Date.UTC(2026, 10, 2, 0, 0, 0)));
+store.addRoutine("mochi", "Every hour", { kind: "hours", every: 1 }, undefined);
+store.addRoutine("quill", "Midnight", { kind: "daily", minute: 0 }, undefined);
+const r6 = store.addRoutine("hana", "Sunday noon", { kind: "weekly", weekday: 0, minute: 12 * 60 }, undefined);
+store.pauseRoutine(r6.id, true);
+store.runRoutines(() => true); // marks the due ones (lastAt)
+void r2;
 const problems = store.agentProblems();
-const view = JSON.parse(JSON.stringify(store.list()));
-writeFileSync(join(dir, "expected.json"), `${JSON.stringify({ source: "services/helpers/src/store.ts list()", helpers: view, problems }, null, 1)}\n`);
+const NOW = new Date(Date.UTC(2026, 10, 12, 11, 30, 0)); // 2026-11-12 20:30 in Tokyo, a Thursday
+const view = JSON.parse(JSON.stringify(islandHelpers(store, async () => [], () => [], () => [], () => NOW).list()));
+writeFileSync(join(dir, "expected.json"), `${JSON.stringify({ source: "apps/mac/src/island-helpers.ts list()", now: NOW.toISOString(), helpers: view, problems }, null, 1)}\n`);
 store.close?.();
 for (const ext of ["-wal", "-shm"]) rmSync(join(dir, `helpers.db${ext}`), { force: true });
 console.log(`helpers: ${view.length} members, ${problems.length} problems`);

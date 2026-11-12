@@ -2,6 +2,7 @@
 
 pub mod ask;
 pub mod helpers_roster;
+pub mod helpers_routines;
 pub mod brain;
 pub mod chat_store;
 pub mod chats;
