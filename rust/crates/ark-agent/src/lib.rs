@@ -10,6 +10,7 @@
 pub mod actions;
 pub mod floor;
 mod policy;
+pub mod sandbox;
 pub mod tools;
 
 use ark_llm::{Answer, Block, Event, LlmError, Message, Provider, Request, ToolSpec, Usage, collect};

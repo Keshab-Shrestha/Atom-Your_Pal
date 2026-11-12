@@ -76,10 +76,10 @@ impl ActionTools {
         if let ark_core::policy::CommandVerdict::Refuse { reason } = ark_core::policy::classify_command(command, "you") {
             return Err(reason);
         }
-        let mut child = Command::new("/bin/sh")
-            .args(["-c", command])
-            .current_dir(&self.cwd)
-            .env_remove("ANTHROPIC_API_KEY")
+        let Some(mut cmd) = crate::sandbox::command(command, &self.write_roots, &self.home, &self.cwd) else {
+            return Err("the command sandbox is not available on this system, so the command was not run".into());
+        };
+        let mut child = cmd
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

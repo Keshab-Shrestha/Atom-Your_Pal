@@ -45,6 +45,14 @@
 - The token comes from `ARK_TELEGRAM_BOT_TOKEN` (with `ARK_TELEGRAM_CHAT_ID`, `ARK_TELEGRAM_USER_ID`) through `Config::from_env`, or from the caller. The log gets names and codes, never text or the token.
 - Verified: 5 tests (message split; backlog and sender filter; split send with buttons; retry rules; wrong token, with a check that the token is not in the log) against a local mock Bot API server. Clippy is clean. No live Telegram call.
 
+## Rust Phase 2 step 18: command sandbox — 12 November 2026
+
+- ADR-278, Phase 2, CLAUDE.md rule 13: `run_command` now runs under macOS `sandbox-exec` (`ark-agent/src/sandbox.rs`). The profile denies all writes except the folders the chat may change, `/private/tmp`, the per-user temporary folders and a few devices. It denies all network. It denies reads of `~/.ssh`, `~/.aws`, `~/.gnupg`, `~/.config/gh`, keychains, `~/.claude`, `~/.hermes`, `~/.docker`, `.netrc`, `.npmrc` and `.pypirc`.
+- The command gets a small environment (`PATH`, `HOME`, `LANG`, `LC_ALL`, `TERM`, `TMPDIR`, `USER`, `SHELL`). Tokens and keys of the parent are not passed.
+- No sandbox, no command: when `/usr/bin/sandbox-exec` is missing, the command is refused. The policy check and the user's approval stay in front of it.
+- Verified: a profile unit test, and a test that runs real commands: a write in the granted folder works; a write in a folder that is not granted fails; a secret folder is not readable; the parent's token is not in the environment. The network check uses `nc` and is weak if `nc` is missing. Clippy is clean.
+- Known limit: the temporary folders are writable, so a command can write there. `sandbox-exec` is deprecated by Apple but works on this macOS.
+
 ## Rust Phase 2 step 17: ask_user and parallel tool calls — 12 November 2026
 
 - ADR-278, Phase 2: native chat turns from the window now have the `ask_user` tool (`ark-runtime/src/ask.rs`). It parses the input with the `ark-core` parser, shows a `chat.work` card with the questions, and waits for `chat.question.answer`. It gives the model the same JSON as Node (one answer, many answers, "unanswered"). A blank is a skip. Time out is 90 seconds for each question. Four questions at most per turn. The tool is a clarification: it never gives a permission.

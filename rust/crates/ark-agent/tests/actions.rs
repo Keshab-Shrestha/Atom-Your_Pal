@@ -115,3 +115,31 @@ fn the_policy_asks_for_a_plain_command() {
     let (_, policy, _) = setup("ask");
     assert!(matches!(policy.check("run_command", &input(json!({"command": "ls"}))), Decision::Ask { .. }));
 }
+
+#[test]
+fn a_command_runs_in_the_sandbox_it_writes_only_in_the_granted_folder_and_has_no_secrets_or_network() {
+    let (work, _policy, tools) = setup("sandbox");
+    // A place that is writable for the user but is not a granted folder or a temporary folder: this crate's own folder.
+    let outside = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("sandbox-probe-{}.txt", std::process::id()));
+    std::fs::remove_file(&outside).ok();
+    let home = &tools.home;
+    std::fs::create_dir_all(home.join(".ssh")).unwrap();
+    std::fs::write(home.join(".ssh/id_test"), "secret").unwrap();
+    let run = |command: &str| tools.run("run_command", &input(json!({ "command": command })));
+    let inside = run("echo ok > in.txt && echo wrote");
+    assert!(inside.is_ok(), "{inside:?}");
+    assert_eq!(std::fs::read_to_string(tools.cwd.join("in.txt")).unwrap().trim(), "ok");
+    let blocked = run(&format!("echo no > {}", outside.display()));
+    let wrote = outside.exists();
+    std::fs::remove_file(&outside).ok();
+    assert!(blocked.is_err() && !wrote, "a write outside the granted folders must fail: {blocked:?}");
+    assert!(run("cat ../.ssh/id_test").is_err(), "secret folders are not readable");
+    let net = run("/usr/bin/nc -z -w 2 1.1.1.1 80 && echo connected");
+    assert!(!net.is_ok_and(|o| o.contains("connected")), "no network");
+    // The environment is small: a key in the parent environment does not reach the command.
+    // SAFETY: this test sets a variable with its own name, and no other test reads it.
+    unsafe { std::env::set_var("ARK_TEST_SECRET_TOKEN", "leak") };
+    let env = run("env").unwrap();
+    assert!(!env.contains("ARK_TEST_SECRET_TOKEN") && env.contains("PATH="));
+    let _ = work;
+}
