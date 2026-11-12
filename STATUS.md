@@ -1,5 +1,15 @@
 # ARK Project Status
 
+## Rust Phase 5: speech, foreground recovery, computer tool — 13 November 2026
+
+- ADR-278, plan section 5(b). New crate `ark-speech` has the `SpeechEngine` trait, the `talk.*` state machine (`Talk`), a `say` voice and a Parakeet helper process. The helper speaks line JSON on stdio (`start`, `stop`, `cancel`; `level`, `transcript`, `error`). The helper is Swift (FluidAudio). Rust has no Parakeet binding. The owner chose Parakeet only, so there is no Whisper path.
+- `talk.start`, `talk.send` and `talk.cancel` answer in Rust when `ARK_SPEECH_NATIVE=1` and `ARK_DICTATION_HELPER` names the helper. The app gets `state`, `mic.ready`, `mic.level`, `transcript` and notice events. The levels are the on-screen sign that the microphone is live.
+- `reply.context` and `reply.draft` (`reply.rs`) check the input and call a `ReplyWriter`. Only `reply.rs` is ported. The writer is not wired to the chat model yet, so Node still answers `reply.*`. The search is a plain substring match, not ranked.
+- `foreground.list`, `.read`, `.dismiss` and `.ack` (`foreground.rs`) answer from the memory file. Rust reads and clears records. Node still prepares, starts and finishes attempts. A line that fails the checks goes to Node.
+- New crate `ark-computer`: the `computer` tool with `status`, `screen`, `move`, `click`, `double_click`, `type`, `key` and `scroll`. `ComputerPolicy` allows reading, asks for every input and refuses system keys. `DryRun` records the effects. `Live` posts CGEvents. It needs the owner switch and `ARK_COMPUTER_LIVE=1`. No test builds `Live`.
+- Not ported: screenshots, the Accessibility element tree (`look`), the point marker, learned shortcuts and lanes. The Cua driver keeps them.
+- Checks: fixture and fake tests only. No microphone, no key and no real input was used.
+
 ## Rust Phase 1: ark-core — 12 November 2026
 
 - ADR-278, Phase 1: `rust/crates/ark-core` is built, on branch `rust-phase-1`, not pushed. The app does not call it. One commit for each module.

@@ -12,6 +12,7 @@ members = [
     "crates/ark-protocol",
     "crates/ark-runtime",
     "crates/ark-speech",
+    "crates/ark-computer",
     "crates/ark-spike",
     "crates/ark-ui",
     "crates/ark-app",
@@ -28,7 +29,7 @@ members = [
     "vendor/rune/crates/rune-ref",
     "vendor/rune/themes/opencode",
 ]
-default-members = ["crates/ark-core", "crates/ark-agent", "crates/ark-llm", "crates/ark-telegram", "crates/ark-hello", "crates/ark-runtime", "crates/ark-speech", "crates/ark-protocol", "crates/ark-ui", "crates/ark-app"]
+default-members = ["crates/ark-core", "crates/ark-agent", "crates/ark-llm", "crates/ark-telegram", "crates/ark-hello", "crates/ark-runtime", "crates/ark-speech", "crates/ark-computer", "crates/ark-protocol", "crates/ark-ui", "crates/ark-app"]
 
 [workspace.package]
 edition = "2024"

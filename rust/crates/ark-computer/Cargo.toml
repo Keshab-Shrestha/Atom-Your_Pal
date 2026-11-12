@@ -1,0 +1,17 @@
+[package]
+name = "ark-computer"
+version = "0.0.1"
+edition.workspace = true
+publish = false
+description = "The Rust `computer` tool (ADR-278): screen size, click, type, key and scroll behind the policy and the approver. The tests only use the dry-run backend."
+
+[dependencies]
+ark-agent = { version = "0.0.1", path = "../ark-agent" }
+ark-llm = { version = "0.0.1", path = "../ark-llm" }
+serde_json = "1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+core-graphics = { version = "0.23", features = ["highsierra"] }
+
+[lints]
+workspace = true

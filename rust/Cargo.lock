@@ -208,6 +208,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ark-computer"
+version = "0.0.1"
+dependencies = [
+ "ark-agent",
+ "ark-llm",
+ "core-graphics",
+ "serde_json",
+]
+
+[[package]]
 name = "ark-core"
 version = "0.0.1"
 dependencies = [
