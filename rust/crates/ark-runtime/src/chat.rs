@@ -173,7 +173,7 @@ impl Chat {
         }
         let Some(id) = command.get("id").and_then(Value::as_str).filter(|id| !id.is_empty() && id.len() <= 100 && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')) else { return false };
         let Ok(conn) = crate::chats::open_read_only(&self.db).ok_or(()) else { return false };
-        let row: Option<Option<String>> = conn.query_row("SELECT project_id FROM chats WHERE id = ?", [id], |r| r.get(0)).optional().ok().flatten().map(Some);
+        let row: Option<Option<String>> = conn.query_row("SELECT project_id FROM chats WHERE id = ?", [id], |r| r.get::<_, Option<String>>(0)).optional().ok().flatten();
         // No row, or a project chat (its replay is capped by Node): Node answers.
         if !matches!(row, Some(None)) {
             return false;

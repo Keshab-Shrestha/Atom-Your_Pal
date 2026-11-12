@@ -252,6 +252,8 @@ test("parses the helper commands", () => {
     { type: "git.diff", repo: "/Users/me/site", branch: "ark/task-8" },
     { type: "chats.list" },
     { type: "chat.open", id: "4f1c-aa" },
+    { type: "core.resume", id: "4f1c-aa" },
+    { type: "core.resume" },
     { type: "chat.delete", id: "4f1c-aa" },
     { type: "mcp.add", name: "notes", kind: "command", command: "notes-mcp", args: ["--stdio"], env: ["T=1"] },
     { type: "mcp.add", name: "linear", kind: "url", url: "https://x/mcp", transport: "sse", headers: ["A: b"] },
@@ -343,6 +345,7 @@ test("git.push and git.diff take only a full path and a ARK task branch; chats t
     [{ type: "git.push", repo: "relative/path", branch: "ark/task-7" }, /full path/],
     [{ type: "git.diff", branch: "ark/task-7" }, /full path/],
     [{ type: "chat.open", id: "../x" }, /chat's "id"/],
+    [{ type: "core.resume", id: "../x" }, /core.resume/],
     [{ type: "chat.delete" }, /chat's "id"/],
   ];
   for (const [command, expected] of cases) {

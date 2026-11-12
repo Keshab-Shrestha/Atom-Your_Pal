@@ -625,6 +625,23 @@ export function runIsland(options: IslandOptions): IslandSession {
         }, "chat.open");
         return;
       }
+      case "core.resume": {
+        // ADR-278: the Rust runtime already showed the chat to the app. Move the Core session, say nothing.
+        const chats = options.chats;
+        if (!core.resume) return;
+        const id = command.id;
+        const turns = id && chats ? chats.messages(id) : [];
+        if (id && !turns.length && !chats?.metadataOf?.(id)) return;
+        options.computer?.cancelAll();
+        loop.cancel();
+        options.screen?.clear();
+        whenCoreIdle(() => {
+          if (!id) { core.reset(); remembered = undefined; return; }
+          core.resume!(id, chats?.replay?.(id, turns).turns ?? turns);
+          rememberCurrentChat();
+        }, "core.resume");
+        return;
+      }
       case "chats.export": {
         if (!options.chats) { send({ type: "chats.history", action: "export", ok: false, count: 0, error: "Chats are not saved here." }); return; }
         try {

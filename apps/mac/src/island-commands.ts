@@ -93,6 +93,8 @@ export type IslandCommand =
   | { type: "project.model"; id: string; provider: string; model: string }
   | { type: "project.web"; id: string; web: boolean }
   | { type: "chat.open"; id: string }
+  /** ADR-278: the Rust runtime opened (or closed, with no id) a chat itself. Node only moves its Core session; it sends nothing back. */
+  | { type: "core.resume"; id?: string }
   | { type: "chat.delete"; id: string }
   /** ADR-097: keep a chat in memory (summary, sections and exact lines, searched for every request), or remove it. */
   | { type: "memory.keepChat"; id: string }
@@ -270,6 +272,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "project.model",
   "project.web",
   "chat.open",
+  "core.resume",
   "chat.delete",
   "memory.keepChat",
   "memory.dropChat",
@@ -807,6 +810,11 @@ export function parseCommand(line: string): ParsedLine {
   }
   const projects = projectCommand(type, value as Record<string, unknown>);
   if (projects) return projects;
+  if (type === "core.resume") {
+    const { id } = value as { id?: unknown };
+    if (id !== undefined && (typeof id !== "string" || !/^[\w-]{1,100}$/.test(id))) return { error: 'core.resume needs a chat "id" or none.' };
+    return { command: id === undefined ? { type } : { type, id } };
+  }
   if (type === "chat.open" || type === "chat.delete" || type === "memory.keepChat" || type === "memory.dropChat") {
     const { id } = value as { id?: unknown };
     if (typeof id !== "string" || !/^[\w-]{1,100}$/.test(id)) return { error: `${type} needs the chat's "id".` };
