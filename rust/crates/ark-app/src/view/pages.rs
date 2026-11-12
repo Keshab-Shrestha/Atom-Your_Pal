@@ -497,7 +497,37 @@ pub fn memory(app: &App, k: &Kit) -> El {
     page(k, "memory", "Memory", cards)
 }
 
+/// A project's files: the folders to open and the file's text.
+fn workspace_view(app: &App, project: &str, k: &Kit) -> El {
+    let mut cards = vec![Button::new("Back to projects").on_press(|s: &mut App| s.workspace_project = None).build(k).key("workspace-back")];
+    match app.model.workspace.as_ref().filter(|w| w.project == project) {
+        None => cards.push(text("Loading files…").key("workspace-loading").font(k.ty.ui).color(k.c.text_faint)),
+        Some(w) if !w.ok => cards.push(text(w.error.clone().unwrap_or_else(|| "The files could not be read.".into())).key("workspace-error").font(k.ty.ui).color(k.c.danger.fg).wrap()),
+        Some(w) => {
+            let mut c = card(k, "workspace-files", if w.path.is_empty() { "Project folder" } else { &w.path });
+            if let Some(text_of_file) = &w.text {
+                for l in text_of_file.lines().take(200) {
+                    c = c.child(text(l.to_owned()).font(k.ty.small).color(k.c.text_base));
+                }
+            }
+            for (i, (path, name, dir)) in w.entries.iter().take(100).enumerate() {
+                let (pid, p) = (project.to_owned(), path.clone());
+                let action = if *dir { "list" } else { "read" };
+                c = c.child(Button::new(if *dir { format!("{name}/") } else { name.clone() }).on_press(move |s: &mut App| s.workspace(&pid, action, &p)).build(k).key(format!("ws-{i}")));
+            }
+            if w.limited {
+                c = c.child(text("More files than shown.").font(k.ty.small).color(k.c.text_faint));
+            }
+            cards.push(c);
+        }
+    }
+    page(k, "workspace", "Files", cards)
+}
+
 pub fn projects(app: &App, k: &Kit) -> El {
+    if let Some(project) = &app.workspace_project {
+        return workspace_view(app, project, k);
+    }
     let add = Button::new("Add project").variant(ButtonVariant::Submit).on_press_tx(|_: &mut App, tx: &mut rune::Tx| {
         tx.open_folder(rune::FileDialogOptions { title: "Choose the project folder".into(), ..Default::default() }, |s: &mut App, result, _| {
             if let Ok(Some(path)) = result {
@@ -506,12 +536,21 @@ pub fn projects(app: &App, k: &Kit) -> El {
             }
         });
     }).build(k).key("project-add");
-    let mut cards = vec![row().justify_end().child(add)];
+    let sources = row().gap(8.0).wrap()
+        .child(Button::new("New empty project").on_press(|s: &mut App| s.open_form(Form::project_source("new"))).build(k).key("project-new"))
+        .child(Button::new("Clone a Git repository").on_press(|s: &mut App| s.open_form(Form::project_source("git"))).build(k).key("project-git"))
+        .child(Button::new("Clone from GitHub").on_press(|s: &mut App| s.open_form(Form::project_source("github"))).build(k).key("project-github"))
+        .child(add);
+    let mut cards = vec![row().justify_end().child(sources)];
+    if let Some((ok, error)) = &app.model.project_created {
+        let note = if *ok { "The project was made.".to_owned() } else { error.clone().unwrap_or_else(|| "The project could not be made.".into()) };
+        cards.push(text(note).key("project-created").font(k.ty.small).color(if *ok { k.c.text_muted } else { k.c.danger.fg }).wrap());
+    }
     if app.model.projects.is_empty() {
         cards.push(text("No projects yet. A project is a folder with its own chats.").key("projects-empty").font(k.ty.ui).color(k.c.text_faint).wrap());
     }
     for p in &app.model.projects {
-        let (new_id, remove_id, archive_id, archived) = (p.id.clone(), p.id.clone(), p.id.clone(), p.archived);
+        let (new_id, remove_id, archive_id, files_id, archived) = (p.id.clone(), p.id.clone(), p.id.clone(), p.id.clone(), p.archived);
         let mut meta = vec![p.folder.clone(), format!("{} chats", p.chats)];
         if p.missing {
             meta.push("folder missing".into());
@@ -525,6 +564,7 @@ pub fn projects(app: &App, k: &Kit) -> El {
                 s.send(&Command::ChatNew { project_id: Some(new_id.clone()) });
             }).build(k).key(format!("project-chat-{}", p.id)))
             .child(Button::new(if archived { "Unarchive" } else { "Archive" }).on_press(move |s: &mut App| s.send(&Command::ProjectArchive { id: archive_id.clone(), archived: !archived })).build(k).key(format!("project-archive-{}", p.id)))
+            .child(Button::new("Files").on_press(move |s: &mut App| s.workspace(&files_id, "list", "")).build(k).key(format!("project-files-{}", p.id)))
             .child(Button::new("Remove").on_press(move |s: &mut App| s.send(&Command::ProjectRemove { id: remove_id.clone(), delete_chats: None })).build(k).key(format!("project-remove-{}", p.id)));
         let (rename_id, rename_name, web_id, web) = (p.id.clone(), p.name.clone(), p.id.clone(), p.web);
         let settings = row().gap(8.0).wrap()

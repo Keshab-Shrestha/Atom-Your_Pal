@@ -197,6 +197,19 @@ pub struct Branch {
     pub files: Vec<(String, Option<u64>, Option<u64>)>,
 }
 
+/// The newest `workspace` answer: a folder listing or a file's text.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Workspace {
+    pub project: String,
+    pub path: String,
+    pub ok: bool,
+    pub error: Option<String>,
+    /// (path, name, is folder)
+    pub entries: Vec<(String, String, bool)>,
+    pub text: Option<String>,
+    pub limited: bool,
+}
+
 /// One project: a folder with its own chats (`chats` event, `projects`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Project {
@@ -262,6 +275,9 @@ pub const BRIEF_SWITCHES: [(&str, &str); 9] = [
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Model {
+    pub workspace: Option<Workspace>,
+    /// The answer to the last `project.create`: (ok, error).
+    pub project_created: Option<(bool, Option<String>)>,
     /// Links between notes (`brain` event, `edges`): (a, b).
     pub brain_edges: Vec<(u64, u64)>,
     pub branches: Option<Vec<Branch>>,
@@ -516,6 +532,18 @@ impl Model {
                 let settings = map.get("settings").and_then(Value::as_object);
                 self.brief = settings.map(|o| BRIEF_SWITCHES.map(|(key, _)| bool_of(o, key)));
             }
+            "workspace" => {
+                self.workspace = Some(Workspace {
+                    project: str_of(map, "project"),
+                    path: str_of(map, "path"),
+                    ok: bool_of(map, "ok"),
+                    error: opt_str(map, "error"),
+                    entries: objects(map, "entries").map(|e| (str_of(e, "path"), str_of(e, "name"), bool_of(e, "directory"))).collect(),
+                    text: opt_str(map, "text"),
+                    limited: bool_of(map, "limited"),
+                })
+            }
+            "project.created" => self.project_created = Some((bool_of(map, "ok"), opt_str(map, "error"))),
             "git" => {
                 self.branches = Some(
                     objects(map, "branches")

@@ -31,6 +31,8 @@ pub struct App {
     pub sidebar: PaneState,
     pub screen: Screen,
     /// An open form (soul, new agent, new task); it replaces the page while it is open.
+    /// The project whose files are open on the Projects page.
+    pub workspace_project: Option<String>,
     /// The shortcut waiting for a key press.
     pub recording: Option<ark_core::shortcuts::ShortcutAction>,
     /// The brain search field.
@@ -90,7 +92,7 @@ pub fn init() -> App {
     // Tests and snapshots open the find bar with a query.
     let find = std::env::var("ARK_UI_FIND").ok().map(|q| (TextEdit::new(q), 0));
     let welcome = std::env::var_os("ARK_UI_EVENTS").is_none() && !prefs.welcomed;
-    App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen, brain_query: TextEdit::new(std::env::var("ARK_UI_BRAIN_QUERY").unwrap_or_default()), key_draft: TextEdit::new("").secure(), key_note: None, recording: None, details: std::env::var_os("ARK_UI_DETAILS").is_some(), open_job: std::env::var("ARK_UI_JOB").ok().and_then(|v| v.parse().ok()), prefs, confirm_full: false, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: welcome.then(|| crate::form::Form::owner(true, "")), form_error: None }
+    App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen, brain_query: TextEdit::new(std::env::var("ARK_UI_BRAIN_QUERY").unwrap_or_default()), key_draft: TextEdit::new("").secure(), key_note: None, workspace_project: None, recording: None, details: std::env::var_os("ARK_UI_DETAILS").is_some(), open_job: std::env::var("ARK_UI_JOB").ok().and_then(|v| v.parse().ok()), prefs, confirm_full: false, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: welcome.then(|| crate::form::Form::owner(true, "")), form_error: None }
 }
 
 /// Starts the runtime child once, with the waker that redraws the window when an event arrives.
@@ -277,6 +279,14 @@ impl App {
             Ok(()) => "Key removed from Keychain.".to_owned(),
             Err(why) => why,
         });
+    }
+
+    /// Asks for a folder listing (`list`) or a file's text (`read`) in a project's folder.
+    pub fn workspace(&mut self, project: &str, action: &str, path: &str) {
+        self.workspace_project = Some(project.to_owned());
+        let chat = self.model.current.clone().unwrap_or_default();
+        let fields = serde_json::json!({ "type": "workspace", "request": format!("ui-{action}-{path}"), "chat": chat, "project": project, "action": action, "path": path });
+        self.send(&ark_protocol::Command::Other { kind: "workspace".into(), fields: fields.as_object().cloned().unwrap_or_default() });
     }
 
     pub fn set_translucent(&mut self, on: bool) {

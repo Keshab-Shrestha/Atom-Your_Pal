@@ -247,7 +247,7 @@ fn screens_match_the_swift_goldens_in_brightness() {
 fn the_projects_page_lists_projects() {
     let steps = r#"[{"t":0.2,"type":"click","key":"nav-projects"}]"#;
     let tree = tree_after("projects", "chat.jsonl", Some(steps));
-    for want in ["Atom", "~/Developer/atom", "3 chats", "Add project", "New chat", "Archive", "Remove", "Rename", "Web search: off", "Model for this project"] {
+    for want in ["Atom", "~/Developer/atom", "3 chats", "Add project", "New chat", "Archive", "Remove", "Rename", "Web search: off", "Model for this project", "Files", "Clone from GitHub", "New empty project"] {
         assert!(tree.contains(want), "projects page lacks {want:?}");
     }
 }
@@ -265,5 +265,14 @@ fn the_branches_page_shows_commits_files_and_the_patch() {
     let tree = tree_after("branches", "chat.jsonl", Some(steps));
     for want in ["Fix the build", "abcdef1 Fix linker flags", "build.rs", "+3 -1", "Push", "Changes on ark/task-3"] {
         assert!(tree.contains(want), "branches page lacks {want:?}");
+    }
+}
+
+#[test]
+fn the_files_view_lists_the_project_folder() {
+    let steps = r#"[{"t":0.1,"type":"click","key":"nav-projects"},{"t":0.3,"type":"click","key":"project-files-p1"}]"#;
+    let tree = tree_after("files", "chat.jsonl", Some(steps));
+    for want in ["Back to projects", "src/", "README.md"] {
+        assert!(tree.contains(want), "the files view lacks {want:?}");
     }
 }
