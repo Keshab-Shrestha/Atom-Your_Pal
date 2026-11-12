@@ -129,14 +129,14 @@ impl HelpersNative {
     /// the event; `None` sends the line to Node. A write is made only when the event can be built after it, so the app
     /// never waits for a push that Node does not know about.
     pub fn answer(&self, line: &str) -> Option<String> {
-        if !["\"helpers.list\"", "\"job.", "\"skill.", "\"proposal.", "\"helper.planFirst\"", "\"helper.browser\"", "\"agent.pause\"", "\"helpers.settings\""].iter().any(|k| line.contains(k)) {
+        if !["\"helpers.list\"", "\"job.", "\"skill.", "\"proposal.", "\"helper.planFirst\"", "\"helper.browser\"", "\"agent.pause\"", "\"helpers.settings\"", "\"routine."].iter().any(|k| line.contains(k)) {
             return None;
         }
         let command: Value = serde_json::from_str(line).ok()?;
         let cached = self.cached.lock().ok()?.clone()?;
         if command["type"] != "helpers.list" {
             let conn = crate::store::open_read_write(&self.db).ok()?;
-            if self.life(&conn, &command).is_none() && crate::helpers_settings::apply(&conn, &command).is_none() {
+            if self.life(&conn, &command).is_none() && crate::helpers_settings::apply(&conn, &command).is_none() && crate::helpers_routine_edit::apply(&conn, &command, &self.agents).is_none() {
                 helpers_write::apply(&conn, &command)?;
             }
             self.pump();

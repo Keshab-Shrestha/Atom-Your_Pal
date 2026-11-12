@@ -19,6 +19,7 @@ pub mod helpers_write;
 pub mod helpers_usage;
 pub mod helpers_tests;
 pub mod helpers_routines;
+pub mod helpers_routine_edit;
 pub mod brain;
 pub mod chat_store;
 pub mod chats;
