@@ -368,6 +368,42 @@ pub fn add_job(conn: &Connection, helper: &str, member: Option<(&str, bool, &str
     })
 }
 
+/// `addNativeJob` with a `parentId` (ADR-272): an agent in `chat` hands part of its task to another agent. The org gate
+/// (`delegation_problem` of `ark-core`) says who may call whom. The child is a full worker that runs at once under its parent.
+#[allow(clippy::too_many_arguments)]
+pub fn delegate(conn: &Connection, parent: i64, chat: &str, helper: &str, member: Option<(&str, bool, &str)>, task: &str, map: &ark_core::org::ReportsTo, agent_ids: &[String], name: ark_core::org::Names<'_>) -> Result<i64, String> {
+    let Some((member_name, available, role)) = member else { return Err(format!("There is no helper called \"{}\".", helper.chars().take(40).collect::<String>())) };
+    let parent_row = must_get(conn, parent)?;
+    if parent_row.state != JobState::Running || parent_row.chat_id.as_deref() != Some(chat) || parent_row.native_scope.is_some() {
+        return Err("A delegated task needs a running parent task in this chat.".into());
+    }
+    if parent_row.helper == helper {
+        return Err("An agent cannot give a task to itself.".into());
+    }
+    if let Some(problem) = ark_core::org::delegation_problem(&parent_row.helper, helper, map, agent_ids, name) {
+        return Err(problem);
+    }
+    if role == "improver" {
+        return Err(format!("{member_name} only reviews tasks you rate as not good."));
+    }
+    if !available {
+        return Err(format!("{member_name} is not ready yet."));
+    }
+    let task = task.trim();
+    if task.is_empty() {
+        return Err("The job is empty.".into());
+    }
+    atomic(conn, || {
+        let at = iso_now();
+        sql(conn.execute("INSERT INTO jobs (helper, task, state, created_at, parent_id, chat_id, seen_comments) VALUES (?, ?, 'running', ?, ?, ?, 0)", params![helper, task, at, parent, chat]))?;
+        let id = conn.last_insert_rowid();
+        sql(conn.execute("INSERT INTO job_events (job_id, kind, at) VALUES (?, 'created', ?)", params![id, at]))?;
+        log(conn, id, "running")?;
+        announce(conn, "job", &json!({ "helper": helper, "job": id, "state": "running" }))?;
+        Ok(id)
+    })
+}
+
 /// The edges of `job_blockers`, for a caller that checks a circle (`makes_cycle` of `ark-core`).
 pub fn blocker_edges(conn: &Connection) -> HashMap<i64, Vec<i64>> {
     let mut edges: HashMap<i64, Vec<i64>> = HashMap::new();
@@ -434,6 +470,23 @@ mod tests {
         retry(&conn, a).unwrap();
         assert_eq!(state(&conn, a), "queued");
         assert!(retry(&conn, a).is_err());
+    }
+
+    #[test]
+    fn a_native_parent_hands_a_task_down_but_not_up_or_to_itself() {
+        let conn = db("delegate");
+        conn.execute("INSERT INTO jobs (helper, task, state, created_at, chat_id) VALUES ('sid', 'lead', 'running', 'x', 'c1')", []).unwrap();
+        let parent = conn.last_insert_rowid();
+        let ids: Vec<String> = vec!["sid".into(), "kame".into()];
+        let map = ark_core::org::ReportsTo::from([("kame".to_string(), "sid".to_string())]);
+        let name = |id: &str| Some(id.to_uppercase());
+        let kame = Some(("Kame", true, "coder"));
+        let child = delegate(&conn, parent, "c1", "kame", kame, "part", &map, &ids, &name).unwrap();
+        assert_eq!(state(&conn, child), "running");
+        assert!(delegate(&conn, parent, "c1", "sid", SID, "x", &map, &ids, &name).unwrap_err().contains("to itself"));
+        assert!(delegate(&conn, parent, "other", "kame", kame, "x", &map, &ids, &name).unwrap_err().contains("running parent"));
+        conn.execute("UPDATE jobs SET helper = 'kame' WHERE id = ?", [parent]).unwrap();
+        assert!(delegate(&conn, parent, "c1", "sid", SID, "x", &map, &ids, &name).unwrap_err().contains("above you"), "no calling up");
     }
 
     #[test]
