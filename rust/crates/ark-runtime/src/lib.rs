@@ -4,6 +4,7 @@ pub mod ask;
 pub mod brain;
 pub mod chat_store;
 pub mod chats;
+pub mod projects_store;
 pub mod memory;
 pub mod native;
 pub mod routes;

@@ -7,4 +7,5 @@ pub mod form;
 pub mod launch;
 #[cfg(target_os = "macos")]
 pub mod mac;
+pub mod overlay;
 pub mod view;

@@ -52,10 +52,6 @@ impl UiState {
         Some(UiState { current, reasoning: value["reasoning"].as_array()?.clone(), projects })
     }
 
-    fn project(&self, id: &str) -> Option<&Value> {
-        self.projects.as_ref()?.iter().find(|p| p["id"] == id)
-    }
-
     /// `settings.reasoning(provider, model)`: the listed capability, else the default for an unknown model.
     fn capability(&self, provider: &str, model: &str) -> Value {
         if let Some(found) = self.reasoning.iter().find(|r| r["provider"] == provider && r["model"] == model) {
@@ -162,9 +158,11 @@ pub fn event(conn: &Connection, state: &UiState, current: &str) -> Option<Value>
     let row: Option<(Option<String>, Option<String>, Option<String>)> =
         conn.query_row("SELECT project_id, provider, model FROM chats WHERE id = ?", [current], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).optional().ok()?;
     let (project_id, own_provider, own_model) = row.unwrap_or((None, None, None));
+    // The project rows are live (Rust may have changed them); what only Node computes comes from the file.
+    let projects: Vec<Value> = state.projects.as_ref().map(|items| crate::projects_store::refresh(conn, items)).unwrap_or_default();
     let own = match (own_provider, own_model) {
         (Some(p), Some(m)) => Some((p, m)),
-        _ => project_id.as_deref().and_then(|id| state.project(id)).and_then(|p| Some((p["provider"].as_str()?.to_string(), p["model"].as_str()?.to_string()))),
+        _ => project_id.as_deref().and_then(|id| projects.iter().find(|p| p["id"] == id)).and_then(|p| Some((p["provider"].as_str()?.to_string(), p["model"].as_str()?.to_string()))),
     };
     let mut out = Map::new();
     out.insert("type".into(), json!("chats"));
@@ -176,8 +174,8 @@ pub fn event(conn: &Connection, state: &UiState, current: &str) -> Option<Value>
         out.insert("currentProvider".into(), json!(provider));
         out.insert("currentModel".into(), json!(model));
     }
-    if let Some(projects) = &state.projects {
-        out.insert("projects".into(), Value::Array(projects.clone()));
+    if state.projects.is_some() {
+        out.insert("projects".into(), Value::Array(projects));
     }
     if !current.is_empty() {
         if let Some(id) = &project_id {

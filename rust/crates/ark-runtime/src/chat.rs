@@ -161,6 +161,24 @@ impl Chat {
         Some(Event::Other(event.as_object()?.clone()).to_line())
     }
 
+    /// `project.rename`, `.archive`, `.web` and `.model` with no model (`projects_store.rs`). `None` means: not ours, give it to Node.
+    fn project_command(&self, command: &Command) -> Option<Result<(), String>> {
+        use crate::projects_store as p;
+        let done = |op: &dyn Fn(&Connection) -> Result<(), String>| -> Option<Result<(), String>> {
+            // Without the state file the app could not get the new list: Node does it all.
+            self.chats_line()?;
+            let conn = store::open_read_write(&self.db).ok()?;
+            Some(op(&conn))
+        };
+        match command {
+            Command::ProjectRename { id, name } => done(&|c| p::rename(c, id, name)),
+            Command::ProjectArchive { id, archived } => done(&|c| p::archive(c, id, *archived)),
+            Command::ProjectWeb { id, web } => done(&|c| p::set_web(c, id, *web)),
+            Command::ProjectModel { id, provider, model } if provider.is_empty() && model.is_empty() => done(&|c| p::clear_model(c, id)),
+            _ => None,
+        }
+    }
+
     /// `chat.open` for a saved chat that is not in a project: the app gets `chat.opened` and `chats` from the files, and Node only moves its
     /// Core session (`core.resume`, which says nothing back). `false` means: give it to Node.
     fn open_chat(&self, line: &str, to_app: &Sink, to_node: &Sink) -> bool {
@@ -263,6 +281,17 @@ impl Chat {
                 return false;
             }
             _ => {}
+        }
+        if let Some(result) = self.project_command(&command) {
+            match result {
+                Ok(()) => {
+                    if let Some(chats) = self.chats_line() {
+                        to_app(&chats);
+                    }
+                }
+                Err(message) => to_app(&Event::error(ErrorStage::Settings, &message).to_line()),
+            }
+            return true;
         }
         if self.open_chat(line, &to_app, &to_node) || self.delete_chat(line, &to_app, &to_node) {
             return true;
@@ -723,6 +752,30 @@ mod tests {
         // A project chat goes to Node.
         let ((app, _), (node, _)) = (sinks(), sinks());
         assert!(!chat.handle("{\"type\":\"chat.new\",\"projectId\":\"p-1\"}\n", app, node));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn project_commands_change_the_rows_and_refresh_the_list() {
+        let dir = std::env::temp_dir().join(format!("ark-chat-project-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        let fixtures = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures");
+        std::fs::copy(format!("{fixtures}/chats-view.db"), dir.join("memory.db")).unwrap();
+        std::fs::copy(format!("{fixtures}/chats-view-state.json"), dir.join("ui-state.json")).unwrap();
+        let chat = chat(dir.join("memory.db"));
+        let ((app, from_app), (node, from_node)) = (sinks(), sinks());
+        assert!(chat.handle("{\"type\":\"project.rename\",\"id\":\"p-959297e8\",\"name\":\"Renamed\"}\n", app, node));
+        let list: Value = serde_json::from_str(&from_app.try_recv().unwrap()).unwrap();
+        assert_eq!(list["projects"][0]["name"], json!("Renamed"));
+        assert!(from_node.try_recv().is_err(), "Node hears nothing");
+        let ((app, from_app), (node, _)) = (sinks(), sinks());
+        assert!(chat.handle("{\"type\":\"project.rename\",\"id\":\"p-none\",\"name\":\"X\"}\n", app, node));
+        let error: Value = serde_json::from_str(&from_app.try_recv().unwrap()).unwrap();
+        assert_eq!((error["type"].clone(), error["message"].clone()), (json!("error"), json!("There is no such project.")));
+        // Choosing a model needs Node's check.
+        let ((app, _), (node, _)) = (sinks(), sinks());
+        assert!(!chat.handle("{\"type\":\"project.model\",\"id\":\"p-959297e8\",\"provider\":\"claude\",\"model\":\"m\"}\n", app, node));
         std::fs::remove_dir_all(&dir).ok();
     }
 

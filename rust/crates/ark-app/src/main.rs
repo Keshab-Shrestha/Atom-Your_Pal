@@ -2,6 +2,7 @@
 //! Headless: `ARK_UI_EVENTS=events.jsonl ark-app --snap out.png` draws the state those events make, `--tree tree.json` dumps the tree.
 
 use ark_app::app::{self, App};
+use ark_app::overlay;
 use ark_app::view::{self, CHROME};
 use rune::AppSpec;
 
@@ -16,6 +17,7 @@ fn main() {
         ..AppSpec::<App>::new("ARK", (1040.0, 700.0), app::init, view::view)
     };
     let mut app = rune::App::new(spec).chrome(CHROME);
+    overlay::install(app.overlay(overlay::spec(), overlay::Pill::default()));
     for item in view::menu_items() {
         app = app.menu_item(item);
     }
