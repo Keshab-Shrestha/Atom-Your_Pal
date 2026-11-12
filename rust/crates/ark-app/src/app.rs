@@ -23,11 +23,13 @@ impl Screen {
             Screen::Search => "search",
             Screen::Dashboard => "dashboard",
             Screen::Workflows => "workflows",
+            Screen::Plugins => "plugins",
+            Screen::Skills => "skills",
         }
     }
 
     pub fn from_name(name: &str) -> Screen {
-        [Screen::Settings, Screen::Agents, Screen::Tasks, Screen::Memory, Screen::Projects, Screen::Branches, Screen::Search, Screen::Dashboard, Screen::Workflows].into_iter().find(|s| s.name() == name).unwrap_or(Screen::Chat)
+        [Screen::Settings, Screen::Agents, Screen::Tasks, Screen::Memory, Screen::Projects, Screen::Branches, Screen::Search, Screen::Dashboard, Screen::Workflows, Screen::Plugins, Screen::Skills].into_iter().find(|s| s.name() == name).unwrap_or(Screen::Chat)
     }
 }
 
@@ -45,6 +47,8 @@ pub enum Screen {
     Search,
     Dashboard,
     Workflows,
+    Plugins,
+    Skills,
 }
 
 pub struct App {
@@ -286,6 +290,7 @@ impl App {
             Screen::Branches => self.send(&ark_protocol::Command::GitList),
             Screen::Search => {}
             Screen::Chat => {}
+            Screen::Plugins | Screen::Skills => self.send(&ark_protocol::Command::HelpersList),
             Screen::Workflows => {
                 self.send(&ark_protocol::Command::WorkflowsList);
                 self.send(&ark_protocol::Command::HelpersList);

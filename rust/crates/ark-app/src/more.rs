@@ -6,12 +6,19 @@ use rune::TextEdit;
 
 use crate::app::App;
 
-#[derive(Default)]
 pub struct More {
     /// Automations filter: 0 all, 1 on a timer, 2 when something happens, 3 by hand.
     pub flow_filter: usize,
     /// A delete (workflow id, routine id) that waits for the second press.
     pub confirm: Option<String>,
+    /// The skills hub search field.
+    pub hub_query: TextEdit,
+}
+
+impl Default for More {
+    fn default() -> Self {
+        Self { flow_filter: 0, confirm: None, hub_query: TextEdit::new("") }
+    }
 }
 
 impl More {
@@ -25,6 +32,13 @@ impl App {
     pub fn send_other(&self, kind: &str, mut fields: serde_json::Value) {
         fields["type"] = kind.into();
         self.send(&Command::Other { kind: kind.into(), fields: fields.as_object().cloned().unwrap_or_default() });
+    }
+
+    pub fn search_hub(&self) {
+        let query = self.more.hub_query.text.trim().to_owned();
+        if !query.is_empty() {
+            self.send(&Command::SkillHubSearch { query });
+        }
     }
 
     /// Turns a workflow on or off: the same workflow is saved with `enabled` changed.

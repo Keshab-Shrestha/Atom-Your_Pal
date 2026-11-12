@@ -44,3 +44,17 @@ fn delete_asks_twice() {
     let first = tree("workflows", Some(r#"[{"t":0.2,"type":"click","key":"flow-delete-w1"}]"#));
     assert!(first.contains("Confirm delete"), "the first press arms the delete");
 }
+
+#[test]
+fn plugins_show_servers_drafts_and_edits_and_remove_asks_twice() {
+    let page = tree("plugins", None);
+    has_all(&page, &["Plugins", "files", "npx srv", "Tools: read, write", "Not reachable", "Skill draft: release-notes", "Approve", "Change to skill summary", "Accept", "Add server"]);
+    let armed = tree("plugins", Some(r#"[{"t":0.2,"type":"click","key":"mcp-remove-1"}]"#));
+    assert!(armed.contains("Confirm remove"));
+}
+
+#[test]
+fn the_skills_hub_shows_the_scan_before_install() {
+    let page = tree("skills", None);
+    has_all(&page, &["Skills hub", "pdf-tools", "abcdef1", "New skill: web-scrape", "Warning: shell", "curl | sh", "Approve and install", "git-tidy", "Uninstall"]);
+}

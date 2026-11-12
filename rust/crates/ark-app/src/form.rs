@@ -24,6 +24,8 @@ pub enum FormKind {
     NewTask { helper: String },
     /// A workflow: a name, a daily time or none, and up to eight steps.
     Workflow,
+    /// An MCP server for the Plugins page.
+    Mcp,
 }
 
 pub struct Form {
@@ -48,6 +50,7 @@ impl Form {
             FormKind::Owner { first_run: false } => "Your name".into(),
             FormKind::NewTask { .. } => "New task".into(),
             FormKind::Workflow => "New automation".into(),
+            FormKind::Mcp => "Add plugin server".into(),
         }
     }
 
@@ -57,6 +60,7 @@ impl Form {
             FormKind::Soul { .. } => &["Personality", "How it works", "Rules", "Lessons"],
             FormKind::NewAgent => &["Name", "Role", "Personality", "How it works", "Rules"],
             FormKind::NewTask { .. } => &["Task"],
+            FormKind::Mcp => &["Name", "Command or URL (https://...)", "Arguments, one per line", "Environment (command) or headers (URL), one NAME=value per line"],
             FormKind::Workflow => &["Name", "Time each day (HH:MM, 24 hours). Empty: by hand", "Steps, one per line: agent id: task"],
             FormKind::Routine { .. } => &["Task", "Time each day (HH:MM, 24 hours)"],
             FormKind::Note { .. } => &["Title", "Note"],
@@ -101,6 +105,10 @@ impl Form {
 
     pub fn routine(helper: &str) -> Form {
         Form::fresh(FormKind::Routine { helper: helper.into() }, &["", "08:00"])
+    }
+
+    pub fn mcp() -> Form {
+        Form::fresh(FormKind::Mcp, &["", "", "", ""])
     }
 
     pub fn workflow() -> Form {
@@ -183,6 +191,7 @@ impl Form {
                 }))
             }
             FormKind::Workflow => self.workflow_command(),
+            FormKind::Mcp => self.mcp_command(),
             FormKind::NewTask { helper } => {
                 if self.text(0).is_empty() {
                     return Err("Write what the task is.");
@@ -194,6 +203,23 @@ impl Form {
 }
 
 impl Form {
+    fn lines(&self, i: usize) -> Option<Vec<String>> {
+        let v: Vec<String> = self.fields.get(i).map(|f| f.text.lines().map(str::trim).filter(|l| !l.is_empty()).map(str::to_owned).collect()).unwrap_or_default();
+        (!v.is_empty()).then_some(v)
+    }
+
+    /// An address that starts with http is a URL server; anything else is a command.
+    fn mcp_command(&self) -> Result<Command, &'static str> {
+        use ark_protocol::commands::McpKind;
+        if self.text(0).is_empty() || self.text(1).is_empty() {
+            return Err("A server needs a name and a command or a URL.");
+        }
+        if self.text(1).starts_with("http://") || self.text(1).starts_with("https://") {
+            return Ok(Command::McpAdd { name: self.text(0), kind: McpKind::Url, command: None, args: None, env: None, url: Some(self.text(1)), transport: Some("http".into()), headers: self.lines(3) });
+        }
+        Ok(Command::McpAdd { name: self.text(0), kind: McpKind::Command, command: Some(self.text(1)), args: self.lines(2), env: self.lines(3), url: None, transport: None, headers: None })
+    }
+
     /// Steps are lines "agent: task", at most eight (the Swift editor's limit).
     fn workflow_command(&self) -> Result<Command, &'static str> {
         const MAX_STEPS: usize = 8;
@@ -267,6 +293,18 @@ mod tests {
         let Ok(Command::WorkflowSave { workflow }) = f.submit() else { panic!("not ready") };
         assert_eq!(workflow["steps"].as_array().map(Vec::len), Some(2));
         assert_eq!(workflow["trigger"]["schedule"]["minute"], 485);
+    }
+
+    #[test]
+    fn a_plugin_server_is_a_url_or_a_command() {
+        let mut f = Form::mcp();
+        assert!(f.submit().is_err());
+        f.fields[0] = TextEdit::new("files");
+        f.fields[1] = TextEdit::new("npx");
+        f.fields[2] = TextEdit::new("-y\nsrv");
+        assert!(matches!(f.submit(), Ok(Command::McpAdd { command: Some(_), args: Some(ref a), url: None, .. }) if a.len() == 2));
+        f.fields[1] = TextEdit::new("https://example.com/mcp");
+        assert!(matches!(f.submit(), Ok(Command::McpAdd { url: Some(_), command: None, .. })));
     }
 
     #[test]

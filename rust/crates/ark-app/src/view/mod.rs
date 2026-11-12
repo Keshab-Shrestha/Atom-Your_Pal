@@ -5,6 +5,7 @@ mod chat;
 mod diff;
 mod form;
 mod palette;
+mod plugins;
 mod pages;
 mod sidebar;
 mod visual;
@@ -52,6 +53,8 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
         Screen::Search => ("Search".to_owned(), pages::search(app, k)),
         Screen::Dashboard => ("Dashboard".to_owned(), pages::dashboard(app, k)),
         Screen::Workflows => ("Automations".to_owned(), automations::workflows(app, k)),
+        Screen::Plugins => ("Plugins".to_owned(), plugins::plugins(app, k)),
+        Screen::Skills => ("Skills hub".to_owned(), plugins::skills(app, k)),
     };
     let toolbar = Toolbar::new().title(title).trailing(chat::status(app, k, &status_line(app)));
     SplitView::new(main)
@@ -110,6 +113,8 @@ pub fn menu_items() -> Vec<rune::MenuItem<App>> {
             Screen::Settings => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Settings)),
             Screen::Chat => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Chat)),
             Screen::Workflows => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Workflows)),
+            Screen::Plugins => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Plugins)),
+            Screen::Skills => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Skills)),
         };
         chord(item.id(format!("go-{title}")).menu("Go"), keys)
     };
@@ -126,6 +131,8 @@ pub fn menu_items() -> Vec<rune::MenuItem<App>> {
         go("Branches", Screen::Branches, "cmd+7"),
         go("Search", Screen::Search, "cmd+shift+f"),
         go("Automations", Screen::Workflows, "cmd+8"),
+        go("Plugins", Screen::Plugins, "cmd+9"),
+        go("Skills hub", Screen::Skills, "cmd+0"),
         go("Settings", Screen::Settings, "cmd+,"),
     ]
 }
