@@ -190,7 +190,7 @@ fn chat_details_show_the_facts() {
         .expect("ark-app starts");
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     let text = std::fs::read_to_string(&tree).expect("tree written");
-    for want in ["Chat details", "Messages", "New chats start with"] {
+    for want in ["Chat details", "Messages", "New chats start with", "This chat can", "Model for this chat"] {
         assert!(text.contains(want), "details lack {want:?}");
     }
 }

@@ -260,6 +260,50 @@ fn details_card(app: &App, k: &Kit) -> Option<El> {
         .child(fact("Model", format!("{} · {}", m.provider, m.model)))
         .child(fact("Messages", chat.map_or(m.messages.len() as u64, |c| c.messages).to_string()))
         .child(fact("New chats start with", crate::prefs::ACCESS.iter().find(|(id, _)| *id == app.prefs.access).map_or("Saved permissions", |(_, l)| *l).to_owned()));
+    if let Some(id) = m.current.clone().filter(|_| chat.is_some_and(|c| !c.read_only)) {
+        let access = if m.chat_access.is_empty() { app.prefs.access.clone() } else { m.chat_access.clone() };
+        let mut modes = row().gap(6.0).wrap();
+        for (mode, label) in crate::prefs::ACCESS {
+            let (cid, expected) = (id.clone(), access.clone());
+            modes = modes.child(
+                Button::new(label)
+                    .variant(if access == mode { ButtonVariant::Submit } else { ButtonVariant::Neutral })
+                    .on_press(move |s: &mut App| s.send(&Command::ChatAccess { id: cid.clone(), mode: mode.to_owned(), expected: expected.clone() }))
+                    .build(k)
+                    .key(format!("chat-access-{mode}")),
+            );
+        }
+        c = c.child(text("This chat can").font(k.ty.ui_medium).color(k.c.text_base)).child(modes);
+        let (cur_p, cur_m) = m.chat_model.clone().unwrap_or_else(|| (m.provider.clone(), m.model.clone()));
+        let mut models = row().gap(6.0).wrap();
+        for p in m.providers.iter().filter(|p| p.available) {
+            for (mid, name) in &p.models {
+                let (cid, pid, mid2) = (id.clone(), p.id.clone(), mid.clone());
+                models = models.child(
+                    Button::new(name.clone())
+                        .variant(if cur_p == p.id && cur_m == *mid { ButtonVariant::Submit } else { ButtonVariant::Neutral })
+                        .on_press(move |s: &mut App| s.send(&Command::ChatModel { id: cid.clone(), provider: pid.clone(), model: mid2.clone() }))
+                        .build(k)
+                        .key(format!("chat-model-{}-{mid}", p.id)),
+                );
+            }
+        }
+        c = c.child(text("Model for this chat").font(k.ty.ui_medium).color(k.c.text_base)).child(models);
+        if !m.chat_levels.is_empty() {
+            let mut levels = row().gap(6.0).wrap();
+            for level in &m.chat_levels {
+                let (cid, pid, mid, lv) = (id.clone(), cur_p.clone(), cur_m.clone(), level.clone());
+                levels = levels.child(
+                    Button::new(level.clone())
+                        .variant(if m.chat_effort == *level { ButtonVariant::Submit } else { ButtonVariant::Neutral })
+                        .on_press(move |s: &mut App| s.send(&Command::ChatReasoning { id: cid.clone(), provider: pid.clone(), model: mid.clone(), effort: lv.clone() }))
+                        .build(k)
+                        .key(format!("chat-effort-{level}")),
+                );
+            }
+            c = c.child(text("Thinking").font(k.ty.ui_medium).color(k.c.text_base)).child(levels);
+        }
+    }
     if chat.is_some_and(|c| c.read_only) {
         c = c.child(text("This chat is read only (Telegram or the local API).").font(k.ty.small).color(k.c.text_faint));
     }

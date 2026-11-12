@@ -243,6 +243,12 @@ pub const BRIEF_SWITCHES: [(&str, &str); 9] = [
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Model {
+    /// The open chat's own settings (`chats` event): access, model and thinking. Empty: the default applies.
+    pub chat_access: String,
+    pub chat_model: Option<(String, String)>,
+    /// Thinking levels the chat's model offers, and the one selected.
+    pub chat_levels: Vec<String>,
+    pub chat_effort: String,
     pub projects: Vec<Project>,
     /// Task details by job id, from `thread` events.
     pub threads: std::collections::BTreeMap<u64, Thread>,
@@ -512,6 +518,11 @@ impl Model {
             "plan.usage" => self.plan_usage = (map.get("fiveHour").and_then(Value::as_f64), map.get("sevenDay").and_then(Value::as_f64)),
             "chats" => {
                 self.chats = parse_chats(map);
+                self.chat_access = str_of(map, "access");
+                self.chat_model = map.get("currentProvider").and_then(Value::as_str).zip(map.get("currentModel").and_then(Value::as_str)).map(|(p, m)| (p.to_owned(), m.to_owned()));
+                let reasoning = map.get("reasoning").and_then(Value::as_object);
+                self.chat_levels = reasoning.and_then(|r| r.get("levels")).and_then(Value::as_array).map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect()).unwrap_or_default();
+                self.chat_effort = reasoning.map(|r| str_of(r, "effective")).unwrap_or_default();
                 self.projects = objects(map, "projects")
                     .map(|p| Project { id: str_of(p, "id"), name: str_of(p, "name"), folder: str_of(p, "folderLabel"), missing: bool_of(p, "missing"), archived: bool_of(p, "archived"), chats: u64_of(p, "chatCount"), web: bool_of(p, "web") })
                     .collect();
