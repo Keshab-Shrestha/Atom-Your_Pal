@@ -309,7 +309,8 @@
       "comments": 0,
       "planFirst": true
      }
-    ]
+    ],
+    "reportsTo": "sid"
    },
    {
     "id": "puff",
@@ -585,7 +586,8 @@
       "waitingFor": [],
       "comments": 0
      }
-    ]
+    ],
+    "reportsTo": "sid"
    },
    {
     "id": "odd",
@@ -617,7 +619,8 @@
     "grants": [],
     "skills": [],
     "proposals": [],
-    "jobs": []
+    "jobs": [],
+    "reportsTo": "scout"
    },
    {
     "id": "scout",
@@ -649,7 +652,8 @@
     "grants": [],
     "skills": [],
     "proposals": [],
-    "jobs": []
+    "jobs": [],
+    "reportsTo": "mochi"
    }
   ],
   "apps": [
@@ -3548,7 +3552,8 @@
      "comments": 0,
      "planFirst": true
     }
-   ]
+   ],
+   "reportsTo": "sid"
   },
   {
    "id": "puff",
@@ -3824,7 +3829,8 @@
      "waitingFor": [],
      "comments": 0
     }
-   ]
+   ],
+   "reportsTo": "sid"
   },
   {
    "id": "odd",
@@ -3856,7 +3862,8 @@
    "grants": [],
    "skills": [],
    "proposals": [],
-   "jobs": []
+   "jobs": [],
+   "reportsTo": "scout"
   },
   {
    "id": "scout",
@@ -3888,7 +3895,8 @@
    "grants": [],
    "skills": [],
    "proposals": [],
-   "jobs": []
+   "jobs": [],
+   "reportsTo": "mochi"
   }
  ],
  "problems": [

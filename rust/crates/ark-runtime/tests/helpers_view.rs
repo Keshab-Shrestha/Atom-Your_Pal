@@ -13,6 +13,7 @@ fn fixture(name: &str) -> (PathBuf, Connection) {
     let to = std::env::temp_dir().join(format!("ark-helpers-{name}-{}", std::process::id()));
     std::fs::create_dir_all(to.join("agents")).unwrap();
     std::fs::copy(from.join("helpers.db"), to.join("helpers.db")).unwrap();
+    std::fs::copy(from.join("org.json"), to.join("org.json")).unwrap();
     for entry in std::fs::read_dir(from.join("agents")).unwrap() {
         let id = entry.unwrap().file_name();
         std::fs::create_dir_all(to.join("agents").join(&id)).unwrap();
@@ -37,6 +38,8 @@ fn roster_core_matches_typescript() {
     assert_eq!(Value::Array(problems), want["problems"]);
     let now: jiff::Timestamp = want["now"].as_str().unwrap().parse().unwrap();
     let now = now.in_tz("Asia/Tokyo").unwrap();
+    let ids: Vec<String> = members.iter().filter(|m| m.role != "improver").map(|m| m.id.clone()).collect();
+    let chart = ark_runtime::helpers_org::resolve(&ark_runtime::helpers_org::read_raw(&dir.join("org.json")), &ids);
     let got: Vec<Value> = members
         .iter()
         .map(|m| {
@@ -44,6 +47,9 @@ fn roster_core_matches_typescript() {
             view["proposals"] = Value::Array(tests::proposals_of(&conn, &m.id).unwrap());
             view["jobs"] = Value::Array(jobs::jobs_of(&conn, &m.id).unwrap());
             view["routines"] = Value::Array(routines::routines_of(&conn, &m.id, &now).unwrap());
+            if let Some(lead) = chart.get(&m.id) {
+                view["reportsTo"] = Value::String(lead.clone());
+            }
             view
         })
         .collect();

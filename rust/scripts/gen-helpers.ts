@@ -8,6 +8,7 @@ process.env.TZ = "Asia/Tokyo"; // routines show their next time in local time; t
 import { openHelperStore } from "../../services/helpers/src/store.ts";
 import { islandHelpers } from "../../apps/mac/src/island-helpers.ts";
 import { DatabaseSync } from "node:sqlite";
+import { createOrgStore, orgAgentIds } from "../../apps/mac/src/org.ts";
 import { writeAgent } from "../../services/helpers/src/agents.ts";
 
 const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "crates", "ark-runtime", "tests", "fixtures", "helpers");
@@ -157,8 +158,11 @@ raw4.close();
 const usageNow = new Date(Date.UTC(2026, 10, 1, 9, 0, tick));
 const problems = store.agentProblems();
 const NOW = usageNow; // 2026-11-01 18:01 in Tokyo; one clock for routines and usage
+// The chart: a loop, a gone lead, an unknown agent, and a chain that is too deep.
+writeFileSync(join(dir, "org.json"), JSON.stringify({ version: 1, reportsTo: { kame: "sid", mochi: "ghost", ghost: "sid", scout: "mochi", odd: "scout", hana: "odd", quill: "hana", penny: 5 } }));
+const org = createOrgStore(join(dir, "org.json"), () => orgAgentIds(store.list()));
 const nodeParts = { apps: ["Safari", "Xcode"], models: [{ id: "claude-sonnet-5-5", name: "Sonnet", tier: "small" }], skills: [{ name: "web-search", description: "Search the web" }] };
-const island = islandHelpers(store, async () => nodeParts.apps, () => nodeParts.models as never, () => nodeParts.skills, () => NOW);
+const island = islandHelpers(store, async () => nodeParts.apps, () => nodeParts.models as never, () => nodeParts.skills, () => NOW, undefined, org);
 const view = JSON.parse(JSON.stringify(island.list()));
 const testCases = JSON.parse(JSON.stringify(island.testCases()));
 // The event as `sendHelpers` in apps/mac/src/island.ts builds it (no skill hub, no Paperclip, no stuck dot).

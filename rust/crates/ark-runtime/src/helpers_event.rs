@@ -1,6 +1,7 @@
 //! The `helpers` event (ADR-278 Phase 4, slice 6): the snapshot of the Helpers page, built from `helpers.db` and the
 //! soul files. A port of `sendHelpers` in `apps/mac/src/island.ts`. Some parts live only in Node's memory (the installed
-//! apps, the plan's models, the skills folders, the skill hub, Paperclip, who reports to whom, the stuck dot of a task).
+//! apps, the plan's models, the skills folders, the skill hub, Paperclip, the stuck dot of a task). Who reports to whom is
+//! read from `org.json` (`helpers_org`).
 //! Rust takes them from the last `helpers` event that Node sent (`cached`); with none, or with a stuck dot in it, `build`
 //! gives `None` and Node answers.
 
@@ -9,7 +10,7 @@ use std::path::Path;
 use rusqlite::Connection;
 use serde_json::{Map, Value, json};
 
-use crate::{helpers_extras, helpers_jobs, helpers_plans, helpers_roster, helpers_routines, helpers_tests, helpers_usage};
+use crate::{helpers_extras, helpers_org, helpers_jobs, helpers_plans, helpers_roster, helpers_routines, helpers_tests, helpers_usage};
 
 /// The keys of the event that Node alone knows.
 const NODE_KEYS: [&str; 5] = ["apps", "models", "skills", "skillHub", "paperclip"];
@@ -37,7 +38,9 @@ pub fn build(conn: &Connection, agents_dir: &Path, now: &jiff::Zoned, cached: &V
         return None;
     }
     let (members, problems) = helpers_roster::roster(conn, agents_dir)?;
-    let reports_to = |id: &str| cached["helpers"].as_array()?.iter().find(|h| h["id"] == id)?.get("reportsTo").cloned();
+    // Only agents that are not Tinker sit in the chart.
+    let chart_ids: Vec<String> = members.iter().filter(|m| m.role != "improver").map(|m| m.id.clone()).collect();
+    let chart = helpers_org::resolve(&helpers_org::read_raw(&agents_dir.with_file_name("org.json")), &chart_ids);
     let mut helpers = Vec::new();
     let mut names = Vec::new();
     for m in &members {
@@ -46,8 +49,8 @@ pub fn build(conn: &Connection, agents_dir: &Path, now: &jiff::Zoned, cached: &V
         view["routines"] = Value::Array(helpers_routines::routines_of(conn, &m.id, now)?);
         view["proposals"] = Value::Array(helpers_tests::proposals_of(conn, &m.id)?);
         view["jobs"] = Value::Array(helpers_jobs::jobs_of(conn, &m.id)?);
-        if let Some(lead) = reports_to(&m.id) {
-            view["reportsTo"] = lead;
+        if let Some(lead) = chart.get(&m.id) {
+            view["reportsTo"] = json!(lead);
         }
         helpers.push(view);
     }

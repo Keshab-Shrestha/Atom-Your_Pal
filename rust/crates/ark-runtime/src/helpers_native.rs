@@ -72,6 +72,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("ark-helpers-native-{}", std::process::id()));
         std::fs::create_dir_all(dir.join("agents")).unwrap();
         std::fs::copy(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/helpers/helpers.db"), dir.join("helpers.db")).unwrap();
+        std::fs::copy(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/helpers/org.json"), dir.join("org.json")).unwrap();
         for entry in std::fs::read_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/helpers/agents")).unwrap() {
             let id = entry.unwrap().file_name();
             std::fs::create_dir_all(dir.join("agents").join(&id)).unwrap();
