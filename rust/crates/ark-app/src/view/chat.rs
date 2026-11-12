@@ -24,7 +24,14 @@ fn user_bubble(m: &Message, i: usize, k: &Kit) -> El {
 fn assistant_message(m: &Message, i: usize, k: &Kit) -> El {
     let whole = m.text.clone();
     let copy = Button::new("Copy").on_press_tx(move |_: &mut App, tx: &mut rune::Tx| tx.copy(whole.clone())).build(k).key(format!("copy-{i}"));
-    col().key(format!("msg-{i}")).w_full().gap(4.0).child(Markdown::new(m.text.clone()).selectable(true).build(k).key("md")).child(row().justify_end().child(copy))
+    let mut body = col().key(format!("msg-{i}")).w_full().gap(8.0);
+    for (n, piece) in super::visual::split(&m.text).into_iter().enumerate() {
+        body = body.child(match piece {
+            super::visual::Piece::Text(t) => Markdown::new(t).selectable(true).build(k).key(format!("md-{n}")),
+            super::visual::Piece::Visual(v) => super::visual::card(&v, format!("visual-{i}-{n}"), k),
+        });
+    }
+    body.child(row().justify_end().child(copy))
 }
 
 fn tool_dot(state: ToolState, k: &Kit) -> rune::Color {

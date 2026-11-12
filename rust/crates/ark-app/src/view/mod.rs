@@ -5,6 +5,7 @@ mod form;
 mod palette;
 mod pages;
 mod sidebar;
+mod visual;
 
 use rune::{Chrome, Cx, El};
 use rune_kit::shell::{self, PaneMotion, SidebarToggle, SplitView, Toolbar};
