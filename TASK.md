@@ -3007,3 +3007,21 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 - Add `rust/crates/ark-ui` (model) and `rust/crates/ark-app` (bridge, views, `ark-fake-runtime`).
 - Test: `cargo test -p ark-ui -p ark-app` in `rust/`. Headless runs read `ARK_UI_EVENTS=<file.jsonl>`; see `rust/crates/ark-app/fixtures/`.
 - Next: settings that write (speech, Telegram, API switches), agent soul editor, task creation, memory and brain pages, native menu and status item, attachments in the composer.
+
+## Rust Phase 4: the Helpers runner in Rust — 13 November 2026 (ADR-278)
+
+- Goal: the runner of helper jobs moves from Node to Rust.
+- Done in `rust/crates/ark-runtime`:
+  - `helpers_bus.rs`: the change bus. It reads the audit log, so it hears Node changes and Rust changes.
+  - `helpers_life.rs`: the life of a task. It covers start, finish, fail, stop, delete, retry, fresh, interrupt, note, add and delegate. The org gate of `ark-core` guards delegate. A failed task that used an ARK skill asks Tinker for one edit.
+  - `helpers_runner.rs`: the runner on `ark-agent`. It runs queued tasks and ends them with a report or an error.
+  - `helpers_quiet.rs`: the stuck dot, computed in Rust.
+  - `firstrun.rs`: on a clean Mac, Rust makes the data folders, `memory.db`, `helpers.db`, the built-in souls and `ui-state.json`. A test compares the schema with the TypeScript stores.
+  - `main.rs` attaches the runner when `ARK_RUNTIME=rust` and `ARK_RUNTIME_NATIVE_CHAT=1`. `ARK_HELPERS_NATIVE=0` turns it off.
+- Test: `cargo test -p ark-runtime --lib` in `rust/`. All tests use a scripted provider and a temporary copy of the fixture.
+- Next:
+  - `job.undo` and the file copies (checkpoints).
+  - The models, skill hub and Paperclip parts of `helpers.list`.
+  - Telegram and workflow listeners on the Rust bus.
+  - Native retry plans of a chat.
+  - Push a `helpers` event when a task becomes quiet.

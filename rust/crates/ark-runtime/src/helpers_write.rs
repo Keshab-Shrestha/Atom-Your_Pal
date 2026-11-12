@@ -164,14 +164,19 @@ pub fn remove_job(conn: &Connection, id: i64) -> Option<()> {
 
 /// Asks Tinker for a review (`askTinker`): one task of Tinker's for each reviewed task, kind and skill. `false` when it exists.
 fn ask_tinker(conn: &Connection, reviewed: i64, task: &str, kind: Option<&str>) -> Option<bool> {
+    ask_tinker_about(conn, reviewed, task, kind, None)
+}
+
+/// `ask_tinker` for one skill (`kind` "edit"): once per task and skill.
+pub(crate) fn ask_tinker_about(conn: &Connection, reviewed: i64, task: &str, kind: Option<&str>, skill: Option<&str>) -> Option<bool> {
     let have: i64 = conn
-        .query_row("SELECT COUNT(*) FROM jobs WHERE reviews = ? AND COALESCE(review_kind, '') = ? AND COALESCE(review_skill, '') = ''", params![reviewed, kind.unwrap_or("")], |r| r.get(0))
+        .query_row("SELECT COUNT(*) FROM jobs WHERE reviews = ? AND COALESCE(review_kind, '') = ? AND COALESCE(review_skill, '') = ?", params![reviewed, kind.unwrap_or(""), skill.unwrap_or("")], |r| r.get(0))
         .ok()?;
     if have > 0 {
         return Some(false);
     }
     let at = iso_now();
-    conn.execute("INSERT INTO jobs (helper, task, state, created_at, reviews, review_kind, review_skill) VALUES ('tinker', ?, 'queued', ?, ?, ?, NULL)", params![task, at, reviewed, kind]).ok()?;
+    conn.execute("INSERT INTO jobs (helper, task, state, created_at, reviews, review_kind, review_skill) VALUES ('tinker', ?, 'queued', ?, ?, ?, ?)", params![task, at, reviewed, kind, skill]).ok()?;
     let id = conn.last_insert_rowid();
     conn.execute("INSERT INTO job_events (job_id, kind, at) VALUES (?, 'created', ?)", params![id, at]).ok()?;
     audit_state(conn, "job", "tinker", id, "queued")?;

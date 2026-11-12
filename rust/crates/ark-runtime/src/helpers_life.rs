@@ -2,7 +2,7 @@
 //! `fresh`, `comment` and `add_job`. Ports of `transition`, `wake` and the same-named methods of `HelperStore`
 //! (`services/helpers/src/store.ts`), with the state machine and the retry rules of `ark-core`. Every change writes the audit row
 //! that `emit` writes, so the change bus (`helpers_bus::Tail`) tells the listeners. Errors carry the words of the TypeScript.
-//! Not ported yet: the Tinker task that a failed skill use asks for (`skills.askEdits`), file copies (`checkpoints`) and the
+//! Not ported yet: file copies (`checkpoints`) and the
 //! native retry plans of a chat (`queueNativeRetry`).
 
 use ark_core::jobs::{JobState, MAX_AUTO_RETRIES, MAX_BLOCKERS, is_retryable, makes_cycle, move_job};
@@ -119,6 +119,9 @@ fn transition(conn: &Connection, job: &Row, to: JobState, partial: bool, error: 
     if !matches!(to, JobState::Failed | JobState::Stopped) {
         return Ok(());
     }
+    if to == JobState::Failed && job.helper != "tinker" {
+        ask_skill_edits(conn, job)?;
+    }
     let mut stmt = sql(conn.prepare("SELECT j.id FROM job_blockers b JOIN jobs j ON j.id = b.job_id WHERE b.blocker_id = ? AND j.state = 'queued' ORDER BY j.id"))?;
     let waiting: Vec<i64> = sql(stmt.query_map([job.id], |r| r.get(0)).and_then(Iterator::collect))?;
     for id in waiting {
@@ -131,6 +134,26 @@ fn transition(conn: &Connection, job: &Row, to: JobState, partial: bool, error: 
         }
         let why = format!("Task {}, which it waited for, {}.", job.id, if to == JobState::Failed { "failed" } else { "was stopped" });
         transition(conn, &dependent, JobState::Failed, false, Some(&why))?;
+    }
+    Ok(())
+}
+
+/// ADR-094: a skill of ARK's (in `data/skills`, not the owner's, not from the hub) that a failed task used gets one Tinker task to improve it.
+fn ask_skill_edits(conn: &Connection, job: &Row) -> Result<(), String> {
+    let Some(db) = conn.path().map(std::path::PathBuf::from) else { return Ok(()) };
+    let ark = db.with_file_name("skills");
+    let user = std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".claude").join("skills"));
+    let mut stmt = sql(conn.prepare("SELECT skill FROM skill_uses WHERE job_id = ? ORDER BY skill"))?;
+    let used: Vec<String> = sql(stmt.query_map([job.id], |r| r.get(0)).and_then(Iterator::collect))?;
+    for skill in used {
+        let named = !skill.is_empty() && skill.len() <= 64 && skill.chars().next().is_some_and(|c| c.is_ascii_alphanumeric()) && skill.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'));
+        let theirs = user.as_ref().is_some_and(|u| u.join(&skill).exists());
+        let hub: i64 = conn.query_row("SELECT COUNT(*) FROM skill_hub WHERE name = ?", [&skill], |r| r.get(0)).unwrap_or(0);
+        if named && ark.join(&skill).exists() && !theirs && hub == 0 {
+            let task = format!("Improve the {skill} skill (task {})", job.id);
+            // The new Tinker task is announced by `ask_tinker_about`.
+            crate::helpers_write::ask_tinker_about(conn, job.id, &task, Some("edit"), Some(&skill)).ok_or("Tinker could not be asked.")?;
+        }
     }
     Ok(())
 }
@@ -487,6 +510,20 @@ mod tests {
         assert!(delegate(&conn, parent, "other", "kame", kame, "x", &map, &ids, &name).unwrap_err().contains("running parent"));
         conn.execute("UPDATE jobs SET helper = 'kame' WHERE id = ?", [parent]).unwrap();
         assert!(delegate(&conn, parent, "c1", "sid", SID, "x", &map, &ids, &name).unwrap_err().contains("above you"), "no calling up");
+    }
+
+    #[test]
+    fn a_failed_task_that_used_an_ark_skill_asks_tinker_once() {
+        let conn = db("edit");
+        let skills = std::path::Path::new(conn.path().unwrap()).with_file_name("skills").join("tidy");
+        std::fs::create_dir_all(&skills).unwrap();
+        conn.execute("DELETE FROM skill_hub", []).unwrap();
+        let a = add_job(&conn, "sid", SID, "A", &[], false).unwrap();
+        start(&conn, a, false).unwrap();
+        conn.execute("INSERT INTO skill_uses (job_id, skill) VALUES (?, 'tidy'), (?, 'elsewhere')", [a, a]).unwrap();
+        fail(&conn, a, "It went wrong", false).unwrap();
+        let (n, task): (i64, String) = conn.query_row("SELECT COUNT(*), MIN(task) FROM jobs WHERE helper = 'tinker' AND review_kind = 'edit'", [], |r| Ok((r.get(0)?, r.get(1)?))).unwrap();
+        assert_eq!((n, task.as_str()), (1, &*format!("Improve the tidy skill (task {a})")));
     }
 
     #[test]
