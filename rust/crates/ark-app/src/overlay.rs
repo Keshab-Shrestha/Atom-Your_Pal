@@ -33,7 +33,7 @@ pub fn spec() -> OverlaySpec<Pill> {
 }
 
 pub fn install(handle: OverlayHandle<Pill>) {
-    let _ = HANDLE.set(handle);
+    drop(HANDLE.set(handle));
 }
 
 /// The words for a loop state, or None when the pill stays hidden.
