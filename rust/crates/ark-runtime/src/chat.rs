@@ -152,6 +152,15 @@ impl Chat {
         }
     }
 
+    /// The `chats` event for the open chat, built from the memory file and `data/ui-state.json` (see `chats.rs`). `None` when Node must answer.
+    fn chats_line(&self) -> Option<String> {
+        let state = crate::chats::UiState::read(&self.db.parent()?.join("ui-state.json"))?;
+        let conn = crate::chats::open_read_only(&self.db)?;
+        let current = self.current.lock().ok()?.clone().unwrap_or_default();
+        let event = crate::chats::event(&conn, &state, &current)?;
+        Some(Event::Other(event.as_object()?.clone()).to_line())
+    }
+
     /// Takes `line` when it is a plain `text.send` this runtime can answer. `false` means: give it to Node.
     pub fn handle(self: &Arc<Self>, line: &str, to_app: Sink, to_node: Sink) -> bool {
         let Parsed::Command(command) = parse_command(line) else { return false };
@@ -167,6 +176,14 @@ impl Chat {
                 return false;
             }
             _ => {}
+        }
+        if matches!(*command, Command::ChatsList) {
+            // The app gets the list at once. Node also gets the command, so it keeps pushing its own changes (it sets `chatsWatched`);
+            // its answer has the same content as this one.
+            if let Some(line) = self.chats_line() {
+                to_app(&line);
+            }
+            return false;
         }
         let Command::TextSend { text, files, notes, request, chat } = *command else { return false };
         let plain = files.is_none_or(|f| f.is_empty()) && notes.is_none_or(|n| n.is_empty()) && request.is_none() && chat.is_none();
@@ -515,6 +532,28 @@ mod tests {
         assert!(!go("{\"type\":\"chats.list\"}\n"));
         chat.observe("{\"type\":\"conversation.reset\"}\n");
         assert!(!go("{\"type\":\"text.send\",\"text\":\"x\"}\n"), "reset clears the open chat");
+    }
+
+    #[test]
+    fn chats_list_is_answered_from_the_files_and_still_goes_to_node() {
+        let dir = std::env::temp_dir().join(format!("ark-chat-list-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        let fixtures = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures");
+        std::fs::copy(format!("{fixtures}/chats-view.db"), dir.join("memory.db")).unwrap();
+        std::fs::copy(format!("{fixtures}/chats-view-state.json"), dir.join("ui-state.json")).unwrap();
+        let chat = chat(dir.join("memory.db"));
+        chat.observe("{\"type\":\"chats\",\"chats\":[],\"current\":\"plain-2\"}\n");
+        let ((app, from_app), (node, _)) = (sinks(), sinks());
+        assert!(!chat.handle("{\"type\":\"chats.list\"}\n", app, node), "Node still gets the command");
+        let sent: Value = serde_json::from_str(&from_app.try_recv().unwrap()).unwrap();
+        assert_eq!((sent["type"].clone(), sent["current"].clone(), sent["access"].clone()), (json!("chats"), json!("plain-2"), json!("ask-changes")));
+        // No state file: nothing is sent, and Node answers.
+        std::fs::remove_file(dir.join("ui-state.json")).unwrap();
+        let ((app, from_app), (node, _)) = (sinks(), sinks());
+        assert!(!chat.handle("{\"type\":\"chats.list\"}\n", app, node));
+        assert!(from_app.try_recv().is_err());
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

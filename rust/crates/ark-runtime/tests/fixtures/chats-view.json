@@ -1,0 +1,564 @@
+{
+ "source": "apps/mac/src/island.ts sendChats, runtime.ts islandChats",
+ "events": [
+  {
+   "current": "",
+   "event": {
+    "type": "chats",
+    "chats": [
+     {
+      "id": "own-model",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:11.000Z",
+      "messages": 2
+     },
+     {
+      "id": "proj-2",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:10.000Z",
+      "messages": 2,
+      "projectId": "p-959297e8"
+     },
+     {
+      "id": "proj-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:09.000Z",
+      "messages": 2,
+      "projectId": "p-959297e8"
+     },
+     {
+      "id": "routine-7",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:08.000Z",
+      "messages": 2,
+      "readOnly": true
+     },
+     {
+      "id": "telegram",
+      "title": "Telegram",
+      "updatedAt": "2026-11-01T09:00:07.000Z",
+      "messages": 2,
+      "readOnly": true
+     },
+     {
+      "id": "pinned-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:05.000Z",
+      "messages": 2,
+      "pinned": true,
+      "flagsVersion": 1
+     },
+     {
+      "id": "plain-2",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:04.000Z",
+      "messages": 2
+     },
+     {
+      "id": "plain-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:03.000Z",
+      "messages": 2
+     },
+     {
+      "id": "archived-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:06.000Z",
+      "messages": 2,
+      "archived": true,
+      "flagsVersion": 1
+     }
+    ],
+    "current": "",
+    "projects": [
+     {
+      "id": "p-959297e8",
+      "name": "Site",
+      "folderLabel": "/var/folders/8t/wwtrkrrd6vd45pjkw82wg8bh0000gn/T/ark-proj-Fkajsa",
+      "missing": false,
+      "archived": false,
+      "chatCount": 2,
+      "web": false,
+      "provider": "claude-plan",
+      "model": "claude-sonnet-4"
+     }
+    ]
+   }
+  },
+  {
+   "current": "plain-1",
+   "event": {
+    "type": "chats",
+    "chats": [
+     {
+      "id": "own-model",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:11.000Z",
+      "messages": 2
+     },
+     {
+      "id": "proj-2",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:10.000Z",
+      "messages": 2,
+      "projectId": "p-959297e8"
+     },
+     {
+      "id": "proj-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:09.000Z",
+      "messages": 2,
+      "projectId": "p-959297e8"
+     },
+     {
+      "id": "routine-7",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:08.000Z",
+      "messages": 2,
+      "readOnly": true
+     },
+     {
+      "id": "telegram",
+      "title": "Telegram",
+      "updatedAt": "2026-11-01T09:00:07.000Z",
+      "messages": 2,
+      "readOnly": true
+     },
+     {
+      "id": "pinned-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:05.000Z",
+      "messages": 2,
+      "pinned": true,
+      "flagsVersion": 1
+     },
+     {
+      "id": "plain-2",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:04.000Z",
+      "messages": 2
+     },
+     {
+      "id": "plain-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:03.000Z",
+      "messages": 2
+     },
+     {
+      "id": "archived-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:06.000Z",
+      "messages": 2,
+      "archived": true,
+      "flagsVersion": 1
+     }
+    ],
+    "current": "plain-1",
+    "projects": [
+     {
+      "id": "p-959297e8",
+      "name": "Site",
+      "folderLabel": "/var/folders/8t/wwtrkrrd6vd45pjkw82wg8bh0000gn/T/ark-proj-Fkajsa",
+      "missing": false,
+      "archived": false,
+      "chatCount": 2,
+      "web": false,
+      "provider": "claude-plan",
+      "model": "claude-sonnet-4"
+     }
+    ],
+    "access": "checked",
+    "reasoning": {
+     "provider": "claude-plan",
+     "model": "claude-opus-4",
+     "levels": [],
+     "default": "off",
+     "note": "Thinking levels are unavailable for this model. Refresh the model catalog in Settings.",
+     "effective": "off"
+    }
+   }
+  },
+  {
+   "current": "plain-2",
+   "event": {
+    "type": "chats",
+    "chats": [
+     {
+      "id": "own-model",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:11.000Z",
+      "messages": 2
+     },
+     {
+      "id": "proj-2",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:10.000Z",
+      "messages": 2,
+      "projectId": "p-959297e8"
+     },
+     {
+      "id": "proj-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:09.000Z",
+      "messages": 2,
+      "projectId": "p-959297e8"
+     },
+     {
+      "id": "routine-7",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:08.000Z",
+      "messages": 2,
+      "readOnly": true
+     },
+     {
+      "id": "telegram",
+      "title": "Telegram",
+      "updatedAt": "2026-11-01T09:00:07.000Z",
+      "messages": 2,
+      "readOnly": true
+     },
+     {
+      "id": "pinned-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:05.000Z",
+      "messages": 2,
+      "pinned": true,
+      "flagsVersion": 1
+     },
+     {
+      "id": "plain-2",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:04.000Z",
+      "messages": 2
+     },
+     {
+      "id": "plain-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:03.000Z",
+      "messages": 2
+     },
+     {
+      "id": "archived-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:06.000Z",
+      "messages": 2,
+      "archived": true,
+      "flagsVersion": 1
+     }
+    ],
+    "current": "plain-2",
+    "projects": [
+     {
+      "id": "p-959297e8",
+      "name": "Site",
+      "folderLabel": "/var/folders/8t/wwtrkrrd6vd45pjkw82wg8bh0000gn/T/ark-proj-Fkajsa",
+      "missing": false,
+      "archived": false,
+      "chatCount": 2,
+      "web": false,
+      "provider": "claude-plan",
+      "model": "claude-sonnet-4"
+     }
+    ],
+    "access": "ask-changes",
+    "reasoning": {
+     "provider": "claude-plan",
+     "model": "claude-opus-4",
+     "levels": [],
+     "default": "off",
+     "note": "Thinking levels are unavailable for this model. Refresh the model catalog in Settings.",
+     "effective": "off"
+    }
+   }
+  },
+  {
+   "current": "own-model",
+   "event": {
+    "type": "chats",
+    "chats": [
+     {
+      "id": "own-model",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:11.000Z",
+      "messages": 2
+     },
+     {
+      "id": "proj-2",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:10.000Z",
+      "messages": 2,
+      "projectId": "p-959297e8"
+     },
+     {
+      "id": "proj-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:09.000Z",
+      "messages": 2,
+      "projectId": "p-959297e8"
+     },
+     {
+      "id": "routine-7",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:08.000Z",
+      "messages": 2,
+      "readOnly": true
+     },
+     {
+      "id": "telegram",
+      "title": "Telegram",
+      "updatedAt": "2026-11-01T09:00:07.000Z",
+      "messages": 2,
+      "readOnly": true
+     },
+     {
+      "id": "pinned-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:05.000Z",
+      "messages": 2,
+      "pinned": true,
+      "flagsVersion": 1
+     },
+     {
+      "id": "plain-2",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:04.000Z",
+      "messages": 2
+     },
+     {
+      "id": "plain-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:03.000Z",
+      "messages": 2
+     },
+     {
+      "id": "archived-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:06.000Z",
+      "messages": 2,
+      "archived": true,
+      "flagsVersion": 1
+     }
+    ],
+    "current": "own-model",
+    "currentProvider": "codex",
+    "currentModel": "gpt-5",
+    "projects": [
+     {
+      "id": "p-959297e8",
+      "name": "Site",
+      "folderLabel": "/var/folders/8t/wwtrkrrd6vd45pjkw82wg8bh0000gn/T/ark-proj-Fkajsa",
+      "missing": false,
+      "archived": false,
+      "chatCount": 2,
+      "web": false,
+      "provider": "claude-plan",
+      "model": "claude-sonnet-4"
+     }
+    ],
+    "access": "checked",
+    "reasoning": {
+     "provider": "codex",
+     "model": "gpt-5",
+     "levels": [
+      "low",
+      "high"
+     ],
+     "default": "low",
+     "selected": "high",
+     "effective": "high"
+    }
+   }
+  },
+  {
+   "current": "proj-1",
+   "event": {
+    "type": "chats",
+    "chats": [
+     {
+      "id": "own-model",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:11.000Z",
+      "messages": 2
+     },
+     {
+      "id": "proj-2",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:10.000Z",
+      "messages": 2,
+      "projectId": "p-959297e8"
+     },
+     {
+      "id": "proj-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:09.000Z",
+      "messages": 2,
+      "projectId": "p-959297e8"
+     },
+     {
+      "id": "routine-7",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:08.000Z",
+      "messages": 2,
+      "readOnly": true
+     },
+     {
+      "id": "telegram",
+      "title": "Telegram",
+      "updatedAt": "2026-11-01T09:00:07.000Z",
+      "messages": 2,
+      "readOnly": true
+     },
+     {
+      "id": "pinned-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:05.000Z",
+      "messages": 2,
+      "pinned": true,
+      "flagsVersion": 1
+     },
+     {
+      "id": "plain-2",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:04.000Z",
+      "messages": 2
+     },
+     {
+      "id": "plain-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:03.000Z",
+      "messages": 2
+     },
+     {
+      "id": "archived-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:06.000Z",
+      "messages": 2,
+      "archived": true,
+      "flagsVersion": 1
+     }
+    ],
+    "current": "proj-1",
+    "currentProvider": "claude-plan",
+    "currentModel": "claude-sonnet-4",
+    "projects": [
+     {
+      "id": "p-959297e8",
+      "name": "Site",
+      "folderLabel": "/var/folders/8t/wwtrkrrd6vd45pjkw82wg8bh0000gn/T/ark-proj-Fkajsa",
+      "missing": false,
+      "archived": false,
+      "chatCount": 2,
+      "web": false,
+      "provider": "claude-plan",
+      "model": "claude-sonnet-4"
+     }
+    ],
+    "currentProjectId": "p-959297e8",
+    "access": "checked",
+    "reasoning": {
+     "provider": "claude-plan",
+     "model": "claude-sonnet-4",
+     "levels": [
+      "low",
+      "high"
+     ],
+     "default": "low",
+     "effective": "low"
+    }
+   }
+  },
+  {
+   "current": "telegram",
+   "event": {
+    "type": "chats",
+    "chats": [
+     {
+      "id": "own-model",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:11.000Z",
+      "messages": 2
+     },
+     {
+      "id": "proj-2",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:10.000Z",
+      "messages": 2,
+      "projectId": "p-959297e8"
+     },
+     {
+      "id": "proj-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:09.000Z",
+      "messages": 2,
+      "projectId": "p-959297e8"
+     },
+     {
+      "id": "routine-7",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:08.000Z",
+      "messages": 2,
+      "readOnly": true
+     },
+     {
+      "id": "telegram",
+      "title": "Telegram",
+      "updatedAt": "2026-11-01T09:00:07.000Z",
+      "messages": 2,
+      "readOnly": true
+     },
+     {
+      "id": "pinned-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:05.000Z",
+      "messages": 2,
+      "pinned": true,
+      "flagsVersion": 1
+     },
+     {
+      "id": "plain-2",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:04.000Z",
+      "messages": 2
+     },
+     {
+      "id": "plain-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:03.000Z",
+      "messages": 2
+     },
+     {
+      "id": "archived-1",
+      "title": "message 0",
+      "updatedAt": "2026-11-01T09:00:06.000Z",
+      "messages": 2,
+      "archived": true,
+      "flagsVersion": 1
+     }
+    ],
+    "current": "telegram",
+    "projects": [
+     {
+      "id": "p-959297e8",
+      "name": "Site",
+      "folderLabel": "/var/folders/8t/wwtrkrrd6vd45pjkw82wg8bh0000gn/T/ark-proj-Fkajsa",
+      "missing": false,
+      "archived": false,
+      "chatCount": 2,
+      "web": false,
+      "provider": "claude-plan",
+      "model": "claude-sonnet-4"
+     }
+    ],
+    "access": "checked",
+    "reasoning": {
+     "provider": "claude-plan",
+     "model": "claude-opus-4",
+     "levels": [],
+     "default": "off",
+     "note": "Thinking levels are unavailable for this model. Refresh the model catalog in Settings.",
+     "effective": "off"
+    }
+   }
+  }
+ ]
+}

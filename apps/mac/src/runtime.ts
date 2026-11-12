@@ -48,6 +48,7 @@ import { makePrivate, ownFolders } from "./private-files.ts";
 import { createNativeCore, type NativeCore, type ChatContextPart } from "./native-core.ts";
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
+import { renameSync, writeFileSync } from "node:fs";
 import { createTinkerRun } from "./tinker.ts";
 import { startTinkerRunner, TINKER_TIME_LIMIT_MS, type TinkerRunner } from "./tinker-runner.ts";
 import { agentModel, createAgentTool } from "./native-agents.ts";
@@ -1057,6 +1058,26 @@ export function createRuntime(
     listCodexModels: (program) => listCodexModels(program),
     listPlanModels: (claudePath) => listPlanModels(claudePath), // ADR-097
   });
+  // ADR-278: state only Node can compute (the model in use, the thinking levels of each model, the project list) is written to
+  // data/ui-state.json, so the Rust runtime can build the `chats` event itself. Written when it changes, at most once a second.
+  if (memory && memoryFile !== ":memory:" && readEnv(process.env, "ARK_MEMORY_OWNER") === "rust") {
+    const stateFile = join(dirname(resolve(memoryFile)), "ui-state.json");
+    let last = "";
+    const writeState = () => {
+      try {
+        const reasoning = settings.info().providers.flatMap((p) => p.models.map((m) => settings.reasoning!(p.id, m.id)));
+        const text = JSON.stringify({ current: settings.current(), reasoning, projects: projects?.island.list() ?? null });
+        if (text === last) return;
+        writeFileSync(`${stateFile}.tmp`, text, { mode: 0o600 });
+        renameSync(`${stateFile}.tmp`, stateFile);
+        last = text;
+      } catch (error) {
+        log.warn("ui_state.write_failed", { message: describe(error) });
+      }
+    };
+    writeState();
+    setInterval(writeState, 1000).unref();
+  }
   const backgroundProfile = (chat: string): ReplyProfile => {
     const choice = chatChoice(chat, "text");
     const levels = choice.provider === "codex" ? settings.reasoning!(choice.provider, choice.model) : undefined;

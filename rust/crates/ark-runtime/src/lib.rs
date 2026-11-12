@@ -2,6 +2,7 @@
 
 pub mod ask;
 pub mod brain;
+pub mod chats;
 pub mod memory;
 pub mod native;
 pub mod routes;
