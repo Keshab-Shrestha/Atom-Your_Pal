@@ -227,7 +227,7 @@ pub fn agents(app: &App, k: &Kit) -> El {
     if let Some(helpers) = app.model.helpers.as_ref().filter(|h| !h.is_empty()) {
         cards.insert(0, org_card(helpers, k));
     }
-    cards.push(row().justify_end().child(Button::new("New agent").on_press(|s: &mut App| s.open_form(Form::new_agent())).build(k).key("new-agent")));
+    cards.insert(0, row().justify_end().child(Button::new("New agent").on_press(|s: &mut App| s.open_form(Form::new_agent())).build(k).key("new-agent")));
     page(k, "agents", "Agents", cards)
 }
 
