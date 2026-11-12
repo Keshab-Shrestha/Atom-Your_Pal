@@ -38,6 +38,8 @@ pub struct Chat {
     current: Mutex<Option<String>>,
     busy: AtomicBool,
     approvals: Arc<Approvals>,
+    /// Chats with a turn running for the local API.
+    api_busy: Mutex<std::collections::HashSet<String>>,
 }
 
 /// How long a question waits for the app (the runtime declines by itself after this, as Node does).
@@ -100,7 +102,7 @@ fn is_shared(id: &str) -> bool {
 
 impl Chat {
     pub fn new(db: PathBuf, provider: Arc<dyn Provider>, tools: Arc<dyn ToolRunner>, policy: Arc<dyn Policy>, model: &str) -> Chat {
-        Chat { db, provider, tools, policy, model: model.into(), current: Mutex::new(None), busy: AtomicBool::new(false), approvals: Arc::default() }
+        Chat { db, provider, tools, policy, model: model.into(), current: Mutex::new(None), busy: AtomicBool::new(false), approvals: Arc::default(), api_busy: Mutex::default() }
     }
 
     /// Looks at a line from Node to the app and keeps the id of the open chat.
@@ -170,7 +172,8 @@ impl Chat {
         emit(Event::Transcript { text: text.into() });
         emit(Event::State { state: LoopState::Thinking });
         let started = Instant::now();
-        let result = self.answer(id, text, to_app);
+        let approver = AppApprover { approvals: Arc::clone(&self.approvals), to_app: Arc::clone(to_app), wait: APPROVAL_WAIT };
+        let result = self.answer(id, text, Some(&approver));
         match result {
             Ok(reply) => {
                 emit(Event::Reply { text: reply });
@@ -185,19 +188,88 @@ impl Chat {
     }
 
     /// Runs the agent on the saved history and appends the exchange. Gives the reply text.
-    fn answer(&self, id: &str, text: &str, to_app: &Sink) -> Result<String, String> {
+    fn answer(&self, id: &str, text: &str, approver: Option<&dyn Approver>) -> Result<String, String> {
         let conn = store::open_read_write(&self.db).map_err(|e| format!("The chat file could not be opened: {e}"))?;
         let saved = read_history(&conn, id).map_err(|e| format!("The chat could not be read: {e}"))?;
         let history = replay_window(&saved, text)?;
         let mut agent = Agent::new(self.provider.as_ref(), self.policy.as_ref(), self.tools.as_ref(), &self.model);
         agent.system = Some(SYSTEM.into());
-        let approver = AppApprover { approvals: Arc::clone(&self.approvals), to_app: Arc::clone(to_app), wait: APPROVAL_WAIT };
-        agent.approver = Some(&approver);
+        agent.approver = approver;
         let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().map_err(|e| e.to_string())?;
         let outcome = runtime.block_on(agent.run(history, text, |_| {})).map_err(|e| e.to_string())?;
         append_exchange(&conn, id, saved.len(), text, &outcome.text).map_err(|e| format!("The answer could not be saved: {e}"))?;
         Ok(outcome.text)
     }
+}
+
+impl Chat {
+    /// One turn for the local API in chat `id` (made when it is new). No approver: a call that needs approval is refused.
+    /// `Err((409, _))` when a turn runs in that chat already.
+    pub fn ask_in(&self, id: &str, text: &str) -> Result<String, (u16, String)> {
+        if !self.api_busy.lock().map_err(|_| (500, "lock poisoned".to_string()))?.insert(id.to_string()) {
+            return Err((409, "ARK is answering in this chat. Try again in a moment.".into()));
+        }
+        let result = self.ask_in_unlocked(id, text).map_err(|e| (502, format!("ARK could not answer: {e}")));
+        if let Ok(mut busy) = self.api_busy.lock() {
+            busy.remove(id);
+        }
+        result
+    }
+
+    fn ask_in_unlocked(&self, id: &str, text: &str) -> Result<String, String> {
+        let conn = store::open_read_write(&self.db).map_err(|e| format!("The chat file could not be opened: {e}"))?;
+        let at = jiff::Timestamp::now().strftime("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
+        let created = conn.execute("INSERT OR IGNORE INTO chats (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)", rusqlite::params![id, chat_title(text), at, at]).map_err(|e| e.to_string())? > 0;
+        drop(conn);
+        let result = self.answer(id, text, None);
+        if created && result.is_err() {
+            // Like Node: a chat with no saved answer leaves no row.
+            if let Ok(conn) = store::open_read_write(&self.db) {
+                conn.execute("DELETE FROM chats WHERE id = ?", [id]).ok();
+            }
+        }
+        result
+    }
+}
+
+impl Chat {
+    /// The chat engine from the environment: `ANTHROPIC_API_KEY`, else the Claude bridge helper named by `ARK_CLAUDE_BRIDGE`
+    /// (a TypeScript file run by `node`). `ARK_NATIVE_ACTIONS=1` adds `write_file` and `run_command` (each call asks the user;
+    /// writes go only to `ARK_NATIVE_WRITE_ROOTS`, absolute folders separated by `:`). `ARK_NATIVE_CHAT_MODEL` sets the model.
+    /// `None` without a model to call.
+    pub fn from_process_env(memory_db: &std::path::Path) -> Option<Arc<Chat>> {
+        let env = |name: &str| std::env::var(name).ok().filter(|v| !v.is_empty());
+    let provider: Arc<dyn ark_llm::Provider> = match (env("ANTHROPIC_API_KEY"), env("ARK_CLAUDE_BRIDGE")) {
+        (Some(key), _) => Arc::new(ark_llm::anthropic::AnthropicClient::new(key)),
+        (None, Some(script)) => Arc::new(ark_llm::bridge::ClaudeBridge::new("node", vec!["--disable-warning=ExperimentalWarning".into(), script])),
+        _ => return None,
+    };
+    let home = std::path::PathBuf::from(env("HOME")?);
+    let cwd = std::env::current_dir().ok()?;
+    let tools = ark_agent::tools::Tools { home: home.clone(), roots: Vec::new(), cwd: cwd.clone() };
+    let mut runners: Vec<Arc<dyn ark_agent::ToolRunner>> = vec![Arc::new(ark_agent::RuntimeTools(tools))];
+    let mut allowed = vec!["current_time"];
+    let mut policy = ark_agent::FloorPolicy::new(&allowed, &home, Vec::new(), &cwd);
+    // `ARK_NATIVE_ACTIONS=1` adds write_file and run_command; each call asks the user. Writes go only to the folders in
+    // `ARK_NATIVE_WRITE_ROOTS` (absolute paths, separated by `:`).
+    if env("ARK_NATIVE_ACTIONS").as_deref() == Some("1") {
+        let roots: Vec<std::path::PathBuf> = env("ARK_NATIVE_WRITE_ROOTS").unwrap_or_default().split(':').filter(|r| r.starts_with('/')).map(Into::into).collect();
+        allowed.extend(["write_file", "run_command"]);
+        policy = ark_agent::FloorPolicy::new(&allowed, &home, Vec::new(), &cwd).with_write_roots(roots.clone());
+        runners.push(Arc::new(ark_agent::ActionTools { home: home.clone(), write_roots: roots, cwd: cwd.clone() }));
+    }
+    let model = env("ARK_NATIVE_CHAT_MODEL").unwrap_or_else(|| "claude-sonnet-5-5".into());
+    Some(Arc::new(Chat::new(memory_db.to_path_buf(), provider, Arc::new(ark_agent::Combined(runners)), Arc::new(policy), &model)))
+    }
+}
+
+/// The chat's title: the first words on one line, 60 characters at most (`chatTitle` in `chats.ts`).
+pub fn chat_title(first: &str) -> String {
+    let line = first.split_whitespace().collect::<Vec<_>>().join(" ");
+    if line.is_empty() {
+        return "New chat".into();
+    }
+    if line.chars().count() > 60 { format!("{}…", line.chars().take(59).collect::<String>().trim_end()) } else { line }
 }
 
 /// The saved messages of a chat, oldest first.

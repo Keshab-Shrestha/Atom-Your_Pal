@@ -104,34 +104,8 @@ impl Write for SharedWriter {
     }
 }
 
-/// Native chat when `ARK_RUNTIME_NATIVE_CHAT=1` and a model is reachable: `ANTHROPIC_API_KEY`, else the Claude
-/// bridge helper named by `ARK_CLAUDE_BRIDGE` (a TypeScript file run by `node`). Without either, Node answers.
 fn chat_from_process(memory_db: &std::path::Path) -> Option<Arc<Chat>> {
-    let env = |name: &str| std::env::var(name).ok().filter(|v| !v.is_empty());
-    if !chat::enabled(env) {
-        return None;
-    }
-    let provider: Arc<dyn ark_llm::Provider> = match (env("ANTHROPIC_API_KEY"), env("ARK_CLAUDE_BRIDGE")) {
-        (Some(key), _) => Arc::new(ark_llm::anthropic::AnthropicClient::new(key)),
-        (None, Some(script)) => Arc::new(ark_llm::bridge::ClaudeBridge::new("node", vec!["--disable-warning=ExperimentalWarning".into(), script])),
-        _ => return None,
-    };
-    let home = std::path::PathBuf::from(env("HOME")?);
-    let cwd = std::env::current_dir().ok()?;
-    let tools = ark_agent::tools::Tools { home: home.clone(), roots: Vec::new(), cwd: cwd.clone() };
-    let mut runners: Vec<Arc<dyn ark_agent::ToolRunner>> = vec![Arc::new(ark_agent::RuntimeTools(tools))];
-    let mut allowed = vec!["current_time"];
-    let mut policy = ark_agent::FloorPolicy::new(&allowed, &home, Vec::new(), &cwd);
-    // `ARK_NATIVE_ACTIONS=1` adds write_file and run_command; each call asks the user. Writes go only to the folders in
-    // `ARK_NATIVE_WRITE_ROOTS` (absolute paths, separated by `:`).
-    if env("ARK_NATIVE_ACTIONS").as_deref() == Some("1") {
-        let roots: Vec<std::path::PathBuf> = env("ARK_NATIVE_WRITE_ROOTS").unwrap_or_default().split(':').filter(|r| r.starts_with('/')).map(Into::into).collect();
-        allowed.extend(["write_file", "run_command"]);
-        policy = ark_agent::FloorPolicy::new(&allowed, &home, Vec::new(), &cwd).with_write_roots(roots.clone());
-        runners.push(Arc::new(ark_agent::ActionTools { home: home.clone(), write_roots: roots, cwd: cwd.clone() }));
-    }
-    let model = env("ARK_NATIVE_CHAT_MODEL").unwrap_or_else(|| "claude-sonnet-5-5".into());
-    Some(Arc::new(Chat::new(memory_db.to_path_buf(), provider, Arc::new(ark_agent::Combined(runners)), Arc::new(policy), &model)))
+    chat::enabled(|name| std::env::var(name).ok().filter(|v| !v.is_empty())).then(|| Chat::from_process_env(memory_db)).flatten()
 }
 
 fn native_from_process() -> Option<native::Native> {

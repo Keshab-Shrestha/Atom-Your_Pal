@@ -45,6 +45,13 @@
 - The token comes from `ARK_TELEGRAM_BOT_TOKEN` (with `ARK_TELEGRAM_CHAT_ID`, `ARK_TELEGRAM_USER_ID`) through `Config::from_env`, or from the caller. The log gets names and codes, never text or the token.
 - Verified: 5 tests (message split; backlog and sender filter; split send with buttons; retry rules; wrong token, with a check that the token is not in the log) against a local mock Bot API server. Clippy is clean. No live Telegram call.
 
+## Rust Phase 2 step 14: native local HTTP API — 12 November 2026
+
+- ADR-278, Phase 2: `ark-runtime::api` is the local HTTP API in Rust, and the new binary `ark-api` runs it alone. It has the Node envelope (`{ok, data, error}`), the bearer token in `data/api-token` (64 hex digits, made with mode 0600), the Host check (127.0.0.1, localhost and `ARK_API_HOST`), the lockout (10 wrong tokens in a minute, only for requests that carry an Authorization header), the 64 KB body limit, and the status codes of Node. Plain HTTP/1.1 on `std::net`, so no new crate. It logs no body.
+- Routes: `POST /v1/chat` (a turn through the agent loop in chat `api` or `api-<chatId>`, 409 when that chat is busy, a new chat is saved only after an answer), `GET /v1/noah/chats` and `GET /v1/noah/chats/:id` (read from the Node database). The other Node routes (goals, tasks, memories, brain, audit, needs, hooks) answer 501. A call that needs approval is refused, since the API has no approver.
+- `Chat::from_process_env` builds the engine from the environment and is shared by the forwarder and `ark-api`.
+- Verified: 3 tests against a real local socket (auth, Host check, each route and refusal, 413, the lockout and its header rule, the token file) on a fixture database. Clippy is clean. Not run against a live model, and not yet started from the forwarder (Node still owns the port).
+
 ## Rust Phase 2 step 13: Telegram bot logic — 12 November 2026
 
 - ADR-098, Phase 2: `ark-telegram::bot` ports the bot logic of `telegram-bot.ts` on top of `Telegram`. It has the commands (`/help`, `/start`, `/needs`, unknown), a message for ARK as one turn at a time with a 10 minute limit, an outbox that tries a failed send again (30 s, 6 tries, 20 items), ARK's questions as one push with Allow and Decline buttons (`a:<id>:1|0`), the answer toasts, and the push setting (a routine result follows it, a reply always goes). A command is `/word` then a space, punctuation or the end, so `/tmp/x is big` is a message for ARK. The `Brain` trait gives the bot ARK's answers and questions, and `Wire` is the Telegram side, so the logic has tests with no network.

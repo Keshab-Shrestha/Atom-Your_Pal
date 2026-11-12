@@ -37,6 +37,12 @@
 - Add `rust/crates/ark-telegram` (`Telegram::start`, `send`, `answer`, `stop`, `Config`).
 - Not done: the bot logic of `telegram-bot.ts` (needs, approvals, turns), and wiring the channel into the runtime.
 
+## Rust Phase 2 step 14: native local HTTP API — 12 November 2026
+
+- Add `rust/crates/ark-runtime/src/api.rs` and `src/bin/ark-api.rs`.
+- Not done: the 501 routes (goals, tasks, memories, brain notes, audit, needs, hooks), the phone page files, the turn time limit (504), the HTTP start from the forwarder with the `api` event, and `ark_*` MCP use of this server in place of Node's.
+
+
 ## Rust Phase 2 step 13: Telegram bot logic — 12 November 2026
 
 - Add `rust/crates/ark-telegram/src/bot.rs` (`Bot`, `Brain`, `Wire`).
