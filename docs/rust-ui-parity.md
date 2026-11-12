@@ -44,13 +44,24 @@ Rust logic comes from `ark-core` where a module exists.
 | OwnerWelcomeSheet, GeneralPage name | first-run name form, Settings > General, `owner.set` |
 | VoicePill, status | pill shows Listening, Transcribing, Thinking, Speaking, Needs you |
 
+## Done in the third round
+
+| Swift source | ark-app |
+| --- | --- |
+| ShortcutRecorder | `recorder.rs`, Change and Reset on each shortcut; saved in prefs |
+| ChatAccessMenu, ChatModelPicker, ChatReasoningMenu | pickers in the chat details card |
+| Translucent window (ADR-277) | choice in Appearance; the window opens transparent after a restart. Fills stay opaque, so only the frame margin shows the desktop |
+| ProjectSettingsSheet (basic) | rename, web search, model on the projects page |
+| PermissionChecker | macOS permissions card with System Settings links |
+| BrainView search | search field and hits; the note card shows links and backlinks |
+| ProjectGitView, git branches | branches page: commits, files, diff, push |
+
 ## Open
 
-- Shortcut recorder (change a shortcut). Chat access and thinking per chat (ChatAccessMenu, ChatReasoningMenu, ChatModelPicker).
-- Translucent window (ADR-277).
-- Project settings, sources and workspace views (ProjectWorkspaceView, ProjectSettingsSheet, ProjectSourceSheet). A basic projects page is done.
-- Setup views for permissions and keys (SetupViews). The welcome name window is done.
-- Brain graph and search, git branches view (`git.diff` text).
+- Brain graph drawing (the force layout view). Notes, search and links are done.
+- Project sources and workspace views (ProjectSourceSheet, ProjectWorkspaceView). The workspace browser and terminal are in the list below.
+- API key entry in Setup. Keys stay in the environment; the settings page shows which provider has none.
+- Real translucent fills (blur) in the sidebar and panels.
 
 ## Not planned for the first Rust release
 

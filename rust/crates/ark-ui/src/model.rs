@@ -207,6 +207,8 @@ pub struct Project {
     pub archived: bool,
     pub chats: u64,
     pub web: bool,
+    /// The project's own model (provider, model); None: the global one.
+    pub model: Option<(String, String)>,
 }
 
 /// One file a task changed (`thread` event, `checkpoints`).
@@ -565,7 +567,7 @@ impl Model {
                 self.chat_levels = reasoning.and_then(|r| r.get("levels")).and_then(Value::as_array).map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect()).unwrap_or_default();
                 self.chat_effort = reasoning.map(|r| str_of(r, "effective")).unwrap_or_default();
                 self.projects = objects(map, "projects")
-                    .map(|p| Project { id: str_of(p, "id"), name: str_of(p, "name"), folder: str_of(p, "folderLabel"), missing: bool_of(p, "missing"), archived: bool_of(p, "archived"), chats: u64_of(p, "chatCount"), web: bool_of(p, "web") })
+                    .map(|p| Project { id: str_of(p, "id"), name: str_of(p, "name"), folder: str_of(p, "folderLabel"), missing: bool_of(p, "missing"), archived: bool_of(p, "archived"), chats: u64_of(p, "chatCount"), web: bool_of(p, "web"), model: opt_str(p, "provider").zip(opt_str(p, "model")) })
                     .collect();
                 let current = str_of(map, "current");
                 self.current = (!current.is_empty()).then_some(current);

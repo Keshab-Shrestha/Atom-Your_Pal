@@ -507,7 +507,25 @@ pub fn projects(app: &App, k: &Kit) -> El {
             }).build(k).key(format!("project-chat-{}", p.id)))
             .child(Button::new(if archived { "Unarchive" } else { "Archive" }).on_press(move |s: &mut App| s.send(&Command::ProjectArchive { id: archive_id.clone(), archived: !archived })).build(k).key(format!("project-archive-{}", p.id)))
             .child(Button::new("Remove").on_press(move |s: &mut App| s.send(&Command::ProjectRemove { id: remove_id.clone(), delete_chats: None })).build(k).key(format!("project-remove-{}", p.id)));
-        cards.push(card(k, &format!("project-{}", p.id), &p.name).child(text(meta.join(" · ")).font(k.ty.small).color(k.c.text_muted).wrap()).child(actions));
+        let (rename_id, rename_name, web_id, web) = (p.id.clone(), p.name.clone(), p.id.clone(), p.web);
+        let settings = row().gap(8.0).wrap()
+            .child(Button::new("Rename").on_press(move |s: &mut App| s.open_form(Form::project_name(&rename_id, &rename_name))).build(k).key(format!("project-rename-{}", p.id)))
+            .child(Button::new(if web { "Web search: on" } else { "Web search: off" }).variant(if web { ButtonVariant::Submit } else { ButtonVariant::Neutral }).on_press(move |s: &mut App| s.send(&Command::ProjectWeb { id: web_id.clone(), web: !web })).build(k).key(format!("project-web-{}", p.id)));
+        let mut models = row().gap(6.0).wrap();
+        for pr in app.model.providers.iter().filter(|x| x.available) {
+            for (mid, mname) in &pr.models {
+                let (pid, mid2, prov, current) = (p.id.clone(), mid.clone(), pr.id.clone(), p.model.as_ref().is_some_and(|(a, b)| *a == pr.id && b == mid));
+                models = models.child(Button::new(mname.clone()).variant(if current { ButtonVariant::Submit } else { ButtonVariant::Neutral }).on_press(move |s: &mut App| s.send(&Command::ProjectModel { id: pid.clone(), provider: prov.clone(), model: mid2.clone() })).build(k).key(format!("project-model-{}-{mid}", p.id)));
+            }
+        }
+        cards.push(
+            card(k, &format!("project-{}", p.id), &p.name)
+                .child(text(meta.join(" · ")).font(k.ty.small).color(k.c.text_muted).wrap())
+                .child(settings)
+                .child(text("Model for this project's chats").font(k.ty.small).color(k.c.text_muted))
+                .child(models)
+                .child(actions),
+        );
     }
     page(k, "projects", "Projects", cards)
 }

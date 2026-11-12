@@ -247,7 +247,7 @@ fn screens_match_the_swift_goldens_in_brightness() {
 fn the_projects_page_lists_projects() {
     let steps = r#"[{"t":0.2,"type":"click","key":"nav-projects"}]"#;
     let tree = tree_after("projects", "chat.jsonl", Some(steps));
-    for want in ["Atom", "~/Developer/atom", "3 chats", "Add project", "New chat", "Archive", "Remove"] {
+    for want in ["Atom", "~/Developer/atom", "3 chats", "Add project", "New chat", "Archive", "Remove", "Rename", "Web search: off", "Model for this project"] {
         assert!(tree.contains(want), "projects page lacks {want:?}");
     }
 }

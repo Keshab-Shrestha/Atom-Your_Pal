@@ -10,6 +10,8 @@ pub enum FormKind {
     /// Edit the soul of this helper (id); the name stays.
     Soul { helper: String, name: String },
     NewAgent,
+    /// Rename this project (id).
+    ProjectName { id: String },
     /// The owner's name: the welcome window (first run) or Settings.
     Owner { first_run: bool },
     /// Add a task for this helper (id).
@@ -27,6 +29,7 @@ impl Form {
         match &self.kind {
             FormKind::Soul { name, .. } => format!("Soul of {name}"),
             FormKind::NewAgent => "New agent".into(),
+            FormKind::ProjectName { .. } => "Rename project".into(),
             FormKind::Owner { first_run: true } => "Welcome to ARK".into(),
             FormKind::Owner { first_run: false } => "Your name".into(),
             FormKind::NewTask { .. } => "New task".into(),
@@ -39,6 +42,7 @@ impl Form {
             FormKind::Soul { .. } => &["Personality", "How it works", "Rules", "Lessons"],
             FormKind::NewAgent => &["Name", "Role", "Personality", "How it works", "Rules"],
             FormKind::NewTask { .. } => &["Task"],
+            FormKind::ProjectName { .. } => &["Name"],
             FormKind::Owner { .. } => &["What should ARK call you?"],
         }
     }
@@ -59,6 +63,10 @@ impl Form {
 
     pub fn owner(first_run: bool, current: &str) -> Form {
         Form::fresh(FormKind::Owner { first_run }, &[current])
+    }
+
+    pub fn project_name(id: &str, current: &str) -> Form {
+        Form::fresh(FormKind::ProjectName { id: id.into() }, &[current])
     }
 
     pub fn new_task(helper: &str) -> Form {
@@ -95,6 +103,12 @@ impl Form {
                     return Err("Write a name, or choose Skip.");
                 }
                 Ok(Command::OwnerSet { name: self.text(0) })
+            }
+            FormKind::ProjectName { id } => {
+                if self.text(0).is_empty() {
+                    return Err("A project needs a name.");
+                }
+                Ok(Command::ProjectRename { id: id.clone(), name: self.text(0) })
             }
             FormKind::NewTask { helper } => {
                 if self.text(0).is_empty() {
