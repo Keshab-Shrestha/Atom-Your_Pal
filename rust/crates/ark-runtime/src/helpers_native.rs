@@ -9,7 +9,8 @@ use std::sync::{Arc, Mutex};
 use serde_json::Value;
 
 use crate::helpers_bus::{Bus, Tail};
-use crate::{helpers_event, helpers_write};
+use crate::helpers_runner::Runner;
+use crate::{helpers_event, helpers_life, helpers_roster, helpers_write};
 
 /// Where the helpers file and the agent folders are.
 #[derive(Debug)]
@@ -20,6 +21,7 @@ pub struct HelpersNative {
     host: helpers_event::Host,
     bus: Arc<Bus>,
     tail: Mutex<Tail>,
+    runner: Mutex<Option<Arc<Runner>>>,
 }
 
 impl HelpersNative {
@@ -27,9 +29,48 @@ impl HelpersNative {
     pub fn new(db: PathBuf) -> HelpersNative {
         let agents = db.parent().map_or_else(|| PathBuf::from("agents"), |p| p.join("agents"));
         let host = helpers_event::Host::of_this_mac(&db);
-        let native = HelpersNative { db, agents, cached: Mutex::new(None), host, bus: Arc::new(Bus::default()), tail: Mutex::new(Tail::default()) };
+        let native = HelpersNative { db, agents, cached: Mutex::new(None), host, bus: Arc::new(Bus::default()), tail: Mutex::new(Tail::default()), runner: Mutex::new(None) };
         native.pump(); // marks the end of the audit log: only later changes reach the listeners
         native
+    }
+
+    /// With a runner attached, Rust owns the life of a task: `job.add`, `job.retry`, `job.steer`, `job.interrupt`, `job.fresh`,
+    /// `job.stop` and `job.delete` of a task that runs (the runner starts what is queued). Without one they stay in Node.
+    pub fn attach_runner(&self, runner: Arc<Runner>) {
+        runner.listen_once(&self.bus);
+        if let Ok(mut slot) = self.runner.lock() {
+            *slot = Some(runner);
+        }
+    }
+
+    /// The change a life command asks for, in one write; `None` for another command or a refusal (Node gives the words).
+    fn life(&self, conn: &rusqlite::Connection, command: &Value) -> Option<()> {
+        self.runner.lock().ok()?.as_ref()?;
+        let id = command["id"].as_i64();
+        match command["type"].as_str()? {
+            "job.add" => {
+                let helper = command["helper"].as_str()?;
+                let (members, _) = helpers_roster::roster(conn, &self.agents)?;
+                let member = members.iter().find(|m| m.id == helper)?;
+                let core = helpers_roster::member_core(conn, member)?;
+                let name = core["name"].as_str()?.to_string();
+                let blockers: Vec<i64> = command["blockedBy"].as_array().map(|a| a.iter().filter_map(Value::as_i64).collect()).unwrap_or_default();
+                let available = core["available"] == true;
+                helpers_life::add_job(conn, helper, Some((&name, available, &member.role)), command["task"].as_str()?, &blockers, command["planFirst"] == true).ok().map(|_| ())
+            }
+            "job.retry" => helpers_life::retry(conn, id?).ok(),
+            "job.fresh" => helpers_life::fresh(conn, id?).ok(),
+            "job.interrupt" => helpers_life::interrupt(conn, id?).ok(),
+            "job.steer" => helpers_life::comment(conn, id?, command["text"].as_str()?).ok(),
+            "job.stop" => helpers_life::stop(conn, id?).ok().filter(|stopped| !stopped.is_empty()).map(|_| ()),
+            // A task that ended is deleted by `helpers_write` (it knows the kept file copies); one that runs is stopped first.
+            "job.delete" => {
+                let job = helpers_life::get(conn, id?).filter(|j| !j.state.is_final())?;
+                let copies: i64 = conn.query_row("SELECT COUNT(*) FROM checkpoints WHERE job_id = ?", [job.id], |r| r.get(0)).ok()?;
+                (copies == 0).then(|| helpers_life::remove(conn, job.id).ok()).flatten().filter(|gone| *gone).map(|_| ())
+            }
+            _ => None,
+        }
     }
 
     /// The change bus: the runner, Telegram and the workflows listen here (`HelperStore.onChange` of the TypeScript).
@@ -73,7 +114,9 @@ impl HelpersNative {
         let cached = self.cached.lock().ok()?.clone()?;
         if command["type"] != "helpers.list" {
             let conn = crate::store::open_read_write(&self.db).ok()?;
-            helpers_write::apply(&conn, &command)?;
+            if self.life(&conn, &command).is_none() {
+                helpers_write::apply(&conn, &command)?;
+            }
             self.pump();
         }
         let conn = helpers_event::open_read_only(&self.db)?;
@@ -88,7 +131,8 @@ mod tests {
     use super::*;
 
     fn scratch() -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("ark-helpers-native-{}", std::process::id()));
+        static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let dir = std::env::temp_dir().join(format!("ark-helpers-native-{}-{}", std::process::id(), N.fetch_add(1, std::sync::atomic::Ordering::SeqCst)));
         std::fs::create_dir_all(dir.join("agents")).unwrap();
         std::fs::copy(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/helpers/helpers.db"), dir.join("helpers.db")).unwrap();
         std::fs::copy(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/helpers/org.json"), dir.join("org.json")).unwrap();
@@ -103,15 +147,16 @@ mod tests {
     #[test]
     fn it_is_off_unless_asked_and_goes_to_node_until_node_sent_an_event() {
         assert!(HelpersNative::from_environment(Path::new("/x"), |_| None).is_none());
+        let dir = scratch();
         let on = |name: &str| match name {
             "ARK_HELPERS_NATIVE" => Some("1".to_string()),
             "ARK_HELPERS_FILE" => Some("helpers.db".to_string()),
             _ => None,
         };
-        let mut native = HelpersNative::from_environment(&scratch(), on).unwrap();
+        let mut native = HelpersNative::from_environment(&dir, on).unwrap();
         native.host.app_dirs = Vec::new();
         native.host.home = None;
-        native.host.user_skills = scratch().join("none");
+        native.host.user_skills = dir.join("none");
         let heard = Arc::new(Mutex::new(Vec::<Value>::new()));
         let sink = heard.clone();
         native.bus().subscribe(move |c| sink.lock().unwrap().push(c.clone()));
@@ -131,5 +176,49 @@ mod tests {
         assert_eq!(heard.lock().unwrap().len(), 1, "the label change reached the bus once");
         assert_eq!(heard.lock().unwrap()[0]["action"], "label");
         assert!(native.answer("{\"type\":\"job.delete\",\"id\":4}\n").is_none(), "a task that has not ended goes to Node");
+    }
+
+    #[test]
+    fn with_a_runner_job_add_is_made_and_run_by_rust() {
+        use ark_agent::{FloorPolicy, RuntimeTools, tools::Tools};
+        use ark_llm::{Event, EventStream, LlmError, Provider, Request, Usage};
+        use futures_util::future::BoxFuture;
+        struct Done;
+        impl Provider for Done {
+            fn stream<'a>(&'a self, _: &'a Request) -> BoxFuture<'a, Result<EventStream, LlmError>> {
+                let items = vec![Ok(Event::Text { text: "All done.".into() }), Ok(Event::Done { stop_reason: "end_turn".into(), usage: Usage::default() })];
+                Box::pin(async move { Ok(Box::pin(futures_util::stream::iter(items)) as EventStream) })
+            }
+        }
+        let dir = scratch();
+        let on = |name: &str| match name {
+            "ARK_HELPERS_NATIVE" => Some("1".to_string()),
+            "ARK_HELPERS_FILE" => Some("helpers.db".to_string()),
+            _ => None,
+        };
+        let mut native = HelpersNative::from_environment(&dir, on).unwrap();
+        native.host.app_dirs = Vec::new();
+        native.host.home = None;
+        native.host.user_skills = dir.join("none");
+        native.observe("{\"type\":\"helpers\",\"apps\":[],\"models\":[],\"skills\":[]}\n");
+        assert!(native.answer("{\"type\":\"job.add\",\"helper\":\"sid\",\"task\":\"x\"}\n").is_none(), "no runner: Node adds it");
+        let home = std::env::temp_dir();
+        let tools = Arc::new(RuntimeTools(Tools { home: home.clone(), roots: vec![], cwd: home.clone() }));
+        let policy = Arc::new(FloorPolicy::new(&[], &home, vec![], &home));
+        native.attach_runner(Runner::new(dir.join("helpers.db"), Arc::new(Done), tools, policy, "m", native.bus()));
+        let line = native.answer("{\"type\":\"job.add\",\"helper\":\"sid\",\"task\":\"Find it\"}\n").unwrap();
+        let event: Value = serde_json::from_str(&line).unwrap();
+        assert_eq!(event["type"], "helpers");
+        let conn = rusqlite::Connection::open(dir.join("helpers.db")).unwrap();
+        let id: i64 = conn.query_row("SELECT MAX(id) FROM jobs WHERE task = 'Find it'", [], |r| r.get(0)).unwrap();
+        for _ in 0..200 {
+            native.pump();
+            let state: String = conn.query_row("SELECT state FROM jobs WHERE id = ?", [id], |r| r.get(0)).unwrap();
+            if state == "done" {
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(25));
+        }
+        panic!("the task did not finish");
     }
 }

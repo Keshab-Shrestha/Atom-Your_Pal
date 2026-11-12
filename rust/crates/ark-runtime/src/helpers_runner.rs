@@ -78,6 +78,12 @@ impl Runner {
         self.bus.subscribe(move |change: &Change| runner.heard(change))
     }
 
+    /// `listen` on a bus that is not the runner's own (the one of `HelpersNative`).
+    pub fn listen_once(self: &Arc<Self>, bus: &Bus) -> u64 {
+        let runner = self.clone();
+        bus.subscribe(move |change: &Change| runner.heard(change))
+    }
+
     fn heard(self: &Arc<Self>, change: &Change) {
         let state = change["state"].as_str();
         match (change["action"].as_str(), state) {

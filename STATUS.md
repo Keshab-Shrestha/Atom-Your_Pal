@@ -1285,3 +1285,10 @@ Older steps are in TASK.md.
 - Screens: sidebar with chat list, chat (Markdown replies, tool cards, approval cards with Allow and Decline, ask-user cards, composer), settings, agents, tasks and dashboard. The look is the OpenCode theme of Rune.
 - The protocol has no text-delta event, so a reply appears whole, as `reply` sends it.
 - Verified: `ark-ui` unit tests, a bridge test against `ark-fake-runtime`, and headless tests (`--snap`, `--tree`, `--script` clicks and typing) with `ARK_UI_EVENTS`. Clippy is clean. No live run against the Node runtime. No GUI check by a person.
+
+- ADR-278, Phase 4, steps 1 and 2: Rust now has the change bus and the task runner of the Helpers store.
+  - `helpers_bus.rs`: a listener hears each change. `Tail` reads the new rows of the audit log, so Node changes and Rust changes both reach the listeners, once. `Bus::emit` is for `step` and the other kinds that the audit log skips.
+  - `helpers_life.rs`: the life of a task (`start`, `finish`, `fail`, `stop`, `remove`, `retry`, `fresh`, `interrupt`, `comment`, `add_job`). It uses the state machine and the retry rules of `ark-core`. A failure that a second try may fix runs once more. A task that waits for a failed task fails. A stop also stops the native children.
+  - `helpers_runner.rs`: the runner. It starts each queued task that has no chat, runs one `ark-agent` turn with the helper's soul, and ends the task with a report or an error. A stop or a delete on the bus cancels the run. The time limit is 15 minutes.
+  - `HelpersNative::attach_runner` makes `job.add`, `job.retry`, `job.steer`, `job.interrupt`, `job.fresh`, `job.stop` and the delete of a running task native. Without a runner they stay in Node. Tests use a scripted provider and a copy of the fixture file.
+- Not done in ADR-278 Phase 4: `job.undo` (file copies), the Tinker task that a failed skill use asks for, the delegation gate for child tasks, the native retry plans of a chat, Telegram and workflow listeners on the Rust bus, and the models, skill hub, Paperclip and stuck dot in `helpers.list`. The app does not attach the runner yet.
