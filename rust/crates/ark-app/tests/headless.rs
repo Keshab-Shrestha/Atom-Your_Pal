@@ -97,7 +97,7 @@ fn the_sidebar_opens_the_pages() {
         assert!(memory.contains(want), "memory page lacks {want:?}");
     }
     let settings = page("nav-settings", "nav-settings");
-    for want in ["Opus", "Sonnet", "Gemini (no key)", "On, port 4317", "42%", "Morning brief", "Read aloud"] {
+    for want in ["Opus", "Sonnet", "Gemini (no key)", "On, port 4317", "42%", "Morning brief", "Read aloud", "Saved permissions", "Full access", "Model default"] {
         assert!(settings.contains(want), "settings page lacks {want:?}");
     }
 }
@@ -152,4 +152,12 @@ fn the_palette_lists_screens_and_chats() {
     for want in ["Go to Settings", "New chat", "Open chat: Plan the Rust port"] {
         assert!(text.contains(want), "the palette lacks {want:?}");
     }
+}
+
+#[test]
+fn full_access_needs_a_second_press() {
+    let click = |key: &str| format!(r#"{{"t":0.3,"type":"click","key":"{key}"}}"#);
+    let steps = format!(r#"[{{"t":0.1,"type":"click","key":"nav-settings"}},{}]"#, click("access-full"));
+    let tree = tree_after("full", "chat.jsonl", Some(&steps));
+    assert!(tree.contains("Confirm Full access"), "the first press should ask to confirm");
 }

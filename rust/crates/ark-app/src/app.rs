@@ -29,6 +29,10 @@ pub struct App {
     pub sidebar: PaneState,
     pub screen: Screen,
     /// An open form (soul, new agent, new task); it replaces the page while it is open.
+    /// The saved choices (new-chat defaults, theme).
+    pub prefs: crate::prefs::Prefs,
+    /// Full access was chosen once and waits for the second press.
+    pub confirm_full: bool,
     /// The command palette's filter. None when it is closed.
     pub palette: Option<TextEdit>,
     /// The find bar: the query and the selected match. None when the bar is closed.
@@ -69,7 +73,7 @@ pub fn init() -> App {
     };
     // Tests and snapshots open the find bar with a query.
     let find = std::env::var("ARK_UI_FIND").ok().map(|q| (TextEdit::new(q), 0));
-    App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: None, form_error: None }
+    App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen, prefs: if std::env::var_os("ARK_UI_EVENTS").is_some() && std::env::var_os("ARK_UI_PREFS").is_none() { crate::prefs::Prefs::default() } else { crate::prefs::Prefs::load() }, confirm_full: false, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: None, form_error: None }
 }
 
 /// Starts the runtime child once, with the waker that redraws the window when an event arrives.
@@ -86,6 +90,7 @@ pub fn setup(app: &mut App, wake: Waker) {
             app.bridge = Some(bridge);
             // Native clients ask for the work snapshots (docs/island-protocol.md, chat.work).
             app.send(&ark_protocol::Command::ChatWorkWatch);
+            app.send_defaults();
         }
         Err(e) => app.model.runtime_down(format!("The runtime did not start ({bin}): {e}")),
     }
@@ -164,6 +169,29 @@ impl App {
         }
         self.send(&ark_protocol::Command::BriefSet { change });
         self.send(&ark_protocol::Command::BriefGet);
+    }
+
+    /// Tells the runtime the access and thinking a new chat starts with (`chat.defaults`).
+    pub fn send_defaults(&self) {
+        self.send(&ark_protocol::Command::ChatDefaults { access: self.prefs.access.clone(), effort: self.prefs.effort.clone() });
+    }
+
+    /// Sets the new-chat access. Full access asks for a second press first (it skips routine prompts).
+    pub fn set_access(&mut self, access: &str) {
+        if access == "full" && self.prefs.access != "full" && !self.confirm_full {
+            self.confirm_full = true;
+            return;
+        }
+        self.confirm_full = false;
+        self.prefs.access = access.to_owned();
+        self.prefs.save();
+        self.send_defaults();
+    }
+
+    pub fn set_effort(&mut self, effort: &str) {
+        self.prefs.effort = effort.to_owned();
+        self.prefs.save();
+        self.send_defaults();
     }
 
     pub fn toggle_find(&mut self) {

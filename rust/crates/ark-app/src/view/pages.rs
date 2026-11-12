@@ -78,7 +78,35 @@ pub fn settings(app: &App, k: &Kit) -> El {
         .child(line(k, "Telegram bot", yes_no(m.telegram)))
         .child(line(k, "Computer control", yes_no(m.computer)))
         .child(line(k, "Local API", api));
-    let mut cards = vec![model, connections];
+    let mut defaults = card(k, "settings-defaults", "New chats");
+    let mut access = row().gap(8.0).wrap();
+    for (id, label) in crate::prefs::ACCESS {
+        let current = app.prefs.access == id;
+        let asking = id == "full" && app.confirm_full;
+        access = access.child(
+            Button::new(if asking { "Confirm Full access" } else { label })
+                .variant(if current || asking { ButtonVariant::Submit } else { ButtonVariant::Neutral })
+                .on_press(move |s: &mut App| s.set_access(id))
+                .build(k)
+                .key(format!("access-{id}")),
+        );
+    }
+    defaults = defaults.child(text("Access").font(k.ty.ui_medium).color(k.c.text_base)).child(access);
+    if app.confirm_full {
+        defaults = defaults.child(text("New chats skip routine file, command and plugin prompts. Protected files and macOS permissions still ask.").key("full-warning").font(k.ty.small).color(k.c.danger.fg).wrap());
+    }
+    let mut effort = row().gap(8.0).wrap();
+    for (id, label) in crate::prefs::EFFORT {
+        effort = effort.child(
+            Button::new(label)
+                .variant(if app.prefs.effort == id { ButtonVariant::Submit } else { ButtonVariant::Neutral })
+                .on_press(move |s: &mut App| s.set_effort(id))
+                .build(k)
+                .key(format!("effort-{}", if id.is_empty() { "model" } else { id })),
+        );
+    }
+    defaults = defaults.child(text("Thinking").font(k.ty.ui_medium).color(k.c.text_base)).child(effort);
+    let mut cards = vec![model, defaults, connections];
     if let Some(values) = m.brief {
         let mut brief = card(k, "settings-brief", "Morning brief");
         for (i, ((_, label), on)) in ark_ui::BRIEF_SWITCHES.iter().zip(values).enumerate() {
