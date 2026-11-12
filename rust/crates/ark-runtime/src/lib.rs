@@ -33,6 +33,7 @@ pub mod brain;
 pub mod chat_store;
 pub mod chats;
 pub mod projects_store;
+pub mod projects_add;
 pub mod memory;
 pub mod memory_kept;
 pub mod native;

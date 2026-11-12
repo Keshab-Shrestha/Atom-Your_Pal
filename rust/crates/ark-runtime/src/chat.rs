@@ -175,8 +175,27 @@ impl Chat {
             Command::ProjectArchive { id, archived } => done(&|c| p::archive(c, id, *archived)),
             Command::ProjectWeb { id, web } => done(&|c| p::set_web(c, id, *web)),
             Command::ProjectModel { id, provider, model } if provider.is_empty() && model.is_empty() => done(&|c| p::clear_model(c, id)),
+            Command::ProjectAdd { name, path } => self.project_add(name, path),
+            Command::ProjectRemove { id, delete_chats } => {
+                self.chats_line()?;
+                let conn = store::open_read_write(&self.db).ok()?;
+                crate::projects_add::remove(&conn, &self.db.parent()?.join("ui-state.json"), id, delete_chats.unwrap_or(false)).into_result()
+            }
             _ => None,
         }
+    }
+
+    /// `project.add`: the folder grant, the project's coder Agent, the row and the list (`projects_add.rs`). Needs the helpers file beside the memory file.
+    fn project_add(&self, name: &str, path: &str) -> Option<Result<(), String>> {
+        let dir = self.db.parent()?;
+        let helpers_file = dir.join("helpers.db");
+        if !helpers_file.exists() {
+            return None;
+        }
+        self.chats_line()?;
+        let (memory, helpers) = (store::open_read_write(&self.db).ok()?, store::open_read_write(&helpers_file).ok()?);
+        let home = std::env::var_os("HOME").map(std::path::PathBuf::from)?;
+        crate::projects_add::add(&memory, &helpers, &dir.join("agents"), &home, &dir.join("ui-state.json"), name, path).into_result()
     }
 
     /// `chat.open` for a saved chat that is not in a project: the app gets `chat.opened` and `chats` from the files, and Node only moves its
