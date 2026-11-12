@@ -459,6 +459,37 @@ fn usage_cards(app: &App, k: &Kit) -> Vec<El> {
     let mut out = vec![row().w_full().gap(10.0)
         .child(tile(k, "tile-running", "Running", running.to_string()))
         .child(tile(k, "tile-needs", "Need you", needs.to_string()))];
+    // The things that wait for the user (NeedsYouView.swift): approvals, plans and interrupted tasks, failed tasks.
+    let mut waiting = card(k, "needs-you", "Needs you");
+    let mut any = false;
+    for a in &app.model.approvals {
+        any = true;
+        let (allow, decline) = (a.id.clone(), a.id.clone());
+        waiting = waiting.child(row().w_full().justify_between().items_center().gap(8.0)
+            .child(text(format!("Approval: {}", a.summary)).font(k.ty.ui).color(k.c.text_base).wrap())
+            .child(row().gap(6.0)
+                .child(Button::new("Decline").on_press(move |s: &mut App| { s.send(&Command::ApprovalAnswer { id: decline.clone(), approved: false, remember_file: None, remember_task: None, review_token: None }); }).build(k).key(format!("needs-decline-{}", a.id)))
+                .child(Button::new("Allow").variant(ButtonVariant::Submit).on_press(move |s: &mut App| { s.send(&Command::ApprovalAnswer { id: allow.clone(), approved: true, remember_file: None, remember_task: None, review_token: None }); }).build(k).key(format!("needs-allow-{}", a.id)))));
+    }
+    for j in jobs.iter().filter(|j| j.held.is_some() || j.state == JobState::Failed) {
+        any = true;
+        let id = j.id;
+        let why = j.held.clone().or_else(|| j.error.clone()).unwrap_or_default();
+        let mut buttons = row().gap(6.0);
+        if j.held.is_some() {
+            buttons = buttons
+                .child(Button::new("Reject plan").on_press(move |s: &mut App| s.send(&Command::PlanReject { id })).build(k).key(format!("needs-reject-{id}")))
+                .child(Button::new("Approve plan").variant(ButtonVariant::Submit).on_press(move |s: &mut App| s.send(&Command::PlanApprove { id })).build(k).key(format!("needs-approve-{id}")));
+        } else {
+            buttons = buttons.child(Button::new("Retry").on_press(move |s: &mut App| s.send(&Command::JobRetry { id })).build(k).key(format!("needs-retry-{id}")));
+        }
+        waiting = waiting.child(row().w_full().justify_between().items_center().gap(8.0)
+            .child(text(format!("{} · {why}", j.title.as_deref().unwrap_or(&j.task))).font(k.ty.ui).color(k.c.text_base).wrap())
+            .child(buttons));
+    }
+    if any {
+        out.push(waiting);
+    }
     let Some(u) = &app.model.usage else { return out };
     out.push(row().w_full().gap(10.0).wrap()
         .child(tile(k, "tile-tokens-today", "Tokens today", tokens(u.today.tokens())))
