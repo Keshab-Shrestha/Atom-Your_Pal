@@ -1,0 +1,112 @@
+//! One small form for the text the app writes to the runtime: a soul, a new agent, a new task.
+//! The form owns its fields; `submit` turns them into one command.
+
+use ark_protocol::commands::{AgentKit, Soul};
+use ark_protocol::Command;
+use rune::TextEdit;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FormKind {
+    /// Edit the soul of this helper (id); the name stays.
+    Soul { helper: String, name: String },
+    NewAgent,
+    /// Add a task for this helper (id).
+    NewTask { helper: String },
+}
+
+pub struct Form {
+    pub kind: FormKind,
+    pub fields: Vec<TextEdit>,
+    pub kit: AgentKit,
+}
+
+impl Form {
+    pub fn title(&self) -> String {
+        match &self.kind {
+            FormKind::Soul { name, .. } => format!("Soul of {name}"),
+            FormKind::NewAgent => "New agent".into(),
+            FormKind::NewTask { .. } => "New task".into(),
+        }
+    }
+
+    /// The label of each field, in order.
+    pub fn labels(&self) -> &'static [&'static str] {
+        match self.kind {
+            FormKind::Soul { .. } => &["Personality", "How it works", "Rules", "Lessons"],
+            FormKind::NewAgent => &["Name", "Role", "Personality", "How it works", "Rules"],
+            FormKind::NewTask { .. } => &["Task"],
+        }
+    }
+
+    fn fresh(kind: FormKind, texts: &[&str]) -> Form {
+        let fields = texts.iter().map(|t| TextEdit::new(*t)).collect();
+        Form { kind, fields, kit: AgentKit::Research }
+    }
+
+    pub fn soul(helper: &str, name: &str, soul: &[String; 4]) -> Form {
+        let texts: Vec<&str> = soul.iter().map(String::as_str).collect();
+        Form::fresh(FormKind::Soul { helper: helper.into(), name: name.into() }, &texts)
+    }
+
+    pub fn new_agent() -> Form {
+        Form::fresh(FormKind::NewAgent, &["", "", "", "", ""])
+    }
+
+    pub fn new_task(helper: &str) -> Form {
+        Form::fresh(FormKind::NewTask { helper: helper.into() }, &[""])
+    }
+
+    fn text(&self, i: usize) -> String {
+        self.fields.get(i).map(|f| f.text.trim().to_owned()).unwrap_or_default()
+    }
+
+    /// The command to send, or why the form is not ready.
+    pub fn submit(&self) -> Result<Command, &'static str> {
+        match &self.kind {
+            FormKind::Soul { helper, name } => Ok(Command::SoulSet {
+                helper: helper.clone(),
+                soul: Soul { name: name.clone(), personality: self.text(0), how_it_works: self.text(1), rules: self.text(2), lessons: self.text(3) },
+            }),
+            FormKind::NewAgent => {
+                if self.text(0).is_empty() || self.text(1).is_empty() {
+                    return Err("An agent needs a name and a role.");
+                }
+                Ok(Command::AgentCreate {
+                    name: self.text(0),
+                    role: self.text(1),
+                    kit: self.kit,
+                    personality: self.text(2),
+                    how_it_works: self.text(3),
+                    rules: self.text(4),
+                    reports_to: None,
+                })
+            }
+            FormKind::NewTask { helper } => {
+                if self.text(0).is_empty() {
+                    return Err("Write what the task is.");
+                }
+                Ok(Command::JobAdd { helper: helper.clone(), task: self.text(0), blocked_by: None, plan_first: None })
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_new_agent_needs_name_and_role() {
+        let mut f = Form::new_agent();
+        assert!(f.submit().is_err());
+        f.fields[0] = TextEdit::new("Nova");
+        f.fields[1] = TextEdit::new("writer");
+        assert!(matches!(f.submit(), Ok(Command::AgentCreate { ref name, .. }) if name == "Nova"));
+    }
+
+    #[test]
+    fn a_soul_keeps_the_name() {
+        let f = Form::soul("h1", "Sid", &["p".into(), "h".into(), "r".into(), "l".into()]);
+        assert!(matches!(f.submit(), Ok(Command::SoulSet { ref soul, .. }) if soul.name == "Sid" && soul.lessons == "l"));
+    }
+}

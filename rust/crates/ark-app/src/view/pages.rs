@@ -6,11 +6,12 @@ use rune::{El, ScrollSpec, col, row, text};
 use rune_kit::{Button, ButtonVariant, Kit};
 
 use crate::app::App;
+use crate::form::Form;
 
 const COLUMN: f32 = 720.0;
 
 /// A scrolling page with a title and a column of cards.
-pub fn page(k: &Kit, key: &'static str, title: &str, cards: Vec<El>) -> El {
+pub(super) fn page(k: &Kit, key: &'static str, title: &str, cards: Vec<El>) -> El {
     let mut body = col().key(key).w_full().max_w(COLUMN).gap(14.0).padding(24.0).child(text(title.to_owned()).key("page-title").font(k.ty.body_medium).color(k.c.text_base));
     for card in cards {
         body = body.child(card);
@@ -102,10 +103,28 @@ fn helper_card(h: &Helper, k: &Kit) -> El {
     if h.custom {
         meta.push("custom".into());
     }
+    let mut actions = row().justify_end().gap(8.0);
+    let (task_for, soul_of) = (h.id.clone(), h.clone());
+    if h.available {
+        actions = actions.child(Button::new("New task").on_press(move |s: &mut App| s.open_form(Form::new_task(&task_for))).build(k).key(format!("newtask-{}", h.id)));
+    }
+    if soul_of.soul.is_some() {
+        actions = actions.child(
+            Button::new("Edit soul")
+                .on_press(move |s: &mut App| {
+                    if let Some(soul) = &soul_of.soul {
+                        s.open_form(Form::soul(&soul_of.id, &soul_of.name, soul));
+                    }
+                })
+                .build(k)
+                .key(format!("soul-{}", h.id)),
+        );
+    }
     card(k, &format!("agent-{}", h.id), &h.name)
         .child(text(meta.join(" · ")).font(k.ty.small).color(k.c.text_muted))
         .child(line(k, "Status", status))
         .child(line(k, "Tasks", h.jobs.len().to_string()))
+        .child(actions)
 }
 
 pub fn agents(app: &App, k: &Kit) -> El {
@@ -114,6 +133,8 @@ pub fn agents(app: &App, k: &Kit) -> El {
         Some(helpers) if helpers.is_empty() => vec![text("No agents yet.").key("agents-empty").font(k.ty.ui).color(k.c.text_faint)],
         Some(helpers) => helpers.iter().map(|h| helper_card(h, k)).collect(),
     };
+    let mut cards = cards;
+    cards.push(row().justify_end().child(Button::new("New agent").on_press(|s: &mut App| s.open_form(Form::new_agent())).build(k).key("new-agent")));
     page(k, "agents", "Agents", cards)
 }
 

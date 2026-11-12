@@ -135,6 +135,8 @@ pub struct Helper {
     pub available: bool,
     pub kit: Option<String>,
     pub custom: bool,
+    /// The soul text: personality, how it works, rules, lessons.
+    pub soul: Option<[String; 4]>,
     pub jobs: Vec<Job>,
 }
 
@@ -271,7 +273,7 @@ fn parse_helpers(map: &Map<String, Value>) -> Vec<Helper> {
                     held: opt_str(j, "held"),
                 })
                 .collect();
-            Helper { name: str_of(h, "name"), role: str_of(h, "role"), available: bool_of(h, "available"), kit: opt_str(h, "kit"), custom: bool_of(h, "custom"), jobs, id }
+            Helper { name: str_of(h, "name"), role: str_of(h, "role"), available: bool_of(h, "available"), kit: opt_str(h, "kit"), custom: bool_of(h, "custom"), soul: h.get("soul").and_then(Value::as_object).map(|o| [str_of(o, "personality"), str_of(o, "howItWorks"), str_of(o, "rules"), str_of(o, "lessons")]), jobs, id }
         })
         .collect()
 }

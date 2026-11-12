@@ -101,3 +101,18 @@ fn the_sidebar_opens_the_pages() {
         assert!(settings.contains(want), "settings page lacks {want:?}");
     }
 }
+
+#[test]
+fn agent_forms_open_from_the_agents_page() {
+    let steps = |key: &str| format!(r#"[{{"t":0.1,"type":"click","key":"nav-agents"}},{{"t":0.3,"type":"click","key":"{key}"}}]"#);
+    let soul = tree_after("form-soul", "chat.jsonl", Some(&steps("soul-sid")));
+    for want in ["Soul of Sid", "Calm and exact", "Cite sources", "Cancel", "Save"] {
+        assert!(soul.contains(want), "soul form lacks {want:?}");
+    }
+    let agent = tree_after("form-agent", "chat.jsonl", Some(&steps("new-agent")));
+    for want in ["New agent", "Role", "Research", "Think"] {
+        assert!(agent.contains(want), "new agent form lacks {want:?}");
+    }
+    let task = tree_after("form-task", "chat.jsonl", Some(&steps("newtask-sid")));
+    assert!(task.contains("New task"), "task form lacks its title");
+}

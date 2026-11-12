@@ -1,6 +1,7 @@
 //! The windows' views. `view` is Rune's view function: it reads the state and returns the element tree.
 
 mod chat;
+mod form;
 mod pages;
 mod sidebar;
 
@@ -30,6 +31,7 @@ fn status_line(app: &App) -> String {
 pub fn view(app: &App, cx: &mut Cx<App>) -> El {
     let k = pick_kit(cx.system_dark());
     let (title, main) = match app.screen {
+        _ if app.form.is_some() => ("Edit".to_owned(), app.form.as_ref().map_or_else(|| rune::col(), |f| form::view(app, f, k))),
         Screen::Chat => (app.model.current_title().to_owned(), chat::view(app, k)),
         Screen::Settings => ("Settings".to_owned(), pages::settings(app, k)),
         Screen::Agents => ("Agents".to_owned(), pages::agents(app, k)),

@@ -28,6 +28,9 @@ pub struct App {
     pub draft: TextEdit,
     pub sidebar: PaneState,
     pub screen: Screen,
+    /// An open form (soul, new agent, new task); it replaces the page while it is open.
+    pub form: Option<crate::form::Form>,
+    pub form_error: Option<String>,
 }
 
 /// Feeds the model from a JSON-lines file, the same lines a runtime would send (`ARK_UI_EVENTS`).
@@ -58,7 +61,7 @@ pub fn init() -> App {
         Ok("dashboard") => Screen::Dashboard,
         _ => Screen::Chat,
     };
-    App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen }
+    App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen, form: None, form_error: None }
 }
 
 /// Starts the runtime child once, with the waker that redraws the window when an event arrives.
@@ -126,6 +129,29 @@ impl App {
             }
             Screen::Dashboard => self.send(&ark_protocol::Command::StatsGet),
             Screen::Chat | Screen::Settings => {}
+        }
+    }
+
+    pub fn open_form(&mut self, form: crate::form::Form) {
+        self.form = Some(form);
+        self.form_error = None;
+    }
+
+    pub fn close_form(&mut self) {
+        self.form = None;
+        self.form_error = None;
+    }
+
+    /// Sends the form as one command, then closes it and asks for fresh data. A form that is not ready stays open.
+    pub fn submit_form(&mut self) {
+        let Some(form) = &self.form else { return };
+        match form.submit() {
+            Ok(command) => {
+                self.send(&command);
+                self.close_form();
+                self.send(&ark_protocol::Command::HelpersList);
+            }
+            Err(why) => self.form_error = Some(why.to_owned()),
         }
     }
 
