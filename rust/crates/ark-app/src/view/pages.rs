@@ -57,7 +57,7 @@ fn yes_no(on: bool) -> String {
 
 pub fn settings(app: &App, k: &Kit) -> El {
     let m = &app.model;
-    let mut model = card(k, "settings-model", "Model");
+    let mut model = card(k, "settings-model", "Model").child(row().justify_end().child(Button::new("Refresh").on_press(|s: &mut App| s.send(&Command::ModelRefresh)).build(k).key("model-refresh")));
     if m.providers.is_empty() {
         model = model.child(line(k, "In use", format!("{} · {}", m.provider, m.model)));
     }
@@ -411,6 +411,8 @@ pub fn dashboard(app: &App, k: &Kit) -> El {
         None => vec![waiting(app, "dashboard-loading", "numbers", k)],
         Some(s) => stats_cards(s, k),
     };
+    let mut cards = cards;
+    cards.insert(0, row().justify_end().child(Button::new("Refresh").on_press(|s: &mut App| s.send(&Command::StatsGet)).build(k).key("dashboard-refresh")));
     page(k, "dashboard", "Dashboard", cards)
 }
 
@@ -428,7 +430,7 @@ fn note_card(app: &App, k: &Kit) -> Option<El> {
     c = c.child(text(note.body.clone()).font(k.ty.ui).color(k.c.text_base).wrap());
     let links: Vec<String> = note.links.iter().map(|l| l.title.clone()).collect();
     if !links.is_empty() {
-        c = c.child(line(k, "Links", links.join(", ")));
+        c = c.child(line(k, "Links to", links.join(", ")));
     }
     let backlinks: Vec<String> = note.backlinks.iter().map(|l| l.title.clone()).collect();
     if !backlinks.is_empty() {
@@ -449,10 +451,28 @@ pub fn memory(app: &App, k: &Kit) -> El {
         Some(m) => {
             let mut facts = card(k, "memory-facts", if m.enabled { "What ARK remembers" } else { "Memory is off" });
             if m.facts.is_empty() {
-                facts = facts.child(text("Nothing yet.").font(k.ty.ui).color(k.c.text_faint));
+                facts = facts.child(text("Nothing kept yet").font(k.ty.ui).color(k.c.text_faint));
             }
             for (id, fact) in &m.facts {
                 facts = facts.child(row().w_full().gap(12.0).items_center().child(col().grow(1.0).child(text(fact.clone()).font(k.ty.ui).color(k.c.text_base).wrap())).child(forget_button(*id, k)));
+            }
+            if !m.facts.is_empty() {
+                let confirm = app.confirm_clear;
+                facts = facts.child(row().justify_end().gap(8.0).child(
+                    Button::new(if confirm { "Forget all" } else { "Forget all facts" })
+                        .variant(if confirm { ButtonVariant::Submit } else { ButtonVariant::Neutral })
+                        .on_press(move |s: &mut App| {
+                            if s.confirm_clear {
+                                s.confirm_clear = false;
+                                s.send(&Command::MemoryClear);
+                                s.send(&Command::MemoryList);
+                            } else {
+                                s.confirm_clear = true;
+                            }
+                        })
+                        .build(k)
+                        .key("memory-clear"),
+                ));
             }
             cards.push(facts);
             if !m.episodes.is_empty() {
@@ -468,8 +488,8 @@ pub fn memory(app: &App, k: &Kit) -> El {
         cards.push(open);
     }
     let search = rune_kit::TextArea::new(&app.brain_query)
-        .placeholder("Search the brain")
-        .label("Search the brain")
+        .placeholder("Search notes")
+        .label("Search notes")
         .auto_grow(1, 1)
         .on_edit(|s: &mut App| &mut s.brain_query)
         .on_submit(|s: &mut App, _| s.search_brain())
@@ -493,7 +513,7 @@ pub fn memory(app: &App, k: &Kit) -> El {
         cards.push(brain_graph(nodes, &app.model.brain_edges, k));
     }
     if let Some(nodes) = &app.model.brain {
-        let mut brain = card(k, "brain-notes", "Brain notes");
+        let mut brain = card(k, "brain-notes", "Second brain");
         for n in nodes.iter().filter(|n| !n.ghost).take(80) {
             let id = n.id;
             brain = brain.child(
@@ -501,6 +521,9 @@ pub fn memory(app: &App, k: &Kit) -> El {
                     .child(text(format!("{} · {}", n.title, n.kind)).font(k.ty.ui).color(k.c.text_base))
                     .child(Button::new("Open").on_press(move |s: &mut App| s.send(&Command::BrainNote { id })).build(k).key(format!("note-{id}"))),
             );
+        }
+        if nodes.is_empty() {
+            brain = brain.child(text("Your second brain is empty").font(k.ty.ui).color(k.c.text_faint));
         }
         cards.push(brain);
     }

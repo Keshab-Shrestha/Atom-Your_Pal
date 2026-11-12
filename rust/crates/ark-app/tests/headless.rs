@@ -57,7 +57,7 @@ fn snap_draws_the_chat() {
 #[test]
 fn tree_holds_chats_messages_tool_and_approval() {
     let tree = tree_after("plain", "chat.jsonl", None);
-    for want in ["Plan the Rust port", "Fix the notch bar", "List the crates.", "run_command", "ARK asks first", "Allow", "Decline", "Message ARK", "Copy"] {
+    for want in ["Plan the Rust port", "Fix the notch bar", "List the crates.", "run_command", "ARK asks first", "Allow", "Decline", "Message ARK", "Copy", "You said", "ARK said"] {
         assert!(tree.contains(want), "tree lacks {want:?}");
     }
 }
@@ -89,11 +89,11 @@ fn the_sidebar_opens_the_pages() {
         assert!(agents.contains(want), "agents page lacks {want:?}");
     }
     let dashboard = page("nav-dashboard", "nav-dashboard");
-    for want in ["Average answer", "2300 ms", "run_command", "12 calls"] {
+    for want in ["Average answer", "2300 ms", "run_command", "12 calls", "Refresh"] {
         assert!(dashboard.contains(want), "dashboard lacks {want:?}");
     }
     let memory = page("nav-memory", "nav-memory");
-    for want in ["Keshab likes terse answers", "Forget", "Planned the Rust port", "Rune notes", "Open", "Search the brain", "Rune draws the window", "Graph: 1 notes", "gnode-3"] {
+    for want in ["Keshab likes terse answers", "Forget", "Planned the Rust port", "Rune notes", "Open", "Search notes", "Second brain", "Forget all facts", "Rune draws the window", "Graph: 1 notes", "gnode-3"] {
         assert!(memory.contains(want), "memory page lacks {want:?}");
     }
     let settings = page("nav-settings", "nav-settings");
@@ -292,4 +292,56 @@ fn pages_say_why_when_the_runtime_is_down() {
         let text = std::fs::read_to_string(&tree).expect("tree written");
         assert!(text.contains("ARK's runtime is not running") && text.contains("The runtime ended."), "{screen} does not say why");
     }
+}
+
+/// User-visible words in a Swift source: `Text("...")` and `title: "..."` literals of 4 to 40 letters, found by hand
+/// (no regex crate). The gap report lists the ones the Rust screen lacks; it informs, it does not fail.
+fn swift_labels(source: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for marker in ["Text(\"", "title: \"", "Button(\""] {
+        let mut rest = source;
+        while let Some(at) = rest.find(marker) {
+            rest = &rest[at + marker.len()..];
+            let Some(end) = rest.find('"') else { break };
+            let label = &rest[..end];
+            if (4..=40).contains(&label.chars().count()) && !label.contains(['\\', '(', ')']) && label.chars().next().is_some_and(char::is_uppercase) && !out.iter().any(|l| l == label) {
+                out.push(label.to_owned());
+            }
+        }
+    }
+    out
+}
+
+#[test]
+fn gap_report_lists_swift_labels_missing_from_the_rust_screens() {
+    let dir = std::env::var_os("ARK_PARITY_DIR").map_or_else(|| PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("parity"), PathBuf::from);
+    std::fs::create_dir_all(&dir).expect("parity folder");
+    let swift = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../apps/mac/island/Sources/ArkIsland");
+    let screens: [(&str, &[&str]); 5] = [
+        ("chat", &["ConversationView.swift"]),
+        ("settings", &["Settings/ModelPage.swift", "Settings/DefaultsPage.swift", "Settings/GeneralPage.swift", "Settings/ShortcutsPage.swift"]),
+        ("dashboard", &["DashboardView.swift"]),
+        ("memory", &["Settings/MemoryPage.swift", "BrainView.swift"]),
+        ("agents", &["HelpersView.swift"]),
+    ];
+    let mut report = String::new();
+    for (screen, files) in screens {
+        let tree = fresh(&format!("gap-{screen}.json"));
+        let out = Command::new(env!("CARGO_BIN_EXE_ark-app"))
+            .args(["--tree", tree.to_str().expect("utf-8")])
+            .env("ARK_UI_EVENTS", fixture("chat.jsonl"))
+            .env("ARK_UI_SCREEN", screen)
+            .output()
+            .expect("ark-app starts");
+        assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+        let rust = std::fs::read_to_string(&tree).expect("tree written");
+        let labels: Vec<String> = files.iter().filter_map(|f| std::fs::read_to_string(swift.join(f)).ok()).flat_map(|t| swift_labels(&t)).collect();
+        let missing: Vec<&String> = labels.iter().filter(|l| !rust.contains(l.as_str())).collect();
+        report.push_str(&format!("{screen}: {} of {} Swift labels present\n", labels.len() - missing.len(), labels.len()));
+        for m in missing {
+            report.push_str(&format!("  missing: {m}\n"));
+        }
+    }
+    std::fs::write(dir.join("gap-report.txt"), &report).expect("report written");
+    eprintln!("{report}");
 }

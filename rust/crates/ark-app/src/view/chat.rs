@@ -16,7 +16,7 @@ pub fn status(app: &App, k: &Kit, line: &str) -> El {
 }
 
 fn user_bubble(m: &Message, i: usize, k: &Kit) -> El {
-    row().key(format!("msg-{i}")).w_full().justify_end().child(
+    row().key(format!("msg-{i}")).role("group").label("You said").w_full().justify_end().child(
         col().max_w(560.0).py(8.0).px(14.0).radius(k.radius.md).fill(k.c.layer_02).child(text(m.text.clone()).font(k.ty.body).color(k.c.text_base).wrap().selectable(true)),
     )
 }
@@ -24,7 +24,7 @@ fn user_bubble(m: &Message, i: usize, k: &Kit) -> El {
 fn assistant_message(m: &Message, i: usize, k: &Kit) -> El {
     let whole = m.text.clone();
     let copy = Button::new("Copy").on_press_tx(move |_: &mut App, tx: &mut rune::Tx| tx.copy(whole.clone())).build(k).key(format!("copy-{i}"));
-    let mut body = col().key(format!("msg-{i}")).w_full().gap(8.0);
+    let mut body = col().key(format!("msg-{i}")).role("group").label("ARK said").w_full().gap(8.0);
     for (n, piece) in super::visual::split(&m.text).into_iter().enumerate() {
         body = body.child(match piece {
             super::visual::Piece::Text(t) => Markdown::new(t).selectable(true).build(k).key(format!("md-{n}")),
