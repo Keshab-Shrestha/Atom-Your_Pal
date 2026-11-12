@@ -7,9 +7,12 @@ use ark_runtime::helpers_write;
 use rusqlite::{Connection, OpenFlags, types::ValueRef};
 use serde_json::{Value, json};
 
+/// Tasks made by a write get the clock of the moment; the test cannot compare their time.
+const NEW_JOBS_FROM: i64 = 11;
+
 fn rows(conn: &Connection, sql: &str) -> Value {
     let mut stmt = conn.prepare(sql).unwrap();
-    let names: Vec<String> = stmt.column_names().into_iter().map(str::to_string).collect();
+    let names: Vec<String> = stmt.column_names().map(str::to_string).collect();
     let out: Vec<Value> = stmt
         .query_map([], |row| {
             let mut object = serde_json::Map::new();
@@ -39,7 +42,13 @@ fn dump(conn: &Connection) -> Value {
         .map(|r| json!({ "action": r["action"], "detail": serde_json::from_str::<Value>(r["detail"].as_str().unwrap()).unwrap() }))
         .collect();
     json!({
-        "jobs": rows(conn, "SELECT * FROM jobs ORDER BY id"),
+        "jobs": rows(conn, "SELECT * FROM jobs ORDER BY id").as_array().unwrap().iter().map(|j| {
+            let mut j = j.clone();
+            if j["id"].as_i64().unwrap() > NEW_JOBS_FROM {
+                j["created_at"] = json!("<new>");
+            }
+            j
+        }).collect::<Vec<_>>(),
         "labels": rows(conn, "SELECT * FROM job_labels ORDER BY job_id, label"),
         "blockers": rows(conn, "SELECT * FROM job_blockers ORDER BY job_id, blocker_id"),
         "events": rows(conn, "SELECT job_id, kind FROM job_events ORDER BY id"),

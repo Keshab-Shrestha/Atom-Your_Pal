@@ -25,7 +25,7 @@ const dump = (dir: string) => {
   const db = new DatabaseSync(join(dir, "helpers.db"));
   const all = (sql: string) => JSON.parse(JSON.stringify(db.prepare(sql).all()));
   const result = {
-    jobs: all("SELECT * FROM jobs ORDER BY id"),
+    jobs: all("SELECT * FROM jobs ORDER BY id").map((j: { id: number; created_at: string }) => (j.id > 11 ? { ...j, created_at: "<new>" } : j)), // tasks made by a write get the clock of the moment
     labels: all("SELECT * FROM job_labels ORDER BY job_id, label"),
     blockers: all("SELECT * FROM job_blockers ORDER BY job_id, blocker_id"),
     events: all("SELECT job_id, kind FROM job_events ORDER BY id"),
@@ -43,6 +43,7 @@ type Op = { name: string; steps: Step[]; forward?: boolean };
 const add = (id: number, label: string): Step => ({ cmd: { type: "job.label.add", id, label }, run: (s) => s.addLabel(id, label) });
 const drop = (id: number, label: string): Step => ({ cmd: { type: "job.label.remove", id, label }, run: (s) => s.removeLabel(id, label) });
 const block = (id: number, blockedBy: number[]): Step => ({ cmd: { type: "job.block", id, blockedBy }, run: (s) => s.setBlockers(id, blockedBy) });
+const rate = (id: number, good: boolean, comment?: string): Step => ({ cmd: { type: "job.rate", id, good, ...(comment !== undefined ? { comment } : {}) }, run: (s) => s.rate(id, good, comment) });
 const del = (id: number): Step => ({ cmd: { type: "job.delete", id }, run: (s) => s.remove(id) });
 // Tasks after the store opened the file: 1, 2, 4, 7, 10 queued; 8 and 11 done; 3, 5, 9 failed; 6 stopped.
 const ops: Op[] = [
@@ -63,6 +64,13 @@ const ops: Op[] = [
   { name: "delete finished", steps: [del(8)] },
   { name: "delete failed", steps: [del(9)] },
   { name: "delete stopped after blocking on it", steps: [block(1, [11]), del(11)] },
+  { name: "rate good", steps: [rate(8, true, "  Nice  ")] },
+  { name: "rate good twice", steps: [rate(8, true), rate(8, true)] },
+  { name: "rate bad", steps: [rate(9, false, "Wrong")] },
+  { name: "rate bad failed task, no comment", steps: [rate(3, false)] },
+  { name: "rate good failed task", steps: [rate(9, true)] },
+  { name: "rate a queued task", steps: [rate(1, true)] },
+  { name: "rate an unknown task", steps: [rate(999, true)] },
   { name: "delete queued goes to Node", steps: [del(4)], forward: true },
 ];
 const cases = ops.map((op, i) => {

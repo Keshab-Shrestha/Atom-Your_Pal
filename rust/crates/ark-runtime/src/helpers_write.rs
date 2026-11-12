@@ -14,12 +14,15 @@ const MAX_BLOCKERS: usize = 6;
 
 /// The tables and columns the writes use.
 pub const SCHEMA: &[(&str, &[&str])] = &[
-    ("jobs", &["id", "helper", "state", "parent_id"]),
+    ("jobs", &["id", "helper", "state", "parent_id", "rating", "rating_comment", "reviews", "review_kind", "review_skill", "created_at"]),
     ("job_labels", &["job_id", "label"]),
     ("job_blockers", &["job_id", "blocker_id"]),
     ("job_events", &["job_id", "kind", "at"]),
     ("audit_log", &["at", "action", "detail"]),
     ("checkpoints", &["job_id"]),
+    ("skill_uses", &["job_id"]),
+    ("skill_drafts", &["job_id"]),
+    ("souls", &["helper", "name", "version"]),
 ];
 
 fn iso_now() -> String {
@@ -157,6 +160,54 @@ pub fn remove_job(conn: &Connection, id: i64) -> Option<()> {
     })
 }
 
+/// Asks Tinker for a review (`askTinker`): one task of Tinker's for each reviewed task, kind and skill. `false` when it exists.
+fn ask_tinker(conn: &Connection, reviewed: i64, task: &str, kind: Option<&str>) -> Option<bool> {
+    let have: i64 = conn
+        .query_row("SELECT COUNT(*) FROM jobs WHERE reviews = ? AND COALESCE(review_kind, '') = ? AND COALESCE(review_skill, '') = ''", params![reviewed, kind.unwrap_or("")], |r| r.get(0))
+        .ok()?;
+    if have > 0 {
+        return Some(false);
+    }
+    let at = iso_now();
+    conn.execute("INSERT INTO jobs (helper, task, state, created_at, reviews, review_kind, review_skill) VALUES ('tinker', ?, 'queued', ?, ?, ?, NULL)", params![task, at, reviewed, kind]).ok()?;
+    let id = conn.last_insert_rowid();
+    conn.execute("INSERT INTO job_events (job_id, kind, at) VALUES (?, 'created', ?)", params![id, at]).ok()?;
+    audit_state(conn, "job", "tinker", id, "queued")?;
+    Some(true)
+}
+
+fn audit_state(conn: &Connection, action: &str, helper: &str, id: i64, state: &str) -> Option<()> {
+    conn.execute("INSERT INTO audit_log (at, action, detail) VALUES (?, ?, ?)", params![iso_now(), action, json!({ "helper": helper, "job": id, "state": state }).to_string()]).ok()?;
+    Some(())
+}
+
+/// `job.rate`: Keshab's rating of a finished task. Good work asks Tinker to draft a skill once; a "not good" one asks for a review
+/// once. A task that used a skill of ARK's, which would also get a skill edit, goes to Node.
+pub fn rate(conn: &Connection, id: i64, good: bool, comment: Option<&str>) -> Option<()> {
+    let (helper, state) = job(conn, id)?;
+    if (state != "done" && state != "failed") || helper == "tinker" {
+        return None;
+    }
+    if !good && conn.query_row("SELECT COUNT(*) FROM skill_uses WHERE job_id = ?", [id], |r| r.get::<_, i64>(0)).ok()? > 0 {
+        return None;
+    }
+    let name: String = conn.query_row("SELECT name FROM souls WHERE helper = ? ORDER BY version DESC LIMIT 1", [&helper], |r| r.get(0)).ok()?;
+    let comment = comment.map(str::trim).filter(|c| !c.is_empty());
+    transaction(conn, || {
+        conn.execute("UPDATE jobs SET rating = ?, rating_comment = ? WHERE id = ?", params![if good { "good" } else { "bad" }, comment, id]).ok()?;
+        conn.execute("INSERT INTO audit_log (at, action, detail) VALUES (?, 'rating', ?)", params![iso_now(), json!({ "helper": helper, "job": id, "good": good }).to_string()]).ok()?;
+        if good {
+            let drafted: i64 = conn.query_row("SELECT COUNT(*) FROM skill_drafts WHERE job_id = ?", [id], |r| r.get(0)).ok()?;
+            if state == "done" && drafted == 0 {
+                ask_tinker(conn, id, &format!("Make a skill from task {id} ({name})"), Some("skill"))?;
+            }
+        } else {
+            ask_tinker(conn, id, &format!("Review task {id} ({name})"), None)?;
+        }
+        Some(())
+    })
+}
+
 /// The write that `command` (a command line as a JSON value) asks for, or `None` for another command or a call Node must answer.
 pub fn apply(conn: &Connection, command: &serde_json::Value) -> Option<()> {
     let id = command["id"].as_i64()?;
@@ -165,6 +216,7 @@ pub fn apply(conn: &Connection, command: &serde_json::Value) -> Option<()> {
         "job.label.remove" => remove_label(conn, id, command["label"].as_str()?),
         "job.block" => set_blockers(conn, id, &command["blockedBy"].as_array()?.iter().map(serde_json::Value::as_i64).collect::<Option<Vec<_>>>()?),
         "job.delete" => remove_job(conn, id),
+        "job.rate" => rate(conn, id, command["good"].as_bool()?, command["comment"].as_str()),
         _ => None,
     }
 }
