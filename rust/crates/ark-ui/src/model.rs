@@ -220,6 +220,8 @@ pub struct Workspace {
     pub entries: Vec<(String, String, bool)>,
     pub text: Option<String>,
     pub limited: bool,
+    /// The project's real folder, as the runtime resolved it.
+    pub root: Option<String>,
 }
 
 /// Token totals for a period (`UsageTotalsItem`).
@@ -644,6 +646,7 @@ impl Model {
                     entries: objects(map, "entries").map(|e| (str_of(e, "path"), str_of(e, "name"), bool_of(e, "directory"))).collect(),
                     text: opt_str(map, "text"),
                     limited: bool_of(map, "limited"),
+                    root: opt_str(map, "root"),
                 })
             }
             "project.created" => self.project_created = Some((bool_of(map, "ok"), opt_str(map, "error"))),

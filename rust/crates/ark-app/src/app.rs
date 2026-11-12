@@ -28,11 +28,12 @@ impl Screen {
             Screen::Backup => "backup",
             Screen::Replies => "replies",
             Screen::Plans => "plans",
+            Screen::Terminal => "terminal",
         }
     }
 
     pub fn from_name(name: &str) -> Screen {
-        [Screen::Settings, Screen::Agents, Screen::Tasks, Screen::Memory, Screen::Projects, Screen::Branches, Screen::Search, Screen::Dashboard, Screen::Workflows, Screen::Plugins, Screen::Skills, Screen::Backup, Screen::Replies, Screen::Plans].into_iter().find(|s| s.name() == name).unwrap_or(Screen::Chat)
+        [Screen::Settings, Screen::Agents, Screen::Tasks, Screen::Memory, Screen::Projects, Screen::Branches, Screen::Search, Screen::Dashboard, Screen::Workflows, Screen::Plugins, Screen::Skills, Screen::Backup, Screen::Replies, Screen::Plans, Screen::Terminal].into_iter().find(|s| s.name() == name).unwrap_or(Screen::Chat)
     }
 }
 
@@ -55,6 +56,7 @@ pub enum Screen {
     Backup,
     Replies,
     Plans,
+    Terminal,
 }
 
 pub struct App {
@@ -241,6 +243,11 @@ pub fn poll(app: &mut App, _: f64, _: &mut Tx) -> bool {
         start_runtime(app);
         changed = true;
     }
+    let seen = app.more.terminal.snapshot().3;
+    if seen != app.more.terminal_seen {
+        app.more.terminal_seen = seen;
+        changed = true;
+    }
     let Some(bridge) = &app.bridge else { return changed };
     let mut gone: Option<String> = None;
     for message in bridge.drain() {
@@ -296,6 +303,7 @@ impl App {
             Screen::Branches => self.send(&ark_protocol::Command::GitList),
             Screen::Search => {}
             Screen::Chat => {}
+            Screen::Terminal => {}
             Screen::Backup => self.backup("get", serde_json::json!({})),
             Screen::Replies => self.reply_lookup(""),
             Screen::Plans | Screen::Plugins | Screen::Skills => self.send(&ark_protocol::Command::HelpersList),

@@ -4,3 +4,5 @@
 {"type":"local.backup","revision":"r1","config":{"endpoint":"http://127.0.0.1:1234","model":"qwen"},"turns":[{"role":"user","content":"Hello"},{"role":"assistant","content":"Hi. I run on this Mac."}],"readiness":{"listed":true,"textVerified":true},"usage":{"input":12,"output":9,"durationMs":800,"truncated":false}}
 {"type":"reply.result","id":"d1","text":"Thanks for the note. I can send it on Friday."}
 {"type":"reply.context","id":"d1","items":[{"id":"n1","title":"Friday plan","revision":"a1","text":"Ship on Friday after tests."}]}
+{"type":"chats","chats":[],"projects":[{"id":"p1","name":"Atom","folderLabel":"~/Developer/atom"}]}
+{"type":"workspace","project":"p1","path":"","ok":true,"root":"/tmp","entries":[]}

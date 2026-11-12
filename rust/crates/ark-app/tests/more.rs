@@ -73,3 +73,8 @@ fn marking_a_portion_and_sending_notes_fills_the_composer() {
     let page = tree("plans", Some(steps));
     assert!(page.contains("Notes on the plan") && page.contains("[Needs tests] P2"), "the notes are in the composer");
 }
+
+#[test]
+fn the_workspace_page_has_a_browser_bar_and_a_terminal_for_the_project_folder() {
+    has_all(&tree("terminal", None), &["Workspace", "Atom", "/tmp", "Browser", "Open", "Terminal", "Command", "Run", "Stop", "Clear"]);
+}

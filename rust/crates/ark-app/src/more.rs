@@ -18,6 +18,12 @@ pub struct More {
     pub reply_checked: Vec<String>,
     /// Plan notes: (plan id, portion, mark 0..3).
     pub plan_notes: Vec<(u64, u64, usize)>,
+    /// The workspace screen: the address bar, the command line, and the terminal's last redraw count.
+    pub address: TextEdit,
+    pub command: TextEdit,
+    pub terminal: crate::terminal::Terminal,
+    pub terminal_seen: u64,
+    pub terminal_note: Option<String>,
 }
 
 /// The marks a plan note can have (PlanNotes.swift).
@@ -54,7 +60,7 @@ pub fn plan_message(plan: &ark_ui::extras::WorkPlan, notes: &[(u64, u64, usize)]
 
 impl Default for More {
     fn default() -> Self {
-        Self { flow_filter: 0, confirm: None, hub_query: TextEdit::new(""), reply: std::array::from_fn(|_| TextEdit::new("")), reply_checked: Vec::new(), plan_notes: Vec::new() }
+        Self { flow_filter: 0, confirm: None, hub_query: TextEdit::new(""), reply: std::array::from_fn(|_| TextEdit::new("")), reply_checked: Vec::new(), plan_notes: Vec::new(), address: TextEdit::new(""), command: TextEdit::new(""), terminal: Default::default(), terminal_seen: 0, terminal_note: None }
     }
 }
 
@@ -152,6 +158,34 @@ impl App {
     }
 }
 
+impl App {
+    /// Opens the address in the default browser. Only http and https. (Rune has no web view; Swift used WKWebView.)
+    pub fn open_address(&mut self) {
+        let raw = self.more.address.text.trim().to_owned();
+        let url = if raw.contains("://") { raw } else { format!("https://{raw}") };
+        self.more.terminal_note = Some(if raw_is_web(&url) { crate::about::open_url(&url); format!("Opened {url} in your browser.") } else { "Only http and https addresses open.".into() });
+    }
+
+    /// Runs the command line in the project's folder. The folder comes from the runtime's `workspace` answer.
+    pub fn run_command_line(&mut self) {
+        let command = self.more.command.text.trim().to_owned();
+        let Some(root) = self.model.workspace.as_ref().and_then(|w| w.root.clone()) else {
+            self.more.terminal_note = Some("Choose a project first.".into());
+            return;
+        };
+        if command.is_empty() {
+            return;
+        }
+        self.more.terminal_note = self.more.terminal.run(&root, &command, self.wake.clone()).err();
+        self.more.command = TextEdit::new("");
+        self.more.command.focused = true;
+    }
+}
+
+fn raw_is_web(url: &str) -> bool {
+    url.starts_with("http://") || url.starts_with("https://")
+}
+
 thread_local! {
     /// One session id for the window's life: the runtime keeps the temporary backup turns under it.
     static BACKUP_SESSION: String = uuid();
@@ -161,6 +195,11 @@ thread_local! {
 mod tests {
     use super::*;
     use ark_ui::extras::{Portion, WorkPlan};
+
+    #[test]
+    fn only_web_addresses_open() {
+        assert!(raw_is_web("https://example.com") && !raw_is_web("file:///etc/passwd") && !raw_is_web("javascript:alert(1)"));
+    }
 
     #[test]
     fn ids_look_like_uuids_and_differ() {

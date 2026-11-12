@@ -9,6 +9,7 @@ mod plugins;
 mod pages;
 mod sidebar;
 mod tools;
+mod workspace;
 mod visual;
 
 use rune::{Chrome, Cx, El};
@@ -59,6 +60,7 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
         Screen::Backup => ("Local backup".to_owned(), tools::backup(app, k)),
         Screen::Replies => ("Reply drafts".to_owned(), tools::replies(app, k)),
         Screen::Plans => ("Plans".to_owned(), tools::plans(app, k)),
+        Screen::Terminal => ("Workspace".to_owned(), workspace::workspace(app, k)),
     };
     let toolbar = Toolbar::new().title(title).trailing(chat::status(app, k, &status_line(app)));
     SplitView::new(main)
@@ -122,6 +124,7 @@ pub fn menu_items() -> Vec<rune::MenuItem<App>> {
             Screen::Backup => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Backup)),
             Screen::Replies => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Replies)),
             Screen::Plans => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Plans)),
+            Screen::Terminal => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Terminal)),
         };
         chord(item.id(format!("go-{title}")).menu("Go"), keys)
     };
@@ -143,6 +146,7 @@ pub fn menu_items() -> Vec<rune::MenuItem<App>> {
         go("Plans", Screen::Plans, "cmd+shift+p"),
         go("Reply drafts", Screen::Replies, "cmd+shift+r"),
         go("Local backup", Screen::Backup, "cmd+shift+b"),
+        go("Workspace", Screen::Terminal, "cmd+shift+t"),
         go("Settings", Screen::Settings, "cmd+,"),
     ]
 }
