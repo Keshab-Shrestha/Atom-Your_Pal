@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use ark_runtime::{helpers_jobs as jobs, helpers_roster as roster, helpers_tests as tests, helpers_routines as routines};
+use ark_runtime::{helpers_extras as extras, helpers_jobs as jobs, helpers_roster as roster, helpers_tests as tests, helpers_routines as routines};
 use rusqlite::{Connection, OpenFlags};
 use serde_json::Value;
 
@@ -62,4 +62,14 @@ fn a_changed_soul_file_goes_to_node() {
     let (dir, conn) = fixture("changed");
     std::fs::write(dir.join("agents/scout/soul.md"), "---\nname: Scout\nrole: researcher\nkit: research\n---\n\n## Personality\nSlow.\n").unwrap();
     assert!(roster::roster(&conn, &dir.join("agents")).is_none());
+}
+
+#[test]
+fn mcp_switch_drafts_and_edits_match_typescript() {
+    let (_dir, conn) = fixture("extras");
+    let want = &expected()["extras"];
+    assert_eq!(Value::Bool(extras::allow_large(&conn).unwrap()), want["allowLarge"]);
+    assert_eq!(Value::Array(extras::mcp(&conn).unwrap()), want["mcp"]);
+    assert_eq!(Value::Array(extras::skill_drafts(&conn).unwrap()), want["skillDrafts"]);
+    assert_eq!(Value::Array(extras::skill_edits(&conn).unwrap()), want["skillEdits"]);
 }

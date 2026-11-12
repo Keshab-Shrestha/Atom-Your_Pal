@@ -19,6 +19,123 @@
    "createdAt": "2026-11-01T09:00:46.000Z"
   }
  ],
+ "extras": {
+  "allowLarge": false,
+  "mcp": [
+   {
+    "id": 1,
+    "name": "files",
+    "kind": "command",
+    "command": "npx",
+    "args": [
+     "-y",
+     "files"
+    ],
+    "transport": "http",
+    "envKeys": [
+     "ZED",
+     "ALPHA",
+     "MID"
+    ],
+    "headerKeys": [],
+    "enabled": true,
+    "trusted": true,
+    "workers": [
+     "kame",
+     "sid"
+    ],
+    "tools": [
+     "read",
+     "write"
+    ],
+    "testedAt": "2026-11-01T09:00:50.000Z"
+   },
+   {
+    "id": 2,
+    "name": "remote",
+    "kind": "url",
+    "args": [],
+    "url": "https://example.com/mcp",
+    "transport": "sse",
+    "envKeys": [],
+    "headerKeys": [
+     "7",
+     "123",
+     "Zeta",
+     "Auth"
+    ],
+    "enabled": false,
+    "trusted": false,
+    "workers": [],
+    "tools": [],
+    "testedAt": "2026-11-01T09:00:51.000Z",
+    "problem": "Could not connect."
+   }
+  ],
+  "skillDrafts": [
+   {
+    "id": 2,
+    "jobId": 11,
+    "helper": "sid",
+    "name": "other",
+    "description": "Does a thing",
+    "preview": "Short.",
+    "state": "approved",
+    "createdAt": "2026-11-01T10:00:00.000Z"
+   },
+   {
+    "id": 1,
+    "jobId": 1,
+    "helper": "sid",
+    "name": "net-notes",
+    "description": "Does a thing",
+    "preview": "Step one.\nyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy…",
+    "state": "pending",
+    "createdAt": "2026-11-01T10:00:00.000Z"
+   }
+  ],
+  "skillEdits": [
+   {
+    "id": 2,
+    "skill": "net-notes",
+    "jobId": 11,
+    "reason": "Clearer",
+    "before": "",
+    "after": "",
+    "state": "accepted",
+    "createdAt": "2026-11-01T10:00:00.000Z"
+   },
+   {
+    "id": 1,
+    "skill": "net-notes",
+    "jobId": 5,
+    "reason": "Clearer",
+    "before": "c\nd",
+    "after": "X\nd\ne\nf\ng\nh",
+    "state": "pending",
+    "createdAt": "2026-11-01T10:00:00.000Z",
+    "tests": {
+     "better": 0,
+     "same": 0,
+     "worse": 1,
+     "notRun": 0,
+     "failed": 0,
+     "running": 0,
+     "results": [
+      {
+       "caseId": 5,
+       "task": "A skill case",
+       "state": "done",
+       "better": "old",
+       "reason": "Worse.",
+       "oldAnswer": "o",
+       "newAnswer": "n"
+      }
+     ]
+    }
+   }
+  ]
+ },
  "helpers": [
   {
    "id": "sid",

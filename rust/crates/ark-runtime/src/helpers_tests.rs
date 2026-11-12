@@ -19,7 +19,7 @@ const TEST_ANSWER_CHARS: usize = 800;
 
 /// `text.slice(0, limit - 1) + "…"` when the text is longer than `limit`.
 // ponytail: JavaScript counts UTF-16 units; this counts characters, so text with emoji near the cut can differ by one.
-fn cut_to(text: &str, limit: usize) -> String {
+pub(crate) fn cut_to(text: &str, limit: usize) -> String {
     if text.chars().count() <= limit {
         return text.to_string();
     }
