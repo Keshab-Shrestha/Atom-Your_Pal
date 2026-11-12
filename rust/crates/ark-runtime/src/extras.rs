@@ -27,7 +27,7 @@ fn line_of(value: &Value) -> String {
 impl Extras {
     /// Takes `line` when it is one of these commands. `false` means: give it to Node.
     pub fn handle(&self, chat: &Arc<Chat>, line: &str, to_app: &Sink) -> bool {
-        self.project(chat, line, to_app) || workflow(chat, line, to_app)
+        self.project(chat, line, to_app) || workflow(chat, line, to_app) || improvements(chat, line, to_app)
     }
 
     /// `project.create` and `project.create.cancel`.
@@ -128,4 +128,36 @@ fn workflow(chat: &Arc<Chat>, line: &str, to_app: &Sink) -> bool {
         }
         None => false,
     }
+}
+
+/// The log file: `ARK_LOG_FILE`, else `logs/ark.log`, from the folder the runtime started in.
+fn log_path() -> std::path::PathBuf {
+    let folder = std::env::current_dir().unwrap_or_default();
+    folder.join(std::env::var("ARK_LOG_FILE").ok().filter(|v| !v.is_empty()).unwrap_or_else(|| "logs/ark.log".into()))
+}
+
+/// `improvements.run` (`improve_run.rs`): the run goes in a thread; the app gets the state at the start and at the end.
+fn improvements(chat: &Arc<Chat>, line: &str, to_app: &Sink) -> bool {
+    use crate::improvements as store;
+    if !line.contains("\"improvements.run\"") || !serde_json::from_str::<Value>(line).is_ok_and(|c| c["type"] == "improvements.run") {
+        return false;
+    }
+    let Some(path) = chat.db.parent().map(|d| d.join("improvements.json")) else { return false };
+    let Some(state) = store::read(&path) else { return false };
+    if store::is_running() {
+        to_app(&store::event(&state, true));
+        return true;
+    }
+    store::set_running(true);
+    to_app(&store::event(&state, true));
+    let (chat, to_app) = (Arc::clone(chat), to_app.clone());
+    std::thread::spawn(move || {
+        let lines = crate::improve_run::read_log_tail(&log_path());
+        let suggest = |text: &str| crate::llm_once::ask(chat.provider.as_ref(), &chat.model, crate::improve_run::SUGGEST_INSTRUCTION, text, 1024);
+        let next = crate::improve_run::run(&state, &lines, jiff::Timestamp::now().as_millisecond(), &suggest);
+        let saved = store::write(&path, &next).is_some();
+        store::set_running(false);
+        to_app(&store::event(if saved { &next } else { &state }, false));
+    });
+    true
 }

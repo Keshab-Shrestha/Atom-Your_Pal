@@ -38,6 +38,8 @@ pub mod chats;
 pub mod projects_store;
 pub mod projects_add;
 pub mod project_create;
+pub mod llm_once;
+pub mod improve_run;
 pub mod workflow_run;
 pub mod extras;
 pub mod workflows;

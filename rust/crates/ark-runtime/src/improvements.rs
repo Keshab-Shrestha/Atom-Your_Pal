@@ -1,6 +1,6 @@
 //! `improvements.get`, `improvements.set`, `improvement.fixing` and `improvement.dismiss` (ADR-278): ports of `createImproveStore`, `markFixing` in
 //! `apps/mac/src/improve.ts`, the `improvements` lambdas of `runtime.ts` and the `improvements` event of `island.ts`. The state is
-//! `data/improvements.json`; Node reads it again when its time stamp changes. `improvements.run` stays in Node (it reads the log and asks the
+//! `data/improvements.json`; Node reads it again when its time stamp changes. `improvements.run` is `improve_run.rs` (it reads the log and asks the
 //! model). Whether a run is going (`running`) is in the memory of Node, so the event takes it from the last `improvements` event Node
 //! sent; with none yet, Node answers.
 
@@ -26,6 +26,18 @@ pub fn observe(line: &str) {
     }
 }
 
+/// Rust runs the improvement run now (or it ended): the `running` flag of the next `improvements` event.
+pub(crate) fn set_running(on: bool) {
+    if let Ok(mut slot) = running_slot().lock() {
+        *slot = Some(on);
+    }
+}
+
+/// A run goes (started by Rust).
+pub(crate) fn is_running() -> bool {
+    running_slot().lock().is_ok_and(|s| *s == Some(true))
+}
+
 fn now() -> String {
     jiff::Timestamp::now().strftime("%Y-%m-%dT%H:%M:%S%.3fZ").to_string()
 }
@@ -35,7 +47,7 @@ fn has_id(v: &&Value) -> bool {
 }
 
 /// The state as `createImproveStore` reads it: only the known keys, a note or a result without a string id dropped. `None` for a damaged file.
-fn read(path: &Path) -> Option<Map<String, Value>> {
+pub(crate) fn read(path: &Path) -> Option<Map<String, Value>> {
     let raw: Value = if path.exists() { serde_json::from_str(&std::fs::read_to_string(path).ok()?).ok()? } else { json!({}) };
     let list = |key: &str| Value::Array(raw[key].as_array().map(|a| a.iter().filter(has_id).cloned().collect()).unwrap_or_default());
     let mut state = Map::new();
@@ -49,7 +61,7 @@ fn read(path: &Path) -> Option<Map<String, Value>> {
     Some(state)
 }
 
-fn write(path: &Path, state: &Map<String, Value>) -> Option<()> {
+pub(crate) fn write(path: &Path, state: &Map<String, Value>) -> Option<()> {
     use std::os::unix::fs::PermissionsExt;
     std::fs::create_dir_all(path.parent()?).ok()?;
     let tmp = path.with_extension("json.tmp");
@@ -58,7 +70,7 @@ fn write(path: &Path, state: &Map<String, Value>) -> Option<()> {
     std::fs::rename(&tmp, path).ok()
 }
 
-fn event(state: &Map<String, Value>, running: bool) -> String {
+pub(crate) fn event(state: &Map<String, Value>, running: bool) -> String {
     let notes: Vec<Value> = state["notes"].as_array().into_iter().flatten().map(|n| {
         let fixing = n["fixStartedAt"].as_str().is_some_and(|s| !s.is_empty());
         json!({ "id": n["id"], "title": n["title"], "evidence": n["evidence"], "severity": n["severity"], "why": n["why"], "change": n["change"], "fixing": fixing, "cameBack": n["cameBack"] == true })

@@ -1,0 +1,229 @@
+{
+ "now": "2026-11-13T00:00:00.000Z",
+ "lines": [
+  "{\"time\":\"2026-11-12T23:00:00.000Z\",\"event\":\"tool.call\",\"name\":\"web_search\",\"ok\":false}",
+  "{\"time\":\"2026-11-12T22:00:00.000Z\",\"event\":\"tool.call\",\"name\":\"web_search\",\"ok\":false}",
+  "{\"time\":\"2026-11-12T21:00:00.000Z\",\"event\":\"tool.call\",\"name\":\"web_search\",\"ok\":false}",
+  "{\"time\":\"2026-11-12T20:00:00.000Z\",\"event\":\"tool.call\",\"name\":\"web_search\",\"ok\":false}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"tool.call\",\"name\":\"web_search\",\"ok\":true}",
+  "{\"time\":\"2026-11-12T18:00:00.000Z\",\"event\":\"tool.call\",\"name\":\"web_search\",\"ok\":true}",
+  "{\"time\":\"2026-11-12T17:00:00.000Z\",\"event\":\"tool.call\",\"name\":\"web_search\",\"ok\":true}",
+  "{\"time\":\"2026-11-12T16:00:00.000Z\",\"event\":\"tool.call\",\"name\":\"web_search\",\"ok\":true}",
+  "{\"time\":\"2026-11-12T15:00:00.000Z\",\"event\":\"tool.call\",\"name\":\"web_search\",\"ok\":true}",
+  "{\"time\":\"2026-11-12T14:00:00.000Z\",\"event\":\"tool.call\",\"name\":\"web_search\",\"ok\":true}",
+  "{\"time\":\"2026-11-12T13:00:00.000Z\",\"event\":\"tool.call\",\"name\":\"web_search\",\"ok\":true}",
+  "{\"time\":\"2026-11-12T12:00:00.000Z\",\"event\":\"tool.call\",\"name\":\"web_search\",\"ok\":true}",
+  "{\"time\":\"2026-11-12T22:00:00.000Z\",\"event\":\"computer.action\",\"ok\":false,\"reason\":\"Could not find \\\"Save 0\\\" at /Users/someone/Docs/file0.txt after 10 tries\"}",
+  "{\"time\":\"2026-11-12T21:00:00.000Z\",\"event\":\"computer.action\",\"ok\":false,\"reason\":\"Could not find \\\"Save 1\\\" at /Users/someone/Docs/file1.txt after 11 tries\"}",
+  "{\"time\":\"2026-11-12T20:00:00.000Z\",\"event\":\"computer.action\",\"ok\":false,\"reason\":\"Could not find \\\"Save 2\\\" at /Users/someone/Docs/file2.txt after 12 tries\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"computer.action\",\"ok\":false,\"reason\":\"Could not find \\\"Save 3\\\" at /Users/someone/Docs/file3.txt after 13 tries\"}",
+  "{\"time\":\"2026-11-12T21:00:00.000Z\",\"event\":\"island.runtime.exit\",\"code\":1,\"requested\":false}",
+  "{\"time\":\"2026-11-12T20:00:00.000Z\",\"event\":\"island.runtime.exit\",\"code\":1,\"requested\":false}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"island.runtime.exit\",\"code\":1,\"requested\":false}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T19:00:00.000Z\",\"event\":\"api.unauthorized\"}",
+  "{\"time\":\"2026-11-12T18:00:00.000Z\",\"event\":\"memory.slow\",\"level\":\"warn\",\"message\":\"took 0 ms in /tmp/x0\"}",
+  "{\"time\":\"2026-11-12T18:00:00.000Z\",\"event\":\"memory.slow\",\"level\":\"warn\",\"message\":\"took 1 ms in /tmp/x1\"}",
+  "{\"time\":\"2026-11-12T18:00:00.000Z\",\"event\":\"memory.slow\",\"level\":\"warn\",\"message\":\"took 2 ms in /tmp/x2\"}",
+  "{\"time\":\"2026-11-12T18:00:00.000Z\",\"event\":\"memory.slow\",\"level\":\"warn\",\"message\":\"took 3 ms in /tmp/x3\"}",
+  "{\"time\":\"2026-11-12T18:00:00.000Z\",\"event\":\"memory.slow\",\"level\":\"warn\",\"message\":\"took 4 ms in /tmp/x4\"}",
+  "{\"time\":\"2026-11-12T18:00:00.000Z\",\"event\":\"memory.slow\",\"level\":\"warn\",\"message\":\"took 5 ms in /tmp/x5\"}",
+  "{\"time\":\"2026-11-12T18:00:00.000Z\",\"event\":\"memory.slow\",\"level\":\"warn\",\"message\":\"took 6 ms in /tmp/x6\"}",
+  "{\"time\":\"2026-11-12T18:00:00.000Z\",\"event\":\"memory.slow\",\"level\":\"warn\",\"message\":\"took 7 ms in /tmp/x7\"}",
+  "{\"time\":\"2026-11-12T18:00:00.000Z\",\"event\":\"memory.slow\",\"level\":\"warn\",\"message\":\"took 8 ms in /tmp/x8\"}",
+  "{\"time\":\"2026-11-12T18:00:00.000Z\",\"event\":\"memory.slow\",\"level\":\"warn\",\"message\":\"took 9 ms in /tmp/x9\"}",
+  "{\"time\":\"2026-11-12T18:00:00.000Z\",\"event\":\"memory.slow\",\"level\":\"warn\",\"message\":\"took 10 ms in /tmp/x10\"}",
+  "{\"time\":\"2026-11-12T18:00:00.000Z\",\"event\":\"memory.slow\",\"level\":\"warn\",\"message\":\"took 11 ms in /tmp/x11\"}",
+  "{\"time\":\"2026-11-12T18:00:00.000Z\",\"event\":\"memory.slow\",\"level\":\"warn\",\"message\":\"took 12 ms in /tmp/x12\"}",
+  "{\"time\":\"2026-11-12T18:00:00.000Z\",\"event\":\"memory.slow\",\"level\":\"warn\",\"message\":\"took 13 ms in /tmp/x13\"}",
+  "{\"time\":\"2026-11-12T18:00:00.000Z\",\"event\":\"memory.slow\",\"level\":\"warn\",\"message\":\"took 14 ms in /tmp/x14\"}",
+  "{\"time\":\"2026-11-12T18:00:00.000Z\",\"event\":\"memory.slow\",\"level\":\"warn\",\"message\":\"took 15 ms in /tmp/x15\"}",
+  "{\"time\":\"2026-11-12T18:00:00.000Z\",\"event\":\"memory.slow\",\"level\":\"warn\",\"message\":\"took 16 ms in /tmp/x16\"}",
+  "{\"time\":\"2026-11-12T18:00:00.000Z\",\"event\":\"memory.slow\",\"level\":\"warn\",\"message\":\"took 17 ms in /tmp/x17\"}",
+  "{\"time\":\"2026-11-12T18:00:00.000Z\",\"event\":\"memory.slow\",\"level\":\"warn\",\"message\":\"took 18 ms in /tmp/x18\"}",
+  "{\"time\":\"2026-11-12T18:00:00.000Z\",\"event\":\"memory.slow\",\"level\":\"warn\",\"message\":\"took 19 ms in /tmp/x19\"}",
+  "{\"time\":\"2026-11-12T18:00:00.000Z\",\"event\":\"memory.slow\",\"level\":\"warn\",\"message\":\"took 20 ms in /tmp/x20\"}",
+  "{\"time\":\"2026-11-12T17:00:00.000Z\",\"event\":\"turn.complete\",\"modelMs\":16000}",
+  "{\"time\":\"2026-11-12T16:00:00.000Z\",\"event\":\"turn.complete\",\"modelMs\":16100}",
+  "{\"time\":\"2026-11-12T15:00:00.000Z\",\"event\":\"turn.complete\",\"modelMs\":16200}",
+  "{\"time\":\"2026-11-12T14:00:00.000Z\",\"event\":\"turn.complete\",\"modelMs\":16300}",
+  "{\"time\":\"2026-11-12T13:00:00.000Z\",\"event\":\"turn.complete\",\"modelMs\":16400}",
+  "{\"time\":\"2026-11-12T12:00:00.000Z\",\"event\":\"turn.complete\",\"modelMs\":16500}",
+  "{\"time\":\"2026-11-12T11:00:00.000Z\",\"event\":\"turn.complete\",\"modelMs\":16600}",
+  "{\"time\":\"2026-11-12T10:00:00.000Z\",\"event\":\"turn.complete\",\"modelMs\":16700}",
+  "{\"time\":\"2026-11-12T09:00:00.000Z\",\"event\":\"turn.complete\",\"modelMs\":16800}",
+  "{\"time\":\"2026-11-12T08:00:00.000Z\",\"event\":\"turn.complete\",\"modelMs\":16900}",
+  "{\"time\":\"2026-11-12T07:00:00.000Z\",\"event\":\"turn.complete\",\"modelMs\":17000}",
+  "{\"time\":\"2026-11-12T06:00:00.000Z\",\"event\":\"turn.complete\",\"modelMs\":17100}",
+  "{\"time\":\"2026-11-12T16:00:00.000Z\",\"event\":\"turn.end\",\"outcome\":\"stopped\"}",
+  "{\"time\":\"2026-11-12T15:00:00.000Z\",\"event\":\"turn.end\",\"outcome\":\"stopped\"}",
+  "{\"time\":\"2026-11-12T14:00:00.000Z\",\"event\":\"turn.end\",\"outcome\":\"stopped\"}",
+  "{\"time\":\"2026-11-12T13:00:00.000Z\",\"event\":\"turn.end\",\"outcome\":\"stopped\"}",
+  "{\"time\":\"2026-11-12T12:00:00.000Z\",\"event\":\"turn.end\",\"outcome\":\"done\"}",
+  "{\"time\":\"2026-11-12T15:00:00.000Z\",\"event\":\"session.over_budget\"}",
+  "{\"time\":\"2026-11-12T15:00:00.000Z\",\"event\":\"session.over_budget\"}",
+  "{\"time\":\"2026-11-12T15:00:00.000Z\",\"event\":\"session.over_budget\"}",
+  "{\"time\":\"2026-10-24T00:00:00.000Z\",\"event\":\"tool.call\",\"name\":\"web_search\",\"ok\":false}",
+  "not json"
+ ],
+ "seed": {
+  "enabled": true,
+  "lastRunAt": "2026-11-01T00:00:00.000Z",
+  "notes": [
+   {
+    "id": "tool:old-tool",
+    "kind": "tool",
+    "title": "Old",
+    "evidence": "e",
+    "severity": 2,
+    "why": "w",
+    "change": "c",
+    "createdAt": "2026-11-01T00:00:00.000Z"
+   },
+   {
+    "id": "slow:turns",
+    "kind": "slow",
+    "title": "Some answers are slow",
+    "evidence": "e",
+    "severity": 1,
+    "why": "keep why",
+    "change": "keep change",
+    "createdAt": "2026-11-02T00:00:00.000Z",
+    "fixStartedAt": "2026-11-12T00:00:00.000Z"
+   }
+  ],
+  "dismissed": {
+   "unauthorized:api": "2026-11-10T00:00:00.000Z"
+  },
+  "resolved": [
+   {
+    "id": "crash:1",
+    "title": "Crash",
+    "how": "fixed",
+    "resolvedAt": "2026-11-10T00:00:00.000Z",
+    "createdAt": "2026-11-01T00:00:00.000Z"
+   }
+  ]
+ },
+ "answer": "Here you go: [{\"id\":\"tool:web-search\",\"why\":\"Searches   fail.\",\"change\":\"Retry   once.\"},{\"id\":\"nope\",\"why\":\"x\",\"change\":\"y\"},{\"id\":\"computer:could-not-find-save-at-after-tries\",\"why\":\"Buttons move.\",\"change\":\"Wait for the window.\"}] done",
+ "asked": [
+  "[{\"id\":\"crash:1\",\"title\":\"ARK's runtime stopped by itself\",\"evidence\":\"3 times in a week, with exit code 1.\",\"severity\":3},{\"id\":\"tool:web-search\",\"title\":\"The web_search tool fails often\",\"evidence\":\"4 of 12 calls failed.\",\"severity\":2},{\"id\":\"computer:could-not-find-at-after-tries\",\"title\":\"Computer control keeps failing the same way\",\"evidence\":\"4 times: Could not find \\\"…\\\" at ~ after # tries\",\"severity\":2}]"
+ ],
+ "after": {
+  "enabled": true,
+  "lastRunAt": "2026-11-13T00:00:00.000Z",
+  "notes": [
+   {
+    "id": "crash:1",
+    "kind": "crash",
+    "title": "ARK's runtime stopped by itself",
+    "evidence": "3 times in a week, with exit code 1.",
+    "severity": 3,
+    "why": "It came back after it was marked fixed.",
+    "change": "Ask ARK to look into it, with the evidence above.",
+    "createdAt": "2026-11-13T00:00:00.000Z",
+    "cameBack": true
+   },
+   {
+    "id": "tool:web-search",
+    "kind": "tool",
+    "title": "The web_search tool fails often",
+    "evidence": "4 of 12 calls failed.",
+    "severity": 2,
+    "why": "Searches fail.",
+    "change": "Retry once.",
+    "createdAt": "2026-11-13T00:00:00.000Z"
+   },
+   {
+    "id": "computer:could-not-find-at-after-tries",
+    "kind": "computer",
+    "title": "Computer control keeps failing the same way",
+    "evidence": "4 times: Could not find \"…\" at ~ after # tries",
+    "severity": 2,
+    "why": "ARK saw this often enough to count.",
+    "change": "Ask ARK to look into it, with the evidence above.",
+    "createdAt": "2026-11-13T00:00:00.000Z"
+   }
+  ],
+  "dismissed": {
+   "unauthorized:api": "2026-11-10T00:00:00.000Z"
+  },
+  "resolved": [
+   {
+    "id": "tool:old-tool",
+    "title": "Old",
+    "how": "went-away",
+    "resolvedAt": "2026-11-13T00:00:00.000Z",
+    "createdAt": "2026-11-01T00:00:00.000Z"
+   }
+  ]
+ },
+ "reasons": [
+  [
+   "Could not open \"a file\" at /Users/me/x y",
+   "Could not open \"…\" at ~ y"
+  ],
+  [
+   "see /private/var/foo,bar 12 and 'q' 34   gaps",
+   "see ~,bar # and '…' # gaps"
+  ],
+  [
+   "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  ],
+  [
+   "/tmp/ ok",
+   "/tmp/ ok"
+  ]
+ ]
+}
