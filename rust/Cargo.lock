@@ -239,6 +239,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ark-telegram"
+version = "0.0.1"
+dependencies = [
+ "reqwest",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "arrayref"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"

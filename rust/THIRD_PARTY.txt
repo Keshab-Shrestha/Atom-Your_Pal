@@ -314,3 +314,7 @@ The Phase 4 app bundle ships this file.
    url v2.5.8 MIT OR Apache-2.0
    want v0.3.2 MIT
    webpki-roots v1.0.12 CDLA-Permissive-2.0
+
+7. Crates in the ark-telegram build (Phase 2 step 8)
+   A subset of the crates in section 6 (reqwest with rustls, tokio). It adds no crate. No MPL, GPL or LGPL.
+   Check with: sh scripts/third-party-section.sh ark-telegram

@@ -39,6 +39,12 @@
 - Limit: the bridge has no tool calls yet. A tool call would come back to Rust for the policy check. That is a later step.
 - Verified: 4 Rust tests with a fake helper (a shell script: text and thinking, an error line, a dead and a missing helper, the prompt join) and 2 Node tests with a fake SDK (stream, API key stop). Clippy is clean. No live `claude` run.
 
+## Rust Phase 2 step 8: Telegram channel — 12 November 2026
+
+- ADR-278, Phase 2: the new crate `ark-telegram` is the Telegram channel, a port of `apps/mac/src/telegram.ts` (the transport; the bot logic in `telegram-bot.ts` stays in Node). It long-polls `getUpdates`, sends plain text split at 4096 characters (buttons on the last part), retries a passing failure (429, 5xx, network) and not a 4xx, and answers button presses. It serves one chat and one person. It skips the backlog from before the start. It waits 5 minutes after a 401 or 409 and warns once.
+- The token comes from `ARK_TELEGRAM_BOT_TOKEN` (with `ARK_TELEGRAM_CHAT_ID`, `ARK_TELEGRAM_USER_ID`) through `Config::from_env`, or from the caller. The log gets names and codes, never text or the token.
+- Verified: 5 tests (message split; backlog and sender filter; split send with buttons; retry rules; wrong token, with a check that the token is not in the log) against a local mock Bot API server. Clippy is clean. No live Telegram call.
+
 ## Rust Phase 2 step 5: MCP server in Rust — 12 November 2026
 
 - ADR-278, Phase 2: the binary `ark-mcp` is ARK's MCP server over stdio. It has the same 7 `ark_*` tools as `apps/mac/src/mcp-serve.ts`. It calls the local HTTP API with the token from `data/api-token` (plain HTTP/1.1 over a socket, no new crate).

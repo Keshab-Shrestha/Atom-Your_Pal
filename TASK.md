@@ -32,6 +32,11 @@
 - Add `claude-bridge.ts` (stdio entrypoint, `runOne` testable with a fake SDK) and `rust/crates/ark-llm/src/bridge.rs`.
 - Not done: tool calls through the bridge, a pre-started helper (ADR-064), `resume` from Rust, and a live run on a fixture chat (needs the owner's consent).
 
+## Rust Phase 2 step 8: Telegram channel — 12 November 2026
+
+- Add `rust/crates/ark-telegram` (`Telegram::start`, `send`, `answer`, `stop`, `Config`).
+- Not done: the bot logic of `telegram-bot.ts` (needs, approvals, turns), and wiring the channel into the runtime.
+
 ## Rust Phase 2 step 5: MCP server in Rust — 12 November 2026
 
 - Add `mcp.rs` (JSON-RPC handler, HTTP client) and the binary `ark-mcp`. Same tools and routes as `mcp-serve.ts`. `ARK_API_PORT` (then `ATOM_`, `ZENO_`) and `ARK_API_TOKEN_FILE` set the target.

@@ -1,0 +1,17 @@
+[package]
+name = "ark-telegram"
+version = "0.0.1"
+edition.workspace = true
+publish = false
+description = "ARK's Telegram channel: long-poll getUpdates, send messages. Port of apps/mac/src/telegram.ts (ADR-098)."
+
+[dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "macros", "sync", "time"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "io-util", "net"] }
+
+[lints]
+workspace = true
