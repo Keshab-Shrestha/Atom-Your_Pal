@@ -2,6 +2,8 @@
 
 This folder holds the Rust build of ARK (ADR-278, docs/rust-migration-plan.md). It is in Phase 1. The running ARK app does not use this code.
 
+This folder holds the Rust build of ARK (ADR-278, docs/rust-migration-plan.md). The running ARK app uses this code only when you set `ARK_RUNTIME=rust` (Phase 2.1, below).
+
 ## Contents
 
 - `Cargo.toml`: the Cargo workspace. `cargo build` and `cargo test` act on ARK's own crates only.
@@ -12,6 +14,8 @@ This folder holds the Rust build of ARK (ADR-278, docs/rust-migration-plan.md). 
 
 - `crates/ark-hello/`: a hello window. It proves that the Rune copy builds, draws headless and reports its tree.
 - `crates/ark-spike/`: the Phase 0.2 spike checks (text input, windows, native views, accessibility). ARK does not ship it. `cargo run -p ark-spike -- --check text|windows|views|a11y` opens one check. `crates/ark-spike/CHECKLIST.md` gives the steps, `docs/rust-phase-0-results.md` the results.
+
+- `crates/ark-runtime/`: the runtime forwarder between the Swift app and the Node runtime.
 - `THIRD_PARTY.txt`: the third-party licences of the Rust build.
 
 ## Crates
@@ -50,6 +54,19 @@ cargo clippy -p ark-core -p ark-hello --all-targets --no-deps -- -D warnings
 Rune's own tools work on every Rune app: `--scene`, `--at`, `--size`, `--theme`, `--script`, `--trace`. The Rune README in `vendor/rune/crates/rune/README.md` ("Agent tooling") lists them.
 
 Build output goes to `target/` (not in git). A debug and a release build use about 3.3 GB.
+
+## Try the Rust runtime forwarder
+
+`crates/ark-runtime` is Phase 2.1: a pure forwarder. `ark-runtime <program> [args...]` starts the program and copies each line between the app and the program without a change. The program's stderr, its exit code and the signals SIGTERM, SIGINT, SIGHUP and SIGQUIT pass through.
+
+1. Build it in this folder: `cargo build --release -p ark-runtime`.
+2. Quit ARK.
+3. Start ARK with the forwarder: `open --env ARK_RUNTIME=rust --env ARK_RUNTIME_BIN="$PWD/target/release/ark-runtime" ../apps/mac/island/build/ARK.app`. `build-app.sh` builds ARK.app at that path.
+4. ARK works as before. `ps -ax | grep ark-runtime` shows the forwarder with Node as its child.
+
+Without `ARK_RUNTIME=rust`, ARK starts Node directly. With `ARK_RUNTIME=rust` and no forwarder at `ARK_RUNTIME_BIN` or next to the app's binary, ARK shows an error and does not start.
+
+Run the smoke test through the forwarder from the project folder: `ARK_RUNTIME_BIN="$PWD/rust/target/release/ark-runtime" node --test tests/smoke.test.ts`.
 
 ## Update the Rune copy
 

@@ -196,6 +196,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ark-runtime"
+version = "0.0.1"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "ark-spike"
 version = "0.0.1"
 dependencies = [

@@ -26,6 +26,12 @@
 - Verified: `cargo build --locked`, `cargo build --locked -p ark-spike`, clippy `--no-deps -D warnings` for both crates, `cargo test --locked` (2 pass) and `cargo test --locked -p ark-spike` (1 pass). The new lock entries: `ark-spike` and `objc2-web-kit` (Zlib OR Apache-2.0 OR MIT). CI builds and lints `ark-spike` and runs none of its checks.
 - Build: ark-spike adds 36 s to a clean debug build (it builds `rune` again with more objc2 features), 24 s of clippy and 6 s of tests.
 
+## Rust Phase 2.1: ark-runtime forwarder — 12 November 2026
+
+- ADR-278, Phase 2 PR 1: `ark-runtime` forwards the island protocol between the Swift app and Node. The app uses it only with `ARK_RUNTIME=rust`. rust/README.md tells how to try it.
+- Verified: 8 Rust integration tests with fake children (lines both ways, a 1 MB line, exit code, stdin close, stderr, SIGTERM, a program that cannot start). `cargo clippy -p ark-runtime --no-deps -- -D warnings`. The smoke test passes without the forwarder and with `ARK_RUNTIME_BIN` (release build). Swift tests (1019 pass). `pnpm typecheck`.
+- Not done: a run of the real ARK.app with `ARK_RUNTIME=rust` (it quits the running ARK). The bundle does not copy `ark-runtime` yet. `rustfmt` is not installed for toolchain 1.99.1, so `cargo fmt` did not run.
+
 ## Rust Phase 0.1: workspace, Rune copy and hello window — 11 November 2026
 
 - ADR-278, Phase 0 PR 1: `rust/` holds a Cargo workspace with toolchain 1.99.1. `rust/vendor/rune` holds a copy of Rune at `b556a38`: 12 crates and the OpenCode theme, 24 MB, 1 392 files. `rust/crates/ark-hello` holds the hello window. The new CI workflow `rust.yml` runs only on changes under `rust/`. The Swift and Node code does not change.

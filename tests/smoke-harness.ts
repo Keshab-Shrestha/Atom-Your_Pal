@@ -73,7 +73,10 @@ export async function startRuntime(options: { model?: string; readyMs?: number; 
   mkdirSync(join(dir, "logs"), { recursive: true });
   options.prepare?.(dir); // files the test needs in the temp folder before the runtime starts (a skill, a settings file)
   const port = await freePort();
-  const child: ChildProcess = spawn(process.execPath, ["--disable-warning=ExperimentalWarning", MAIN, "--island"], {
+  const nodeArgs = ["--disable-warning=ExperimentalWarning", MAIN, "--island"];
+  // ADR-278 Phase 2.1: ARK_RUNTIME_BIN puts the Rust forwarder (`ark-runtime <node> <args>`) between this harness and Node.
+  const forwarder = process.env.ARK_RUNTIME_BIN;
+  const child: ChildProcess = spawn(forwarder || process.execPath, forwarder ? [process.execPath, ...nodeArgs] : nodeArgs, {
     cwd: dir,
     env: cleanEnv(dir, port, options.model ?? "claude-haiku-5-5"),
     stdio: ["pipe", "pipe", "pipe"],

@@ -165,7 +165,8 @@ struct RuntimeLocatorTests {
         env: [String: String] = [:],
         info: [String: String] = ["ArkProjectRoot": "/p/ark"],
         nodes: [String: String] = ["/opt/homebrew/bin/node": "v26.10.0"],
-        files: Set<String>? = nil
+        files: Set<String>? = nil,
+        forwarder: String? = nil
     ) -> RuntimeLocator {
         let files = files ?? [entry]
         return RuntimeLocator(
@@ -174,7 +175,30 @@ struct RuntimeLocatorTests {
             homeDirectory: "/Users/k",
             isExecutable: { nodes[$0] != nil },
             fileExists: { files.contains($0) },
-            nodeVersion: { nodes[$0] })
+            nodeVersion: { nodes[$0] },
+            runtimeForwarder: forwarder)
+    }
+
+    @Test func arkRuntimeRustPutsTheForwarderInFrontOfNode() throws {
+        let nodes = ["/opt/homebrew/bin/node": "v26.10.0", "/app/ark-runtime": "", "/dev/ark-runtime": ""]
+        let plain = try locator(nodes: nodes, forwarder: "/app/ark-runtime").locate()
+        #expect(plain.executable.path == "/opt/homebrew/bin/node", "the default stays Node")
+        #expect(try locator(env: ["ARK_RUNTIME": "node"], nodes: nodes, forwarder: "/app/ark-runtime").locate().executable == plain.executable)
+
+        let rust = try locator(env: ["ARK_RUNTIME": "rust"], nodes: nodes, forwarder: "/app/ark-runtime").locate()
+        #expect(rust.executable.path == "/app/ark-runtime")
+        #expect(rust.arguments == ["/opt/homebrew/bin/node"] + plain.arguments)
+        #expect(rust.directory == plain.directory)
+        #expect(rust.environment["PATH"] == plain.environment["PATH"])
+
+        let custom = try locator(env: ["ARK_RUNTIME": "rust", "ARK_RUNTIME_BIN": "/dev/ark-runtime"], nodes: nodes, forwarder: "/app/ark-runtime").locate()
+        #expect(custom.executable.path == "/dev/ark-runtime")
+    }
+
+    @Test func arkRuntimeRustWithoutAForwarderIsAnError() {
+        #expect(throws: LocateError.forwarderNotFound(tried: ["/app/ark-runtime"])) {
+            try locator(env: ["ARK_RUNTIME": "rust"], forwarder: "/app/ark-runtime").locate()
+        }
     }
 
     @Test func buildsTheLaunchCommand() throws {

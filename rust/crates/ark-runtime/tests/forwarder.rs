@@ -1,0 +1,107 @@
+//! Runs the `ark-runtime` binary with small fake children (`cat`, `sh`).
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
+use std::io::{BufRead, BufReader, Read, Write};
+use std::os::unix::process::ExitStatusExt;
+use std::process::{Child, Command, Output, Stdio};
+use std::thread;
+use std::time::Duration;
+
+fn forwarder(args: &[&str]) -> Child {
+    Command::new(env!("CARGO_BIN_EXE_ark-runtime"))
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("start ark-runtime")
+}
+
+/// Writes `input` on a thread (so a full pipe cannot block the test), then closes stdin and collects the output.
+fn run(args: &[&str], input: Vec<u8>) -> Output {
+    let mut child = forwarder(args);
+    let mut stdin = child.stdin.take().unwrap();
+    let writer = thread::spawn(move || stdin.write_all(&input).unwrap());
+    let output = child.wait_with_output().unwrap();
+    writer.join().unwrap();
+    output
+}
+
+#[test]
+fn forwards_lines_both_ways_unchanged() {
+    let input = b"{\"type\":\"chats.list\"}\n{\"type\":\"quit\",\"text\":\"\xc3\xa9\"}\n".to_vec();
+    let output = run(&["cat"], input.clone());
+    assert_eq!(output.stdout, input);
+    assert_eq!(output.status.code(), Some(0));
+}
+
+#[test]
+fn answers_each_line_before_the_next_is_sent() {
+    let mut child = forwarder(&["cat"]);
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    for n in 0..3 {
+        let line = format!("{{\"n\":{n}}}\n");
+        stdin.write_all(line.as_bytes()).unwrap();
+        let mut back = String::new();
+        stdout.read_line(&mut back).unwrap();
+        assert_eq!(back, line, "line {n} came back at once, before stdin closed");
+    }
+    drop(stdin);
+    assert_eq!(child.wait().unwrap().code(), Some(0));
+}
+
+#[test]
+fn forwards_a_one_megabyte_line() {
+    let mut input = vec![b'x'; 1 << 20];
+    input.push(b'\n');
+    input.extend_from_slice(b"{\"after\":true}\n");
+    let output = run(&["cat"], input.clone());
+    assert_eq!(output.stdout.len(), input.len());
+    assert_eq!(output.stdout, input);
+}
+
+#[test]
+fn propagates_the_child_exit_code() {
+    let output = run(&["sh", "-c", "exit 7"], Vec::new());
+    assert_eq!(output.status.code(), Some(7));
+}
+
+#[test]
+fn closing_stdin_ends_the_child_and_the_forwarder() {
+    // `cat` exits at end of input; the last line has no newline and still arrives.
+    let output = run(&["cat"], b"one\ntwo".to_vec());
+    assert_eq!(output.stdout, b"one\ntwo");
+    assert_eq!(output.status.code(), Some(0));
+}
+
+#[test]
+fn passes_stderr_through() {
+    let output = run(&["sh", "-c", "echo to-stderr >&2; echo to-stdout"], Vec::new());
+    assert_eq!(output.stderr, b"to-stderr\n");
+    assert_eq!(output.stdout, b"to-stdout\n");
+}
+
+#[test]
+fn forwards_sigterm_and_dies_by_the_same_signal() {
+    let mut child = forwarder(&["sh", "-c", "echo started; exec sleep 30"]);
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    let mut line = String::new();
+    stdout.read_line(&mut line).unwrap();
+    assert_eq!(line, "started\n");
+    thread::sleep(Duration::from_millis(100)); // the forwarder installs its handlers after the start
+    let pid = child.id().to_string();
+    assert!(Command::new("kill").args(["-TERM", &pid]).status().unwrap().success());
+    let status = child.wait().unwrap();
+    assert_eq!(status.signal(), Some(libc::SIGTERM));
+    let mut rest = Vec::new();
+    stdout.read_to_end(&mut rest).unwrap();
+    assert!(rest.is_empty());
+}
+
+#[test]
+fn reports_a_program_that_cannot_start() {
+    let output = run(&["/nonexistent/ark-node"], Vec::new());
+    assert_eq!(output.status.code(), Some(127));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("cannot start /nonexistent/ark-node"));
+}
