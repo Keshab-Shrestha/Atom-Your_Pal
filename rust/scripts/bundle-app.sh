@@ -26,4 +26,7 @@ cat > "$OUT/Contents/Info.plist" <<'PL'
 <key>NSMicrophoneUsageDescription</key><string>ARK listens when you dictate.</string>
 </dict></plist>
 PL
+plutil -lint "$OUT/Contents/Info.plist" >/dev/null
+# Ad-hoc signature, so the bundle launches on this Mac. Not a release signature.
+codesign --force -s - "$OUT"
 echo "$OUT"
