@@ -27,7 +27,7 @@ pub const SCHEMA: &[(&str, &[&str])] = &[
     ("souls", &["helper", "name", "version"]),
 ];
 
-fn iso_now() -> String {
+pub(crate) fn iso_now() -> String {
     jiff::Timestamp::now().strftime("%Y-%m-%dT%H:%M:%S%.3fZ").to_string()
 }
 
@@ -210,7 +210,7 @@ pub fn rate(conn: &Connection, id: i64, good: bool, comment: Option<&str>) -> Op
     })
 }
 
-fn audit_detail(conn: &Connection, action: &str, detail: &serde_json::Value) -> Option<()> {
+pub(crate) fn audit_detail(conn: &Connection, action: &str, detail: &serde_json::Value) -> Option<()> {
     conn.execute("INSERT INTO audit_log (at, action, detail) VALUES (?, ?, ?)", params![iso_now(), action, detail.to_string()]).ok()?;
     Some(())
 }
