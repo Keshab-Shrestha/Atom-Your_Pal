@@ -89,7 +89,7 @@ fn the_sidebar_opens_the_pages() {
         assert!(agents.contains(want), "agents page lacks {want:?}");
     }
     let dashboard = page("nav-dashboard", "nav-dashboard");
-    for want in ["Average answer", "2300 ms", "run_command", "12 calls", "Refresh"] {
+    for want in ["Average answer", "2300 ms", "run_command", "12 calls", "Refresh", "Tokens today", "API-equivalent this week", "$4.25", "75%", "Cache read, 7 days", "Running"] {
         assert!(dashboard.contains(want), "dashboard lacks {want:?}");
     }
     let memory = page("nav-memory", "nav-memory");

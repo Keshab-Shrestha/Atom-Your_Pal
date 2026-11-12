@@ -210,6 +210,56 @@ pub struct Workspace {
     pub limited: bool,
 }
 
+/// Token totals for a period (`UsageTotalsItem`).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Totals {
+    pub input: u64,
+    pub output: u64,
+    pub cache_read: u64,
+    pub cache_write: u64,
+    pub dollars: f64,
+    pub runs: u64,
+}
+
+impl Totals {
+    pub fn tokens(&self) -> u64 {
+        self.input + self.output + self.cache_read + self.cache_write
+    }
+
+    /// Share of the prompt read from the cache: cache reads over input plus cache reads. None when nothing was read.
+    pub fn cache_hit(&self) -> Option<f64> {
+        let all = self.input + self.cache_read;
+        (all > 0).then(|| self.cache_read as f64 / all as f64)
+    }
+}
+
+/// The dashboard's token numbers (`helpers` event, `usage`).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Usage {
+    pub today: Totals,
+    pub week: Totals,
+    /// (model, totals)
+    pub by_model: Vec<(String, Totals)>,
+    /// (worker name, totals)
+    pub by_worker: Vec<(String, Totals)>,
+    pub chat_cache_cold: bool,
+}
+
+fn parse_totals(o: &Map<String, Value>) -> Totals {
+    Totals { input: u64_of(o, "input"), output: u64_of(o, "output"), cache_read: u64_of(o, "cacheRead"), cache_write: u64_of(o, "cacheWrite"), dollars: o.get("dollars").and_then(Value::as_f64).unwrap_or(0.0), runs: u64_of(o, "runs") }
+}
+
+fn parse_usage(u: &Map<String, Value>) -> Usage {
+    let totals = |key: &str| u.get(key).and_then(Value::as_object).map(parse_totals).unwrap_or_default();
+    Usage {
+        today: totals("today"),
+        week: totals("week"),
+        by_model: objects(u, "byModel").map(|m| (str_of(m, "model"), parse_totals(m))).collect(),
+        by_worker: objects(u, "byWorker").map(|m| (str_of(m, "name"), parse_totals(m))).collect(),
+        chat_cache_cold: bool_of(u, "chatCacheCold"),
+    }
+}
+
 /// One project: a folder with its own chats (`chats` event, `projects`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Project {
@@ -275,6 +325,7 @@ pub const BRIEF_SWITCHES: [(&str, &str); 9] = [
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Model {
+    pub usage: Option<Usage>,
     pub workspace: Option<Workspace>,
     /// The answer to the last `project.create`: (ok, error).
     pub project_created: Option<(bool, Option<String>)>,
@@ -587,7 +638,10 @@ impl Model {
                         .collect(),
                 )
             }
-            "helpers" => self.helpers = Some(parse_helpers(map)),
+            "helpers" => {
+                self.helpers = Some(parse_helpers(map));
+                self.usage = map.get("usage").and_then(Value::as_object).map(parse_usage).or(self.usage.take());
+            }
             "stats" => self.stats = Some(parse_stats(map)),
             "plan.usage" => self.plan_usage = (map.get("fiveHour").and_then(Value::as_f64), map.get("sevenDay").and_then(Value::as_f64)),
             "chats" => {
@@ -717,5 +771,23 @@ mod tests {
         let mut m = Model::default();
         m.runtime_down("exit 78");
         assert_eq!(m.conn, Conn::Down("exit 78".into()));
+    }
+}
+
+#[cfg(test)]
+mod usage_tests {
+    use super::*;
+
+    #[test]
+    fn usage_comes_from_the_helpers_event_and_the_cache_share_is_computed() {
+        let mut m = Model::default();
+        let line = r#"{"type":"helpers","helpers":[],"usage":{"today":{"input":100,"output":50,"cacheRead":300,"cacheWrite":10,"dollars":0.5,"runs":2},"week":{"input":1,"output":1,"cacheRead":0,"cacheWrite":0,"dollars":0,"runs":1},"days":[],"byWorker":[{"helper":null,"name":"ARK","input":5,"output":5,"cacheRead":0,"cacheWrite":0,"dollars":0,"runs":1}],"byModel":[{"model":"opus","input":9,"output":1,"cacheRead":0,"cacheWrite":0,"dollars":0,"runs":1}]}}"#;
+        m.apply(&ark_protocol::Event::parse(line).unwrap());
+        let u = m.usage.as_ref().unwrap();
+        assert_eq!(u.today.tokens(), 460);
+        assert_eq!(u.today.cache_hit(), Some(0.75));
+        assert_eq!(u.week.cache_hit(), Some(0.0));
+        assert_eq!(u.by_model[0].0, "opus");
+        assert_eq!(u.by_worker[0].0, "ARK");
     }
 }

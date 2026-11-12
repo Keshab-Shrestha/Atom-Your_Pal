@@ -406,12 +406,57 @@ fn stats_cards(s: &Stats, k: &Kit) -> Vec<El> {
     vec![tiles, tools]
 }
 
+fn tokens(n: u64) -> String {
+    match n {
+        0..=9_999 => n.to_string(),
+        10_000..=999_999 => format!("{:.1}k", n as f64 / 1000.0),
+        _ => format!("{:.2}M", n as f64 / 1_000_000.0),
+    }
+}
+
+fn percent(share: Option<f64>) -> String {
+    share.map_or_else(|| "none".to_owned(), |s| format!("{:.0}%", s * 100.0))
+}
+
+/// The token and work numbers (DashboardOverviewGrid, DashboardUsageCharts).
+fn usage_cards(app: &App, k: &Kit) -> Vec<El> {
+    let jobs = app.model.jobs();
+    let running = jobs.iter().filter(|j| j.state == JobState::Running).count();
+    let needs = jobs.iter().filter(|j| j.held.is_some()).count();
+    let mut out = vec![row().w_full().gap(10.0)
+        .child(tile(k, "tile-running", "Running", running.to_string()))
+        .child(tile(k, "tile-needs", "Need you", needs.to_string()))];
+    let Some(u) = &app.model.usage else { return out };
+    out.push(row().w_full().gap(10.0).wrap()
+        .child(tile(k, "tile-tokens-today", "Tokens today", tokens(u.today.tokens())))
+        .child(tile(k, "tile-tokens-week", "Tokens this week", tokens(u.week.tokens())))
+        .child(tile(k, "tile-dollars", "API-equivalent this week", format!("${:.2}", u.week.dollars)))
+        .child(tile(k, "tile-cache-hits", "Cache hits this week", percent(u.week.cache_hit()))));
+    out.push(row().w_full().gap(10.0).wrap()
+        .child(tile(k, "tile-cache-written", "Cache written, 7 days", tokens(u.week.cache_write)))
+        .child(tile(k, "tile-cache-read", "Cache read, 7 days", tokens(u.week.cache_read))));
+    if u.chat_cache_cold {
+        out.push(text("ARK's last chat answers read nothing from the prompt cache.").key("cache-cold").font(k.ty.small).color(k.c.warning.fg).wrap());
+    }
+    for (key, title, rows) in [("usage-models", "Model", &u.by_model), ("usage-workers", "Agent", &u.by_worker)] {
+        if rows.is_empty() {
+            continue;
+        }
+        let mut c = card(k, key, title);
+        for (name, t) in rows.iter() {
+            c = c.child(line(k, name, format!("{} tokens · {} runs · ${:.2}", tokens(t.tokens()), t.runs, t.dollars)));
+        }
+        out.push(c);
+    }
+    out
+}
+
 pub fn dashboard(app: &App, k: &Kit) -> El {
-    let cards = match &app.model.stats {
-        None => vec![waiting(app, "dashboard-loading", "numbers", k)],
-        Some(s) => stats_cards(s, k),
-    };
-    let mut cards = cards;
+    let mut cards = usage_cards(app, k);
+    match &app.model.stats {
+        None => cards.push(waiting(app, "dashboard-loading", "numbers", k)),
+        Some(s) => cards.extend(stats_cards(s, k)),
+    }
     cards.insert(0, row().justify_end().child(Button::new("Refresh").on_press(|s: &mut App| s.send(&Command::StatsGet)).build(k).key("dashboard-refresh")));
     page(k, "dashboard", "Dashboard", cards)
 }
