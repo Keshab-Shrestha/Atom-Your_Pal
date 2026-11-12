@@ -188,6 +188,11 @@ impl App {
         self.send_defaults();
     }
 
+    pub fn set_theme(&mut self, theme: crate::prefs::Theme) {
+        self.prefs.theme = theme;
+        self.prefs.save();
+    }
+
     pub fn set_effort(&mut self, effort: &str) {
         self.prefs.effort = effort.to_owned();
         self.prefs.save();

@@ -97,7 +97,7 @@ fn the_sidebar_opens_the_pages() {
         assert!(memory.contains(want), "memory page lacks {want:?}");
     }
     let settings = page("nav-settings", "nav-settings");
-    for want in ["Opus", "Sonnet", "Gemini (no key)", "On, port 4317", "42%", "Morning brief", "Read aloud", "Saved permissions", "Full access", "Model default"] {
+    for want in ["Opus", "Sonnet", "Gemini (no key)", "On, port 4317", "42%", "Morning brief", "Read aloud", "Saved permissions", "Full access", "Model default", "Appearance", "Dark"] {
         assert!(settings.contains(want), "settings page lacks {want:?}");
     }
 }

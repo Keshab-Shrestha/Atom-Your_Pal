@@ -30,7 +30,12 @@ fn status_line(app: &App) -> String {
 }
 
 pub fn view(app: &App, cx: &mut Cx<App>) -> El {
-    let k = pick_kit(cx.system_dark());
+    let dark = match app.prefs.theme {
+        crate::prefs::Theme::System => cx.system_dark(),
+        crate::prefs::Theme::Light => false,
+        crate::prefs::Theme::Dark => true,
+    };
+    let k = pick_kit(dark);
     let (title, main) = match app.screen {
         _ if app.palette.is_some() => ("Command palette".to_owned(), app.palette.as_ref().map_or_else(rune::col, |q| palette::view(app, q, k))),
         _ if app.form.is_some() => ("Edit".to_owned(), app.form.as_ref().map_or_else(rune::col, |f| form::view(app, f, k))),

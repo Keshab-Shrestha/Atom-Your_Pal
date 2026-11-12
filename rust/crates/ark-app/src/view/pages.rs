@@ -7,6 +7,7 @@ use rune_kit::{Button, ButtonVariant, Kit};
 
 use crate::app::App;
 use crate::form::Form;
+use crate::prefs::Theme;
 
 const COLUMN: f32 = 720.0;
 
@@ -106,7 +107,18 @@ pub fn settings(app: &App, k: &Kit) -> El {
         );
     }
     defaults = defaults.child(text("Thinking").font(k.ty.ui_medium).color(k.c.text_base)).child(effort);
-    let mut cards = vec![model, defaults, connections];
+    let mut look = row().gap(8.0).wrap();
+    for (theme, label) in [(Theme::System, "System"), (Theme::Light, "Light"), (Theme::Dark, "Dark")] {
+        look = look.child(
+            Button::new(label)
+                .variant(if app.prefs.theme == theme { ButtonVariant::Submit } else { ButtonVariant::Neutral })
+                .on_press(move |s: &mut App| s.set_theme(theme))
+                .build(k)
+                .key(format!("theme-{label}")),
+        );
+    }
+    let appearance = card(k, "settings-appearance", "Appearance").child(look);
+    let mut cards = vec![model, defaults, appearance, connections];
     if let Some(values) = m.brief {
         let mut brief = card(k, "settings-brief", "Morning brief");
         for (i, ((_, label), on)) in ark_ui::BRIEF_SWITCHES.iter().zip(values).enumerate() {
