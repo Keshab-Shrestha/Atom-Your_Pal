@@ -7,6 +7,7 @@ pub mod helpers_extras;
 pub mod helpers_native;
 pub mod helpers_plans;
 pub mod helpers_roster;
+pub mod helpers_write;
 pub mod helpers_usage;
 pub mod helpers_tests;
 pub mod helpers_routines;

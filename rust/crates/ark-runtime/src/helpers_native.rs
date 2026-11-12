@@ -8,7 +8,7 @@ use std::sync::Mutex;
 
 use serde_json::Value;
 
-use crate::helpers_event;
+use crate::{helpers_event, helpers_write};
 
 /// Where the helpers file and the agent folders are.
 #[derive(Debug)]
@@ -44,12 +44,19 @@ impl HelpersNative {
         }
     }
 
-    /// The line for the app when `line` is `helpers.list` and Rust can build the event; `None` sends it to Node.
+    /// The line for the app when `line` is `helpers.list`, or a write Rust does itself (`helpers_write`), and Rust can build
+    /// the event; `None` sends the line to Node. A write is made only when the event can be built after it, so the app
+    /// never waits for a push that Node does not know about.
     pub fn answer(&self, line: &str) -> Option<String> {
-        if !line.contains("\"helpers.list\"") || serde_json::from_str::<Value>(line).ok()?["type"] != "helpers.list" {
+        if !line.contains("\"helpers.list\"") && !line.contains("\"job.") {
             return None;
         }
+        let command: Value = serde_json::from_str(line).ok()?;
         let cached = self.cached.lock().ok()?.clone()?;
+        if command["type"] != "helpers.list" {
+            let conn = crate::store::open_read_write(&self.db).ok()?;
+            helpers_write::apply(&conn, &command)?;
+        }
         let conn = helpers_event::open_read_only(&self.db)?;
         let event = helpers_event::build(&conn, &self.agents, &jiff::Zoned::now(), &cached)?;
         Some(format!("{event}\n"))
@@ -89,6 +96,12 @@ mod tests {
         assert_eq!(event["type"], "helpers");
         assert_eq!(event["apps"][0], "Safari");
         assert_eq!(event["helpers"].as_array().unwrap().len(), 10);
-        assert!(native.answer("{\"type\":\"job.stop\",\"id\":1}\n").is_none());
+        assert!(native.answer("{\"type\":\"job.stop\",\"id\":1}\n").is_none(), "stop stays in Node");
+        // A write: the label is saved and the new event carries it.
+        let line = native.answer("{\"type\":\"job.label.add\",\"id\":8,\"label\":\"Fresh\"}\n").unwrap();
+        let event: Value = serde_json::from_str(&line).unwrap();
+        let labels: Vec<&Value> = event["helpers"].as_array().unwrap().iter().flat_map(|h| h["jobs"].as_array().unwrap()).filter(|j| j["id"] == 8).map(|j| &j["labels"]).collect();
+        assert_eq!(labels, [&serde_json::json!(["fresh"])]);
+        assert!(native.answer("{\"type\":\"job.delete\",\"id\":4}\n").is_none(), "a task that has not ended goes to Node");
     }
 }
