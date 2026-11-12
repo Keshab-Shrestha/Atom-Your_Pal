@@ -22,4 +22,5 @@ tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "time"] 
 workspace = true
 
 [dev-dependencies]
+ark-app = { path = "../ark-app" }
 futures-util = { version = "0.3", default-features = false, features = ["std"] }

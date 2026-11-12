@@ -472,7 +472,10 @@ impl Chat {
     pub fn from_process_env(memory_db: &std::path::Path) -> Option<Arc<Chat>> {
         let env = |name: &str| std::env::var(name).ok().filter(|v| !v.is_empty());
     let provider: Arc<dyn ark_llm::Provider> = match (env("ANTHROPIC_API_KEY"), env("ARK_CLAUDE_BRIDGE")) {
-        (Some(key), _) => Arc::new(ark_llm::anthropic::AnthropicClient::new(key)),
+        (Some(key), _) => match env("ANTHROPIC_BASE_URL") {
+            Some(url) => Arc::new(ark_llm::anthropic::AnthropicClient::with_base_url(key, &url)),
+            None => Arc::new(ark_llm::anthropic::AnthropicClient::new(key)),
+        },
         (None, Some(script)) => Arc::new(ark_llm::bridge::ClaudeBridge::new("node", vec!["--disable-warning=ExperimentalWarning".into(), script])),
         _ => return None,
     };
