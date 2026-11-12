@@ -1,0 +1,378 @@
+{
+ "source": "services/helpers/src/store.ts",
+ "results": [
+  {
+   "input": {
+    "name": "Scout Fox",
+    "role": " Web  Researcher ",
+    "kit": "research",
+    "personality": " Curious\r\nand kind ",
+    "howItWorks": "Reads first.",
+    "rules": "## not a heading\n\\## kept\nplain"
+   },
+   "ok": true,
+   "id": "scout-fox"
+  },
+  {
+   "input": {
+    "name": "Scout fox",
+    "role": "coder",
+    "kit": "folders",
+    "personality": "Curious.",
+    "howItWorks": "",
+    "rules": ""
+   },
+   "ok": false,
+   "error": "Another worker is already called Scout fox."
+  },
+  {
+   "input": {
+    "name": "Zed",
+    "role": "analyst",
+    "kit": "think",
+    "personality": "Curious.",
+    "howItWorks": "",
+    "rules": ""
+   },
+   "ok": true,
+   "id": "zed"
+  },
+  {
+   "input": {
+    "name": "Zed-",
+    "role": "analyst",
+    "kit": "think",
+    "personality": "Calm.",
+    "howItWorks": "",
+    "rules": ""
+   },
+   "ok": true,
+   "id": "zed-2"
+  },
+  {
+   "input": {
+    "name": "O'Neil Ann",
+    "role": "Note-taker",
+    "kit": "folders",
+    "personality": "Quiet.",
+    "howItWorks": "Writes.",
+    "rules": ""
+   },
+   "ok": true,
+   "id": "o-neil-ann"
+  },
+  {
+   "input": {
+    "name": "Tin",
+    "role": "improver",
+    "kit": "think",
+    "personality": "Curious.",
+    "howItWorks": "",
+    "rules": ""
+   },
+   "ok": false,
+   "error": "That role is Tinker's."
+  },
+  {
+   "input": {
+    "name": "Pat",
+    "role": "r2d2",
+    "kit": "think",
+    "personality": "Curious.",
+    "howItWorks": "",
+    "rules": ""
+   },
+   "ok": false,
+   "error": "A role needs letters only (spaces and hyphens are fine)."
+  },
+  {
+   "input": {
+    "name": "Pat",
+    "role": "reviewer",
+    "kit": "wizard",
+    "personality": "Curious.",
+    "howItWorks": "",
+    "rules": ""
+   },
+   "ok": false,
+   "error": "Choose what the agent may use: research, folders or think."
+  },
+  {
+   "input": {
+    "name": "Ark",
+    "role": "reviewer",
+    "kit": "think",
+    "personality": "Curious.",
+    "howItWorks": "",
+    "rules": ""
+   },
+   "ok": false,
+   "error": "\"Ark\" is taken by ARK itself."
+  },
+  {
+   "input": {
+    "name": "Plan",
+    "role": "reviewer",
+    "kit": "think",
+    "personality": "Curious.",
+    "howItWorks": "",
+    "rules": ""
+   },
+   "ok": false,
+   "error": "\"Plan\" is the name of one of Claude Code's own agents. Choose another name."
+  },
+  {
+   "input": {
+    "name": "Fork",
+    "role": "reviewer",
+    "kit": "think",
+    "personality": "Curious.",
+    "howItWorks": "",
+    "rules": ""
+   },
+   "ok": false,
+   "error": "\"Fork\" is the name of one of Claude Code's own agents. Choose another name."
+  },
+  {
+   "input": {
+    "name": "7up",
+    "role": "reviewer",
+    "kit": "think",
+    "personality": "Curious.",
+    "howItWorks": "",
+    "rules": ""
+   },
+   "ok": false,
+   "error": "A name needs letters only (spaces, hyphens and apostrophes are fine)."
+  },
+  {
+   "input": {
+    "name": "Empty",
+    "role": "reviewer",
+    "kit": "think",
+    "personality": "   ",
+    "howItWorks": "",
+    "rules": ""
+   },
+   "ok": false,
+   "error": "The personality is empty."
+  }
+ ],
+ "state": {
+  "agents": {
+   "bad": "---\nname: B4d!\nrole: tester\nkit: think\n---\n\n## Personality\nx\n",
+   "boss": "---\nname: Boss\nkind: manager\nmode: plan\n---\n\n## Personality\nPlans.\n",
+   "mochi": "---\nname: Mochi\nrole: cat keeper\nkit: folders\n---\n\n## Personality\nSleepy.\n\n## How it works\nLine one.\n\\## not a heading\n\\\\## kept\n\n## Rules\nBe soft.\n\n## Lessons\n\n",
+   "o-neil-ann": "---\nname: O'Neil Ann\nrole: note-taker\nkit: folders\n---\n\n## Personality\nQuiet.\n\n## How it works\nWrites.\n\n## Rules\n\n\n## Lessons\n\n",
+   "odd": "---\nname: Odd\nrole: tester\nkit: wizard\n---\n\n## Personality\nStrange.\n",
+   "scout": "---\nname: Scout\nrole: researcher\nkit: research\n---\n\n## Personality\nQuick.\n\n## How it works\n\n\n## Rules\n\n\n## Lessons\n\n",
+   "scout-fox": "---\nname: Scout Fox\nrole: web researcher\nkit: research\n---\n\n## Personality\nCurious\nand kind\n\n## How it works\nReads first.\n\n## Rules\n\\## not a heading\n\\\\## kept\nplain\n\n## Lessons\n\n",
+   "twin": "---\nname: sid\nrole: tester\nkit: think\n---\n\n## Personality\nx\n",
+   "zed": "---\nname: Zed\nrole: analyst\nkit: think\n---\n\n## Personality\nCurious.\n\n## How it works\n\n\n## Rules\n\n\n## Lessons\n\n",
+   "zed-2": "---\nname: Zed-\nrole: analyst\nkit: think\n---\n\n## Personality\nCalm.\n\n## How it works\n\n\n## Rules\n\n\n## Lessons\n\n"
+  },
+  "souls": [
+   {
+    "helper": "hana",
+    "version": 1,
+    "name": "Hana",
+    "personality": "Warm, fair and discreet.",
+    "how_it_works": "Looks for current, reputable guidance and gives balanced, practical answers.",
+    "rules": "Notes when the answer depends on the country or the employer's own rules.",
+    "lessons": ""
+   },
+   {
+    "helper": "kame",
+    "version": 1,
+    "name": "Kame",
+    "personality": "Steady and careful.",
+    "how_it_works": "Reads the code first, writes a test first, and makes small changes.",
+    "rules": "Never changes more than the task needs.",
+    "lessons": ""
+   },
+   {
+    "helper": "mochi",
+    "version": 1,
+    "name": "Mochi",
+    "personality": "Sleepy and kind.",
+    "how_it_works": "Line one.\n## not a heading\n\\## kept",
+    "rules": "Be soft.",
+    "lessons": ""
+   },
+   {
+    "helper": "mochi",
+    "version": 2,
+    "name": "Mochi",
+    "personality": "Sleepy.",
+    "how_it_works": "Line one.\n## not a heading\n\\## kept",
+    "rules": "Be soft.",
+    "lessons": ""
+   },
+   {
+    "helper": "o-neil-ann",
+    "version": 1,
+    "name": "O'Neil Ann",
+    "personality": "Quiet.",
+    "how_it_works": "Writes.",
+    "rules": "",
+    "lessons": ""
+   },
+   {
+    "helper": "odd",
+    "version": 1,
+    "name": "Odd",
+    "personality": "Strange.",
+    "how_it_works": "",
+    "rules": "",
+    "lessons": ""
+   },
+   {
+    "helper": "penny",
+    "version": 1,
+    "name": "Penny",
+    "personality": "Cautious. Numbers first.",
+    "how_it_works": "Finds current figures from reputable sources, shows the numbers, and states every assumption.",
+    "rules": "Says how old each figure is and where it comes from.",
+    "lessons": ""
+   },
+   {
+    "helper": "puff",
+    "version": 1,
+    "name": "Puff",
+    "personality": "Playful and visual. Explains every choice.",
+    "how_it_works": "Sketches options as HTML, CSS or SVG mock-ups and says why each one works.",
+    "rules": "Keeps to the look the project already has unless asked to change it.",
+    "lessons": ""
+   },
+   {
+    "helper": "quill",
+    "version": 1,
+    "name": "Quill",
+    "personality": "Clear and plain.",
+    "how_it_works": "Writes in plain English with short sentences, one idea per sentence.",
+    "rules": "Never claims something the sources or the code do not show.",
+    "lessons": ""
+   },
+   {
+    "helper": "scout",
+    "version": 1,
+    "name": "Scout",
+    "personality": "Quick.",
+    "how_it_works": "",
+    "rules": "",
+    "lessons": ""
+   },
+   {
+    "helper": "scout-fox",
+    "version": 1,
+    "name": "Scout Fox",
+    "personality": "Curious\nand kind",
+    "how_it_works": "Reads first.",
+    "rules": "## not a heading\n\\## kept\nplain",
+    "lessons": ""
+   },
+   {
+    "helper": "sid",
+    "version": 1,
+    "name": "Sid",
+    "personality": "Curious and thorough. Always cites sources.",
+    "how_it_works": "Searches more than once, reads several good pages, compares what they say, and prefers primary and reputable sources.",
+    "rules": "Say plainly when sources disagree or when something could not be confirmed.",
+    "lessons": ""
+   },
+   {
+    "helper": "sid",
+    "version": 2,
+    "name": "Sid",
+    "personality": "Curious.",
+    "how_it_works": "",
+    "rules": "",
+    "lessons": "Cite twice."
+   },
+   {
+    "helper": "sid",
+    "version": 3,
+    "name": "Sid",
+    "personality": "Curious and thorough.",
+    "how_it_works": "",
+    "rules": "Say plainly.",
+    "lessons": "Cite twice."
+   },
+   {
+    "helper": "sid",
+    "version": 4,
+    "name": "Sid",
+    "personality": "Curious and thorough. Always cites sources.",
+    "how_it_works": "Searches more than once, reads several good pages, compares what they say, and prefers primary and reputable sources.",
+    "rules": "Say plainly when sources disagree or when something could not be confirmed.",
+    "lessons": ""
+   },
+   {
+    "helper": "sid",
+    "version": 5,
+    "name": "Sid",
+    "personality": "Curious and thorough. Always cites sources.",
+    "how_it_works": "Searches more than once, reads several good pages, compares what they say, and prefers primary and reputable sources.",
+    "rules": "Be brief.",
+    "lessons": ""
+   },
+   {
+    "helper": "tinker",
+    "version": 1,
+    "name": "Tinker",
+    "personality": "Reflective and specific.",
+    "how_it_works": "Reads failed and poorly rated jobs and proposes one concrete change to a worker's soul, with the reason.",
+    "rules": "Proposes changes only; the user decides.",
+    "lessons": ""
+   },
+   {
+    "helper": "zed",
+    "version": 1,
+    "name": "Zed",
+    "personality": "Curious.",
+    "how_it_works": "",
+    "rules": "",
+    "lessons": ""
+   },
+   {
+    "helper": "zed-2",
+    "version": 1,
+    "name": "Zed-",
+    "personality": "Calm.",
+    "how_it_works": "",
+    "rules": "",
+    "lessons": ""
+   }
+  ],
+  "audit": [
+   {
+    "action": "agent",
+    "detail": {
+     "helper": "scout-fox",
+     "added": true
+    }
+   },
+   {
+    "action": "agent",
+    "detail": {
+     "helper": "zed",
+     "added": true
+    }
+   },
+   {
+    "action": "agent",
+    "detail": {
+     "helper": "zed-2",
+     "added": true
+    }
+   },
+   {
+    "action": "agent",
+    "detail": {
+     "helper": "o-neil-ann",
+     "added": true
+    }
+   }
+  ]
+ }
+}

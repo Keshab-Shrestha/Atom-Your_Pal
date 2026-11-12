@@ -22,6 +22,7 @@ pub mod helpers_settings;
 pub mod helpers_skills;
 pub mod helpers_runner;
 pub mod helpers_write;
+pub mod helpers_agent_create;
 pub mod helpers_usage;
 pub mod helpers_tests;
 pub mod helpers_routines;
