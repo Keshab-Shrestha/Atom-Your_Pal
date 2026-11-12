@@ -161,6 +161,40 @@ impl Chat {
         Some(Event::Other(event.as_object()?.clone()).to_line())
     }
 
+    /// `chat.open` for a saved chat that is not in a project: the app gets `chat.opened` and `chats` from the files, and Node only moves its
+    /// Core session (`core.resume`, which says nothing back). `false` means: give it to Node.
+    fn open_chat(&self, line: &str, to_app: &Sink, to_node: &Sink) -> bool {
+        if !line.contains("\"chat.open\"") || self.busy.load(Ordering::SeqCst) {
+            return false;
+        }
+        let Ok(Value::Object(command)) = serde_json::from_str::<Value>(line) else { return false };
+        if command.get("type").and_then(Value::as_str) != Some("chat.open") {
+            return false;
+        }
+        let Some(id) = command.get("id").and_then(Value::as_str).filter(|id| !id.is_empty() && id.len() <= 100 && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')) else { return false };
+        let Ok(conn) = crate::chats::open_read_only(&self.db).ok_or(()) else { return false };
+        let row: Option<Option<String>> = conn.query_row("SELECT project_id FROM chats WHERE id = ?", [id], |r| r.get(0)).optional().ok().flatten().map(Some);
+        // No row, or a project chat (its replay is capped by Node): Node answers.
+        if !matches!(row, Some(None)) {
+            return false;
+        }
+        let Ok(history) = read_history(&conn, id) else { return false };
+        let messages: Vec<Value> = history.iter().enumerate().map(|(i, (role, text))| json!({ "role": role, "text": text, "seq": i + 1 })).collect();
+        let previous = self.current.lock().ok().and_then(|mut c| c.replace(id.to_string()));
+        let Some(chats) = self.chats_line() else {
+            if let Ok(mut c) = self.current.lock() {
+                *c = previous;
+            }
+            return false;
+        };
+        self.approvals.decline_all();
+        self.questions.skip_all();
+        to_app(&Event::Other(json!({ "type": "chat.opened", "id": id, "messages": messages }).as_object().cloned().unwrap_or_default()).to_line());
+        to_app(&chats);
+        to_node(&format!("{}\n", json!({ "type": "core.resume", "id": id })));
+        true
+    }
+
     /// Takes `line` when it is a plain `text.send` this runtime can answer. `false` means: give it to Node.
     pub fn handle(self: &Arc<Self>, line: &str, to_app: Sink, to_node: Sink) -> bool {
         let Parsed::Command(command) = parse_command(line) else { return false };
@@ -176,6 +210,9 @@ impl Chat {
                 return false;
             }
             _ => {}
+        }
+        if self.open_chat(line, &to_app, &to_node) {
+            return true;
         }
         if matches!(*command, Command::ChatsList) {
             // The app gets the list at once. Node also gets the command, so it keeps pushing its own changes (it sets `chatsWatched`);
@@ -243,7 +280,7 @@ impl Chat {
         let created = self.ensure_chat(id, text);
         let result = match created {
             Ok(created) => {
-                let r = self.answer(id, text, Some(&approver), true, Some(&ask));
+                let r = self.answer(id, text, Some(&approver), true, Some(&ask), Some(to_app));
                 if created && r.is_err() {
                     self.drop_empty(id);
                 }
@@ -266,7 +303,7 @@ impl Chat {
     }
 
     /// Runs the agent on the saved history and appends the exchange. Gives the reply text.
-    fn answer(&self, id: &str, text: &str, approver: Option<&dyn Approver>, typed: bool, ask: Option<&crate::ask::AskUser>) -> Result<String, String> {
+    fn answer(&self, id: &str, text: &str, approver: Option<&dyn Approver>, typed: bool, ask: Option<&crate::ask::AskUser>, live: Option<&Sink>) -> Result<String, String> {
         let conn = store::open_read_write(&self.db).map_err(|e| format!("The chat file could not be opened: {e}"))?;
         let saved = read_history(&conn, id).map_err(|e| format!("The chat could not be read: {e}"))?;
         let history = replay_window(&saved, text)?;
@@ -280,7 +317,11 @@ impl Chat {
         agent.approver = approver;
         let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().map_err(|e| e.to_string())?;
         let asked = crate::context::with_context(Some(&conn), id, text, saved.is_empty(), typed, &jiff::Zoned::now());
-        let outcome = runtime.block_on(agent.run(history, &asked, |_| {})).map_err(|e| e.to_string())?;
+        let outcome = runtime.block_on(agent.run(history, &asked, |e| {
+            if let (ark_llm::Event::Text { text }, Some(live)) = (e, live) {
+                live(&Event::ReplyDelta { text: text.clone() }.to_line());
+            }
+        })).map_err(|e| e.to_string())?;
         append_exchange(&conn, id, saved.len(), text, &outcome.text).map_err(|e| format!("The answer could not be saved: {e}"))?;
         Ok(outcome.text)
     }
@@ -333,7 +374,7 @@ impl Chat {
 
     fn ask_in_unlocked(&self, id: &str, text: &str, approver: Option<&dyn Approver>, typed: bool) -> Result<String, String> {
         let created = self.ensure_chat(id, text)?;
-        let result = self.answer(id, text, approver, typed, None);
+        let result = self.answer(id, text, approver, typed, None, None);
         if created && result.is_err() {
             self.drop_empty(id);
         }
@@ -491,8 +532,9 @@ mod tests {
         let lines: Vec<String> = app_rx.try_iter().collect();
         let types: Vec<Value> = lines.iter().map(|l| serde_json::from_str::<Value>(l).unwrap()).collect();
         let kinds: Vec<&str> = types.iter().map(|v| v["type"].as_str().unwrap()).collect();
-        assert_eq!(kinds, ["transcript", "state", "reply", "state", "turn.complete"]);
+        assert_eq!(kinds, ["transcript", "state", "reply.delta", "reply", "state", "turn.complete"]);
         assert_eq!(types[2]["text"], "Pong");
+        assert_eq!(types[3]["text"], "Pong");
         let rows = read_history(&Connection::open(&db).unwrap(), "c1").unwrap();
         assert_eq!(rows.len(), 4);
         assert_eq!(rows[2], ("user".into(), "Ping".into()));
@@ -553,6 +595,31 @@ mod tests {
         let ((app, from_app), (node, _)) = (sinks(), sinks());
         assert!(!chat.handle("{\"type\":\"chats.list\"}\n", app, node));
         assert!(from_app.try_recv().is_err());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn chat_open_is_answered_from_the_files_and_node_only_moves_its_core() {
+        let dir = std::env::temp_dir().join(format!("ark-chat-open-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        let fixtures = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures");
+        std::fs::copy(format!("{fixtures}/chats-view.db"), dir.join("memory.db")).unwrap();
+        std::fs::copy(format!("{fixtures}/chats-view-state.json"), dir.join("ui-state.json")).unwrap();
+        let chat = chat(dir.join("memory.db"));
+        let ((app, from_app), (node, from_node)) = (sinks(), sinks());
+        assert!(chat.handle("{\"type\":\"chat.open\",\"id\":\"plain-2\"}\n", app, node), "the line is taken");
+        let opened: Value = serde_json::from_str(&from_app.try_recv().unwrap()).unwrap();
+        assert_eq!((opened["type"].clone(), opened["id"].clone()), (json!("chat.opened"), json!("plain-2")));
+        let list: Value = serde_json::from_str(&from_app.try_recv().unwrap()).unwrap();
+        assert_eq!((list["type"].clone(), list["current"].clone()), (json!("chats"), json!("plain-2")));
+        let quiet: Value = serde_json::from_str(&from_node.try_recv().unwrap()).unwrap();
+        assert_eq!(quiet, json!({ "type": "core.resume", "id": "plain-2" }));
+        // A project chat, an unknown chat and a bad id go to Node.
+        for line in ["{\"type\":\"chat.open\",\"id\":\"proj-1\"}\n", "{\"type\":\"chat.open\",\"id\":\"nope\"}\n", "{\"type\":\"chat.open\",\"id\":\"../x\"}\n"] {
+            let ((app, _), (node, _)) = (sinks(), sinks());
+            assert!(!chat.handle(line, app, node), "{line}");
+        }
         std::fs::remove_dir_all(&dir).ok();
     }
 

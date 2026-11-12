@@ -130,6 +130,9 @@ pub enum Event {
     Transcript { text: String },
     #[serde(rename = "reply")]
     Reply { text: String },
+    /// A piece of the reply while the model writes it. The final `reply` still carries the whole text.
+    #[serde(rename = "reply.delta")]
+    ReplyDelta { text: String },
     #[serde(rename = "turn.complete", rename_all = "camelCase")]
     TurnComplete {
         speech_ms: u64,

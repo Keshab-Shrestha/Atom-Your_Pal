@@ -176,6 +176,8 @@ pub struct Model {
     /// The id of the open chat.
     pub current: Option<String>,
     pub messages: Vec<Message>,
+    /// The reply text so far, while the model writes it. Empty when no reply is streaming.
+    pub streaming: String,
     pub work: Option<Work>,
     pub approvals: Vec<Approval>,
     /// The last error or notice, in words for the user.
@@ -361,16 +363,24 @@ impl Model {
                 self.loop_state = Some(*state);
             }
             Event::Transcript { text } => self.messages.push(Message { role: Role::User, text: text.clone() }),
-            Event::Reply { text } => self.messages.push(Message { role: Role::Assistant, text: text.clone() }),
+            Event::ReplyDelta { text } => self.streaming.push_str(text),
+            Event::Reply { text } => {
+                self.streaming.clear();
+                self.messages.push(Message { role: Role::Assistant, text: text.clone() });
+            }
             Event::ConversationReset { .. } => {
                 self.messages.clear();
+                self.streaming.clear();
                 self.work = None;
                 self.approvals.clear();
             }
             Event::ApprovalClosed { id } => self.close_approval(id),
             Event::Api { on, port, error, .. } => self.api = Some(ApiStatus { on: *on, port: *port, error: error.clone() }),
             Event::Notice { message, .. } => self.banner = Some(message.clone()),
-            Event::Error { message, .. } => self.banner = Some(message.clone()),
+            Event::Error { message, .. } => {
+                self.streaming.clear();
+                self.banner = Some(message.clone());
+            }
             Event::Other(map) => self.apply_other(map),
             _ => {}
         }
@@ -422,6 +432,17 @@ mod tests {
             let event = Event::parse(line).unwrap_or_else(|e| panic!("{line}: {e}"));
             model.apply(&event);
         }
+    }
+
+    #[test]
+    fn deltas_stream_then_the_reply_replaces_them() {
+        let mut m = Model::default();
+        feed(&mut m, &[r#"{"type":"reply.delta","text":"Hel"}"#, r#"{"type":"reply.delta","text":"lo"}"#]);
+        assert_eq!(m.streaming, "Hello");
+        assert!(m.messages.is_empty());
+        feed(&mut m, &[r#"{"type":"reply","text":"Hello"}"#]);
+        assert!(m.streaming.is_empty());
+        assert_eq!(m.messages.len(), 1);
     }
 
     #[test]

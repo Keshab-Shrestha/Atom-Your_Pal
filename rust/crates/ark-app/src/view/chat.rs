@@ -153,6 +153,10 @@ fn transcript(app: &App, k: &Kit) -> El {
             Role::Assistant => assistant_message(m, i, k),
         });
     }
+    if !app.model.streaming.is_empty() {
+        let live = ark_ui::Message { role: Role::Assistant, text: app.model.streaming.clone() };
+        list = list.child(assistant_message(&live, app.model.messages.len(), k));
+    }
     if let Some(work) = &app.model.work {
         if let Some(card) = work_card(work, k) {
             list = list.child(card);
