@@ -48,7 +48,7 @@ impl HelpersNative {
     /// the event; `None` sends the line to Node. A write is made only when the event can be built after it, so the app
     /// never waits for a push that Node does not know about.
     pub fn answer(&self, line: &str) -> Option<String> {
-        if !line.contains("\"helpers.list\"") && !line.contains("\"job.") {
+        if !["\"helpers.list\"", "\"job.", "\"skill.", "\"proposal."].iter().any(|k| line.contains(k)) {
             return None;
         }
         let command: Value = serde_json::from_str(line).ok()?;

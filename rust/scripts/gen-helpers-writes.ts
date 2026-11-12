@@ -44,6 +44,7 @@ const add = (id: number, label: string): Step => ({ cmd: { type: "job.label.add"
 const drop = (id: number, label: string): Step => ({ cmd: { type: "job.label.remove", id, label }, run: (s) => s.removeLabel(id, label) });
 const block = (id: number, blockedBy: number[]): Step => ({ cmd: { type: "job.block", id, blockedBy }, run: (s) => s.setBlockers(id, blockedBy) });
 const rate = (id: number, good: boolean, comment?: string): Step => ({ cmd: { type: "job.rate", id, good, ...(comment !== undefined ? { comment } : {}) }, run: (s) => s.rate(id, good, comment) });
+const simple = (type: string, id: number, run: (s: ReturnType<typeof open>) => unknown): Step => ({ cmd: { type, id }, run });
 const del = (id: number): Step => ({ cmd: { type: "job.delete", id }, run: (s) => s.remove(id) });
 // Tasks after the store opened the file: 1, 2, 4, 7, 10 queued; 8 and 11 done; 3, 5, 9 failed; 6 stopped.
 const ops: Op[] = [
@@ -71,6 +72,16 @@ const ops: Op[] = [
   { name: "rate good failed task", steps: [rate(9, true)] },
   { name: "rate a queued task", steps: [rate(1, true)] },
   { name: "rate an unknown task", steps: [rate(999, true)] },
+  { name: "skill reject", steps: [simple("skill.reject", 1, (s) => s.rejectSkillDraft(1))] },
+  { name: "skill reject twice", steps: [simple("skill.reject", 1, (s) => s.rejectSkillDraft(1)), simple("skill.reject", 1, (s) => s.rejectSkillDraft(1))] },
+  { name: "skill reject decided", steps: [simple("skill.reject", 2, (s) => s.rejectSkillDraft(2))] },
+  { name: "skill edit reject", steps: [simple("skill.edit.reject", 1, (s) => s.rejectSkillEdit(1))] },
+  { name: "skill edit reject accepted", steps: [simple("skill.edit.reject", 2, (s) => s.rejectSkillEdit(2))] },
+  { name: "proposal reject", steps: [simple("proposal.reject", 3, (s) => s.rejectProposal(3))] },
+  { name: "proposal reject accepted", steps: [simple("proposal.reject", 1, (s) => s.rejectProposal(1))] },
+  { name: "skill make", steps: [simple("skill.make", 8, (s) => s.makeSkill(8))] },
+  { name: "skill make twice", steps: [simple("skill.make", 11, (s) => s.makeSkill(11)), simple("skill.make", 11, (s) => s.makeSkill(11))] },
+  { name: "skill make queued", steps: [simple("skill.make", 1, (s) => s.makeSkill(1))] },
   { name: "delete queued goes to Node", steps: [del(4)], forward: true },
 ];
 const cases = ops.map((op, i) => {

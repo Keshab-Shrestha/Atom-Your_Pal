@@ -21,7 +21,9 @@ pub const SCHEMA: &[(&str, &[&str])] = &[
     ("audit_log", &["at", "action", "detail"]),
     ("checkpoints", &["job_id"]),
     ("skill_uses", &["job_id"]),
-    ("skill_drafts", &["job_id"]),
+    ("skill_drafts", &["id", "job_id", "name", "state", "decided_at"]),
+    ("skill_edits", &["id", "skill", "job_id", "state"]),
+    ("proposals", &["id", "helper", "job_id", "state"]),
     ("souls", &["helper", "name", "version"]),
 ];
 
@@ -208,6 +210,51 @@ pub fn rate(conn: &Connection, id: i64, good: bool, comment: Option<&str>) -> Op
     })
 }
 
+fn audit_detail(conn: &Connection, action: &str, detail: &serde_json::Value) -> Option<()> {
+    conn.execute("INSERT INTO audit_log (at, action, detail) VALUES (?, ?, ?)", params![iso_now(), action, detail.to_string()]).ok()?;
+    Some(())
+}
+
+/// Moves a pending row of `table` (`skill_drafts`, `skill_edits`, `proposals`) to "rejected"; `None` when it is not pending.
+fn reject_pending(conn: &Connection, table: &str, id: i64) -> Option<()> {
+    let columns = match table {
+        "skill_drafts" => "name, job_id",
+        "skill_edits" => "skill, job_id",
+        _ => "helper, job_id",
+    };
+    let (name, job, state): (String, i64, String) =
+        conn.query_row(&format!("SELECT {columns}, state FROM {table} WHERE id = ?"), [id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).optional().ok()??;
+    if state != "pending" {
+        return None;
+    }
+    transaction(conn, || {
+        match table {
+            "skill_drafts" => {
+                conn.execute("UPDATE skill_drafts SET state = 'rejected', decided_at = ? WHERE id = ?", params![iso_now(), id]).ok()?;
+                audit_detail(conn, "skillDraft", &json!({ "draft": id, "job": job, "skill": name, "state": "rejected" }))
+            }
+            "skill_edits" => {
+                conn.execute("UPDATE skill_edits SET state = 'rejected' WHERE id = ?", [id]).ok()?;
+                audit_detail(conn, "skillEdit", &json!({ "edit": id, "job": job, "skill": name, "state": "rejected" }))
+            }
+            _ => {
+                conn.execute("UPDATE proposals SET state = 'rejected' WHERE id = ?", [id]).ok()?;
+                audit_detail(conn, "proposal", &json!({ "helper": name, "proposal": id, "state": "rejected" }))
+            }
+        }
+    })
+}
+
+/// `skill.make`: asks Tinker to draft a skill from a done task, once.
+pub fn make_skill(conn: &Connection, id: i64) -> Option<()> {
+    let (helper, state) = job(conn, id)?;
+    if helper == "tinker" || state != "done" || conn.query_row("SELECT COUNT(*) FROM skill_drafts WHERE job_id = ?", [id], |r| r.get::<_, i64>(0)).ok()? > 0 {
+        return None;
+    }
+    let name: String = conn.query_row("SELECT name FROM souls WHERE helper = ? ORDER BY version DESC LIMIT 1", [&helper], |r| r.get(0)).ok()?;
+    transaction(conn, || ask_tinker(conn, id, &format!("Make a skill from task {id} ({name})"), Some("skill")).filter(|asked| *asked).map(|_| ()))
+}
+
 /// The write that `command` (a command line as a JSON value) asks for, or `None` for another command or a call Node must answer.
 pub fn apply(conn: &Connection, command: &serde_json::Value) -> Option<()> {
     let id = command["id"].as_i64()?;
@@ -216,6 +263,10 @@ pub fn apply(conn: &Connection, command: &serde_json::Value) -> Option<()> {
         "job.label.remove" => remove_label(conn, id, command["label"].as_str()?),
         "job.block" => set_blockers(conn, id, &command["blockedBy"].as_array()?.iter().map(serde_json::Value::as_i64).collect::<Option<Vec<_>>>()?),
         "job.delete" => remove_job(conn, id),
+        "skill.reject" => reject_pending(conn, "skill_drafts", id),
+        "skill.edit.reject" => reject_pending(conn, "skill_edits", id),
+        "proposal.reject" => reject_pending(conn, "proposals", id),
+        "skill.make" => make_skill(conn, id),
         "job.rate" => rate(conn, id, command["good"].as_bool()?, command["comment"].as_str()),
         _ => None,
     }
