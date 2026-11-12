@@ -4,6 +4,7 @@
 #![forbid(unsafe_code)]
 
 pub mod anthropic;
+pub mod bridge;
 mod sse;
 mod types;
 

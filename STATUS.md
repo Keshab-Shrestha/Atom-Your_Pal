@@ -33,6 +33,12 @@
 - Verified: 4 tests (an SSE parser unit test, and 3 tests against a local mock HTTP server: text and tool use, an HTTP error, an error event and a cut stream). Clippy is clean with `-D warnings`. No live API call.
 - Licences: the crate list is in `rust/THIRD_PARTY.txt` section 6. `rust/scripts/third-party-section.sh` makes it and fails on MPL, GPL or LGPL. None found.
 
+## Rust Phase 2 step 7: claude-bridge provider — 12 November 2026
+
+- ADR-278, plan section 5(a): `ark-llm` has a `ClaudeBridge` provider. Rust starts the Node helper `services/llm-gateway/src/providers/claude-bridge.ts` and talks to it in line-delimited JSON on stdio. The helper runs the Agent SDK with `strictMcpConfig: true`, `tools: []` and `settingSources: []`. It reuses `scrubbedEnv`, `planGuard` and `tokensOf` from `plan-support.ts`. ARK reads no login. The `ANTHROPIC_*` variables are removed on both sides.
+- Limit: the bridge has no tool calls yet. A tool call would come back to Rust for the policy check. That is a later step.
+- Verified: 4 Rust tests with a fake helper (a shell script: text and thinking, an error line, a dead and a missing helper, the prompt join) and 2 Node tests with a fake SDK (stream, API key stop). Clippy is clean. No live `claude` run.
+
 ## Rust Phase 2 step 5: MCP server in Rust — 12 November 2026
 
 - ADR-278, Phase 2: the binary `ark-mcp` is ARK's MCP server over stdio. It has the same 7 `ark_*` tools as `apps/mac/src/mcp-serve.ts`. It calls the local HTTP API with the token from `data/api-token` (plain HTTP/1.1 over a socket, no new crate).
