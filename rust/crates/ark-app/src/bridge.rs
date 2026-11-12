@@ -42,8 +42,12 @@ pub fn exit_words(code: Option<i32>) -> String {
 
 impl Bridge {
     /// Starts `program args...` with a pipe on each side. Its stderr goes to ours.
-    pub fn spawn(program: &str, args: &[String], wake: Wake) -> std::io::Result<Bridge> {
-        let mut child: Child = Process::new(program).args(args).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::inherit()).spawn()?;
+    pub fn spawn(program: &str, args: &[String], cwd: Option<&std::path::Path>, wake: Wake) -> std::io::Result<Bridge> {
+        let mut process = Process::new(program);
+        if let Some(dir) = cwd {
+            process.current_dir(dir);
+        }
+        let mut child: Child = process.args(args).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::inherit()).spawn()?;
         let (stdin, stdout) = match (child.stdin.take(), child.stdout.take()) {
             (Some(i), Some(o)) => (i, o),
             _ => return Err(std::io::Error::other("the runtime has no pipes")),

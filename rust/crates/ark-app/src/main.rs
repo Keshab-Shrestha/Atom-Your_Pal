@@ -15,5 +15,9 @@ fn main() {
         min_size: Some((640.0, 420.0)),
         ..AppSpec::<App>::new("ARK", (1040.0, 700.0), app::init, view::view)
     };
-    rune::App::new(spec).chrome(CHROME).run();
+    let mut app = rune::App::new(spec).chrome(CHROME);
+    for item in view::menu_items() {
+        app = app.menu_item(item);
+    }
+    app.run();
 }

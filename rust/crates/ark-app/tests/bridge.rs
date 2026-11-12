@@ -31,7 +31,7 @@ fn pump(bridge: &Bridge, model: &mut Model, done: impl Fn(&Model) -> bool) {
 
 #[test]
 fn text_send_and_approval_round_trip() {
-    let bridge = Bridge::spawn(env!("CARGO_BIN_EXE_ark-fake-runtime"), &[fixture("demo.jsonl")], Arc::new(|| {})).expect("spawn");
+    let bridge = Bridge::spawn(env!("CARGO_BIN_EXE_ark-fake-runtime"), &[fixture("demo.jsonl")], None, Arc::new(|| {})).expect("spawn");
     let mut model = Model::default();
     pump(&bridge, &mut model, |m| m.conn == Conn::Ready && m.current.is_some());
 
@@ -48,7 +48,7 @@ fn text_send_and_approval_round_trip() {
 
 #[test]
 fn a_dead_runtime_shows_down() {
-    let bridge = Bridge::spawn("/usr/bin/false", &[], Arc::new(|| {})).expect("spawn");
+    let bridge = Bridge::spawn("/usr/bin/false", &[], None, Arc::new(|| {})).expect("spawn");
     let mut model = Model::default();
     pump(&bridge, &mut model, |m| matches!(m.conn, Conn::Down(_)));
     assert_eq!(model.conn, Conn::Down("The runtime stopped (exit 1).".into()));

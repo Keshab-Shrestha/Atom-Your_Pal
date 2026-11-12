@@ -1,6 +1,5 @@
 //! The app state `S` that Rune holds, and the setup and poll hooks.
 
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use ark_protocol::Event;
@@ -60,27 +59,16 @@ pub fn init() -> App {
     App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen }
 }
 
-/// The runtime program and its arguments: `ARK_RUNTIME_BIN` (the `ark-runtime` forwarder, or the
-/// program next to this app) and `ARK_RUNTIME_ARGS` (the default starts Node, like the Swift app).
-fn runtime_command() -> (String, Vec<String>) {
-    let bin = std::env::var("ARK_RUNTIME_BIN").unwrap_or_else(|_| {
-        let sibling = std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.join("ark-runtime")));
-        sibling.unwrap_or_else(|| PathBuf::from("ark-runtime")).to_string_lossy().into_owned()
-    });
-    let args = match std::env::var("ARK_RUNTIME_ARGS") {
-        Ok(args) => args.split_whitespace().map(str::to_owned).collect(),
-        Err(_) => ["node", "--env-file-if-exists=.env", "apps/mac/src/main.ts", "--island"].map(str::to_owned).to_vec(),
-    };
-    (bin, args)
-}
-
 /// Starts the runtime child once, with the waker that redraws the window when an event arrives.
 pub fn setup(app: &mut App, wake: Waker) {
     if std::env::var_os("ARK_UI_EVENTS").is_some() {
         return;
     }
-    let (bin, args) = runtime_command();
-    match Bridge::spawn(&bin, &args, Arc::clone(&wake)) {
+    #[cfg(target_os = "macos")]
+    crate::mac::install(Arc::clone(&wake));
+    let plan = crate::launch::real_plan();
+    let bin = plan.program.clone();
+    match Bridge::spawn(&plan.program, &plan.args, plan.cwd.as_deref(), Arc::clone(&wake)) {
         Ok(bridge) => {
             app.bridge = Some(bridge);
             // Native clients ask for the work snapshots (docs/island-protocol.md, chat.work).
@@ -92,8 +80,15 @@ pub fn setup(app: &mut App, wake: Waker) {
 
 /// Runs at the start of every frame: moves what the bridge queued into the model.
 pub fn poll(app: &mut App, _: f64, _: &mut Tx) -> bool {
-    let Some(bridge) = &app.bridge else { return false };
     let mut changed = false;
+    #[cfg(target_os = "macos")]
+    for action in crate::mac::take_actions() {
+        if action == crate::mac::Action::NewChat {
+            app.new_chat();
+        }
+        changed = true;
+    }
+    let Some(bridge) = &app.bridge else { return changed };
     for message in bridge.drain() {
         changed |= match message {
             Inbound::Event(event) => app.model.apply(&event),
@@ -111,6 +106,11 @@ impl App {
         if let Some(bridge) = &self.bridge {
             bridge.send(command);
         }
+    }
+
+    pub fn new_chat(&mut self) {
+        self.screen = Screen::Chat;
+        self.send(&ark_protocol::Command::ChatNew { project_id: None });
     }
 
     /// Opens a screen and asks the runtime for the data it shows.

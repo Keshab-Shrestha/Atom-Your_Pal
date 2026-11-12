@@ -57,3 +57,33 @@ pub fn on_key(app: &mut App, ev: &rune::KeyEvent, _: &mut rune::Tx) -> bool {
     }
     false
 }
+
+fn chord(item: rune::MenuItem<App>, keys: &str) -> rune::MenuItem<App> {
+    match keys.parse() {
+        Ok(shortcut) => item.key_equivalent(shortcut),
+        Err(_) => item,
+    }
+}
+
+/// The native menu: New Chat in File-like "Chat", the screens in "Go".
+pub fn menu_items() -> Vec<rune::MenuItem<App>> {
+    use rune::MenuItem;
+    let go = |title: &str, screen: Screen, keys: &str| {
+        let item = match screen {
+            Screen::Agents => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Agents)),
+            Screen::Tasks => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Tasks)),
+            Screen::Dashboard => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Dashboard)),
+            Screen::Settings => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Settings)),
+            Screen::Chat => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Chat)),
+        };
+        chord(item.id(format!("go-{title}")).menu("Go"), keys)
+    };
+    vec![
+        chord(MenuItem::new("New Chat", |s: &mut App, _| s.new_chat()).id("new-chat").menu("Chat"), "cmd+n"),
+        go("Chat", Screen::Chat, "cmd+1"),
+        go("Agents", Screen::Agents, "cmd+2"),
+        go("Tasks", Screen::Tasks, "cmd+3"),
+        go("Dashboard", Screen::Dashboard, "cmd+4"),
+        go("Settings", Screen::Settings, "cmd+,"),
+    ]
+}
