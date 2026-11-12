@@ -26,6 +26,8 @@ pub struct Native {
     feed: Mutex<Feed>,
     /// `helpers.list` answered by Rust (opt-in, `ARK_HELPERS_NATIVE=1`).
     helpers: Option<HelpersNative>,
+    /// `talk.*` answered by Rust (opt-in, `ARK_SPEECH_NATIVE=1`).
+    talk: Option<crate::talk::TalkNative>,
 }
 
 /// The change feed: one connection whose `PRAGMA data_version` changes when another connection commits.
@@ -39,7 +41,7 @@ struct Feed {
 
 impl Native {
     pub fn new(memory_db: PathBuf) -> Native {
-        Native { memory_db, brain_watched: AtomicBool::new(false), memory_watched: AtomicBool::new(false), feed: Mutex::new(Feed::default()), helpers: None }
+        Native { memory_db, brain_watched: AtomicBool::new(false), memory_watched: AtomicBool::new(false), feed: Mutex::new(Feed::default()), helpers: None, talk: None }
     }
 
     /// The Helpers change bus, when Rust owns the Helpers page.
@@ -52,6 +54,12 @@ impl Native {
         if let Some(helpers) = &self.helpers {
             helpers.attach_chat_runner(chat);
         }
+    }
+
+    /// Lets Rust answer `talk.*`.
+    pub fn with_talk(mut self, talk: Option<crate::talk::TalkNative>) -> Native {
+        self.talk = talk;
+        self
     }
 
     /// Lets Rust answer `helpers.list`.
@@ -76,6 +84,7 @@ impl Native {
     /// milliseconds. It sends nothing until `brain.get` or `memory.list` was answered, and nothing for a view that did not change.
     pub fn poll_changes(&self) -> Vec<String> {
         let mut lines = Vec::new();
+        lines.extend(self.talk.as_ref().and_then(crate::talk::TalkNative::poll));
         if let Some(helpers) = &self.helpers {
             helpers.pump();
             lines.extend(helpers.quiet_event());
@@ -139,11 +148,14 @@ impl Native {
         let dotenv = std::fs::read_to_string(folder.join(".env")).unwrap_or_default();
         let lookup = |name: &str| env(name).filter(|v| !v.is_empty()).or_else(|| dotenv_value(&dotenv, name));
         let file = ["ARK_MEMORY_FILE", "ATOM_MEMORY_FILE", "ZENO_MEMORY_FILE"].iter().find_map(|name| lookup(name)).unwrap_or_else(|| "data/memory.db".into());
-        Native::new(folder.join(file)).with_helpers(HelpersNative::from_environment(folder, |name| lookup(name)))
+        Native::new(folder.join(file)).with_helpers(HelpersNative::from_environment(folder, |name| lookup(name))).with_talk(crate::talk::TalkNative::from_environment(|name| lookup(name)))
     }
 
     /// The line to send to the app for `line`, or `None` to forward `line` to Node.
     pub fn try_answer(&self, line: &str) -> Option<String> {
+        if let Some(reply) = self.talk.as_ref().and_then(|t| t.answer(line)) {
+            return Some(reply);
+        }
         if let Some(reply) = self.helpers.as_ref().and_then(|h| h.answer(line)) {
             return Some(reply);
         }
