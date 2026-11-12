@@ -123,3 +123,17 @@ fn a_picked_file_shows_as_a_chip() {
     let tree = tree_after("attach", "chat.jsonl", Some(steps));
     assert!(tree.contains("notes.txt"), "the chip for the picked file is missing");
 }
+
+#[test]
+fn find_in_chat_counts_matches() {
+    let tree = fresh("find-tree.json");
+    let out = Command::new(env!("CARGO_BIN_EXE_ark-app"))
+        .args(["--tree", tree.to_str().expect("utf-8")])
+        .env("ARK_UI_EVENTS", fixture("chat.jsonl"))
+        .env("ARK_UI_FIND", "crates")
+        .output()
+        .expect("ark-app starts");
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let text = std::fs::read_to_string(&tree).expect("tree written");
+    assert!(text.contains(" of ") && text.contains("Previous") && text.contains("List the crates."), "the find bar lacks its parts");
+}

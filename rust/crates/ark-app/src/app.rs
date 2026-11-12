@@ -29,6 +29,8 @@ pub struct App {
     pub sidebar: PaneState,
     pub screen: Screen,
     /// An open form (soul, new agent, new task); it replaces the page while it is open.
+    /// The find bar: the query and the selected match. None when the bar is closed.
+    pub find: Option<(TextEdit, usize)>,
     /// Files attached to the next message (paths).
     pub attachments: Vec<String>,
     pub form: Option<crate::form::Form>,
@@ -63,7 +65,9 @@ pub fn init() -> App {
         Ok("dashboard") => Screen::Dashboard,
         _ => Screen::Chat,
     };
-    App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen, attachments: Vec::new(), form: None, form_error: None }
+    // Tests and snapshots open the find bar with a query.
+    let find = std::env::var("ARK_UI_FIND").ok().map(|q| (TextEdit::new(q), 0));
+    App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen, find, attachments: Vec::new(), form: None, form_error: None }
 }
 
 /// Starts the runtime child once, with the waker that redraws the window when an event arrives.
@@ -158,6 +162,26 @@ impl App {
         }
         self.send(&ark_protocol::Command::BriefSet { change });
         self.send(&ark_protocol::Command::BriefGet);
+    }
+
+    pub fn toggle_find(&mut self) {
+        self.screen = Screen::Chat;
+        self.find = match self.find {
+            Some(_) => None,
+            None => {
+                let mut q = TextEdit::new("");
+                q.focused = true;
+                Some((q, 0))
+            }
+        };
+    }
+
+    /// Moves the selected match by `step` (1 or -1), wrapping.
+    pub fn move_find(&mut self, step: isize) {
+        let count = self.find.as_ref().map_or(0, |(q, _)| ark_ui::find::find(&self.model.messages, &q.text).matches.len());
+        if let (Some((_, sel)), true) = (self.find.as_mut(), count > 0) {
+            *sel = (*sel as isize + step).rem_euclid(count as isize) as usize;
+        }
     }
 
     pub fn open_form(&mut self, form: crate::form::Form) {

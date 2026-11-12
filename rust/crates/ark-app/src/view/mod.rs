@@ -84,6 +84,7 @@ pub fn menu_items() -> Vec<rune::MenuItem<App>> {
     };
     vec![
         chord(MenuItem::new("New Chat", |s: &mut App, _| s.new_chat()).id("new-chat").menu("Chat"), "cmd+n"),
+        chord(MenuItem::new("Find in Chat", |s: &mut App, _| s.toggle_find()).id("find-in-chat").menu("Chat"), "cmd+f"),
         go("Chat", Screen::Chat, "cmd+1"),
         go("Agents", Screen::Agents, "cmd+2"),
         go("Tasks", Screen::Tasks, "cmd+3"),

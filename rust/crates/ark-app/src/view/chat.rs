@@ -211,11 +211,40 @@ fn composer(app: &App, k: &Kit) -> El {
     c.child(row().key("composer-row").w_full().gap(8.0).items_end().child(attach).child(col().grow(1.0).min_w(0.0).child(input.w_full())).child(send))
 }
 
+fn find_bar(app: &App, k: &Kit) -> Option<El> {
+    let (query, selected) = app.find.as_ref()?;
+    let results = ark_ui::find::find(&app.model.messages, &query.text);
+    let count = if results.matches.is_empty() { "0 matches".to_owned() } else { format!("{} of {}{}", selected % results.matches.len() + 1, results.matches.len(), if results.more { "+" } else { "" }) };
+    let input = TextArea::new(query)
+        .placeholder("Find in loaded messages")
+        .label("Find in chat")
+        .auto_grow(1, 1)
+        .on_edit(|s: &mut App| &mut s.find.get_or_insert_with(|| (rune::TextEdit::new(""), 0)).0)
+        .on_submit(|s: &mut App, _| s.move_find(1))
+        .build(k)
+        .key("find-input");
+    let none = results.matches.is_empty();
+    let step = |label: &'static str, by: isize| Button::new(label).disabled(none).on_press(move |s: &mut App| s.move_find(by)).build(k).key(format!("find-{label}"));
+    let detail = match results.selected(*selected) {
+        Some(m) => text(format!("{}{}[{}]{}", if m.user { "You: " } else { "ARK: " }, m.before, m.found, m.after)).key("find-detail").font(k.ty.small).color(k.c.text_muted).wrap(),
+        None => text("Searches the loaded messages only, not archived history.").key("find-detail").font(k.ty.small).color(k.c.text_faint),
+    };
+    Some(
+        col().key("find-bar").w_full().max_w(COLUMN).gap(4.0).padding(8.0).child(
+            row().w_full().gap(8.0).items_center().child(col().grow(1.0).min_w(0.0).child(input.w_full())).child(text(count).key("find-count").font(k.ty.small).color(k.c.text_muted)).child(step("Previous", -1)).child(step("Next", 1)).child(Button::new("Close").on_press(|s: &mut App| s.toggle_find()).build(k).key("find-close")),
+        ).child(detail),
+    )
+}
+
 pub fn view(app: &App, k: &Kit) -> El {
     let mut bottom = col().w_full().items_center().padding(16.0).gap(8.0);
     if let Some(banner) = &app.model.banner {
         bottom = bottom.child(text(banner.clone()).key("banner").font(k.ty.small).color(k.c.danger.fg).wrap());
     }
     bottom = bottom.child(composer(app, k));
-    col().key("chat").w_full().h_full().min_h(0.0).child(transcript(app, k)).child(bottom)
+    let mut chat = col().key("chat").w_full().h_full().min_h(0.0).items_center();
+    if let Some(bar) = find_bar(app, k) {
+        chat = chat.child(bar);
+    }
+    chat.child(transcript(app, k)).child(bottom)
 }
