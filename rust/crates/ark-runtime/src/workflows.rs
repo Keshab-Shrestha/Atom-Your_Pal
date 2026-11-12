@@ -115,7 +115,7 @@ fn step_agents(w: &Value) -> Vec<String> {
 }
 
 /// The stored list, each one checked again (a damaged entry is skipped). `None` when the file is not JSON.
-fn read(path: &Path, now: Timestamp) -> Option<Vec<Value>> {
+pub(crate) fn read(path: &Path, now: Timestamp) -> Option<Vec<Value>> {
     if !path.exists() {
         return Some(Vec::new());
     }
@@ -124,7 +124,7 @@ fn read(path: &Path, now: Timestamp) -> Option<Vec<Value>> {
     Some(list.iter().filter_map(|w| check_workflow(w, &step_agents(w), now, &|| None).ok().flatten()).collect())
 }
 
-fn write(path: &Path, list: &[Value]) -> Option<()> {
+pub(crate) fn write(path: &Path, list: &[Value]) -> Option<()> {
     use std::os::unix::fs::PermissionsExt;
     std::fs::create_dir_all(path.parent()?).ok()?;
     let tmp = path.with_extension(format!("{}.tmp", std::process::id()));
@@ -134,7 +134,7 @@ fn write(path: &Path, list: &[Value]) -> Option<()> {
 }
 
 /// The `workflows` event: each published schedule workflow with its next time.
-fn event(list: &[Value], problem: Option<&str>) -> String {
+pub(crate) fn event(list: &[Value], problem: Option<&str>) -> String {
     let now = jiff::Zoned::now();
     let items: Vec<Value> = list
         .iter()

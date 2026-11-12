@@ -25,8 +25,13 @@ fn line_of(value: &Value) -> String {
 }
 
 impl Extras {
+    /// Takes `line` when it is one of these commands. `false` means: give it to Node.
+    pub fn handle(&self, chat: &Arc<Chat>, line: &str, to_app: &Sink) -> bool {
+        self.project(chat, line, to_app) || workflow(chat, line, to_app)
+    }
+
     /// `project.create` and `project.create.cancel`.
-    pub fn project(&self, chat: &Arc<Chat>, line: &str, to_app: &Sink) -> bool {
+    fn project(&self, chat: &Arc<Chat>, line: &str, to_app: &Sink) -> bool {
         if !line.contains("\"project.create") {
             return false;
         }
@@ -103,5 +108,24 @@ impl Extras {
                 receipts.pop_front();
             }
         }
+    }
+}
+
+/// `workflow.run` (`workflow_run.rs`). Needs the helpers file, and the Rust runner that runs the queued tasks.
+fn workflow(chat: &Arc<Chat>, line: &str, to_app: &Sink) -> bool {
+    if !line.contains("\"workflow.run\"") || std::env::var("ARK_HELPERS_NATIVE").as_deref() == Ok("0") {
+        return false;
+    }
+    let Ok(command) = serde_json::from_str::<Value>(line) else { return false };
+    let (Some("workflow.run"), Some(id), Some(dir)) = (command["type"].as_str(), command["id"].as_str(), chat.db.parent()) else { return false };
+    let Ok(helpers) = store::open_read_write(&dir.join("helpers.db")) else { return false };
+    let now = jiff::Timestamp::now();
+    let Ok(problem) = crate::workflow_run::start(dir, &helpers, id, now) else { return false };
+    match crate::workflow_run::event(dir, now, problem.as_deref()) {
+        Some(event) => {
+            to_app(&event);
+            true
+        }
+        None => false,
     }
 }

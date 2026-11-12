@@ -306,7 +306,7 @@ impl Chat {
             }
             _ => {}
         }
-        if self.extras.project(self, line, &to_app) {
+        if self.extras.handle(self, line, &to_app) {
             return true;
         }
         if let Some(result) = self.project_command(&command) {
