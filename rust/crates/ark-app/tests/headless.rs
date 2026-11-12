@@ -372,3 +372,16 @@ fn the_search_page_groups_hits() {
         assert!(text.contains(want), "search page lacks {want:?}");
     }
 }
+
+#[test]
+fn a_file_drag_shows_the_drop_hint() {
+    let tree = fresh("drop-tree.json");
+    let out = Command::new(env!("CARGO_BIN_EXE_ark-app"))
+        .args(["--tree", tree.to_str().expect("utf-8")])
+        .env("ARK_UI_EVENTS", fixture("chat.jsonl"))
+        .env("ARK_UI_DROPPING", "1")
+        .output()
+        .expect("ark-app starts");
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(std::fs::read_to_string(&tree).expect("tree written").contains("Drop to attach"));
+}

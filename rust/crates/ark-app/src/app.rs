@@ -64,6 +64,8 @@ pub struct App {
     pub login_note: Option<String>,
     /// The search field.
     pub search_query: TextEdit,
+    /// A file drag is over the chat.
+    pub dropping: bool,
     /// "Forget all facts" waits for the second press.
     pub confirm_clear: bool,
     /// The project whose files are open on the Projects page.
@@ -127,7 +129,7 @@ pub fn init() -> App {
     // Tests and snapshots open the find bar with a query.
     let find = std::env::var("ARK_UI_FIND").ok().map(|q| (TextEdit::new(q), 0));
     let welcome = std::env::var_os("ARK_UI_EVENTS").is_none() && !prefs.welcomed;
-    App { model, bridge: None, draft, sidebar, screen, brain_query: TextEdit::new(std::env::var("ARK_UI_BRAIN_QUERY").unwrap_or_default()), key_draft: TextEdit::new("").secure(), key_note: None, wake: None, backoff: Default::default(), retry_at: None, update_note: None, update_result: Default::default(), login_note: None, search_query: { let mut t = TextEdit::new(std::env::var("ARK_UI_SEARCH").unwrap_or_default()); t.focused = false; t }, confirm_clear: false, workspace_project: None, recording: None, details: std::env::var_os("ARK_UI_DETAILS").is_some(), open_job: std::env::var("ARK_UI_JOB").ok().and_then(|v| v.parse().ok()), prefs, confirm_full: false, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: welcome.then(|| crate::form::Form::owner(true, "")), form_error: None }
+    App { model, bridge: None, draft, sidebar, screen, brain_query: TextEdit::new(std::env::var("ARK_UI_BRAIN_QUERY").unwrap_or_default()), key_draft: TextEdit::new("").secure(), key_note: None, wake: None, backoff: Default::default(), retry_at: None, update_note: None, update_result: Default::default(), login_note: None, search_query: { let mut t = TextEdit::new(std::env::var("ARK_UI_SEARCH").unwrap_or_default()); t.focused = false; t }, dropping: std::env::var_os("ARK_UI_DROPPING").is_some(), confirm_clear: false, workspace_project: None, recording: None, details: std::env::var_os("ARK_UI_DETAILS").is_some(), open_job: std::env::var("ARK_UI_JOB").ok().and_then(|v| v.parse().ok()), prefs, confirm_full: false, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: welcome.then(|| crate::form::Form::owner(true, "")), form_error: None }
 }
 
 /// Starts the runtime child once, with the waker that redraws the window when an event arrives.
@@ -475,6 +477,17 @@ impl App {
             return true;
         }
         self.workspace_project.take().is_some()
+    }
+
+    /// Files dropped on the chat become attachments of the next message. Folders and repeats are skipped.
+    pub fn attach_dropped(&mut self, files: &[std::path::PathBuf]) {
+        self.dropping = false;
+        for f in files.iter().filter(|f| f.is_file()) {
+            let path = f.to_string_lossy().into_owned();
+            if !self.attachments.contains(&path) {
+                self.attachments.push(path);
+            }
+        }
     }
 
     pub fn toggle_find(&mut self) {

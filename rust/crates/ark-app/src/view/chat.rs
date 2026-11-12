@@ -323,5 +323,10 @@ pub fn view(app: &App, k: &Kit) -> El {
     if let Some(card) = details_card(app, k) {
         chat = chat.child(card);
     }
+    if app.dropping {
+        chat = chat.child(text("Drop to attach").key("drop-hint").font(k.ty.ui_medium).color(k.c.warning.fg));
+    }
     chat.child(transcript(app, k)).child(bottom)
+        .on_drop_files(|s: &mut App, files: &[std::path::PathBuf], _: &mut rune::Tx| s.attach_dropped(files))
+        .on_drop_hover(|s: &mut App, over: bool, _: &mut rune::Tx| s.dropping = over)
 }
