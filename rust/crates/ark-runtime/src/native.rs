@@ -12,6 +12,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use ark_protocol::{Command, Event, Parsed, parse_command};
 
+use crate::helpers_native::HelpersNative;
 use crate::{brain, memory};
 
 /// Where the Rust side reads from.
@@ -23,6 +24,8 @@ pub struct Native {
     /// `memory.list` was answered: from now on a change of the Memory page is pushed (as Node does after its own `memory.list`).
     memory_watched: AtomicBool,
     feed: Mutex<Feed>,
+    /// `helpers.list` answered by Rust (opt-in, `ARK_HELPERS_NATIVE=1`).
+    helpers: Option<HelpersNative>,
 }
 
 /// The change feed: one connection whose `PRAGMA data_version` changes when another connection commits.
@@ -36,7 +39,20 @@ struct Feed {
 
 impl Native {
     pub fn new(memory_db: PathBuf) -> Native {
-        Native { memory_db, brain_watched: AtomicBool::new(false), memory_watched: AtomicBool::new(false), feed: Mutex::new(Feed::default()) }
+        Native { memory_db, brain_watched: AtomicBool::new(false), memory_watched: AtomicBool::new(false), feed: Mutex::new(Feed::default()), helpers: None }
+    }
+
+    /// Lets Rust answer `helpers.list`.
+    pub fn with_helpers(mut self, helpers: Option<HelpersNative>) -> Native {
+        self.helpers = helpers;
+        self
+    }
+
+    /// A line Node sent to the app.
+    pub fn observe_node_line(&self, line: &str) {
+        if let Some(helpers) = &self.helpers {
+            helpers.observe(line);
+        }
     }
 
     /// The memory file path.
@@ -101,11 +117,14 @@ impl Native {
         let dotenv = std::fs::read_to_string(folder.join(".env")).unwrap_or_default();
         let lookup = |name: &str| env(name).filter(|v| !v.is_empty()).or_else(|| dotenv_value(&dotenv, name));
         let file = ["ARK_MEMORY_FILE", "ATOM_MEMORY_FILE", "ZENO_MEMORY_FILE"].iter().find_map(|name| lookup(name)).unwrap_or_else(|| "data/memory.db".into());
-        Native::new(folder.join(file))
+        Native::new(folder.join(file)).with_helpers(HelpersNative::from_environment(folder, |name| lookup(name)))
     }
 
     /// The line to send to the app for `line`, or `None` to forward `line` to Node.
     pub fn try_answer(&self, line: &str) -> Option<String> {
+        if let Some(reply) = self.helpers.as_ref().and_then(|h| h.answer(line)) {
+            return Some(reply);
+        }
         let Parsed::Command(command) = parse_command(line) else { return None };
         let reply = match *command {
             Command::BrainNote { id } => {

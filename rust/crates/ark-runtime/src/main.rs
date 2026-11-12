@@ -220,10 +220,14 @@ fn main() {
             route_lines(io::stdin().lock(), writer, native.as_deref(), chat, services.as_ref(), io::stdout())
         });
     }
+    let native_for_node = native.clone();
     let to_app = thread::spawn(move || {
         let observe = |line: &str| {
             if let Some(chat) = &chat {
                 chat.observe(line);
+            }
+            if let Some(native) = &native_for_node {
+                native.observe_node_line(line);
             }
         };
         if forward_lines(BufReader::new(child_out), io::stdout(), observe).is_err() {
