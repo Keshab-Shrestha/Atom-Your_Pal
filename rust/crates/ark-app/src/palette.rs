@@ -9,6 +9,7 @@ pub enum Action {
     NewChat,
     Go(Screen),
     Find,
+    Details,
     OpenChat(String),
 }
 
@@ -20,7 +21,7 @@ pub struct Entry {
 
 /// Every entry, before the filter: actions first, then screens, then chats (newest first as the runtime sends them).
 pub fn entries(model: &Model) -> Vec<Entry> {
-    let mut out = vec![Entry { title: "New chat".into(), action: Action::NewChat }, Entry { title: "Find in chat".into(), action: Action::Find }];
+    let mut out = vec![Entry { title: "New chat".into(), action: Action::NewChat }, Entry { title: "Find in chat".into(), action: Action::Find }, Entry { title: "Chat details".into(), action: Action::Details }];
     for (title, screen) in [("Agents", Screen::Agents), ("Tasks", Screen::Tasks), ("Memory", Screen::Memory), ("Dashboard", Screen::Dashboard), ("Settings", Screen::Settings)] {
         out.push(Entry { title: format!("Go to {title}"), action: Action::Go(screen) });
     }
@@ -61,6 +62,10 @@ impl App {
                 if self.find.is_none() {
                     self.toggle_find();
                 }
+            }
+            Action::Details => {
+                self.screen = Screen::Chat;
+                self.details = !self.details;
             }
             Action::OpenChat(id) => {
                 self.screen = Screen::Chat;

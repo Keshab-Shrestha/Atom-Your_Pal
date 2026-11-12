@@ -178,3 +178,19 @@ fn a_file_review_shows_the_diff() {
         assert!(tree.contains(want), "the review lacks {want:?}");
     }
 }
+
+#[test]
+fn chat_details_show_the_facts() {
+    let tree = fresh("details-tree.json");
+    let out = Command::new(env!("CARGO_BIN_EXE_ark-app"))
+        .args(["--tree", tree.to_str().expect("utf-8")])
+        .env("ARK_UI_EVENTS", fixture("chat.jsonl"))
+        .env("ARK_UI_DETAILS", "1")
+        .output()
+        .expect("ark-app starts");
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let text = std::fs::read_to_string(&tree).expect("tree written");
+    for want in ["Chat details", "Messages", "New chats start with"] {
+        assert!(text.contains(want), "details lack {want:?}");
+    }
+}

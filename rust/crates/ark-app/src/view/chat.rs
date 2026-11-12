@@ -247,6 +247,25 @@ fn find_bar(app: &App, k: &Kit) -> Option<El> {
     )
 }
 
+fn details_card(app: &App, k: &Kit) -> Option<El> {
+    if !app.details {
+        return None;
+    }
+    let m = &app.model;
+    let chat = m.current.as_deref().and_then(|id| m.chats.iter().find(|c| c.id == id));
+    let fact = |label: &str, value: String| row().w_full().justify_between().gap(12.0).child(text(label.to_owned()).font(k.ty.ui).color(k.c.text_muted)).child(text(value).font(k.ty.ui).color(k.c.text_base).wrap());
+    let mut c = col().key("details").w_full().max_w(COLUMN).gap(6.0).padding(14.0).radius(k.radius.md).fill(k.c.layer_01).border(1.0, k.c.border_weak)
+        .child(text("Chat details").font(k.ty.ui_medium).color(k.c.text_base))
+        .child(fact("Title", m.current_title().to_owned()))
+        .child(fact("Model", format!("{} · {}", m.provider, m.model)))
+        .child(fact("Messages", chat.map_or(m.messages.len() as u64, |c| c.messages).to_string()))
+        .child(fact("New chats start with", crate::prefs::ACCESS.iter().find(|(id, _)| *id == app.prefs.access).map_or("Saved permissions", |(_, l)| *l).to_owned()));
+    if chat.is_some_and(|c| c.read_only) {
+        c = c.child(text("This chat is read only (Telegram or the local API).").font(k.ty.small).color(k.c.text_faint));
+    }
+    Some(c.child(row().justify_end().child(Button::new("Close").on_press(|s: &mut App| s.details = false).build(k).key("details-close"))))
+}
+
 pub fn view(app: &App, k: &Kit) -> El {
     let mut bottom = col().w_full().items_center().padding(16.0).gap(8.0);
     if let Some(banner) = &app.model.banner {
@@ -256,6 +275,9 @@ pub fn view(app: &App, k: &Kit) -> El {
     let mut chat = col().key("chat").w_full().h_full().min_h(0.0).items_center();
     if let Some(bar) = find_bar(app, k) {
         chat = chat.child(bar);
+    }
+    if let Some(card) = details_card(app, k) {
+        chat = chat.child(card);
     }
     chat.child(transcript(app, k)).child(bottom)
 }
