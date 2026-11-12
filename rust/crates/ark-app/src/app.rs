@@ -449,9 +449,13 @@ impl App {
                     self.prefs.welcomed = true;
                     self.prefs.save();
                 }
+                let was_note = matches!(command, ark_protocol::Command::BrainSave { .. });
                 self.send(&command);
                 self.close_form();
                 self.send(&ark_protocol::Command::HelpersList);
+                if was_note {
+                    self.send(&ark_protocol::Command::BrainGet);
+                }
             }
             Err(why) => self.form_error = Some(why.to_owned()),
         }

@@ -10,6 +10,8 @@ pub enum FormKind {
     /// Edit the soul of this helper (id); the name stays.
     Soul { helper: String, name: String },
     NewAgent,
+    /// Write or change a brain note (`Some(id)` changes it).
+    Note { id: Option<u64> },
     /// Make a project: `new` (an empty folder), `git` (a clone of a URL) or `github` (owner/repo).
     ProjectSource { source: &'static str },
     /// Rename this project (id).
@@ -31,6 +33,8 @@ impl Form {
         match &self.kind {
             FormKind::Soul { name, .. } => format!("Soul of {name}"),
             FormKind::NewAgent => "New agent".into(),
+            FormKind::Note { id: None } => "New note".into(),
+            FormKind::Note { id: Some(_) } => "Edit note".into(),
             FormKind::ProjectSource { source: "new" } => "New empty project".into(),
             FormKind::ProjectSource { source: "git" } => "Clone a Git repository".into(),
             FormKind::ProjectSource { .. } => "Clone from GitHub".into(),
@@ -47,6 +51,7 @@ impl Form {
             FormKind::Soul { .. } => &["Personality", "How it works", "Rules", "Lessons"],
             FormKind::NewAgent => &["Name", "Role", "Personality", "How it works", "Rules"],
             FormKind::NewTask { .. } => &["Task"],
+            FormKind::Note { .. } => &["Title", "Note"],
             FormKind::ProjectSource { source: "new" } => &["Name", "Parent folder"],
             FormKind::ProjectSource { source: "git" } => &["Name", "Parent folder", "Repository URL"],
             FormKind::ProjectSource { .. } => &["Name", "Parent folder", "owner/repo"],
@@ -80,6 +85,10 @@ impl Form {
     pub fn project_source(source: &'static str) -> Form {
         let n = if source == "new" { 2 } else { 3 };
         Form::fresh(FormKind::ProjectSource { source }, &vec![""; n])
+    }
+
+    pub fn note(id: Option<u64>, title: &str, body: &str) -> Form {
+        Form::fresh(FormKind::Note { id }, &[title, body])
     }
 
     pub fn new_task(helper: &str) -> Form {
@@ -133,6 +142,12 @@ impl Form {
                     fields["remote"] = self.text(2).into();
                 }
                 Ok(Command::Other { kind: "project.create".into(), fields: fields.as_object().cloned().unwrap_or_default() })
+            }
+            FormKind::Note { id } => {
+                if self.text(0).is_empty() {
+                    return Err("A note needs a title.");
+                }
+                Ok(Command::BrainSave { id: *id, title: self.text(0), body: self.fields.get(1).map(|f| f.text.trim_end().to_owned()).unwrap_or_default() })
             }
             FormKind::NewTask { helper } => {
                 if self.text(0).is_empty() {

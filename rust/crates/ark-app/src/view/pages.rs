@@ -481,12 +481,14 @@ fn note_card(app: &App, k: &Kit) -> Option<El> {
     if !backlinks.is_empty() {
         c = c.child(line(k, "Linked from", backlinks.join(", ")));
     }
+    let (edit_title, edit_body) = (note.title.clone(), note.body.clone());
+    let edit = Button::new("Edit note").on_press(move |s: &mut App| s.open_form(Form::note(Some(id), &edit_title, &edit_body)));
     let delete = Button::new("Delete note").on_press(move |s: &mut App| {
         s.send(&Command::BrainDelete { id });
         s.model.brain_note = None;
         s.send(&Command::BrainGet);
     });
-    Some(c.child(row().justify_end().child(delete.build(k).key("brain-delete"))))
+    Some(c.child(row().justify_end().gap(8.0).child(edit.build(k).key("brain-edit")).child(delete.build(k).key("brain-delete"))))
 }
 
 pub fn memory(app: &App, k: &Kit) -> El {
@@ -572,6 +574,7 @@ pub fn memory(app: &App, k: &Kit) -> El {
         }
         cards.push(brain);
     }
+    cards.insert(0, row().justify_end().child(Button::new("New note").on_press(|s: &mut App| s.open_form(Form::note(None, "", ""))).build(k).key("brain-new")));
     page(k, "memory", "Memory", cards)
 }
 

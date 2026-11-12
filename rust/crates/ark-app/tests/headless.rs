@@ -93,7 +93,7 @@ fn the_sidebar_opens_the_pages() {
         assert!(dashboard.contains(want), "dashboard lacks {want:?}");
     }
     let memory = page("nav-memory", "nav-memory");
-    for want in ["Keshab likes terse answers", "Forget", "Planned the Rust port", "Rune notes", "Open", "Search notes", "Second brain", "Forget all facts", "Rune draws the window", "Graph: 1 notes", "gnode-3"] {
+    for want in ["Keshab likes terse answers", "Forget", "Planned the Rust port", "Rune notes", "Open", "Search notes", "Second brain", "New note", "Forget all facts", "Rune draws the window", "Graph: 1 notes", "gnode-3"] {
         assert!(memory.contains(want), "memory page lacks {want:?}");
     }
     let settings = page("nav-settings", "nav-settings");
@@ -344,4 +344,11 @@ fn gap_report_lists_swift_labels_missing_from_the_rust_screens() {
     }
     std::fs::write(dir.join("gap-report.txt"), &report).expect("report written");
     eprintln!("{report}");
+}
+
+#[test]
+fn a_note_opens_in_the_editor() {
+    let steps = r#"[{"t":0.1,"type":"click","key":"nav-memory"},{"t":0.3,"type":"click","key":"brain-new"}]"#;
+    let tree = tree_after("note-form", "chat.jsonl", Some(steps));
+    assert!(tree.contains("New note") && tree.contains("Title") && tree.contains("Save"), "the note form is missing");
 }
