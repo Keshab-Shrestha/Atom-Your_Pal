@@ -61,15 +61,27 @@ pub fn plan(w: &World) -> Plan {
             program: bin.to_string_lossy().into_owned(),
             args: vec!["/bin/cat".to_owned()],
             cwd,
-            env: vec![("ARK_RUNTIME_NATIVE_CHAT".to_owned(), "1".to_owned())],
+            env: [vec![("ARK_RUNTIME_NATIVE_CHAT".to_owned(), "1".to_owned())], helper_env(w)].concat(),
         },
         Some(bin) => {
             let mut args = vec![node];
             args.extend(custom.unwrap_or_else(node_args));
-            Plan { program: bin.to_string_lossy().into_owned(), args, cwd, env: Vec::new() }
+            Plan { program: bin.to_string_lossy().into_owned(), args, cwd, env: helper_env(w) }
         }
         None => Plan { program: node, args: custom.unwrap_or_else(node_args), cwd, env: Vec::new() },
     }
+}
+
+/// The helpers `scripts/bundle-app.sh` puts next to the app binary, as environment for the runtime child.
+/// An outside setting of the same name wins.
+fn helper_env(w: &World) -> Vec<(String, String)> {
+    let dir = w.exe_dir.as_ref();
+    [("ARK_DICTATION_HELPER", "ark-dictation"), ("ARK_SCREEN_HELPER", "ark-screen")]
+        .into_iter()
+        .filter(|(name, _)| (w.env)(name).is_none())
+        .filter_map(|(name, file)| dir.map(|d| (name, d.join(file))).filter(|(_, p)| (w.exists)(p)))
+        .map(|(name, p)| (name.to_owned(), p.to_string_lossy().into_owned()))
+        .collect()
 }
 
 /// The plan for the real environment.
@@ -99,6 +111,16 @@ mod tests {
         assert_eq!(p.args[0], "/opt/homebrew/bin/node");
         assert_eq!(p.args.last().map(String::as_str), Some("--island"));
         assert_eq!(p.cwd, Some(PathBuf::from("/proj")));
+    }
+
+    #[test]
+    fn the_bundled_helpers_are_passed_to_the_runtime_unless_set_outside() {
+        let files = ["/A/ARK.app/Contents/MacOS/ark-runtime", "/A/ARK.app/Contents/MacOS/ark-dictation", "/A/ARK.app/Contents/MacOS/ark-screen", "/opt/homebrew/bin/node"];
+        let p = run(&[], &files, None);
+        assert_eq!(p.env, [("ARK_DICTATION_HELPER".to_owned(), "/A/ARK.app/Contents/MacOS/ark-dictation".to_owned()), ("ARK_SCREEN_HELPER".to_owned(), "/A/ARK.app/Contents/MacOS/ark-screen".to_owned())]);
+        let q = run(&[("ARK_SCREEN_HELPER", "/mine")], &files, None);
+        assert_eq!(q.env.len(), 1);
+        assert_eq!(q.env[0].0, "ARK_DICTATION_HELPER");
     }
 
     #[test]
