@@ -29,6 +29,8 @@ pub struct App {
     pub sidebar: PaneState,
     pub screen: Screen,
     /// An open form (soul, new agent, new task); it replaces the page while it is open.
+    /// Files attached to the next message (paths).
+    pub attachments: Vec<String>,
     pub form: Option<crate::form::Form>,
     pub form_error: Option<String>,
 }
@@ -61,7 +63,7 @@ pub fn init() -> App {
         Ok("dashboard") => Screen::Dashboard,
         _ => Screen::Chat,
     };
-    App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen, form: None, form_error: None }
+    App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen, attachments: Vec::new(), form: None, form_error: None }
 }
 
 /// Starts the runtime child once, with the waker that redraws the window when an event arrives.
@@ -183,9 +185,8 @@ impl App {
         if text.is_empty() || !self.can_type() {
             return;
         }
-        if let Some(bridge) = &self.bridge {
-            bridge.send_text(&text);
-        }
+        let files = (!self.attachments.is_empty()).then(|| std::mem::take(&mut self.attachments));
+        self.send(&ark_protocol::Command::TextSend { text, files, notes: None, request: None, chat: None });
         self.draft = TextEdit::new("");
         self.draft.focused = true;
     }

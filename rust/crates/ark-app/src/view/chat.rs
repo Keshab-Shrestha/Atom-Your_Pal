@@ -184,7 +184,31 @@ fn composer(app: &App, k: &Kit) -> El {
         .build(k)
         .key("composer");
     let send = Button::new("Send").variant(ButtonVariant::Submit).disabled(!enabled).on_press(|s: &mut App| s.submit()).build(k).key("send");
-    row().key("composer-row").w_full().max_w(COLUMN).gap(8.0).items_end().child(col().grow(1.0).min_w(0.0).child(input.w_full())).child(send)
+    let attach = Button::new("Attach")
+        .disabled(!enabled)
+        .on_press_tx(|_: &mut App, tx: &mut rune::Tx| {
+            tx.open_file(rune::FileDialogOptions { title: "Attach a file".into(), ..Default::default() }, |s: &mut App, result, _| {
+                if let Ok(Some(path)) = result {
+                    s.attachments.push(path.to_string_lossy().into_owned());
+                }
+            });
+        })
+        .build(k)
+        .key("attach");
+    let mut chips = row().key("attachments").w_full().gap(6.0).wrap();
+    for (i, path) in app.attachments.iter().enumerate() {
+        let name = std::path::Path::new(path).file_name().map_or_else(|| path.clone(), |n| n.to_string_lossy().into_owned());
+        chips = chips.child(Button::new(format!("{name}  ×")).on_press(move |s: &mut App| {
+                if i < s.attachments.len() {
+                    s.attachments.remove(i);
+                }
+            }).build(k).key(format!("chip-{i}")));
+    }
+    let mut c = col().key("composer-col").w_full().max_w(COLUMN).gap(6.0);
+    if !app.attachments.is_empty() {
+        c = c.child(chips);
+    }
+    c.child(row().key("composer-row").w_full().gap(8.0).items_end().child(attach).child(col().grow(1.0).min_w(0.0).child(input.w_full())).child(send))
 }
 
 pub fn view(app: &App, k: &Kit) -> El {

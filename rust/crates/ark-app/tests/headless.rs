@@ -116,3 +116,10 @@ fn agent_forms_open_from_the_agents_page() {
     let task = tree_after("form-task", "chat.jsonl", Some(&steps("newtask-sid")));
     assert!(task.contains("New task"), "task form lacks its title");
 }
+
+#[test]
+fn a_picked_file_shows_as_a_chip() {
+    let steps = r#"[{"t":0.1,"type":"click","key":"attach"},{"t":0.4,"type":"file-dialog","path":"/tmp/notes.txt"}]"#;
+    let tree = tree_after("attach", "chat.jsonl", Some(steps));
+    assert!(tree.contains("notes.txt"), "the chip for the picked file is missing");
+}
