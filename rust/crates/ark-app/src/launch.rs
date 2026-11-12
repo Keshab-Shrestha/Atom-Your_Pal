@@ -3,7 +3,7 @@
 //!
 //! - `ARK_RUNTIME=node`: start Node directly (the Swift app's way).
 //! - Otherwise: start the `ark-runtime` forwarder (`ARK_RUNTIME_BIN`, else next to this app) with Node as its child.
-//!   When no forwarder exists, fall back to Node directly.
+//!   When no forwarder exists, fall back to Node directly. With a forwarder but no Node, native chat runs alone.
 //! - `ARK_RUNTIME_ARGS` replaces the program's arguments. `ARK_ROOT` (else `Resources/project-root` in the bundle,
 //!   else the working folder) is the project folder that holds `.env`, `models/` and `apps/mac/src/main.ts`.
 
@@ -14,6 +14,8 @@ pub struct Plan {
     pub program: String,
     pub args: Vec<String>,
     pub cwd: Option<PathBuf>,
+    /// Extra environment for the child.
+    pub env: Vec<(String, String)>,
 }
 
 const NODE_CANDIDATES: [&str; 2] = ["/opt/homebrew/bin/node", "/usr/local/bin/node"];
@@ -26,6 +28,11 @@ pub struct World<'a> {
     pub read: &'a dyn Fn(&Path) -> Option<String>,
     /// The folder of this executable.
     pub exe_dir: Option<PathBuf>,
+}
+
+/// Whether a Node program exists: `ARK_NODE`, or one of the usual places.
+fn node_found(w: &World) -> bool {
+    (w.env)("ARK_NODE").is_some() || NODE_CANDIDATES.iter().any(|p| (w.exists)(Path::new(p)))
 }
 
 fn node_path(w: &World) -> String {
@@ -48,12 +55,20 @@ pub fn plan(w: &World) -> Plan {
     let custom: Option<Vec<String>> = (w.env)("ARK_RUNTIME_ARGS").map(|a| a.split_whitespace().map(str::to_owned).collect());
     let node_args = || NODE_ARGS.map(str::to_owned).to_vec();
     match forwarder.filter(|_| (w.env)("ARK_RUNTIME").as_deref() != Some("node")) {
+        // No Node on this Mac: the Rust runtime answers chat itself (native chat). `/bin/cat` stands in for Node, so a command
+        // only Node knows is dropped instead of ending the runtime. A chat needs a key (the Keychain card or ANTHROPIC_API_KEY).
+        Some(bin) if !node_found(w) && custom.is_none() => Plan {
+            program: bin.to_string_lossy().into_owned(),
+            args: vec!["/bin/cat".to_owned()],
+            cwd,
+            env: vec![("ARK_RUNTIME_NATIVE_CHAT".to_owned(), "1".to_owned())],
+        },
         Some(bin) => {
             let mut args = vec![node];
             args.extend(custom.unwrap_or_else(node_args));
-            Plan { program: bin.to_string_lossy().into_owned(), args, cwd }
+            Plan { program: bin.to_string_lossy().into_owned(), args, cwd, env: Vec::new() }
         }
-        None => Plan { program: node, args: custom.unwrap_or_else(node_args), cwd },
+        None => Plan { program: node, args: custom.unwrap_or_else(node_args), cwd, env: Vec::new() },
     }
 }
 
@@ -84,6 +99,16 @@ mod tests {
         assert_eq!(p.args[0], "/opt/homebrew/bin/node");
         assert_eq!(p.args.last().map(String::as_str), Some("--island"));
         assert_eq!(p.cwd, Some(PathBuf::from("/proj")));
+    }
+
+    #[test]
+    fn no_node_means_native_chat_with_a_stand_in_child() {
+        let p = run(&[], &["/A/ARK.app/Contents/MacOS/ark-runtime"], None);
+        assert_eq!(p.program, "/A/ARK.app/Contents/MacOS/ark-runtime");
+        assert_eq!(p.args, ["/bin/cat"]);
+        assert_eq!(p.env, [("ARK_RUNTIME_NATIVE_CHAT".to_owned(), "1".to_owned())]);
+        // With Node present nothing changes.
+        assert!(run(&[], &["/A/ARK.app/Contents/MacOS/ark-runtime", "/opt/homebrew/bin/node"], None).env.is_empty());
     }
 
     #[test]

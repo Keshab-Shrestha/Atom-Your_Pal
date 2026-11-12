@@ -104,7 +104,8 @@ pub fn setup(app: &mut App, wake: Waker) {
     app.apply_shortcuts();
     let plan = crate::launch::real_plan();
     let bin = plan.program.clone();
-    let env = crate::keychain::env_pairs(&|n| std::env::var(n).ok());
+    let mut env = crate::keychain::env_pairs(&|n| std::env::var(n).ok());
+    env.extend(plan.env.clone());
     match Bridge::spawn_with_env(&plan.program, &plan.args, plan.cwd.as_deref(), &env, Arc::clone(&wake)) {
         Ok(bridge) => {
             app.bridge = Some(bridge);
