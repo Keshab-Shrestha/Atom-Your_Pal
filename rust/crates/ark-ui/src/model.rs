@@ -262,6 +262,8 @@ pub const BRIEF_SWITCHES: [(&str, &str); 9] = [
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Model {
+    /// Links between notes (`brain` event, `edges`): (a, b).
+    pub brain_edges: Vec<(u64, u64)>,
     pub branches: Option<Vec<Branch>>,
     /// A branch's patch (`git.diff`): repo, branch, text.
     pub branch_diff: Option<(String, String, String)>,
@@ -550,6 +552,7 @@ impl Model {
                 })
             }
             "brain" => {
+                self.brain_edges = objects(map, "edges").map(|e| (u64_of(e, "a"), u64_of(e, "b"))).collect();
                 self.brain = Some(
                     objects(map, "nodes")
                         .map(|n| BrainNode { id: u64_of(n, "id"), title: str_of(n, "title"), kind: str_of(n, "kind"), ghost: bool_of(n, "ghost") })

@@ -479,6 +479,9 @@ pub fn memory(app: &App, k: &Kit) -> El {
         }
         cards.push(found);
     }
+    if let Some(nodes) = app.model.brain.as_ref().filter(|n| !n.is_empty()) {
+        cards.push(brain_graph(nodes, &app.model.brain_edges, k));
+    }
     if let Some(nodes) = &app.model.brain {
         let mut brain = card(k, "brain-notes", "Brain notes");
         for n in nodes.iter().filter(|n| !n.ghost).take(80) {
@@ -583,4 +586,34 @@ pub fn branches(app: &App, k: &Kit) -> El {
         cards.push(d);
     }
     page(k, "branches", "Branches", cards)
+}
+
+const GRAPH_W: f32 = 680.0;
+const GRAPH_H: f32 = 300.0;
+/// Notes drawn at most; the layout cost grows with the square of this.
+const GRAPH_MAX: usize = 120;
+
+/// The brain as a graph: links as lines, notes as dots (bigger when more linked), laid out by `ark_ui::graph`.
+fn brain_graph(nodes: &[ark_ui::BrainNode], edges: &[(u64, u64)], k: &Kit) -> El {
+    let shown: Vec<&ark_ui::BrainNode> = nodes.iter().filter(|n| !n.ghost).take(GRAPH_MAX).collect();
+    let ids: Vec<u64> = shown.iter().map(|n| n.id).collect();
+    let placed = ark_ui::graph::layout(&ids, edges, GRAPH_W, GRAPH_H);
+    let at = |id: u64| placed.iter().find(|p| p.id == id).map(|p| [p.x, p.y]);
+    let mut shape = rune::Shape::new().view_box(GRAPH_W, GRAPH_H);
+    let mut drawn = 0;
+    for (a, b) in edges {
+        if let (Some(pa), Some(pb)) = (at(*a), at(*b)) {
+            shape = shape.line(pa, pb, 1.0, rune::LineCap::Round, k.c.border_weak);
+            drawn += 1;
+        }
+    }
+    for p in &placed {
+        let degree = edges.iter().filter(|(a, b)| *a == p.id || *b == p.id).count();
+        let r = 3.0 + (degree as f32).min(8.0) * 0.6;
+        let ring: Vec<[f32; 2]> = (0..10).map(|i| { let t = std::f32::consts::TAU * i as f32 / 10.0; [p.x + r * t.cos(), p.y + r * t.sin()] }).collect();
+        shape = shape.fill(ring, k.c.text_base);
+    }
+    col().key("brain-graph").w_full().gap(6.0).padding(14.0).radius(k.radius.md).fill(k.c.layer_01).border(1.0, k.c.border_weak)
+        .child(text(format!("Graph: {} notes, {} links", placed.len(), drawn)).font(k.ty.ui_medium).color(k.c.text_base))
+        .child(rune::canvas(shape).w(GRAPH_W).h(GRAPH_H))
 }

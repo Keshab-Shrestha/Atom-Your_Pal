@@ -93,7 +93,7 @@ fn the_sidebar_opens_the_pages() {
         assert!(dashboard.contains(want), "dashboard lacks {want:?}");
     }
     let memory = page("nav-memory", "nav-memory");
-    for want in ["Keshab likes terse answers", "Forget", "Planned the Rust port", "Rune notes", "Open", "Search the brain", "Rune draws the window"] {
+    for want in ["Keshab likes terse answers", "Forget", "Planned the Rust port", "Rune notes", "Open", "Search the brain", "Rune draws the window", "Graph: 1 notes"] {
         assert!(memory.contains(want), "memory page lacks {want:?}");
     }
     let settings = page("nav-settings", "nav-settings");
