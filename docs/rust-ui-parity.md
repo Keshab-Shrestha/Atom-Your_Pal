@@ -87,7 +87,24 @@ Rust logic comes from `ark-core` where a module exists.
 | IslandController+Drop | drop files on the chat to attach them |
 | AgentCursorController (step text) | the computer agent's current step shows in the status pill. The cursor itself is not drawn |
 
-Still open: the agent cursor drawing and point-at overlay, workflows canvas, plugins, skills hub, local backup, brief views, reply drafts, plan views, workspace browser and terminal, pal and pet.
+## Done in the seventh round
+
+| Swift source | ark-app |
+| --- | --- |
+| WorkflowsPane (list, routines, new, run, on/off, delete) | `view/automations.rs`, Automations page (cmd+8). The workflows canvas (drag and wire steps) is not built: a form takes steps as lines |
+| PluginsView | `view/plugins.rs`: MCP servers (add, on, trusted, test, remove), skill drafts and skill edits (approve, reject, undo) |
+| HubSkillsView | Skills hub page: search, scan flags, approve, update, uninstall |
+| LocalBackupPane | `view/tools.rs`: address and model, check, forget, send a message, clear |
+| ReplyDraftPane | Reply drafts page: private note lookup, one draft, Copy. Examples are not sent |
+| PlanViews, PlanNotesViews | Plans page: approve or reject a task plan, work plan parts, marks per part, Send notes (puts them in the composer). Free-text words on a note are not built |
+| WorkspaceBrowserView, WorkspaceTerminalView | `view/workspace.rs`: the address opens in the default browser (Rune has no web view). The terminal runs one command at a time in the project folder (no PTY) |
+| AgentCursorController, IslandController+Pointing | `pointer.rs`: a click-through cursor dot (`computer.cursor`) and a ring with a label (`computer.point`). Not tried in a live window |
+| PalView, PetController, OrbitCharacter | `pet.rs`: Pal at the bottom right, a simple vector drawing with five moods. Off by default (Settings). No walking, no pointer gaze, no sprite file |
+
+The new screens have no Go menu keys beyond cmd+8, cmd+9, cmd+0 and cmd+shift+P, R, B, T.
+Every screen has a headless test in `tests/more.rs` that uses `fixtures/more.jsonl`.
+
+Still open: brief views (prepared brief cards), the workflows canvas, the Swift Pal sprite drawing, plan note words.
 
 ## Tests added
 
@@ -100,13 +117,11 @@ Still open: the agent cursor drawing and point-at overlay, workflows canvas, plu
 - Native first run needs a chat database and `ui-state.json` that Node creates. Without them native chat cannot list or save chats.
 - Brain graph labels and click on a dot.
 - Project settings sheet details (folder grants) and the git workspace review (`gitStatus`, `gitReview`).
-- The workspace browser and terminal (see below).
 - Real translucent fills (blur) in the sidebar and panels.
 
 ## Not planned for the first Rust release
 
-Pal and pet (PalView, PetController, OrbitCharacter), office floor, workflows canvas, workspace browser and terminal,
-reply drafts, plugins, local backup, updater. Each needs its own decision.
+Office floor, workflows canvas, updater. Each needs its own decision.
 
 ## Parity check
 
