@@ -90,8 +90,11 @@ pub fn poll(app: &mut App, _: f64, _: &mut Tx) -> bool {
     let mut changed = false;
     #[cfg(target_os = "macos")]
     for action in crate::mac::take_actions() {
-        if action == crate::mac::Action::NewChat {
-            app.new_chat();
+        match action {
+            crate::mac::Action::NewChat => app.new_chat(),
+            crate::mac::Action::DictateStart => app.send(&ark_protocol::Command::TalkStart),
+            crate::mac::Action::DictateSend => app.send(&ark_protocol::Command::TalkSend),
+            crate::mac::Action::Show => {}
         }
         changed = true;
     }

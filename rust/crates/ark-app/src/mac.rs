@@ -14,6 +14,59 @@ use objc2_foundation::NSString;
 pub enum Action {
     Show,
     NewChat,
+    /// Right Command and Right Option went down: start dictating.
+    DictateStart,
+    /// One of them came up: send what was said.
+    DictateSend,
+}
+
+/// The device-dependent modifier bits of a flags-changed event (IOKit `NX_DEVICERCMDKEYMASK`, `NX_DEVICERALTKEYMASK`).
+const RIGHT_COMMAND: usize = 0x10;
+const RIGHT_OPTION: usize = 0x40;
+
+/// The dictation chord (hold Right Command + Right Option). Gives the action to queue when `held` changes.
+pub fn chord_step(held: bool, flags: usize) -> Option<Action> {
+    let both = flags & (RIGHT_COMMAND | RIGHT_OPTION) == RIGHT_COMMAND | RIGHT_OPTION;
+    match (held, both) {
+        (false, true) => Some(Action::DictateStart),
+        (true, false) => Some(Action::DictateSend),
+        _ => None,
+    }
+}
+
+/// Watches the modifier keys in every app. macOS asks for Input Monitoring the first time; without it no event arrives.
+fn watch_chord() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    static HELD: AtomicBool = AtomicBool::new(false);
+    let handler = block2::RcBlock::new(|event: std::ptr::NonNull<objc2_app_kit::NSEvent>| {
+        // SAFETY: AppKit passes a live event for the duration of the call.
+        let flags = unsafe { event.as_ref() }.modifierFlags().bits();
+        let held = HELD.load(Ordering::SeqCst);
+        if let Some(action) = chord_step(held, flags) {
+            HELD.store(action == Action::DictateStart, Ordering::SeqCst);
+            push(action);
+        }
+    });
+    let monitor = objc2_app_kit::NSEvent::addGlobalMonitorForEventsMatchingMask_handler(objc2_app_kit::NSEventMask::FlagsChanged, &handler);
+    KEEP.with(|k| {
+        if let Some(m) = monitor {
+            // SAFETY: the monitor is an opaque AppKit token that only needs to stay alive.
+            k.borrow_mut().push(unsafe { Retained::cast_unchecked(m) });
+        }
+    });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_chord_starts_when_both_right_keys_are_down_and_sends_when_one_lifts() {
+        assert_eq!(chord_step(false, RIGHT_COMMAND), None);
+        assert_eq!(chord_step(false, RIGHT_COMMAND | RIGHT_OPTION), Some(Action::DictateStart));
+        assert_eq!(chord_step(true, RIGHT_COMMAND | RIGHT_OPTION), None);
+        assert_eq!(chord_step(true, RIGHT_OPTION), Some(Action::DictateSend));
+    }
 }
 
 static QUEUE: Mutex<Vec<Action>> = Mutex::new(Vec::new());
@@ -86,6 +139,7 @@ pub fn install(wake: rune::Waker) {
         menu.addItem(&entry);
     }
     item.setMenu(Some(&menu));
+    watch_chord();
     KEEP.with(|k| {
         let mut k = k.borrow_mut();
         k.push(target.into_super());
