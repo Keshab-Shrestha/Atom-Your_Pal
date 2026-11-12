@@ -3025,3 +3025,5 @@ Keshab's list after trying the first batch. One capability at a time; each is it
   - Telegram and workflow listeners on the Rust bus.
   - Native retry plans of a chat.
   - Push a `helpers` event when a task becomes quiet.
+- Also done: `helpers_settings.rs` makes `helper.planFirst`, `helper.browser`, `agent.pause` and `helpers.settings` native. The app now gets a new `helpers` event when a task becomes quiet.
+- Residual commands: about 130 of the 166 commands in `island.ts` have no native handler. This is a rough count from string matches. Typed commands in `native.rs` (memory, brain, chats) are counted wrongly as forwarded. The largest groups are `skill.*` (hub, edit, approve), `project.*`, `routine.*`, `workflow.*`, `suggestions.*`, `mcp.*`, `improvement.*`, `brief.*`, `foreground.*`, `reply.*` and `talk.*`.
