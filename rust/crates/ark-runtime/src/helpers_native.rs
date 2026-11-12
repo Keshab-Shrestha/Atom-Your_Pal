@@ -52,6 +52,29 @@ impl HelpersNative {
         runner.schedule();
     }
 
+    /// The folder of the kept file copies (`checkpoints` beside the helpers file, as in `runtime.ts`).
+    fn checkpoints_dir(&self) -> PathBuf {
+        self.db.parent().map_or_else(|| PathBuf::from("checkpoints"), |p| p.join("checkpoints"))
+    }
+
+    /// `job.undo`, and `job.delete` of an ended task that kept file copies: the copies are rows and files, so both live here.
+    fn files(&self, conn: &rusqlite::Connection, command: &Value) -> Option<()> {
+        match command["type"].as_str()? {
+            "job.undo" => crate::helpers_checkpoints::undo_job(conn, &self.checkpoints_dir(), self.host.home.as_deref()?, command),
+            "job.delete" => {
+                let id = command["id"].as_i64()?;
+                let job = helpers_life::get(conn, id).filter(|j| j.state.is_final())?;
+                let copies: i64 = conn.query_row("SELECT COUNT(*) FROM checkpoints WHERE job_id = ?", [id], |r| r.get(0)).ok()?;
+                if copies == 0 || !helpers_life::remove(conn, job.id).ok()? {
+                    return None;
+                }
+                crate::helpers_checkpoints::forget_dir(&self.checkpoints_dir(), id);
+                Some(())
+            }
+            _ => None,
+        }
+    }
+
     /// The change a life command asks for, in one write; `None` for another command or a refusal (Node gives the words).
     fn life(&self, conn: &rusqlite::Connection, command: &Value) -> Option<()> {
         self.runner.lock().ok()?.as_ref()?;
@@ -75,8 +98,9 @@ impl HelpersNative {
             // A task that ended is deleted by `helpers_write` (it knows the kept file copies); one that runs is stopped first.
             "job.delete" => {
                 let job = helpers_life::get(conn, id?).filter(|j| !j.state.is_final())?;
-                let copies: i64 = conn.query_row("SELECT COUNT(*) FROM checkpoints WHERE job_id = ?", [job.id], |r| r.get(0)).ok()?;
-                (copies == 0).then(|| helpers_life::remove(conn, job.id).ok()).flatten().filter(|gone| *gone).map(|_| ())
+                helpers_life::remove(conn, job.id).ok().filter(|gone| *gone).map(|_| ())?;
+                crate::helpers_checkpoints::forget_dir(&self.checkpoints_dir(), job.id);
+                Some(())
             }
             _ => None,
         }
@@ -129,14 +153,14 @@ impl HelpersNative {
     /// the event; `None` sends the line to Node. A write is made only when the event can be built after it, so the app
     /// never waits for a push that Node does not know about.
     pub fn answer(&self, line: &str) -> Option<String> {
-        if !["\"helpers.list\"", "\"job.", "\"skill.", "\"proposal.", "\"helper.planFirst\"", "\"helper.browser\"", "\"agent.pause\"", "\"helpers.settings\"", "\"routine."].iter().any(|k| line.contains(k)) {
+        if !["\"helpers.list\"", "\"job.", "\"skill.", "\"proposal.", "\"helper.planFirst\"", "\"helper.browser\"", "\"agent.pause\"", "\"helpers.settings\"", "\"routine.", "\"mcp.set\"", "\"mcp.add\"", "\"mcp.remove\""].iter().any(|k| line.contains(k)) {
             return None;
         }
         let command: Value = serde_json::from_str(line).ok()?;
         let cached = self.cached.lock().ok()?.clone()?;
         if command["type"] != "helpers.list" {
             let conn = crate::store::open_read_write(&self.db).ok()?;
-            if self.life(&conn, &command).is_none() && crate::helpers_settings::apply(&conn, &command).is_none() && crate::helpers_routine_edit::apply(&conn, &command, &self.agents).is_none() {
+            if self.life(&conn, &command).is_none() && self.files(&conn, &command).is_none() && crate::helpers_settings::apply(&conn, &command).is_none() && crate::helpers_routine_edit::apply(&conn, &command, &self.agents).is_none() && crate::helpers_mcp_edit::apply(&conn, &command, &self.agents).is_none() {
                 helpers_write::apply(&conn, &command)?;
             }
             self.pump();

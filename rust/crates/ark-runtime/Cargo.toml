@@ -10,12 +10,15 @@ ark-agent = { version = "0.0.1", path = "../ark-agent" }
 ark-core = { version = "0.0.1", path = "../ark-core" }
 ark-llm = { version = "0.0.1", path = "../ark-llm" }
 ark-protocol = { version = "0.0.1", path = "../ark-protocol" }
+ark-speech = { version = "0.0.1", path = "../ark-speech" }
 ark-telegram = { version = "0.0.1", path = "../ark-telegram" }
 jiff = "0.2"
 libc = "0.2"
 rusqlite = { version = "0.42.0", features = ["bundled"] }
 serde = "1"
+sha2 = "0.10"
 serde_json = { version = "1.0.154", features = ["float_roundtrip"] } # exact floats: the usage dollars must read back the same
+url = "2"
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "time"] }
 
 [lints]
