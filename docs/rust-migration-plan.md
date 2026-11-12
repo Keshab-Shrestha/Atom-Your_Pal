@@ -235,7 +235,7 @@ Every PR follows CLAUDE.md §3 and §21: one capability, tests, verify, docs, st
 
 ### Phase 0: toolchain, Rune copy, hello window (3 to 4 PRs)
 
-- Status: PR 1 (Phase 0.1) is done. It adds the `rust/` workspace, toolchain 1.99.1, the Rune copy at `b556a38`, the `ark-hello` window (headless PNG and `--tree`) and the CI job `rust`. The text, window and native-view spike checks are still open.
+- Status: PR 1 (Phase 0.1) is done. It adds the `rust/` workspace, toolchain 1.99.1, the Rune copy at `b556a38`, the `ark-hello` window (headless PNG and `--tree`) and the CI job `rust`. PR 2 (Phase 0.2) adds the spike crate `ark-spike` and records the spike results in `docs/rust-phase-0-results.md`. The checks that need a person (IME, dictation, emoji picker, VoiceOver speech, second display with a normal desktop, the real blur) are in `rust/crates/ark-spike/CHECKLIST.md` for the owner.
 - Scope: `rust/` workspace, pinned toolchain, Rune copy at `b556a38`, CI job `rust` on `macos-latest` (`cargo test`, `cargo clippy`), `ark-app` hello window.
 - Deliverables: a headless PNG and `--tree` JSON of the hello window as CI artifacts; `UPSTREAM.md`; `THIRD_PARTY.txt`.
 - Spike checks, build: clean and incremental build time; binary size. Record the numbers in STATUS.md.
@@ -357,15 +357,17 @@ Every PR follows CLAUDE.md §3 and §21: one capability, tests, verify, docs, st
 
 ## 10. To verify in Phase 0 (this migration plan did not check these claims by build)
 
-- Rune builds with toolchain 1.99.1 on the CI macOS image. Record the build time.
-- The changes between `b556a38` and `40504db3` on `dev`.
-- Rune's AccessKit adapter works with VoiceOver (README sections disagree).
-- Non-activating panels on all Spaces, including full-screen Spaces (README sections disagree).
-- macOS dictation and Japanese IME in a Rune text field.
-- `NSStatusItem`, `.hudWindow` material and `WKWebView` work next to the Metal layer of Rune.
-- The embed host runs inside a SwiftUI view with keyboard and IME input.
-- The installed `claude` has the flags for option 2B: stream-json input and output, `--mcp-config`, `--strict-mcp-config`, `--permission-prompt-tool`, `--settings` hooks, `--resume`. Hooks from `--settings` run with no other setting sources.
-- The licences of every crate in the Rune subset.
+Results: `docs/rust-phase-0-results.md` (Phase 0.2, 12 November 2026). "Done" means checked by build or on screen. "Owner" means the owner runs it with `rust/crates/ark-spike/CHECKLIST.md`.
+
+- Rune builds with toolchain 1.99.1 on the CI macOS image. Record the build time. Done on macOS locally (Phase 0.1); the CI time is open until the branch is pushed.
+- The changes between `b556a38` and `40504db3` on `dev`. Done (Phase 0.1, STATUS.md).
+- Rune's AccessKit adapter works with VoiceOver (README sections disagree). Done: the AccessKit tree reaches the macOS Accessibility API with roles, labels and identifiers, and `AXPress` and set-value actions work. The heading role is "Heading", not "AXHeading". VoiceOver speech: owner.
+- Non-activating panels on all Spaces, including full-screen Spaces (README sections disagree). Done: an `App::overlay` panel shows on the second display over a full-screen Space. `WindowOptions::overlay` windows do not show over a full-screen Space. Hover in a panel works only while the app is active (needs a patch).
+- macOS dictation and Japanese IME in a Rune text field. Owner. Keys, undo and paste forms work (headless and live).
+- `NSStatusItem`, `.hudWindow` material and `WKWebView` work next to the Metal layer of Rune. Done: the status item works. `.hudWindow` and `WKWebView` work after the spike lifts Rune's Metal layer (zPosition), as Rune's own material host does. The web page is not in the accessibility tree (needs a patch).
+- The embed host runs inside a SwiftUI view with keyboard and IME input. Done for drawing and typed keys (SwiftPM program `rust/crates/ark-spike/embed-host`). IME: owner.
+- The installed `claude` has the flags for option 2B: stream-json input and output, `--mcp-config`, `--strict-mcp-config`, `--permission-prompt-tool`, `--settings` hooks, `--resume`. Done for 2.1.312: all flags exist (`--permission-prompt-tool` is hidden from `--help`). Hooks from `--settings` run with no other setting sources: open, Phase 2 spike.
+- The licences of every crate in the Rune subset. Done (Phase 0.1, `rust/THIRD_PARTY.txt`).
 
 ## 11. Credit
 

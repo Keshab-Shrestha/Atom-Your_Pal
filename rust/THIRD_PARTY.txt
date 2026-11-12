@@ -238,3 +238,8 @@ The Phase 4 app bundle ships this file.
    zmij v1.0.23 MIT
    zune-core v0.5.3 MIT OR Apache-2.0 OR Zlib
    zune-jpeg v0.5.15 MIT OR Apache-2.0 OR Zlib
+
+4. Crates only in the ark-spike build (Phase 0.2 spike checks; ARK does not ship ark-spike)
+   ark-spike adds one crate to the list in section 3:
+
+   objc2-web-kit v0.3.2 Zlib OR Apache-2.0 OR MIT

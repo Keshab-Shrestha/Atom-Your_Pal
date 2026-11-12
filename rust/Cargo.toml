@@ -6,6 +6,7 @@ resolver = "3"
 members = [
     "crates/ark-core",
     "crates/ark-hello",
+    "crates/ark-spike",
     "vendor/rune/crates/rune",
     "vendor/rune/crates/rune-kit",
     "vendor/rune/crates/rune-motion",

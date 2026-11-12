@@ -37,7 +37,9 @@ jobs:
           restore-keys: rust-${{ runner.os }}-${{ runner.arch }}-1.99.1-
       - run: cargo build --locked
       - run: cargo clippy --locked -p ark-core -p ark-hello --all-targets --no-deps -- -D warnings
-      # The default members: ark-core (with its TypeScript parity fixtures) and ark-hello.
+      # The Phase 0.2 spike (ADR-278): build and lint only. Its checks need a screen and a person.
+      - run: cargo build --locked -p ark-spike
+      - run: cargo clippy --locked -p ark-spike --all-targets --no-deps -- -D warnings
       - run: cargo test --locked
       - run: |
           mkdir -p "$RUNNER_TEMP/ark-hello"
