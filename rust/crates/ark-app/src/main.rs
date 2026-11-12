@@ -17,6 +17,10 @@ fn main() {
         ..AppSpec::<App>::new("ARK", (1040.0, 700.0), app::init, view::view)
     };
     let mut app = rune::App::new(spec).chrome(CHROME);
+    // ADR-277: a transparent window needs the choice before it opens, so a change applies after a restart.
+    if std::env::var_os("ARK_UI_EVENTS").is_none() && ark_app::prefs::Prefs::load().translucent {
+        app = app.window_options(rune::WindowOptions { transparent: true, ..Default::default() });
+    }
     overlay::install(app.overlay(overlay::spec(), overlay::Pill::default()));
     for item in view::menu_items() {
         app = app.menu_item(item);

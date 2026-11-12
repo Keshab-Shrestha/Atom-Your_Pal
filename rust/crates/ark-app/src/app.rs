@@ -206,6 +206,11 @@ impl App {
         self.prefs.save();
     }
 
+    pub fn set_translucent(&mut self, on: bool) {
+        self.prefs.translucent = on;
+        self.prefs.save();
+    }
+
     pub fn set_effort(&mut self, effort: &str) {
         self.prefs.effort = effort.to_owned();
         self.prefs.save();

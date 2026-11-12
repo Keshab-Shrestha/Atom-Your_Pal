@@ -117,7 +117,11 @@ pub fn settings(app: &App, k: &Kit) -> El {
                 .key(format!("theme-{label}")),
         );
     }
-    let appearance = card(k, "settings-appearance", "Appearance").child(look);
+    let translucent = app.prefs.translucent;
+    let glass = row().w_full().justify_between().items_center()
+        .child(text("Translucent window (applies after a restart)").font(k.ty.ui).color(k.c.text_base))
+        .child(Button::new(if translucent { "On" } else { "Off" }).variant(if translucent { ButtonVariant::Submit } else { ButtonVariant::Neutral }).on_press(move |s: &mut App| s.set_translucent(!translucent)).build(k).key("translucent"));
+    let appearance = card(k, "settings-appearance", "Appearance").child(look).child(glass);
     let general = card(k, "settings-general", "General")
         .child(line(k, "ARK calls you", if app.prefs.owner.is_empty() { "Not set".into() } else { app.prefs.owner.clone() }))
         .child(row().justify_end().child(Button::new("Change name").on_press(|s: &mut App| {

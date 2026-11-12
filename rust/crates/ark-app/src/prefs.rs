@@ -27,11 +27,13 @@ pub struct Prefs {
     pub owner: String,
     /// The welcome window was answered (saved or skipped).
     pub welcomed: bool,
+    /// The window is transparent where the app draws nothing (ADR-277). Read when the window opens.
+    pub translucent: bool,
 }
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { access: "checked".into(), effort: String::new(), theme: Theme::System, owner: String::new(), welcomed: false }
+        Prefs { access: "checked".into(), effort: String::new(), theme: Theme::System, owner: String::new(), welcomed: false, translucent: false }
     }
 }
 
@@ -53,6 +55,7 @@ impl Prefs {
             effort: pick("effort", &EFFORT, ""),
             owner: v["owner"].as_str().unwrap_or_default().chars().take(40).collect(),
             welcomed: v["welcomed"].as_bool().unwrap_or(false),
+            translucent: v["translucent"].as_bool().unwrap_or(false),
             theme: match v["theme"].as_str() {
                 Some("light") => Theme::Light,
                 Some("dark") => Theme::Dark,
@@ -67,7 +70,7 @@ impl Prefs {
             Theme::Light => "light",
             Theme::Dark => "dark",
         };
-        json!({ "access": self.access, "effort": self.effort, "theme": theme, "owner": self.owner, "welcomed": self.welcomed }).to_string()
+        json!({ "access": self.access, "effort": self.effort, "theme": theme, "owner": self.owner, "welcomed": self.welcomed, "translucent": self.translucent }).to_string()
     }
 
     pub fn load() -> Prefs {
@@ -128,7 +131,7 @@ mod tests {
 
     #[test]
     fn round_trips_and_ignores_bad_values() {
-        let p = Prefs { access: "full".into(), effort: "high".into(), theme: Theme::Dark, owner: "Keshab".into(), welcomed: true };
+        let p = Prefs { access: "full".into(), effort: "high".into(), theme: Theme::Dark, owner: "Keshab".into(), welcomed: true, translucent: true };
         assert_eq!(Prefs::parse(&p.to_json()), p);
         assert_eq!(Prefs::parse(r#"{"access":"root","effort":"High!","theme":"neon"}"#), Prefs::default());
         assert_eq!(Prefs::parse("not json"), Prefs::default());
