@@ -1313,4 +1313,6 @@ Older steps are in TASK.md.
 - Each command has a fixture test. A TypeScript script in `rust/scripts/` makes the fixture. The Rust test must leave the same files and rows.
 - Rust and Node both write `workflows.json` and `improvements.json`. Node reads each file again when its time stamp changes.
 - A command goes to Node when Rust cannot give the exact answer. The reasons are in `TASK.md`.
-- Not done: `project.create`, `workflow.run`, `suggestions.get`, `suggestions.accept`, `suggestions.undo`, `improvements.run`, `brief.*` and `memory.keepChat`.
+- Now native too: `project.create`, `workflow.run`, `improvements.run`, `brief.get`, `brief.set`, `brief.run`, `suggestions.accept`, `suggestions.undo` and `memory.keepChat`. They use the chat engine, so they need `ARK_RUNTIME_NATIVE_CHAT=1`.
+- Still in Node: `suggestions.get` (Node owns the receipts of facts kept by themselves), `brief.note` with `included` true, and the scheduled brief (it has the calendar, weather and timers).
+- The local embedder is `tract-onnx` with the same 8-bit ONNX model as Node. Its vectors have cosine 0.99 to the TypeScript ones. The model files are not in the repository. Rust downloads them once with `curl` when they are missing.
