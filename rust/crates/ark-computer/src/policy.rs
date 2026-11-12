@@ -36,7 +36,7 @@ impl Policy for ComputerPolicy {
         };
         let ask = |summary: String| Decision::Ask { summary, reason: "ARK moves the mouse and keys on your Mac only after you say yes.".into() };
         match action {
-            Action::Status | Action::Screen => Decision::Allow,
+            Action::Status | Action::Screen | Action::Screenshot | Action::Tree | Action::Point { .. } => Decision::Allow,
             Action::Move { x, y } => ask(format!("Move the pointer to ({x:.0}, {y:.0})")),
             Action::Click { x, y, double } => ask(format!("{} at ({x:.0}, {y:.0})", if double { "Double-click" } else { "Click" })),
             Action::Type { text } => ask(format!("Type {} characters", text.chars().count())),

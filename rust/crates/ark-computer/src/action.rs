@@ -10,6 +10,12 @@ pub const MAX_SCROLL: i32 = 200;
 pub enum Action {
     Status,
     Screen,
+    /// A PNG of the main display, written to a file (reading).
+    Screenshot,
+    /// The Accessibility elements of the front app, as text (reading).
+    Tree,
+    /// Shows the point marker at a place. Posts no input.
+    Point { x: f64, y: f64 },
     Move { x: f64, y: f64 },
     Click { x: f64, y: f64, double: bool },
     Type { text: String },
@@ -31,6 +37,9 @@ pub fn parse_action(input: &Map<String, Value>) -> Result<Action, String> {
     Ok(match name {
         "status" => Action::Status,
         "screen" => Action::Screen,
+        "screenshot" => Action::Screenshot,
+        "tree" => Action::Tree,
+        "point" => Action::Point { x: number(input, "x")?, y: number(input, "y")? },
         "move" => Action::Move { x: number(input, "x")?, y: number(input, "y")? },
         "click" | "double_click" => Action::Click { x: number(input, "x")?, y: number(input, "y")?, double: name == "double_click" },
         "type" => {
@@ -45,7 +54,7 @@ pub fn parse_action(input: &Map<String, Value>) -> Result<Action, String> {
             let axis = |k: &str| input.get(k).and_then(Value::as_i64).unwrap_or(0).clamp(-i64::from(MAX_SCROLL), i64::from(MAX_SCROLL)) as i32;
             Action::Scroll { dx: axis("dx"), dy: axis("dy") }
         }
-        other => return Err(format!("\"{other}\" is not a computer action. Use: status, screen, move, click, double_click, type, key, scroll.")),
+        other => return Err(format!("\"{other}\" is not a computer action. Use: status, screen, screenshot, tree, point, move, click, double_click, type, key, scroll.")),
     })
 }
 

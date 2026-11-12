@@ -19,6 +19,18 @@ pub trait Backend: Send {
     fn screen_size(&self) -> (f64, f64);
     /// Performs one input action (`Action::Status` and `Action::Screen` never reach a backend).
     fn perform(&mut self, action: &Action) -> Result<(), String>;
+    /// Writes a PNG of the main display and returns a one-line description with its path.
+    fn screenshot(&mut self) -> Result<String, String> {
+        Err("Screenshots need the live backend and the screen helper.".into())
+    }
+    /// The Accessibility elements of the front app, as text.
+    fn tree(&mut self) -> Result<String, String> {
+        Err("The element tree needs the live backend and the screen helper.".into())
+    }
+    /// Shows the point marker. It posts no input.
+    fn point(&mut self, _x: f64, _y: f64) -> Result<(), String> {
+        Err("The point marker needs the live backend and the screen helper.".into())
+    }
 }
 
 /// Records the effects in a list the test can read. It never posts an event.
@@ -45,7 +57,7 @@ impl Backend for DryRun {
             Action::Type { text } => Effect::Type(text.clone()),
             Action::Key { combo } => Effect::Key(combo.clone()),
             Action::Scroll { dx, dy } => Effect::Scroll(*dx, *dy),
-            Action::Status | Action::Screen => return Ok(()),
+            Action::Status | Action::Screen | Action::Screenshot | Action::Tree | Action::Point { .. } => return Ok(()),
         };
         self.effects.lock().map_err(|_| "dry-run list is poisoned".to_string())?.push(effect);
         Ok(())
@@ -61,7 +73,12 @@ mod live {
     use core_graphics::event::{CGEvent, CGEventFlags, CGEventTapLocation, CGEventType, CGMouseButton, ScrollEventUnit};
     use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
 
+    use std::path::PathBuf;
+
+    use serde_json::json;
+
     use super::{Action, Backend};
+    use crate::screen::ScreenHelper;
     use crate::policy::normalized;
 
     /// The environment variable that must be `1` before `Live::arm` works.
@@ -72,6 +89,8 @@ mod live {
     /// permission for the process; without it the system drops the events (ARK does not request it here).
     pub struct Live {
         source: CGEventSource,
+        screen: Option<ScreenHelper>,
+        shots: u32,
     }
 
     // SAFETY: the source is only used from the one thread that holds the `Mutex<Box<dyn Backend>>` in `ComputerTool`.
@@ -83,7 +102,21 @@ mod live {
                 return Err("Live computer input is off. It needs the owner's switch and ARK_COMPUTER_LIVE=1.".into());
             }
             let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState).map_err(|()| "The system refused an event source.".to_string())?;
-            Ok(Live { source })
+            Ok(Live { source, screen: None, shots: 0 })
+        }
+
+        /// `arm`, then the screen helper named by `ARK_SCREEN_HELPER` (the bundle script sets it). No helper is not an error:
+        /// input works, and `screenshot`, `tree` and `point` say the helper is missing.
+        pub fn from_env(owner_approved: bool, env: impl Fn(&str) -> Option<String>) -> Result<Live, String> {
+            let mut live = Live::arm(owner_approved, &env)?;
+            if let Some(path) = env("ARK_SCREEN_HELPER") {
+                live.screen = Some(ScreenHelper::spawn(&PathBuf::from(path), &[])?);
+            }
+            Ok(live)
+        }
+
+        fn helper(&mut self) -> Result<&mut ScreenHelper, String> {
+            self.screen.as_mut().ok_or_else(|| "The screen helper is not set up (ARK_SCREEN_HELPER).".to_string())
         }
 
         fn mouse(&self, kind: CGEventType, x: f64, y: f64, clicks: i64) -> Result<(), String> {
@@ -127,6 +160,22 @@ mod live {
     }
 
     impl Backend for Live {
+        fn screenshot(&mut self) -> Result<String, String> {
+            self.shots += 1;
+            let path = std::env::temp_dir().join(format!("ark-screen-{}-{}.png", std::process::id(), self.shots));
+            let reply = self.helper()?.request("screenshot", json!({"path": path.to_string_lossy()}))?;
+            Ok(format!("Screenshot saved at {} ({} x {} pixels).", path.display(), reply["width"], reply["height"]))
+        }
+
+        fn tree(&mut self) -> Result<String, String> {
+            let reply = self.helper()?.request("tree", json!({}))?;
+            Ok(reply["text"].as_str().unwrap_or("").to_string())
+        }
+
+        fn point(&mut self, x: f64, y: f64) -> Result<(), String> {
+            self.helper()?.request("marker", json!({"x": x, "y": y})).map(|_| ())
+        }
+
         fn screen_size(&self) -> (f64, f64) {
             let b = CGDisplay::main().bounds();
             (b.size.width, b.size.height)
@@ -176,7 +225,7 @@ mod live {
                     event.post(CGEventTapLocation::HID);
                     Ok(())
                 }
-                Action::Status | Action::Screen => Ok(()),
+                Action::Status | Action::Screen | Action::Screenshot | Action::Tree | Action::Point { .. } => Ok(()),
             }
         }
     }

@@ -7,12 +7,13 @@
 //! 3. `Backend`: `DryRun` records what would happen and touches nothing. `Live` posts CGEvents and needs two separate
 //!    steps to arm (see `Live::arm`). No test and no default path builds `Live`.
 //!
-//! Not in this step: screenshots and the Accessibility element tree (`look`), the point marker, learned shortcuts, lanes.
-//! Those stay with the Cua driver until they are ported.
+//! Screenshot, Accessibility tree and point marker come from the Swift helper `helpers/ark-screen` (`ScreenHelper`, set by
+//! `ARK_SCREEN_HELPER`); the helper posts no input. Not ported: learned shortcuts, lanes.
 
 mod action;
 mod backend;
 mod policy;
+mod screen;
 mod tool;
 
 pub use action::{Action, parse_action};
@@ -20,4 +21,5 @@ pub use backend::{Backend, DryRun, Effect};
 #[cfg(target_os = "macos")]
 pub use backend::Live;
 pub use policy::ComputerPolicy;
+pub use screen::ScreenHelper;
 pub use tool::ComputerTool;
