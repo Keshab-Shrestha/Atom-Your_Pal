@@ -22,6 +22,11 @@
 - Rune patches found (not made): hover in a panel while another app is active; native child views in the accessibility tree; `.hudWindow` and `.sidebar` cases in `SystemMaterial`. Decide each in Phase 3 (decision 11: patch and open an upstream issue).
 - Next: the owner fills in the checklist. Then Phase 1 starts.
 
+## Rust Phase 2 step 6: LLM Gateway and Anthropic client — 12 November 2026
+
+- Add `rust/crates/ark-llm`: `Provider` trait, `Request`, `Event`, `collect`, and `AnthropicClient` (Messages API, SSE, tool use) tested against a local mock server.
+- Not done: the `claude-bridge` provider (step 2), the Telegram channel and the agent loop.
+
 ## Rust Phase 2 step 5: MCP server in Rust — 12 November 2026
 
 - Add `mcp.rs` (JSON-RPC handler, HTTP client) and the binary `ark-mcp`. Same tools and routes as `mcp-serve.ts`. `ARK_API_PORT` (then `ATOM_`, `ZENO_`) and `ARK_API_TOKEN_FILE` set the target.

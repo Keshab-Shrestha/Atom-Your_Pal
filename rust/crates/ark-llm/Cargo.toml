@@ -1,0 +1,16 @@
+[package]
+name = "ark-llm"
+version = "0.0.1"
+edition.workspace = true
+publish = false
+description = "The LLM Gateway (CLAUDE.md rule 7): a provider trait, an Anthropic Messages API client with SSE streaming, and the claude-bridge provider."
+
+[dependencies]
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "macros", "io-util", "process", "sync", "time", "net"] }
+
+[lints]
+workspace = true

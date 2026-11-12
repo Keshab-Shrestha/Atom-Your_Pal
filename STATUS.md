@@ -26,6 +26,13 @@
 - Verified: `cargo build --locked`, `cargo build --locked -p ark-spike`, clippy `--no-deps -D warnings` for both crates, `cargo test --locked` (2 pass) and `cargo test --locked -p ark-spike` (1 pass). The new lock entries: `ark-spike` and `objc2-web-kit` (Zlib OR Apache-2.0 OR MIT). CI builds and lints `ark-spike` and runs none of its checks.
 - Build: ark-spike adds 36 s to a clean debug build (it builds `rune` again with more objc2 features), 24 s of clippy and 6 s of tests.
 
+## Rust Phase 2 step 6: LLM Gateway and Anthropic client — 12 November 2026
+
+- ADR-278, Phase 2: the new crate `ark-llm` is the LLM Gateway (CLAUDE.md rule 7). It has a `Provider` trait, typed requests, answers and events, and an Anthropic Messages API client with streaming (SSE) and tool use. A tool call comes out whole, after its input JSON is complete.
+- The HTTPS client is `reqwest` with rustls (no openssl, no native-tls) on `tokio`. The key comes from the caller. The crate never stores it.
+- Verified: 4 tests (an SSE parser unit test, and 3 tests against a local mock HTTP server: text and tool use, an HTTP error, an error event and a cut stream). Clippy is clean with `-D warnings`. No live API call.
+- Licences: the crate list is in `rust/THIRD_PARTY.txt` section 6. `rust/scripts/third-party-section.sh` makes it and fails on MPL, GPL or LGPL. None found.
+
 ## Rust Phase 2 step 5: MCP server in Rust — 12 November 2026
 
 - ADR-278, Phase 2: the binary `ark-mcp` is ARK's MCP server over stdio. It has the same 7 `ark_*` tools as `apps/mac/src/mcp-serve.ts`. It calls the local HTTP API with the token from `data/api-token` (plain HTTP/1.1 over a socket, no new crate).
