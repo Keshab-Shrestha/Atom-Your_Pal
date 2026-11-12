@@ -78,3 +78,8 @@ fn marking_a_portion_and_sending_notes_fills_the_composer() {
 fn the_workspace_page_has_a_browser_bar_and_a_terminal_for_the_project_folder() {
     has_all(&tree("terminal", None), &["Workspace", "Atom", "/tmp", "Browser", "Open", "Terminal", "Command", "Run", "Stop", "Clear"]);
 }
+
+#[test]
+fn settings_offer_pal_and_the_overlays_do_not_break_a_headless_draw() {
+    has_all(&tree("settings", None), &["Show Pal, the companion, at the bottom right", "pal-toggle"]);
+}

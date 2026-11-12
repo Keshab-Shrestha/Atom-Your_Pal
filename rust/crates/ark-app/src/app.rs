@@ -267,6 +267,9 @@ pub fn poll(app: &mut App, _: f64, _: &mut Tx) -> bool {
     if let Some(why) = gone {
         schedule_retry(app, why);
     }
+    let needs_you = !app.model.approvals.is_empty();
+    let mood = crate::pet::mood_of(app.model.loop_state, needs_you, matches!(app.model.conn, ark_ui::Conn::Down(_)));
+    crate::pet::sync(app.prefs.pal, mood, crate::overlay::label(app.model.loop_state, needs_you, app.model.computer_step.as_deref()));
     crate::pointer::sync(app.model.computer_cursor, app.model.extras.point.as_ref());
     crate::overlay::sync(app.model.loop_state, !app.model.approvals.is_empty(), app.model.computer_step.as_deref());
     if let Some(answer) = app.update_result.lock().unwrap_or_else(|e| e.into_inner()).take() {
@@ -474,6 +477,11 @@ impl App {
         }
         let fields = serde_json::json!({ "type": "search", "query": query });
         self.send(&ark_protocol::Command::Other { kind: "search".into(), fields: fields.as_object().cloned().unwrap_or_default() });
+    }
+
+    pub fn set_pal(&mut self, on: bool) {
+        self.prefs.pal = on;
+        self.prefs.save();
     }
 
     pub fn set_translucent(&mut self, on: bool) {

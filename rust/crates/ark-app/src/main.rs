@@ -22,6 +22,7 @@ fn main() {
         app = app.window_options(rune::WindowOptions { transparent: true, ..Default::default() });
     }
     overlay::install(app.overlay(overlay::spec(), overlay::Pill::default()));
+    ark_app::pet::install(app.overlay(ark_app::pet::spec(), ark_app::pet::Pet::default()));
     ark_app::pointer::install(app.overlay(ark_app::pointer::cursor_spec(), ark_app::pointer::Cursor), app.overlay(ark_app::pointer::ring_spec(), ark_app::pointer::Ring::default()));
     for item in view::menu_items() {
         app = app.menu_item(item);
