@@ -3,8 +3,10 @@
  "now": "2026-11-01T09:01:03.000Z",
  "nodeParts": {
   "apps": [
-   "Safari",
-   "Xcode"
+   "Final Cut Pro",
+   "Finder",
+   "iTerm",
+   "Safari"
   ],
   "models": [
    {
@@ -15,8 +17,150 @@
   ],
   "skills": [
    {
+    "name": "hubbed",
+    "description": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "source": "ark"
+   },
+   {
+    "name": "net-notes",
+    "description": "Network notes' ",
+    "source": "ark"
+   },
+   {
+    "name": "nodesc",
+    "description": "",
+    "source": "yours"
+   },
+   {
+    "name": "Pdf",
+    "description": "Read PDFs",
+    "source": "yours"
+   },
+   {
     "name": "web-search",
-    "description": "Search the web"
+    "description": "Search the web",
+    "source": "yours"
+   }
+  ]
+ },
+ "catalog": {
+  "sortNames": [
+   "Safari",
+   "safari",
+   "Xcode",
+   "Final Cut Pro",
+   "Final-Cut",
+   "Final_Cut",
+   "DaVinci Resolve",
+   "1Password",
+   "Zoom.us",
+   "iTerm",
+   "iMovie",
+   "App Store",
+   "app_store",
+   "Pages",
+   "pages 2",
+   "Pages 10",
+   "_x",
+   "-x",
+   "x.y",
+   "x y",
+   "X",
+   "x",
+   "a",
+   "B",
+   "b",
+   "A",
+   "web-search",
+   "web_search",
+   "web.search",
+   "web search",
+   "pdf",
+   "PDF",
+   "docx2",
+   "docx10",
+   "ab",
+   "a b",
+   "a-b",
+   "a_b",
+   "a.b",
+   "(x)",
+   "~y",
+   "1a",
+   "a1",
+   "9z"
+  ],
+  "sorted": [
+   "_x",
+   "-x",
+   "(x)",
+   "~y",
+   "1a",
+   "1Password",
+   "9z",
+   "a",
+   "A",
+   "a b",
+   "a_b",
+   "a-b",
+   "a.b",
+   "a1",
+   "ab",
+   "App Store",
+   "app_store",
+   "b",
+   "B",
+   "DaVinci Resolve",
+   "docx10",
+   "docx2",
+   "Final Cut Pro",
+   "Final_Cut",
+   "Final-Cut",
+   "iMovie",
+   "iTerm",
+   "Pages",
+   "Pages 10",
+   "pages 2",
+   "pdf",
+   "PDF",
+   "safari",
+   "Safari",
+   "web search",
+   "web_search",
+   "web-search",
+   "web.search",
+   "x",
+   "X",
+   "x y",
+   "x.y",
+   "Xcode",
+   "Zoom.us"
+  ],
+  "skills": [
+   {
+    "name": "hubbed",
+    "description": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "source": "hub"
+   },
+   {
+    "name": "net-notes",
+    "description": "Network notes' ",
+    "source": "ark"
+   },
+   {
+    "name": "nodesc",
+    "description": "",
+    "source": "yours"
+   },
+   {
+    "name": "Pdf",
+    "description": "Read PDFs",
+    "source": "yours"
+   },
+   {
+    "name": "web-search",
+    "description": "Search the web",
+    "source": "yours"
    }
   ]
  },
@@ -657,8 +801,10 @@
    }
   ],
   "apps": [
-   "Safari",
-   "Xcode"
+   "Final Cut Pro",
+   "Finder",
+   "iTerm",
+   "Safari"
   ],
   "allowLarge": false,
   "models": [
@@ -670,8 +816,29 @@
   ],
   "skills": [
    {
+    "name": "hubbed",
+    "description": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "source": "ark"
+   },
+   {
+    "name": "net-notes",
+    "description": "Network notes' ",
+    "source": "ark"
+   },
+   {
+    "name": "nodesc",
+    "description": "",
+    "source": "yours"
+   },
+   {
+    "name": "Pdf",
+    "description": "Read PDFs",
+    "source": "yours"
+   },
+   {
     "name": "web-search",
-    "description": "Search the web"
+    "description": "Search the web",
+    "source": "yours"
    }
   ],
   "skillDrafts": [

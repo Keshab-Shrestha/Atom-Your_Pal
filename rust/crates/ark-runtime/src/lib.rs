@@ -2,6 +2,7 @@
 
 pub mod ask;
 pub mod helpers_jobs;
+pub mod helpers_catalog;
 pub mod helpers_event;
 pub mod helpers_extras;
 pub mod helpers_native;

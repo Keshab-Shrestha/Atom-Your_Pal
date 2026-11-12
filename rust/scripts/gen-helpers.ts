@@ -9,6 +9,7 @@ import { openHelperStore } from "../../services/helpers/src/store.ts";
 import { islandHelpers } from "../../apps/mac/src/island-helpers.ts";
 import { DatabaseSync } from "node:sqlite";
 import { createOrgStore, orgAgentIds } from "../../apps/mac/src/org.ts";
+import { listSkills } from "../../apps/mac/src/skills.ts";
 import { writeAgent } from "../../services/helpers/src/agents.ts";
 
 const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "crates", "ark-runtime", "tests", "fixtures", "helpers");
@@ -161,14 +162,34 @@ const NOW = usageNow; // 2026-11-01 18:01 in Tokyo; one clock for routines and u
 // The chart: a loop, a gone lead, an unknown agent, and a chain that is too deep.
 writeFileSync(join(dir, "org.json"), JSON.stringify({ version: 1, reportsTo: { kame: "sid", mochi: "ghost", ghost: "sid", scout: "mochi", odd: "scout", hana: "odd", quill: "hana", penny: 5 } }));
 const org = createOrgStore(join(dir, "org.json"), () => orgAgentIds(store.list()));
-const nodeParts = { apps: ["Safari", "Xcode"], models: [{ id: "claude-sonnet-5-5", name: "Sonnet", tier: "small" }], skills: [{ name: "web-search", description: "Search the web" }] };
+// The catalogue: skill and app folders read the way listSkills and installedApps read them, and the sort of localeCompare.
+const catalog = join(dir, "catalog");
+mkdirSync(join(catalog, "apps", "Safari.app"), { recursive: true });
+mkdirSync(join(catalog, "apps", "Final Cut Pro.app"), { recursive: true });
+mkdirSync(join(catalog, "apps", "readme"), { recursive: true });
+mkdirSync(join(catalog, "apps", "iTerm.app"), { recursive: true });
+const skillFile = (root: string, name: string, text: string) => { mkdirSync(join(catalog, root, name), { recursive: true }); writeFileSync(join(catalog, root, name, "SKILL.md"), text); };
+skillFile("yours", "web-search", "---\nname: web-search\ndescription: \"Search the web\"\n---\nBody");
+skillFile("yours", "Pdf", "---\ndescription: Read PDFs\n---\n");
+skillFile("yours", "nodesc", "no front matter");
+skillFile("ark", "net-notes", "---\ndescription: 'Network notes' \n---\n");
+skillFile("ark", "web-search", "---\ndescription: clash\n---\n");
+skillFile("ark", "hubbed", "---\ndescription: " + "d".repeat(300) + "\n---\n");
+mkdirSync(join(catalog, "ark", "no-file"), { recursive: true });
+for (const empty of ["apps/Safari.app", "apps/Final Cut Pro.app", "apps/readme", "apps/iTerm.app", "ark/no-file"]) writeFileSync(join(catalog, empty, ".keep"), ""); // git keeps no empty folder
+const sortNames = ["Safari", "safari", "Xcode", "Final Cut Pro", "Final-Cut", "Final_Cut", "DaVinci Resolve", "1Password", "Zoom.us", "iTerm", "iMovie", "App Store", "app_store", "Pages", "pages 2", "Pages 10", "_x", "-x", "x.y", "x y", "X", "x", "a", "B", "b", "A", "web-search", "web_search", "web.search", "web search", "pdf", "PDF", "docx2", "docx10", "ab", "a b", "a-b", "a_b", "a.b", "(x)", "~y", "1a", "a1", "9z"];
+const catalogExpected = {
+  sortNames, sorted: [...sortNames].sort((a, b) => a.localeCompare(b)),
+  skills: listSkills(join(catalog, "yours"), join(catalog, "ark"), new Set(["hubbed"])),
+};
+const nodeParts = { apps: ["Final Cut Pro", "Finder", "iTerm", "Safari"], models: [{ id: "claude-sonnet-5-5", name: "Sonnet", tier: "small" }], skills: listSkills(join(catalog, "yours"), join(catalog, "ark"), new Set()) }; // the fixture has no hub install
 const island = islandHelpers(store, async () => nodeParts.apps, () => nodeParts.models as never, () => nodeParts.skills, () => NOW, undefined, org);
 const view = JSON.parse(JSON.stringify(island.list()));
 const testCases = JSON.parse(JSON.stringify(island.testCases()));
 // The event as `sendHelpers` in apps/mac/src/island.ts builds it (no skill hub, no Paperclip, no stuck dot).
 const helpersEvent = JSON.parse(JSON.stringify({ type: "helpers", helpers: island.list(), apps: await island.apps(), ...{ allowLarge: island.allowLarge(), models: island.models(), skills: island.skills(), skillDrafts: island.skillDrafts(), skillEdits: island.skillEdits(), testCases: island.testCases(), mcp: island.mcp(), usage: island.usage(), ...(island.plans?.().length ? { plans: island.plans() } : {}) }, ...(island.agentProblems().length ? { agentProblems: island.agentProblems() } : {}) }));
 const extras = JSON.parse(JSON.stringify({ allowLarge: island.allowLarge(), mcp: island.mcp(), skillDrafts: island.skillDrafts(), skillEdits: island.skillEdits(), plans: island.plans(), usage: island.usage(), usageNow: usageNow.toISOString() }));
-writeFileSync(join(dir, "expected.json"), `${JSON.stringify({ source: "apps/mac/src/island-helpers.ts list()", now: NOW.toISOString(), nodeParts, event: helpersEvent, testCases, extras, helpers: view, problems }, null, 1)}\n`);
+writeFileSync(join(dir, "expected.json"), `${JSON.stringify({ source: "apps/mac/src/island-helpers.ts list()", now: NOW.toISOString(), nodeParts, catalog: catalogExpected, event: helpersEvent, testCases, extras, helpers: view, problems }, null, 1)}\n`);
 store.close?.();
 for (const ext of ["-wal", "-shm"]) rmSync(join(dir, `helpers.db${ext}`), { force: true });
 console.log(`helpers: ${view.length} members, ${problems.length} problems`);

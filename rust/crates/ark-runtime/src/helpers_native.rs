@@ -16,13 +16,15 @@ pub struct HelpersNative {
     db: PathBuf,
     agents: PathBuf,
     cached: Mutex<Option<Value>>,
+    host: helpers_event::Host,
 }
 
 impl HelpersNative {
     /// `db` is the helpers file; the agents folder is `agents` beside it (as in `runtime.ts`).
     pub fn new(db: PathBuf) -> HelpersNative {
         let agents = db.parent().map_or_else(|| PathBuf::from("agents"), |p| p.join("agents"));
-        HelpersNative { db, agents, cached: Mutex::new(None) }
+        let host = helpers_event::Host::of_this_mac(&db);
+        HelpersNative { db, agents, cached: Mutex::new(None), host }
     }
 
     /// The helpers file of the runtime started in `folder`: `ARK_HELPERS_FILE` (default `data/helpers.db`), when
@@ -58,7 +60,7 @@ impl HelpersNative {
             helpers_write::apply(&conn, &command)?;
         }
         let conn = helpers_event::open_read_only(&self.db)?;
-        let event = helpers_event::build(&conn, &self.agents, &jiff::Zoned::now(), &cached)?;
+        let event = helpers_event::build(&conn, &self.agents, &jiff::Zoned::now(), &cached, &self.host)?;
         Some(format!("{event}\n"))
     }
 }
@@ -89,13 +91,15 @@ mod tests {
             "ARK_HELPERS_FILE" => Some("helpers.db".to_string()),
             _ => None,
         };
-        let native = HelpersNative::from_environment(&scratch(), on).unwrap();
+        let mut native = HelpersNative::from_environment(&scratch(), on).unwrap();
+        native.host.app_dirs = Vec::new();
+        native.host.user_skills = scratch().join("none");
         assert!(native.answer("{\"type\":\"helpers.list\"}\n").is_none(), "no event from Node yet");
         native.observe("{\"type\":\"helpers\",\"apps\":[\"Safari\"],\"models\":[],\"skills\":[]}\n");
         let line = native.answer("{\"type\":\"helpers.list\"}\n").unwrap();
         let event: Value = serde_json::from_str(&line).unwrap();
         assert_eq!(event["type"], "helpers");
-        assert_eq!(event["apps"][0], "Safari");
+        assert_eq!(event["apps"], serde_json::json!(["Finder"]), "the apps come from the folders, not from Node");
         assert_eq!(event["helpers"].as_array().unwrap().len(), 10);
         assert!(native.answer("{\"type\":\"job.stop\",\"id\":1}\n").is_none(), "stop stays in Node");
         // A write: the label is saved and the new event carries it.
