@@ -180,6 +180,23 @@ pub struct ApiStatus {
     pub error: Option<String>,
 }
 
+/// One task branch (`git` event).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Branch {
+    pub repo: String,
+    pub repo_name: String,
+    pub branch: String,
+    pub title: Option<String>,
+    pub base: String,
+    pub push_allowed: bool,
+    /// no, yes or changed
+    pub pushed: String,
+    /// (sha, subject)
+    pub commits: Vec<(String, String)>,
+    /// (path, added, removed)
+    pub files: Vec<(String, Option<u64>, Option<u64>)>,
+}
+
 /// One project: a folder with its own chats (`chats` event, `projects`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Project {
@@ -243,6 +260,9 @@ pub const BRIEF_SWITCHES: [(&str, &str); 9] = [
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Model {
+    pub branches: Option<Vec<Branch>>,
+    /// A branch's patch (`git.diff`): repo, branch, text.
+    pub branch_diff: Option<(String, String, String)>,
     /// The last brain search: the query and what it found (`brain.hits`).
     pub brain_hits: Option<(String, Vec<ark_protocol::events::BrainHit>)>,
     /// The open chat's own settings (`chats` event): access, model and thinking. Empty: the default applies.
@@ -492,6 +512,24 @@ impl Model {
                 let settings = map.get("settings").and_then(Value::as_object);
                 self.brief = settings.map(|o| BRIEF_SWITCHES.map(|(key, _)| bool_of(o, key)));
             }
+            "git" => {
+                self.branches = Some(
+                    objects(map, "branches")
+                        .map(|b| Branch {
+                            repo: str_of(b, "repo"),
+                            repo_name: str_of(b, "repoName"),
+                            branch: str_of(b, "branch"),
+                            title: opt_str(b, "title"),
+                            base: str_of(b, "base"),
+                            push_allowed: bool_of(b, "pushAllowed"),
+                            pushed: str_of(b, "pushed"),
+                            commits: objects(b, "commits").map(|c| (str_of(c, "sha"), str_of(c, "subject"))).collect(),
+                            files: objects(b, "files").map(|f| (str_of(f, "path"), f.get("added").and_then(Value::as_u64), f.get("removed").and_then(Value::as_u64))).collect(),
+                        })
+                        .collect(),
+                )
+            }
+            "git.diff" => self.branch_diff = Some((str_of(map, "repo"), str_of(map, "branch"), str_of(map, "text"))),
             "thread" => {
                 let report = map.get("report").and_then(Value::as_object);
                 let thread = Thread {

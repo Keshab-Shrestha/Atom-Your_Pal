@@ -19,6 +19,7 @@ pub enum Screen {
     Tasks,
     Memory,
     Projects,
+    Branches,
     Dashboard,
 }
 
@@ -79,6 +80,7 @@ pub fn init() -> App {
         Ok("tasks") => Screen::Tasks,
         Ok("memory") => Screen::Memory,
         Ok("projects") => Screen::Projects,
+        Ok("branches") => Screen::Branches,
         Ok("dashboard") => Screen::Dashboard,
         _ => Screen::Chat,
     };
@@ -174,6 +176,7 @@ impl App {
             Screen::Dashboard => self.send(&ark_protocol::Command::StatsGet),
             Screen::Settings => self.send(&ark_protocol::Command::BriefGet),
             Screen::Projects => {}
+            Screen::Branches => self.send(&ark_protocol::Command::GitList),
             Screen::Chat => {}
         }
     }

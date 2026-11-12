@@ -258,3 +258,12 @@ fn the_name_form_opens_from_settings() {
     let tree = tree_after("owner", "chat.jsonl", Some(steps));
     assert!(tree.contains("Your name") && tree.contains("What should ARK call you?"), "the name form is missing");
 }
+
+#[test]
+fn the_branches_page_shows_commits_files_and_the_patch() {
+    let steps = r#"[{"t":0.2,"type":"click","key":"nav-branches"}]"#;
+    let tree = tree_after("branches", "chat.jsonl", Some(steps));
+    for want in ["Fix the build", "abcdef1 Fix linker flags", "build.rs", "+3 -1", "Push", "Changes on ark/task-3"] {
+        assert!(tree.contains(want), "branches page lacks {want:?}");
+    }
+}

@@ -498,3 +498,42 @@ pub fn projects(app: &App, k: &Kit) -> El {
     }
     page(k, "projects", "Projects", cards)
 }
+
+pub fn branches(app: &App, k: &Kit) -> El {
+    let mut cards = Vec::new();
+    match &app.model.branches {
+        None => cards.push(text("Loading branches…").key("branches-loading").font(k.ty.ui).color(k.c.text_faint)),
+        Some(list) if list.is_empty() => cards.push(text("No task branches yet.").key("branches-empty").font(k.ty.ui).color(k.c.text_faint)),
+        Some(list) => {
+            for (i, b) in list.iter().enumerate() {
+                let (repo, branch, repo2, branch2) = (b.repo.clone(), b.branch.clone(), b.repo.clone(), b.branch.clone());
+                let mut c = card(k, &format!("branch-{i}"), b.title.as_deref().unwrap_or(&b.branch))
+                    .child(text(format!("{} · {} from {} · pushed: {}", b.repo_name, b.branch, b.base, b.pushed)).font(k.ty.small).color(k.c.text_muted).wrap());
+                for (sha, subject) in b.commits.iter().take(5) {
+                    c = c.child(text(format!("{} {subject}", sha.chars().take(7).collect::<String>())).font(k.ty.small).color(k.c.text_base).wrap());
+                }
+                for (path, added, removed) in b.files.iter().take(8) {
+                    c = c.child(line(k, path, format!("+{} -{}", added.map_or("?".into(), |n| n.to_string()), removed.map_or("?".into(), |n| n.to_string()))));
+                }
+                let mut actions = row().justify_end().gap(8.0).child(Button::new("Diff").on_press(move |s: &mut App| s.send(&Command::GitDiff { repo: repo.clone(), branch: branch.clone() })).build(k).key(format!("branch-diff-{i}")));
+                if b.push_allowed {
+                    actions = actions.child(Button::new("Push").on_press(move |s: &mut App| s.send(&Command::GitPush { repo: repo2.clone(), branch: branch2.clone() })).build(k).key(format!("branch-push-{i}")));
+                }
+                cards.push(c.child(actions));
+            }
+        }
+    }
+    if let Some((_, branch, text_diff)) = &app.model.branch_diff {
+        let mut d = card(k, "branch-patch", &format!("Changes on {branch}"));
+        for l in text_diff.lines().take(200) {
+            let ink = match l.chars().next() {
+                Some('+') => k.c.success.fg,
+                Some('-') => k.c.danger.fg,
+                _ => k.c.text_muted,
+            };
+            d = d.child(text(l.to_owned()).font(k.ty.small).color(ink));
+        }
+        cards.push(d);
+    }
+    page(k, "branches", "Branches", cards)
+}
