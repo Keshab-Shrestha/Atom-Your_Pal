@@ -118,7 +118,11 @@ pub fn settings(app: &App, k: &Kit) -> El {
         );
     }
     let appearance = card(k, "settings-appearance", "Appearance").child(look);
-    let mut cards = vec![model, defaults, appearance, connections];
+    let mut shortcuts = card(k, "settings-shortcuts", "Shortcuts");
+    for action in ark_core::shortcuts::ShortcutAction::ALL {
+        shortcuts = shortcuts.child(line(k, crate::prefs::action_title(action), crate::prefs::describe(action)));
+    }
+    let mut cards = vec![model, defaults, appearance, shortcuts, connections];
     if let Some(values) = m.brief {
         let mut brief = card(k, "settings-brief", "Morning brief");
         for (i, ((_, label), on)) in ark_ui::BRIEF_SWITCHES.iter().zip(values).enumerate() {

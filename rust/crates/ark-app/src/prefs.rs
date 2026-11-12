@@ -1,5 +1,6 @@
 //! The app's own saved choices: new-chat defaults and appearance. One small JSON file; a missing or broken file gives the defaults.
 
+use ark_core::shortcuts::{Modifiers, ShortcutAction};
 use serde_json::{Value, json};
 use std::path::PathBuf;
 
@@ -82,9 +83,42 @@ impl Prefs {
     }
 }
 
+/// The words for a key combination, such as "Control + Option + Z" or "Hold Right Command + Right Option".
+pub fn describe(action: ShortcutAction) -> String {
+    let combo = action.default_combo();
+    let side = if combo.right_side_only { "Right " } else { "" };
+    let mut parts: Vec<String> = Vec::new();
+    for (m, name) in [(Modifiers::FUNCTION, "Fn"), (Modifiers::CONTROL, "Control"), (Modifiers::OPTION, "Option"), (Modifiers::SHIFT, "Shift"), (Modifiers::COMMAND, "Command")] {
+        if combo.modifiers.contains(m) {
+            parts.push(format!("{side}{name}"));
+        }
+    }
+    if let Some(key) = &combo.key_name {
+        parts.push(key.clone());
+    }
+    format!("{}{}", if action.is_hold() { "Hold " } else { "" }, parts.join(" + "))
+}
+
+/// The title of each shortcut action.
+pub fn action_title(action: ShortcutAction) -> &'static str {
+    match action {
+        ShortcutAction::Talk => "Talk",
+        ShortcutAction::Dictate => "Dictate",
+        ShortcutAction::ToggleIsland => "Show or hide ARK",
+        ShortcutAction::Cancel => "Cancel",
+        ShortcutAction::QuickAction => "Quick action",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn shortcuts_are_described_in_words() {
+        assert_eq!(describe(ShortcutAction::Dictate), "Hold Right Option + Right Command");
+        assert_eq!(describe(ShortcutAction::ToggleIsland), "Control + Option + Z");
+    }
 
     #[test]
     fn round_trips_and_ignores_bad_values() {

@@ -1,7 +1,10 @@
 //! The macOS status item (menu bar icon). Rune has no API for it, so this uses AppKit through objc2.
 //! A click on a menu item queues an `Action`; the app takes the queue in its poll hook.
 
+use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
+
+use ark_core::shortcuts::{KeyInput, Modifiers, ShortcutAction, ShortcutMatcher, ShortcutTrigger};
 
 use objc2::rc::Retained;
 use objc2::runtime::NSObject;
@@ -18,55 +21,8 @@ pub enum Action {
     DictateStart,
     /// One of them came up: send what was said.
     DictateSend,
-}
-
-/// The device-dependent modifier bits of a flags-changed event (IOKit `NX_DEVICERCMDKEYMASK`, `NX_DEVICERALTKEYMASK`).
-const RIGHT_COMMAND: usize = 0x10;
-const RIGHT_OPTION: usize = 0x40;
-
-/// The dictation chord (hold Right Command + Right Option). Gives the action to queue when `held` changes.
-pub fn chord_step(held: bool, flags: usize) -> Option<Action> {
-    let both = flags & (RIGHT_COMMAND | RIGHT_OPTION) == RIGHT_COMMAND | RIGHT_OPTION;
-    match (held, both) {
-        (false, true) => Some(Action::DictateStart),
-        (true, false) => Some(Action::DictateSend),
-        _ => None,
-    }
-}
-
-/// Watches the modifier keys in every app. macOS asks for Input Monitoring the first time; without it no event arrives.
-fn watch_chord() {
-    use std::sync::atomic::{AtomicBool, Ordering};
-    static HELD: AtomicBool = AtomicBool::new(false);
-    let handler = block2::RcBlock::new(|event: std::ptr::NonNull<objc2_app_kit::NSEvent>| {
-        // SAFETY: AppKit passes a live event for the duration of the call.
-        let flags = unsafe { event.as_ref() }.modifierFlags().bits();
-        let held = HELD.load(Ordering::SeqCst);
-        if let Some(action) = chord_step(held, flags) {
-            HELD.store(action == Action::DictateStart, Ordering::SeqCst);
-            push(action);
-        }
-    });
-    let monitor = objc2_app_kit::NSEvent::addGlobalMonitorForEventsMatchingMask_handler(objc2_app_kit::NSEventMask::FlagsChanged, &handler);
-    KEEP.with(|k| {
-        if let Some(m) = monitor {
-            // SAFETY: the monitor is an opaque AppKit token that only needs to stay alive.
-            k.borrow_mut().push(unsafe { Retained::cast_unchecked(m) });
-        }
-    });
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn the_chord_starts_when_both_right_keys_are_down_and_sends_when_one_lifts() {
-        assert_eq!(chord_step(false, RIGHT_COMMAND), None);
-        assert_eq!(chord_step(false, RIGHT_COMMAND | RIGHT_OPTION), Some(Action::DictateStart));
-        assert_eq!(chord_step(true, RIGHT_COMMAND | RIGHT_OPTION), None);
-        assert_eq!(chord_step(true, RIGHT_OPTION), Some(Action::DictateSend));
-    }
+    /// The hold was spoiled or Esc was pressed: drop what was said.
+    DictateCancel,
 }
 
 static QUEUE: Mutex<Vec<Action>> = Mutex::new(Vec::new());
@@ -79,11 +35,116 @@ fn push(action: Action) {
     }
 }
 
-/// Takes the clicks since the last call.
+/// Takes the clicks and shortcuts since the last call.
 pub fn take_actions() -> Vec<Action> {
     std::mem::take(&mut *QUEUE.lock().unwrap_or_else(|e| e.into_inner()))
 }
 
+/// The shortcut matcher from ark-core, with ARK's default shortcuts (hold Right Command + Right Option dictates).
+fn matcher() -> &'static Mutex<ShortcutMatcher> {
+    static M: OnceLock<Mutex<ShortcutMatcher>> = OnceLock::new();
+    M.get_or_init(|| {
+        let mut m = ShortcutMatcher::new(0.0, HashMap::from([(ShortcutAction::Dictate, 0.08)]));
+        m.set_shortcuts(ShortcutAction::ALL.iter().map(|a| (*a, a.default_combo())).collect());
+        Mutex::new(m)
+    })
+}
+
+/// What a shortcut trigger asks the app to do, if anything.
+pub fn action_for(trigger: ShortcutTrigger) -> Option<Action> {
+    use ShortcutAction::{Cancel, Dictate, Talk, ToggleIsland};
+    match trigger {
+        ShortcutTrigger::HoldBegan(Dictate | Talk) => Some(Action::DictateStart),
+        ShortcutTrigger::HoldEnded(Dictate | Talk) => Some(Action::DictateSend),
+        ShortcutTrigger::HoldCancelled(Dictate | Talk) | ShortcutTrigger::Pressed(Cancel) => Some(Action::DictateCancel),
+        ShortcutTrigger::Pressed(ToggleIsland) => Some(Action::Show),
+        _ => None,
+    }
+}
+
+fn now() -> f64 {
+    static START: OnceLock<std::time::Instant> = OnceLock::new();
+    START.get_or_init(std::time::Instant::now).elapsed().as_secs_f64()
+}
+
+/// Feeds one key event to the matcher and queues what it asks. A hold that waits for its arm delay is ticked from a short thread.
+fn drive(input: KeyInput) {
+    let (triggers, deadline) = {
+        let mut m = matcher().lock().unwrap_or_else(|e| e.into_inner());
+        let t = m.handle(input, now());
+        (t, m.next_deadline())
+    };
+    triggers.into_iter().filter_map(action_for).for_each(push);
+    if let Some(at) = deadline {
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_secs_f64((at - now()).max(0.0) + 0.005));
+            let t = matcher().lock().unwrap_or_else(|e| e.into_inner()).tick(now());
+            t.into_iter().filter_map(action_for).for_each(push);
+        });
+    }
+}
+
+fn modifiers_of(flags: objc2_app_kit::NSEventModifierFlags) -> Modifiers {
+    use objc2_app_kit::NSEventModifierFlags as F;
+    let mut bits = 0;
+    for (flag, m) in [(F::Control, Modifiers::CONTROL), (F::Option, Modifiers::OPTION), (F::Shift, Modifiers::SHIFT), (F::Command, Modifiers::COMMAND), (F::Function, Modifiers::FUNCTION)] {
+        if flags.contains(flag) {
+            bits |= m.0;
+        }
+    }
+    Modifiers(bits)
+}
+
+/// Watches the keys in every app. macOS asks for Input Monitoring the first time; without it no event arrives.
+fn watch_keys() {
+    use objc2_app_kit::{NSEvent, NSEventMask, NSEventType};
+    let handler = block2::RcBlock::new(|event: std::ptr::NonNull<NSEvent>| {
+        // SAFETY: AppKit passes a live event for the duration of the call.
+        let e = unsafe { event.as_ref() };
+        let code = e.keyCode();
+        let input = match e.r#type() {
+            NSEventType::FlagsChanged => KeyInput::FlagsChanged { key_code: code, modifiers: modifiers_of(e.modifierFlags()) },
+            NSEventType::KeyDown => KeyInput::KeyDown { key_code: code, modifiers: modifiers_of(e.modifierFlags()), is_repeat: e.isARepeat() },
+            NSEventType::KeyUp => KeyInput::KeyUp { key_code: code },
+            _ => return,
+        };
+        drive(input);
+    });
+    let monitor = NSEvent::addGlobalMonitorForEventsMatchingMask_handler(NSEventMask::FlagsChanged | NSEventMask::KeyDown | NSEventMask::KeyUp, &handler);
+    KEEP.with(|k| {
+        if let Some(m) = monitor {
+            // SAFETY: the monitor is an opaque AppKit token that only needs to stay alive.
+            k.borrow_mut().push(unsafe { Retained::cast_unchecked(m) });
+        }
+    });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn run(inputs: &[(KeyInput, f64)]) -> Vec<Action> {
+        let mut m = ShortcutMatcher::new(0.0, HashMap::from([(ShortcutAction::Dictate, 0.08)]));
+        m.set_shortcuts(ShortcutAction::ALL.iter().map(|a| (*a, a.default_combo())).collect());
+        let mut out = Vec::new();
+        for (i, t) in inputs {
+            out.extend(m.handle(*i, *t).into_iter().filter_map(action_for));
+            out.extend(m.tick(*t + 0.1).into_iter().filter_map(action_for));
+        }
+        out
+    }
+
+    #[test]
+    fn holding_right_command_and_option_dictates_and_releasing_sends() {
+        let both = Modifiers::COMMAND | Modifiers::OPTION;
+        let got = run(&[
+            (KeyInput::FlagsChanged { key_code: 54, modifiers: Modifiers::COMMAND }, 0.0),
+            (KeyInput::FlagsChanged { key_code: 61, modifiers: both }, 0.01),
+            (KeyInput::FlagsChanged { key_code: 61, modifiers: Modifiers::COMMAND }, 1.0),
+        ]);
+        assert_eq!(got, [Action::DictateStart, Action::DictateSend]);
+    }
+}
 define_class!(
     /// The target of the status menu items.
     #[unsafe(super(NSObject))]
@@ -139,7 +200,7 @@ pub fn install(wake: rune::Waker) {
         menu.addItem(&entry);
     }
     item.setMenu(Some(&menu));
-    watch_chord();
+    watch_keys();
     KEEP.with(|k| {
         let mut k = k.borrow_mut();
         k.push(target.into_super());

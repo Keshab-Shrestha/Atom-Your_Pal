@@ -105,6 +105,7 @@ pub fn poll(app: &mut App, _: f64, _: &mut Tx) -> bool {
             crate::mac::Action::NewChat => app.new_chat(),
             crate::mac::Action::DictateStart => app.send(&ark_protocol::Command::TalkStart),
             crate::mac::Action::DictateSend => app.send(&ark_protocol::Command::TalkSend),
+            crate::mac::Action::DictateCancel => app.send(&ark_protocol::Command::TalkCancel),
             crate::mac::Action::Show => {}
         }
         changed = true;

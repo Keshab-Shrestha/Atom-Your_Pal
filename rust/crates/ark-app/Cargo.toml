@@ -8,6 +8,7 @@ default-run = "ark-app"
 
 [dependencies]
 ark-protocol = { path = "../ark-protocol" }
+ark-core = { path = "../ark-core" }
 ark-ui = { path = "../ark-ui" }
 # The same Rune features as ark-hello, and the Markdown component.
 rune = { path = "../../vendor/rune/crates/rune", default-features = false, features = ["accessibility", "embedded-fonts", "metal-backend", "svg"] }

@@ -192,6 +192,7 @@ dependencies = [
 name = "ark-app"
 version = "0.0.1"
 dependencies = [
+ "ark-core",
  "ark-protocol",
  "ark-ui",
  "block2 0.6.2",
