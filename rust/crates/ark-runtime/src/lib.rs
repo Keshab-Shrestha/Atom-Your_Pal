@@ -6,3 +6,4 @@ pub mod native;
 pub mod scheduler;
 pub mod tools;
 pub mod store;
+pub mod mcp;

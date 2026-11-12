@@ -26,6 +26,12 @@
 - Verified: `cargo build --locked`, `cargo build --locked -p ark-spike`, clippy `--no-deps -D warnings` for both crates, `cargo test --locked` (2 pass) and `cargo test --locked -p ark-spike` (1 pass). The new lock entries: `ark-spike` and `objc2-web-kit` (Zlib OR Apache-2.0 OR MIT). CI builds and lints `ark-spike` and runs none of its checks.
 - Build: ark-spike adds 36 s to a clean debug build (it builds `rune` again with more objc2 features), 24 s of clippy and 6 s of tests.
 
+## Rust Phase 2 step 5: MCP server in Rust — 12 November 2026
+
+- ADR-278, Phase 2: the binary `ark-mcp` is ARK's MCP server over stdio. It has the same 7 `ark_*` tools as `apps/mac/src/mcp-serve.ts`. It calls the local HTTP API with the token from `data/api-token` (plain HTTP/1.1 over a socket, no new crate).
+- The HTTP API server stays in Node. Each route needs the agent loop, which has not moved. A Rust HTTP server would have nothing to answer with.
+- Verified: 3 unit tests (tool list, route mapping, a fake HTTP server with plain and chunked answers) and a run of the binary. Clippy is clean.
+
 ## Rust Phase 2 step 4: database access and change feed — 12 November 2026
 
 - ADR-278, Phase 2: `ark-runtime` answers `brain.get` (the graph, same as TypeScript on the fixture file) and pushes a new `brain` line when Node changes the graph. The feed polls `PRAGMA data_version` every 500 ms and sends a line only when the graph differs from the last one sent.
