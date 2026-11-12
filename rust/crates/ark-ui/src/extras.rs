@@ -220,6 +220,8 @@ pub struct Drafts {
     pub error: Option<String>,
     /// (id, title, revision, excerpt)
     pub items: Vec<(String, String, String, String)>,
+    /// The reviewed profile (chat, provider, model, effort) the draft is made with.
+    pub profile: Option<Map<String, Value>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -252,7 +254,13 @@ impl Extras {
                 self.drafts.text = opt(map, "text");
                 self.drafts.error = opt(map, "error");
             }
-            "reply.context" => self.drafts.items = items(map, "items").map(|i| (text(i, "id"), text(i, "title"), text(i, "revision"), text(i, "text"))).collect(),
+            "reply.context" => {
+                if let Some(profile) = map.get("profile").and_then(Value::as_object) {
+                    self.drafts.profile = Some(profile.clone());
+                }
+                self.drafts.error = opt(map, "error");
+                self.drafts.items = items(map, "items").map(|i| (text(i, "id"), text(i, "title"), text(i, "revision"), text(i, "text"))).collect();
+            }
             "computer.point" => self.point = ["x", "y", "w", "h"].iter().map(|k| map.get(*k).and_then(Value::as_f64)).collect::<Option<Vec<f64>>>().filter(|v| v[2] > 0.0 && v[3] > 0.0).map(|v| (v[0], v[1], v[2], v[3], text(map, "label"))),
             "computer.end" => self.point = None,
             _ => return false,

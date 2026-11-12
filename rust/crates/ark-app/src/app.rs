@@ -25,11 +25,14 @@ impl Screen {
             Screen::Workflows => "workflows",
             Screen::Plugins => "plugins",
             Screen::Skills => "skills",
+            Screen::Backup => "backup",
+            Screen::Replies => "replies",
+            Screen::Plans => "plans",
         }
     }
 
     pub fn from_name(name: &str) -> Screen {
-        [Screen::Settings, Screen::Agents, Screen::Tasks, Screen::Memory, Screen::Projects, Screen::Branches, Screen::Search, Screen::Dashboard, Screen::Workflows, Screen::Plugins, Screen::Skills].into_iter().find(|s| s.name() == name).unwrap_or(Screen::Chat)
+        [Screen::Settings, Screen::Agents, Screen::Tasks, Screen::Memory, Screen::Projects, Screen::Branches, Screen::Search, Screen::Dashboard, Screen::Workflows, Screen::Plugins, Screen::Skills, Screen::Backup, Screen::Replies, Screen::Plans].into_iter().find(|s| s.name() == name).unwrap_or(Screen::Chat)
     }
 }
 
@@ -49,6 +52,9 @@ pub enum Screen {
     Workflows,
     Plugins,
     Skills,
+    Backup,
+    Replies,
+    Plans,
 }
 
 pub struct App {
@@ -290,7 +296,9 @@ impl App {
             Screen::Branches => self.send(&ark_protocol::Command::GitList),
             Screen::Search => {}
             Screen::Chat => {}
-            Screen::Plugins | Screen::Skills => self.send(&ark_protocol::Command::HelpersList),
+            Screen::Backup => self.backup("get", serde_json::json!({})),
+            Screen::Replies => self.reply_lookup(""),
+            Screen::Plans | Screen::Plugins | Screen::Skills => self.send(&ark_protocol::Command::HelpersList),
             Screen::Workflows => {
                 self.send(&ark_protocol::Command::WorkflowsList);
                 self.send(&ark_protocol::Command::HelpersList);
@@ -550,7 +558,13 @@ impl App {
                 }
                 let was_note = matches!(command, ark_protocol::Command::BrainSave { .. });
                 let was_flow = matches!(command, ark_protocol::Command::WorkflowSave { .. });
-                self.send(&command);
+                match command {
+                    ark_protocol::Command::Other { kind, fields } if kind == "local.backup" => {
+                        let action = fields.get("action").and_then(|a| a.as_str()).unwrap_or("get").to_owned();
+                        self.backup(&action, serde_json::Value::Object(fields));
+                    }
+                    other => self.send(&other),
+                }
                 self.close_form();
                 self.send(&ark_protocol::Command::HelpersList);
                 if was_note {

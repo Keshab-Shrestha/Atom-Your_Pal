@@ -26,6 +26,10 @@ pub enum FormKind {
     Workflow,
     /// An MCP server for the Plugins page.
     Mcp,
+    /// The local backup model: its address and model name.
+    BackupConfig,
+    /// One message to the local backup model.
+    BackupSend,
 }
 
 pub struct Form {
@@ -51,6 +55,8 @@ impl Form {
             FormKind::NewTask { .. } => "New task".into(),
             FormKind::Workflow => "New automation".into(),
             FormKind::Mcp => "Add plugin server".into(),
+            FormKind::BackupConfig => "Local backup model".into(),
+            FormKind::BackupSend => "Message the backup model".into(),
         }
     }
 
@@ -60,6 +66,8 @@ impl Form {
             FormKind::Soul { .. } => &["Personality", "How it works", "Rules", "Lessons"],
             FormKind::NewAgent => &["Name", "Role", "Personality", "How it works", "Rules"],
             FormKind::NewTask { .. } => &["Task"],
+            FormKind::BackupConfig => &["Address (http://127.0.0.1:1234)", "Model name"],
+            FormKind::BackupSend => &["Message"],
             FormKind::Mcp => &["Name", "Command or URL (https://...)", "Arguments, one per line", "Environment (command) or headers (URL), one NAME=value per line"],
             FormKind::Workflow => &["Name", "Time each day (HH:MM, 24 hours). Empty: by hand", "Steps, one per line: agent id: task"],
             FormKind::Routine { .. } => &["Task", "Time each day (HH:MM, 24 hours)"],
@@ -105,6 +113,14 @@ impl Form {
 
     pub fn routine(helper: &str) -> Form {
         Form::fresh(FormKind::Routine { helper: helper.into() }, &["", "08:00"])
+    }
+
+    pub fn backup_config(endpoint: &str, model: &str) -> Form {
+        Form::fresh(FormKind::BackupConfig, &[endpoint, model])
+    }
+
+    pub fn backup_send() -> Form {
+        Form::fresh(FormKind::BackupSend, &[""])
     }
 
     pub fn mcp() -> Form {
@@ -192,6 +208,18 @@ impl Form {
             }
             FormKind::Workflow => self.workflow_command(),
             FormKind::Mcp => self.mcp_command(),
+            FormKind::BackupConfig => {
+                if self.text(0).is_empty() || self.text(1).is_empty() {
+                    return Err("Write the address and the model name.");
+                }
+                Ok(Command::Other { kind: "local.backup".into(), fields: serde_json::json!({ "action": "save", "config": { "endpoint": self.text(0), "model": self.text(1) } }).as_object().cloned().unwrap_or_default() })
+            }
+            FormKind::BackupSend => {
+                if self.text(0).is_empty() {
+                    return Err("Write a message.");
+                }
+                Ok(Command::Other { kind: "local.backup".into(), fields: serde_json::json!({ "action": "send", "text": self.text(0) }).as_object().cloned().unwrap_or_default() })
+            }
             FormKind::NewTask { helper } => {
                 if self.text(0).is_empty() {
                     return Err("Write what the task is.");

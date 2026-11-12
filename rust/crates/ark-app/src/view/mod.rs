@@ -8,6 +8,7 @@ mod palette;
 mod plugins;
 mod pages;
 mod sidebar;
+mod tools;
 mod visual;
 
 use rune::{Chrome, Cx, El};
@@ -55,6 +56,9 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
         Screen::Workflows => ("Automations".to_owned(), automations::workflows(app, k)),
         Screen::Plugins => ("Plugins".to_owned(), plugins::plugins(app, k)),
         Screen::Skills => ("Skills hub".to_owned(), plugins::skills(app, k)),
+        Screen::Backup => ("Local backup".to_owned(), tools::backup(app, k)),
+        Screen::Replies => ("Reply drafts".to_owned(), tools::replies(app, k)),
+        Screen::Plans => ("Plans".to_owned(), tools::plans(app, k)),
     };
     let toolbar = Toolbar::new().title(title).trailing(chat::status(app, k, &status_line(app)));
     SplitView::new(main)
@@ -115,6 +119,9 @@ pub fn menu_items() -> Vec<rune::MenuItem<App>> {
             Screen::Workflows => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Workflows)),
             Screen::Plugins => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Plugins)),
             Screen::Skills => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Skills)),
+            Screen::Backup => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Backup)),
+            Screen::Replies => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Replies)),
+            Screen::Plans => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Plans)),
         };
         chord(item.id(format!("go-{title}")).menu("Go"), keys)
     };
@@ -133,6 +140,9 @@ pub fn menu_items() -> Vec<rune::MenuItem<App>> {
         go("Automations", Screen::Workflows, "cmd+8"),
         go("Plugins", Screen::Plugins, "cmd+9"),
         go("Skills hub", Screen::Skills, "cmd+0"),
+        go("Plans", Screen::Plans, "cmd+shift+p"),
+        go("Reply drafts", Screen::Replies, "cmd+shift+r"),
+        go("Local backup", Screen::Backup, "cmd+shift+b"),
         go("Settings", Screen::Settings, "cmd+,"),
     ]
 }
