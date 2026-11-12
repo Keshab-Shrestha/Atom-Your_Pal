@@ -85,7 +85,7 @@ fn the_sidebar_opens_the_pages() {
         assert!(tasks.contains(want), "tasks page lacks {want:?}");
     }
     let agents = page("nav-agents", "nav-agents");
-    for want in ["Sid", "researcher", "Coming soon", "Reading docs"] {
+    for want in ["Sid", "researcher", "Coming soon", "Reading docs", "Team", "CEO", "Agent"] {
         assert!(agents.contains(want), "agents page lacks {want:?}");
     }
     let dashboard = page("nav-dashboard", "nav-dashboard");

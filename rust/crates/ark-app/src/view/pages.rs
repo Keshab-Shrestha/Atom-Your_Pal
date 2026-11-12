@@ -183,6 +183,40 @@ fn helper_card(h: &Helper, k: &Kit) -> El {
         .child(actions)
 }
 
+fn org_rows(chart: &ark_core::org::OrgChart, id: &str, depth: usize, names: &dyn Fn(&str) -> String, k: &Kit, out: &mut Vec<El>) {
+    let level = chart.level(id);
+    out.push(
+        row().key(format!("org-{id}")).gap(8.0).pl(depth as f32 * 20.0)
+            .child(text(names(id)).font(k.ty.ui).color(k.c.text_base))
+            .child(text(level.title().to_owned()).font(k.ty.small).color(k.c.text_faint)),
+    );
+    if depth >= ark_core::org::OrgChart::MAX_DEPTH {
+        return;
+    }
+    for child in chart.children(id) {
+        org_rows(chart, &child, depth + 1, names, k, out);
+    }
+}
+
+/// The team as an org chart: the owner, ARK, then the agents under their leads (`ark_core::org`).
+fn org_card(helpers: &[Helper], k: &Kit) -> El {
+    use ark_core::org::{ChartMember, OrgChart};
+    let members: Vec<ChartMember<'_>> = helpers.iter().filter(|h| h.available).map(|h| ChartMember { id: &h.id, role: &h.role, reports_to: h.reports_to.as_deref() }).collect();
+    let chart = OrgChart::new(&members);
+    let names = |id: &str| match id {
+        OrgChart::OWNER => "You".to_owned(),
+        OrgChart::ARK => "ARK".to_owned(),
+        other => helpers.iter().find(|h| h.id == other).map_or_else(|| other.to_owned(), |h| h.name.clone()),
+    };
+    let mut rows = Vec::new();
+    org_rows(&chart, OrgChart::OWNER, 0, &names, k, &mut rows);
+    let mut c = card(k, "org-chart", "Team");
+    for r in rows {
+        c = c.child(r);
+    }
+    c
+}
+
 pub fn agents(app: &App, k: &Kit) -> El {
     let cards = match &app.model.helpers {
         None => vec![text("Loading agents…").key("agents-loading").font(k.ty.ui).color(k.c.text_faint)],
@@ -190,6 +224,9 @@ pub fn agents(app: &App, k: &Kit) -> El {
         Some(helpers) => helpers.iter().map(|h| helper_card(h, k)).collect(),
     };
     let mut cards = cards;
+    if let Some(helpers) = app.model.helpers.as_ref().filter(|h| !h.is_empty()) {
+        cards.insert(0, org_card(helpers, k));
+    }
     cards.push(row().justify_end().child(Button::new("New agent").on_press(|s: &mut App| s.open_form(Form::new_agent())).build(k).key("new-agent")));
     page(k, "agents", "Agents", cards)
 }
