@@ -1,0 +1,6 @@
+{"type":"ready","protocol":1,"provider":"claude","model":"opus","microphone":"Mac mini","voice":false}
+{"type":"chats","chats":[{"id":"c1","title":"Demo chat","updatedAt":"2026-11-12T10:00:00Z","messages":0}],"current":"c1"}
+{"type":"chat.opened","id":"c1","messages":[]}
+{"when":"text.send","emit":[{"type":"transcript","text":"$text"},{"type":"state","state":"thinking"},{"type":"chat.work","chat":"c1","turn":"t1","startedAt":"x","elapsedMs":10,"state":"working","calls":[{"id":"k1","tool":"run_command","state":"started"}],"omitted":0,"questions":[]},{"type":"approval.request","id":"a1","summary":"Run a command","reason":"It writes files."}]}
+{"when":"approval.answer","if":{"approved":true},"emit":[{"type":"approval.closed","id":"$id"},{"type":"reply","text":"Done. The command **ran**."},{"type":"state","state":"idle"}]}
+{"when":"approval.answer","if":{"approved":false},"emit":[{"type":"approval.closed","id":"$id"},{"type":"reply","text":"I did not run it."},{"type":"state","state":"idle"}]}
