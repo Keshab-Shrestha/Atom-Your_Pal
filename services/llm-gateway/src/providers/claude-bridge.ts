@@ -16,7 +16,7 @@ import type { ToolSpec } from "@ark/contracts";
  *
  * Tools (ADR-278 step 2): `tools` are ToolSpecs. Each becomes an SDK tool that does not run anything here. It sends a
  * `tool` line to Rust and waits for the `tool_result` line with the same callId. Rust checks its policy and runs the tool.
- * Calls go one at a time. No tools: the run is one turn with no tools, as before.
+ * Calls go out at once; Rust batches them. No tools: the run is one turn with no tools, as before.
  */
 
 export interface RunLine {
@@ -38,13 +38,11 @@ export interface ToolBridge {
 export function toolBridge(send: (line: Record<string, unknown>) => void): ToolBridge {
   const waiting = new Map<string, (r: { content: string; isError: boolean }) => void>();
   let n = 0;
-  let turn: Promise<unknown> = Promise.resolve();
   return {
+    // ADR-278: calls go out at once. Rust collects the ones that come close together and answers them as one batch.
     call(name, input) {
       const callId = `call-${++n}`;
-      const result = turn.then(() => new Promise<{ content: string; isError: boolean }>((resolve) => { waiting.set(callId, resolve); send({ type: "tool", callId, name, input }); }));
-      turn = result;
-      return result;
+      return new Promise<{ content: string; isError: boolean }>((resolve) => { waiting.set(callId, resolve); send({ type: "tool", callId, name, input }); });
     },
     deliver(callId, content, isError) { waiting.get(callId)?.({ content, isError }); waiting.delete(callId); },
   };

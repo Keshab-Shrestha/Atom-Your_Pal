@@ -156,3 +156,37 @@ async fn step_limit_and_provider_errors_stop_the_turn() {
     assert!(matches!(Agent::new(&broken, &policy, &tools, "m").run(vec![], "hi", |_| {}).await, Err(AgentError::Llm(LlmError::Http(_)))));
     let _: &dyn Policy = &policy;
 }
+
+/// Two calls in one model turn run side by side: each sleeps 300 ms, and the batch takes about one sleep, not two.
+struct Slow;
+impl ToolRunner for Slow {
+    fn specs(&self) -> Vec<ark_llm::ToolSpec> {
+        vec![]
+    }
+    fn run(&self, name: &str, _: &serde_json::Map<String, Value>) -> Result<String, String> {
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        Ok(format!("{name} done"))
+    }
+}
+struct AllowAll;
+impl Policy for AllowAll {
+    fn check(&self, _: &str, _: &serde_json::Map<String, Value>) -> ark_agent::Decision {
+        ark_agent::Decision::Allow
+    }
+}
+
+#[tokio::test]
+async fn a_batch_of_calls_runs_in_parallel_and_keeps_the_order_of_the_results() {
+    let provider = Script::new(vec![
+        Ok(vec![call("t1", "first", json!({})), call("t2", "second", json!({})), done("tool_use")]),
+        Ok(vec![Event::Text { text: "ok".into() }, done("end_turn")]),
+    ]);
+    let agent = Agent::new(&provider, &AllowAll, &Slow, "m");
+    let started = std::time::Instant::now();
+    let out = agent.run(vec![], "go", |_| {}).await.unwrap();
+    assert!(started.elapsed() < std::time::Duration::from_millis(550), "ran one after the other: {:?}", started.elapsed());
+    let Block::ToolResult { tool_use_id: a, content: ca, .. } = &out.messages[2].content[0] else { panic!("no result") };
+    let Block::ToolResult { tool_use_id: b, content: cb, .. } = &out.messages[2].content[1] else { panic!("no result") };
+    assert_eq!((a.as_str(), ca.as_str(), b.as_str(), cb.as_str()), ("t1", "first done", "t2", "second done"));
+    assert_eq!(out.calls.len(), 2);
+}

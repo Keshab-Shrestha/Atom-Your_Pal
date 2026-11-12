@@ -45,6 +45,13 @@
 - The token comes from `ARK_TELEGRAM_BOT_TOKEN` (with `ARK_TELEGRAM_CHAT_ID`, `ARK_TELEGRAM_USER_ID`) through `Config::from_env`, or from the caller. The log gets names and codes, never text or the token.
 - Verified: 5 tests (message split; backlog and sender filter; split send with buttons; retry rules; wrong token, with a check that the token is not in the log) against a local mock Bot API server. Clippy is clean. No live Telegram call.
 
+## Rust Phase 2 step 17: ask_user and parallel tool calls — 12 November 2026
+
+- ADR-278, Phase 2: native chat turns from the window now have the `ask_user` tool (`ark-runtime/src/ask.rs`). It parses the input with the `ark-core` parser, shows a `chat.work` card with the questions, and waits for `chat.question.answer`. It gives the model the same JSON as Node (one answer, many answers, "unanswered"). A blank is a skip. Time out is 90 seconds for each question. Four questions at most per turn. The tool is a clarification: it never gives a permission.
+- A card id that starts with `rq-` is Rust's. A `chat.question.answer` for any other id goes to Node.
+- Parallel calls: the Node helper `claude-bridge.ts` no longer waits between calls. The Rust bridge collects the `tool` lines that come within 100 ms, and gives them out as one batch. The agent loop asks the policy for each call in order (an approval waits for the user, one at a time). It then runs the allowed calls side by side, and gives the results back in the order of the calls.
+- Verified: 3 `ask_user` tests, 1 chat-level test (card, answer command, model sees the answer, Node ids go to Node), 1 bridge test with a fake helper that sends two calls, 1 agent test (two calls of 300 ms run in less than 550 ms), and the Node test for the helper. Clippy is clean.
+
 ## Rust Phase 2 step 16: Rust owns the local API and the Telegram bot — 12 November 2026
 
 - ADR-278, Phase 2: with `ARK_RUNTIME=rust` and a native chat engine, `ark-runtime` takes `api.set` and `api.regenerate` from the app. It starts or stops the Rust HTTP API on `ARK_API_PORT` (default 4790) and answers with the `api` event. A busy port gives the same error text as Node.

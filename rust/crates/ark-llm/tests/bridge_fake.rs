@@ -91,3 +91,32 @@ echo '{"id":"1","type":"done","stopReason":"end_turn","usage":{"input":3,"output
     let got: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(dir.join("result.json")).unwrap()).unwrap();
     assert_eq!((got["type"].as_str(), got["callId"].as_str(), got["content"].as_str(), got["isError"].as_bool()), (Some("tool_result"), Some("t1"), Some("12:00"), Some(false)));
 }
+
+#[tokio::test]
+async fn tool_calls_that_come_together_are_one_batch_answered_together() {
+    let (dir, script) = fake("batch", r#"echo '{"type":"ready"}'
+read run
+echo '{"id":"1","type":"tool","callId":"t1","name":"a","input":{}}'
+echo '{"id":"1","type":"tool","callId":"t2","name":"b","input":{}}'
+read r1
+read r2
+printf '%s\n%s' "$r1" "$r2" > "$(dirname "$0")/results.txt"
+echo '{"id":"1","type":"text","text":"Both done."}'
+echo '{"id":"1","type":"done","stopReason":"end_turn","usage":{"input":1,"output":1}}'"#);
+    let bridge = ClaudeBridge::new("sh", vec![script.to_string_lossy().into()]);
+    let mut req = request("do both");
+    req.tools = vec![ark_llm::ToolSpec { name: "a".into(), description: "d".into(), input_schema: serde_json::json!({"type": "object"}) }];
+    let first = collect(bridge.stream(&req).await.unwrap(), |_| {}).await.unwrap();
+    assert_eq!(first.stop_reason, "tool_use");
+    let ids: Vec<&str> = first.content.iter().filter_map(|b| if let Block::ToolUse { id, .. } = b { Some(id.as_str()) } else { None }).collect();
+    assert_eq!(ids, ["t1", "t2"]);
+    req.messages.push(Message { role: "assistant".into(), content: first.content });
+    req.messages.push(Message {
+        role: "user".into(),
+        content: vec![Block::ToolResult { tool_use_id: "t1".into(), content: "A".into(), is_error: false }, Block::ToolResult { tool_use_id: "t2".into(), content: "B".into(), is_error: true }],
+    });
+    let second = collect(bridge.stream(&req).await.unwrap(), |_| {}).await.unwrap();
+    assert_eq!(second.content, vec![Block::Text { text: "Both done.".into() }]);
+    let got = std::fs::read_to_string(dir.join("results.txt")).unwrap();
+    assert!(got.contains("\"callId\":\"t1\"") && got.contains("\"callId\":\"t2\"") && got.contains("\"isError\":true"), "{got}");
+}

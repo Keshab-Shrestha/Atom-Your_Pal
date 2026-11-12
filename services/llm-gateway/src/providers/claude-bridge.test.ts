@@ -46,12 +46,13 @@ test("a tool call goes to Rust as a tool line and the tool_result line answers i
   const first = bridge.call("current_time", { timezone: "UTC" });
   const second = bridge.call("read_file", { path: "/a" });
   await new Promise((r) => setImmediate(r));
-  assert.deepEqual(lines, [{ type: "tool", callId: "call-1", name: "current_time", input: { timezone: "UTC" } }], "calls go one at a time");
+  assert.deepEqual(lines, [
+    { type: "tool", callId: "call-1", name: "current_time", input: { timezone: "UTC" } },
+    { type: "tool", callId: "call-2", name: "read_file", input: { path: "/a" } },
+  ], "calls go out at once");
+  bridge.deliver("call-2", "no", true);
   bridge.deliver("call-1", "12:00", false);
   assert.deepEqual(await first, { content: "12:00", isError: false });
-  await new Promise((r) => setImmediate(r));
-  assert.equal(lines.length, 2);
-  bridge.deliver("call-2", "no", true);
   assert.deepEqual(await second, { content: "no", isError: true });
 });
 

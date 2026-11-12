@@ -73,6 +73,9 @@ pub struct Agent<'a> {
     pub approver: Option<&'a dyn Approver>,
 }
 
+/// A call after the policy: id, name, input, and the refusal text with its reason (`None` when the call may run).
+type Decided = (String, String, Map<String, Value>, Option<(String, Option<String>)>);
+
 impl<'a> Agent<'a> {
     pub fn new(provider: &'a dyn Provider, policy: &'a dyn Policy, tools: &'a dyn ToolRunner, model: &str) -> Self {
         Self { provider, policy, tools, model: model.into(), system: None, max_tokens: 4096, max_steps: 12, approver: None }
@@ -98,34 +101,51 @@ impl<'a> Agent<'a> {
             if calls.is_empty() {
                 return Ok(out);
             }
-            let results = calls.into_iter().map(|(id, name, input)| self.call(id, &name, &input, &mut out.calls)).collect();
+            let results = self.batch(calls, &mut out.calls);
             out.messages.push(Message { role: "user".into(), content: results });
         }
         Err(AgentError::TooManySteps(self.max_steps))
     }
 
-    /// One proposed call: the policy first, then the tool. Always gives a result block, so the model can go on.
-    fn call(&self, id: String, name: &str, input: &Value, records: &mut Vec<CallRecord>) -> Block {
+    /// A batch of calls from one model turn. The policy decides each call in order (an approval question waits for the user, one at a
+    /// time). The calls that passed run side by side, one thread each. The results keep the order of the calls.
+    fn batch(&self, calls: Vec<(String, String, Value)>, records: &mut Vec<CallRecord>) -> Vec<Block> {
         let empty = Map::new();
-        let input = input.as_object().unwrap_or(&empty);
-        let refuse = |why: String| (format!("Refused by policy: {why}"), true, Some(why));
-        let (content, is_error, refused) = match self.policy.check(name, input) {
-            Decision::Deny(reason) => (format!("Refused by policy: {reason}"), true, Some(reason)),
-            Decision::Ask { summary, reason } => match self.approver {
-                None => refuse("it needs the user's approval and none is available".into()),
-                Some(approver) if approver.approve(&summary, &reason) => self.run_tool(name, input),
-                Some(_) => refuse("the user said no".into()),
-            },
-            Decision::Allow => self.run_tool(name, input),
-        };
-        records.push(CallRecord { name: name.into(), refused, is_error });
-        Block::ToolResult { tool_use_id: id, content, is_error }
-    }
-
-    fn run_tool(&self, name: &str, input: &Map<String, Value>) -> (String, bool, Option<String>) {
-        match self.tools.run(name, input) {
-            Ok(text) => (text, false, None),
-            Err(e) => (e, true, None),
-        }
+        // Each entry: the call, and either a ready result (refused) or `None` (to run).
+        let decided: Vec<Decided> = calls
+            .into_iter()
+            .map(|(id, name, input)| {
+                let input = input.as_object().unwrap_or(&empty).clone();
+                let refuse = |why: String| Some((format!("Refused by policy: {why}"), Some(why)));
+                let refused = match self.policy.check(&name, &input) {
+                    Decision::Deny(reason) => refuse(reason),
+                    Decision::Ask { summary, reason } => match self.approver {
+                        None => refuse("it needs the user's approval and none is available".into()),
+                        Some(approver) if approver.approve(&summary, &reason) => None,
+                        Some(_) => refuse("the user said no".into()),
+                    },
+                    Decision::Allow => None,
+                };
+                (id, name, input, refused)
+            })
+            .collect();
+        let ran: Vec<Option<Result<String, String>>> = std::thread::scope(|scope| {
+            let handles: Vec<_> = decided.iter().map(|(_, name, input, refused)| refused.is_none().then(|| scope.spawn(move || self.tools.run(name, input)))).collect();
+            handles.into_iter().map(|h| h.map(|h| h.join().unwrap_or_else(|_| Err("the tool stopped unexpectedly".into())))).collect()
+        });
+        decided
+            .into_iter()
+            .zip(ran)
+            .map(|((id, name, _, refused), result)| {
+                let (content, is_error, refused) = match (refused, result) {
+                    (Some((text, why)), _) => (text, true, why),
+                    (None, Some(Ok(text))) => (text, false, None),
+                    (None, Some(Err(e))) => (e, true, None),
+                    (None, None) => ("the tool did not run".into(), true, None),
+                };
+                records.push(CallRecord { name, refused, is_error });
+                Block::ToolResult { tool_use_id: id, content, is_error }
+            })
+            .collect()
     }
 }

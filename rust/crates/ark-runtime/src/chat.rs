@@ -41,6 +41,8 @@ pub struct Chat {
     /// Chats with a turn running for the local API.
     api_busy: Mutex<std::collections::HashSet<String>>,
     changed: Mutex<Option<Arc<dyn Fn() + Send + Sync>>>,
+    questions: Arc<crate::ask::Questions>,
+    turn_seq: AtomicU64,
 }
 
 /// How long a question waits for the app (the runtime declines by itself after this, as Node does).
@@ -130,7 +132,7 @@ fn is_shared(id: &str) -> bool {
 
 impl Chat {
     pub fn new(db: PathBuf, provider: Arc<dyn Provider>, tools: Arc<dyn ToolRunner>, policy: Arc<dyn Policy>, model: &str) -> Chat {
-        Chat { db, provider, tools, policy, model: model.into(), current: Mutex::new(None), busy: AtomicBool::new(false), approvals: Arc::default(), api_busy: Mutex::default(), changed: Mutex::default() }
+        Chat { db, provider, tools, policy, model: model.into(), current: Mutex::new(None), busy: AtomicBool::new(false), approvals: Arc::default(), api_busy: Mutex::default(), changed: Mutex::default(), questions: Arc::default(), turn_seq: AtomicU64::new(0) }
     }
 
     /// Looks at a line from Node to the app and keeps the id of the open chat.
@@ -156,8 +158,12 @@ impl Chat {
         match *command {
             Command::ApprovalAnswer { ref id, approved, .. } => return self.approvals.answer(id, approved),
             // A command that ends the turn counts as "no" for a question that waits (the line still goes to Node).
+            Command::ChatQuestionAnswer { ref chat, ref turn, ref id, ref text } => {
+                return crate::ask::Questions::is_ours(id) && self.questions.answer(chat, turn, id, text.as_deref());
+            }
             Command::TalkCancel | Command::TalkStart | Command::ConversationReset | Command::ChatNew { .. } => {
                 self.approvals.decline_all();
+                self.questions.skip_all();
                 return false;
             }
             _ => {}
@@ -216,10 +222,11 @@ impl Chat {
         emit(Event::State { state: LoopState::Thinking });
         let started = Instant::now();
         let approver = AppApprover { approvals: Arc::clone(&self.approvals), to_app: Some(Arc::clone(to_app)), on_change: self.on_change(), wait: APPROVAL_WAIT };
+        let ask = crate::ask::AskUser::new(Arc::clone(&self.questions), Arc::clone(to_app), id, &format!("rt-{}", self.turn_seq.fetch_add(1, Ordering::SeqCst) + 1));
         let created = self.ensure_chat(id, text);
         let result = match created {
             Ok(created) => {
-                let r = self.answer(id, text, Some(&approver), true);
+                let r = self.answer(id, text, Some(&approver), true, Some(&ask));
                 if created && r.is_err() {
                     self.drop_empty(id);
                 }
@@ -227,6 +234,7 @@ impl Chat {
             }
             Err(e) => Err(e),
         };
+        ask.finish(result.is_ok());
         match result {
             Ok(reply) => {
                 emit(Event::Reply { text: reply });
@@ -241,11 +249,16 @@ impl Chat {
     }
 
     /// Runs the agent on the saved history and appends the exchange. Gives the reply text.
-    fn answer(&self, id: &str, text: &str, approver: Option<&dyn Approver>, typed: bool) -> Result<String, String> {
+    fn answer(&self, id: &str, text: &str, approver: Option<&dyn Approver>, typed: bool, ask: Option<&crate::ask::AskUser>) -> Result<String, String> {
         let conn = store::open_read_write(&self.db).map_err(|e| format!("The chat file could not be opened: {e}"))?;
         let saved = read_history(&conn, id).map_err(|e| format!("The chat could not be read: {e}"))?;
         let history = replay_window(&saved, text)?;
-        let mut agent = Agent::new(self.provider.as_ref(), self.policy.as_ref(), self.tools.as_ref(), &self.model);
+        let with_ask = crate::ask::WithAsk(self.policy.as_ref());
+        let plus = ask.map(|a| crate::ask::Plus(self.tools.as_ref(), a));
+        let mut agent = match (&plus, ask) {
+            (Some(plus), Some(_)) => Agent::new(self.provider.as_ref(), &with_ask, plus, &self.model),
+            _ => Agent::new(self.provider.as_ref(), self.policy.as_ref(), self.tools.as_ref(), &self.model),
+        };
         agent.system = Some(crate::context::SYSTEM_PROMPT.into());
         agent.approver = approver;
         let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().map_err(|e| e.to_string())?;
@@ -303,7 +316,7 @@ impl Chat {
 
     fn ask_in_unlocked(&self, id: &str, text: &str, approver: Option<&dyn Approver>, typed: bool) -> Result<String, String> {
         let created = self.ensure_chat(id, text)?;
-        let result = self.answer(id, text, approver, typed);
+        let result = self.answer(id, text, approver, typed, None);
         if created && result.is_err() {
             self.drop_empty(id);
         }
@@ -583,6 +596,51 @@ mod tests {
         assert!(seen.iter().any(|v| v["type"] == "reply" && v["text"] == "Done"));
         let (written, _) = approval_round(false);
         assert!(!written);
+    }
+
+    /// Asks `ask_user` the first time, then answers with the user's answer.
+    struct AsksOnce(AtomicU64, Mutex<String>);
+    impl Provider for AsksOnce {
+        fn stream<'a>(&'a self, req: &'a Request) -> BoxFuture<'a, Result<EventStream, LlmError>> {
+            let first = self.0.fetch_add(1, Ordering::SeqCst) == 0;
+            let done = ark_llm::Event::Done { stop_reason: "x".into(), usage: Usage::default() };
+            let items = if first {
+                assert!(req.tools.iter().any(|t| t.name == "ask_user"), "the tool is offered in a window turn");
+                vec![Ok(ark_llm::Event::ToolUse { id: "q".into(), name: "ask_user".into(), input: json!({"question": "Tea or coffee?", "choices": "Tea\nCoffee"}) }), Ok(done)]
+            } else {
+                let last = req.messages.last().unwrap();
+                let Block::ToolResult { content, .. } = &last.content[0] else { panic!("no tool result") };
+                *self.1.lock().unwrap() = content.clone();
+                vec![Ok(ark_llm::Event::Text { text: "Noted".into() }), Ok(done)]
+            };
+            Box::pin(async move { Ok(Box::pin(futures_util::stream::iter(items)) as EventStream) })
+        }
+    }
+
+    #[test]
+    fn ask_user_shows_a_card_and_the_answer_command_reaches_the_model() {
+        let provider = Arc::new(AsksOnce(AtomicU64::new(0), Mutex::default()));
+        let home = std::env::temp_dir();
+        let tools = Tools { home: home.clone(), roots: vec![], cwd: home.clone() };
+        let policy = FloorPolicy::new(&["current_time"], &home, vec![], &home);
+        let chat = Arc::new(Chat::new(scratch("ask"), provider.clone(), Arc::new(RuntimeTools(tools)), Arc::new(policy), "m"));
+        chat.observe("{\"type\":\"chats\",\"chats\":[],\"current\":\"c1\"}\n");
+        let (app, app_rx) = sinks();
+        let (node, node_rx) = sinks();
+        assert!(chat.handle("{\"type\":\"text.send\",\"text\":\"coffee?\"}\n", app.clone(), node.clone()));
+        let (turn, id) = loop {
+            let v: Value = serde_json::from_str(&app_rx.recv_timeout(Duration::from_secs(5)).unwrap()).unwrap();
+            if v["type"] == "chat.work" {
+                break (v["turn"].as_str().unwrap().to_string(), v["questions"][0]["id"].as_str().unwrap().to_string());
+            }
+        };
+        assert!(!chat.handle(&format!("{}\n", json!({"type": "chat.question.answer", "chat": "c1", "turn": turn, "id": "q-node", "text": "x"})), app.clone(), node.clone()), "a Node card goes to Node");
+        assert!(chat.handle(&format!("{}\n", json!({"type": "chat.question.answer", "chat": "c1", "turn": turn, "id": id, "text": "Tea"})), app, node));
+        node_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert!(provider.1.lock().unwrap().contains("\"userAnswer\":\"Tea\""));
+        let kinds: Vec<Value> = app_rx.try_iter().map(|l| serde_json::from_str(&l).unwrap()).collect();
+        assert!(kinds.iter().any(|v| v["type"] == "chat.work" && v["state"] == "completed"));
+        assert!(kinds.iter().any(|v| v["type"] == "reply" && v["text"] == "Noted"));
     }
 
     #[test]
