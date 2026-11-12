@@ -1,0 +1,357 @@
+{
+ "source": "services/helpers/src/store.ts list()",
+ "helpers": [
+  {
+   "id": "sid",
+   "name": "Sid",
+   "available": true,
+   "paused": false,
+   "role": "researcher",
+   "kit": "research",
+   "custom": false,
+   "soul": {
+    "name": "Sid",
+    "personality": "Curious and thorough. Always cites sources.",
+    "howItWorks": "Searches more than once, reads several good pages, compares what they say, and prefers primary and reputable sources.",
+    "rules": "Say plainly when sources disagree or when something could not be confirmed.",
+    "lessons": ""
+   },
+   "soulVersion": 4,
+   "soulVersions": [
+    {
+     "version": 4,
+     "createdAt": "2026-11-01T09:00:06.000Z"
+    },
+    {
+     "version": 3,
+     "createdAt": "2026-11-01T09:00:05.000Z"
+    },
+    {
+     "version": 2,
+     "createdAt": "2026-11-01T09:00:04.000Z"
+    },
+    {
+     "version": 1,
+     "createdAt": "2026-11-01T09:00:00.000Z"
+    }
+   ],
+   "app": null,
+   "pinnedModel": "claude-sonnet-5-5",
+   "planFirst": false,
+   "browser": true,
+   "routines": [],
+   "grants": [],
+   "skills": [
+    "pdf",
+    "web-search"
+   ],
+   "proposals": [],
+   "jobs": []
+  },
+  {
+   "id": "kame",
+   "name": "Kame",
+   "available": true,
+   "paused": false,
+   "role": "coder",
+   "kit": "folders",
+   "custom": false,
+   "soul": {
+    "name": "Kame",
+    "personality": "Steady and careful.",
+    "howItWorks": "Reads the code first, writes a test first, and makes small changes.",
+    "rules": "Never changes more than the task needs.",
+    "lessons": ""
+   },
+   "soulVersion": 1,
+   "soulVersions": [
+    {
+     "version": 1,
+     "createdAt": "2026-11-01T09:00:00.000Z"
+    }
+   ],
+   "app": "Xcode",
+   "pinnedModel": null,
+   "codexPinnedModel": "gpt-5-codex",
+   "planFirst": true,
+   "browser": false,
+   "routines": [],
+   "grants": [
+    "/private/tmp/ark-helpers-fixture-home/proj"
+   ],
+   "skills": [],
+   "proposals": [],
+   "jobs": []
+  },
+  {
+   "id": "puff",
+   "name": "Puff",
+   "available": false,
+   "paused": true,
+   "role": "designer",
+   "kit": "folders",
+   "custom": false,
+   "soul": {
+    "name": "Puff",
+    "personality": "Playful and visual. Explains every choice.",
+    "howItWorks": "Sketches options as HTML, CSS or SVG mock-ups and says why each one works.",
+    "rules": "Keeps to the look the project already has unless asked to change it.",
+    "lessons": ""
+   },
+   "soulVersion": 1,
+   "soulVersions": [
+    {
+     "version": 1,
+     "createdAt": "2026-11-01T09:00:00.000Z"
+    }
+   ],
+   "app": null,
+   "pinnedModel": null,
+   "planFirst": false,
+   "browser": false,
+   "routines": [],
+   "grants": [],
+   "skills": [],
+   "proposals": [],
+   "jobs": []
+  },
+  {
+   "id": "quill",
+   "name": "Quill",
+   "available": true,
+   "paused": false,
+   "role": "documenter",
+   "kit": "folders",
+   "custom": false,
+   "soul": {
+    "name": "Quill",
+    "personality": "Clear and plain.",
+    "howItWorks": "Writes in plain English with short sentences, one idea per sentence.",
+    "rules": "Never claims something the sources or the code do not show.",
+    "lessons": ""
+   },
+   "soulVersion": 1,
+   "soulVersions": [
+    {
+     "version": 1,
+     "createdAt": "2026-11-01T09:00:00.000Z"
+    }
+   ],
+   "app": null,
+   "pinnedModel": null,
+   "planFirst": false,
+   "browser": false,
+   "routines": [],
+   "grants": [],
+   "skills": [],
+   "proposals": [],
+   "jobs": []
+  },
+  {
+   "id": "penny",
+   "name": "Penny",
+   "available": true,
+   "paused": false,
+   "role": "financial adviser",
+   "kit": "research",
+   "custom": false,
+   "soul": {
+    "name": "Penny",
+    "personality": "Cautious. Numbers first.",
+    "howItWorks": "Finds current figures from reputable sources, shows the numbers, and states every assumption.",
+    "rules": "Says how old each figure is and where it comes from.",
+    "lessons": ""
+   },
+   "soulVersion": 1,
+   "soulVersions": [
+    {
+     "version": 1,
+     "createdAt": "2026-11-01T09:00:00.000Z"
+    }
+   ],
+   "app": null,
+   "pinnedModel": null,
+   "planFirst": false,
+   "browser": false,
+   "routines": [],
+   "grants": [],
+   "skills": [],
+   "proposals": [],
+   "jobs": []
+  },
+  {
+   "id": "hana",
+   "name": "Hana",
+   "available": true,
+   "paused": false,
+   "role": "hr",
+   "kit": "research",
+   "custom": false,
+   "soul": {
+    "name": "Hana",
+    "personality": "Warm, fair and discreet.",
+    "howItWorks": "Looks for current, reputable guidance and gives balanced, practical answers.",
+    "rules": "Notes when the answer depends on the country or the employer's own rules.",
+    "lessons": ""
+   },
+   "soulVersion": 1,
+   "soulVersions": [
+    {
+     "version": 1,
+     "createdAt": "2026-11-01T09:00:00.000Z"
+    }
+   ],
+   "app": null,
+   "pinnedModel": null,
+   "planFirst": false,
+   "browser": false,
+   "routines": [],
+   "grants": [],
+   "skills": [],
+   "proposals": [],
+   "jobs": []
+  },
+  {
+   "id": "tinker",
+   "name": "Tinker",
+   "available": false,
+   "paused": false,
+   "role": "improver",
+   "kit": "think",
+   "custom": false,
+   "soul": {
+    "name": "Tinker",
+    "personality": "Reflective and specific.",
+    "howItWorks": "Reads failed and poorly rated jobs and proposes one concrete change to a worker's soul, with the reason.",
+    "rules": "Proposes changes only; the user decides.",
+    "lessons": ""
+   },
+   "soulVersion": 1,
+   "soulVersions": [
+    {
+     "version": 1,
+     "createdAt": "2026-11-01T09:00:00.000Z"
+    }
+   ],
+   "app": null,
+   "pinnedModel": null,
+   "planFirst": false,
+   "browser": false,
+   "routines": [],
+   "grants": [],
+   "skills": [],
+   "proposals": [],
+   "jobs": []
+  },
+  {
+   "id": "mochi",
+   "name": "Mochi",
+   "available": true,
+   "paused": false,
+   "role": "cat keeper",
+   "kit": "folders",
+   "custom": true,
+   "soul": {
+    "name": "Mochi",
+    "personality": "Sleepy.",
+    "howItWorks": "Line one.\n## not a heading\n\\## kept",
+    "rules": "Be soft.",
+    "lessons": ""
+   },
+   "soulVersion": 2,
+   "soulVersions": [
+    {
+     "version": 2,
+     "createdAt": "2026-11-01T09:00:07.000Z"
+    },
+    {
+     "version": 1,
+     "createdAt": "2026-11-01T09:00:01.000Z"
+    }
+   ],
+   "app": null,
+   "pinnedModel": null,
+   "planFirst": false,
+   "browser": false,
+   "routines": [],
+   "grants": [],
+   "skills": [],
+   "proposals": [],
+   "jobs": []
+  },
+  {
+   "id": "odd",
+   "name": "Odd",
+   "available": true,
+   "paused": false,
+   "role": "tester",
+   "kit": "think",
+   "custom": true,
+   "soul": {
+    "name": "Odd",
+    "personality": "Strange.",
+    "howItWorks": "",
+    "rules": "",
+    "lessons": ""
+   },
+   "soulVersion": 1,
+   "soulVersions": [
+    {
+     "version": 1,
+     "createdAt": "2026-11-01T09:00:02.000Z"
+    }
+   ],
+   "app": null,
+   "pinnedModel": null,
+   "planFirst": false,
+   "browser": false,
+   "routines": [],
+   "grants": [],
+   "skills": [],
+   "proposals": [],
+   "jobs": []
+  },
+  {
+   "id": "scout",
+   "name": "Scout",
+   "available": true,
+   "paused": false,
+   "role": "researcher",
+   "kit": "research",
+   "custom": true,
+   "soul": {
+    "name": "Scout",
+    "personality": "Quick.",
+    "howItWorks": "",
+    "rules": "",
+    "lessons": ""
+   },
+   "soulVersion": 1,
+   "soulVersions": [
+    {
+     "version": 1,
+     "createdAt": "2026-11-01T09:00:03.000Z"
+    }
+   ],
+   "app": null,
+   "pinnedModel": null,
+   "planFirst": false,
+   "browser": false,
+   "routines": [],
+   "grants": [],
+   "skills": [],
+   "proposals": [],
+   "jobs": []
+  }
+ ],
+ "problems": [
+  {
+   "id": "bad",
+   "problem": "A name needs letters only (spaces, hyphens and apostrophes are fine)."
+  },
+  {
+   "id": "twin",
+   "problem": "Another worker is already called sid."
+  }
+ ]
+}
