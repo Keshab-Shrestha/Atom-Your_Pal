@@ -45,6 +45,11 @@
 - The token comes from `ARK_TELEGRAM_BOT_TOKEN` (with `ARK_TELEGRAM_CHAT_ID`, `ARK_TELEGRAM_USER_ID`) through `Config::from_env`, or from the caller. The log gets names and codes, never text or the token.
 - Verified: 5 tests (message split; backlog and sender filter; split send with buttons; retry rules; wrong token, with a check that the token is not in the log) against a local mock Bot API server. Clippy is clean. No live Telegram call.
 
+## Rust Phase 2 step 11: bridge tool round trip — 12 November 2026
+
+- ADR-278, Phase 2: Claude on the plan can now call tools through Rust policy. The run line of `claude-bridge` lists the request tools. The helper makes each one an SDK tool that sends a `tool` line to Rust and waits for a `tool_result` line. Rust gives the call out as `ToolUse`, keeps the helper process parked, and the agent loop checks the call with its `Policy`. The next `stream` call sends the result to the same helper. Calls go one at a time. One parked run per bridge.
+- Verified: a Rust test with a fake helper (park, result line, same run resumes, `inputSchema` spelling), and 2 Node tests (one call at a time; the SDK options mount only the `ark` server and allow only its tools, with `strictMcpConfig`). No live `claude` run.
+
 ## Rust Phase 2 step 10: native chat turn — 12 November 2026
 
 - ADR-278, Phase 2: `ark-runtime` can answer a plain `text.send` itself with `ark-agent` and `ark-llm`. It is off by default. Set `ARK_RUNTIME_NATIVE_CHAT=1` and give `ANTHROPIC_API_KEY`, or `ARK_CLAUDE_BRIDGE` (the helper script), to turn it on. `ARK_NATIVE_CHAT_MODEL` sets the model.

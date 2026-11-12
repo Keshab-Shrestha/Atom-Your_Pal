@@ -37,6 +37,12 @@
 - Add `rust/crates/ark-telegram` (`Telegram::start`, `send`, `answer`, `stop`, `Config`).
 - Not done: the bot logic of `telegram-bot.ts` (needs, approvals, turns), and wiring the channel into the runtime.
 
+## Rust Phase 2 step 11: bridge tool round trip — 12 November 2026
+
+- Change `ClaudeBridge` (park and resume) and `services/llm-gateway/src/providers/claude-bridge.ts` (`toolBridge`).
+- Not done: a live run with the signed-in `claude`, parallel tool calls, a helper started before the first message, and `resume` of a Claude session.
+
+
 ## Rust Phase 2 step 10: native chat turn — 12 November 2026
 
 - Add `rust/crates/ark-runtime/src/chat.rs` and wire it in the forwarder behind `ARK_RUNTIME_NATIVE_CHAT=1`.

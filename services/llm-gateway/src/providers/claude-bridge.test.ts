@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { runOne } from "./claude-bridge.ts";
+import { runOne, toolBridge } from "./claude-bridge.ts";
 import type { ClaudeSdk } from "./plan-support.ts";
 
 type Msg = Record<string, unknown>;
@@ -38,4 +38,34 @@ test("stops with an error when Claude Code reports an API key", async () => {
   assert.equal(lines.length, 1);
   assert.equal(lines[0]!.type, "error");
   assert.match(String(lines[0]!.message), /bills per token/);
+});
+
+test("a tool call goes to Rust as a tool line and the tool_result line answers it", async () => {
+  const lines: Msg[] = [];
+  const bridge = toolBridge((l) => lines.push(l));
+  const first = bridge.call("current_time", { timezone: "UTC" });
+  const second = bridge.call("read_file", { path: "/a" });
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(lines, [{ type: "tool", callId: "call-1", name: "current_time", input: { timezone: "UTC" } }], "calls go one at a time");
+  bridge.deliver("call-1", "12:00", false);
+  assert.deepEqual(await first, { content: "12:00", isError: false });
+  await new Promise((r) => setImmediate(r));
+  assert.equal(lines.length, 2);
+  bridge.deliver("call-2", "no", true);
+  assert.deepEqual(await second, { content: "no", isError: true });
+});
+
+test("a run with tools mounts the in-process server and allows only those tools", async () => {
+  const seen: Record<string, any>[] = [];
+  const sdk = {
+    query: ({ options }: { options: Record<string, any> }) => (seen.push(options), (async function* () { yield { type: "result", is_error: false, usage: {} }; })()),
+    tool: (name: string) => ({ name }),
+    createSdkMcpServer: (o: { tools: unknown[] }) => ({ tools: o.tools }),
+  } as unknown as ClaudeSdk;
+  const spec = { name: "current_time", description: "d", inputSchema: { type: "object", properties: {} } };
+  await runOne(sdk, { id: "1", prompt: "hi", tools: [spec] }, () => {}, new AbortController(), { PATH: "/bin" }, toolBridge(() => {}));
+  assert.deepEqual(seen[0]!.allowedTools, ["mcp__ark__current_time"]);
+  assert.deepEqual(seen[0]!.tools, [], "no built-in tools");
+  assert.equal(seen[0]!.strictMcpConfig, true);
+  assert.ok(seen[0]!.mcpServers.ark);
 });

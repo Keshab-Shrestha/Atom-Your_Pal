@@ -2,10 +2,14 @@
 //! Rust starts the Node helper `services/llm-gateway/src/providers/claude-bridge.ts`. It speaks line-delimited JSON on
 //! stdio and runs the Agent SDK, which starts the signed-in `claude` program. ARK never reads a login.
 //! One helper process serves one request. It ends when its stdin closes.
-//! The bridge has no tools yet: a tool call from the model is a later step (it would come back to Rust for policy).
+//! Tools: the run line lists the request's tools. A tool call comes back as a `tool` line; the bridge gives it out as
+//! `Event::ToolUse` plus `Done("tool_use")` and keeps the helper process parked. The agent loop checks the call with its
+//! policy and calls `stream` again with the result. The bridge sends it to the parked helper as a `tool_result` line and
+//! goes on reading the same run. Calls come one at a time. One parked run per bridge: a new run drops an older one.
 
 use std::path::PathBuf;
 use std::process::Stdio;
+use std::sync::{Arc, Mutex};
 
 use futures_util::future::BoxFuture;
 use futures_util::stream;
@@ -25,11 +29,19 @@ pub struct ClaudeBridge {
     pub args: Vec<String>,
     /// The `claude` program to run (the SDK finds one when this is `None`).
     pub claude_path: Option<String>,
+    parked: Arc<Mutex<Option<Parked>>>,
+}
+
+/// A helper that waits for the result of a tool call.
+struct Parked {
+    child: Child,
+    stdin: ChildStdin,
+    lines: Lines<BufReader<ChildStdout>>,
 }
 
 impl ClaudeBridge {
     pub fn new(program: impl Into<PathBuf>, args: Vec<String>) -> Self {
-        Self { program: program.into(), args, claude_path: None }
+        Self { program: program.into(), args, claude_path: None, parked: Arc::default() }
     }
 }
 
@@ -50,6 +62,21 @@ pub fn prompt_from(messages: &[crate::Message]) -> String {
 impl Provider for ClaudeBridge {
     fn stream<'a>(&'a self, req: &'a Request) -> BoxFuture<'a, Result<EventStream, LlmError>> {
         Box::pin(async move {
+            let results: Vec<(&str, &str, bool)> = req
+                .messages
+                .last()
+                .filter(|m| m.role == "user")
+                .map(|m| m.content.iter().filter_map(|b| if let Block::ToolResult { tool_use_id, content, is_error } = b { Some((tool_use_id.as_str(), content.as_str(), *is_error)) } else { None }).collect())
+                .unwrap_or_default();
+            let parked = self.parked.lock().map_err(|_| LlmError::Protocol("bridge lock poisoned".into()))?.take();
+            if let (Some(mut run), false) = (parked, results.is_empty()) {
+                for (call_id, content, is_error) in results {
+                    let line = format!("{}\n", json!({"type": "tool_result", "callId": call_id, "content": content, "isError": is_error}));
+                    run.stdin.write_all(line.as_bytes()).await.map_err(|e| LlmError::Http(format!("helper stdin: {e}")))?;
+                }
+                run.stdin.flush().await.map_err(|e| LlmError::Http(e.to_string()))?;
+                return Ok(events(run.child, run.stdin, run.lines, "1", Arc::clone(&self.parked)));
+            }
             let mut cmd = Command::new(&self.program);
             cmd.args(&self.args).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null()).kill_on_drop(true);
             for (key, _) in std::env::vars_os() {
@@ -66,21 +93,34 @@ impl Provider for ClaudeBridge {
             if let Some(system) = &req.system {
                 run["system"] = json!(system);
             }
+            if !req.tools.is_empty() {
+                // The helper uses the TypeScript spelling `inputSchema`.
+                run["tools"] = req.tools.iter().map(|t| json!({"name": t.name, "description": t.description, "inputSchema": t.input_schema})).collect();
+            }
             if let Some(path) = &self.claude_path {
                 run["claudePath"] = json!(path);
             }
             let line = format!("{run}\n");
             stdin.write_all(line.as_bytes()).await.map_err(|e| LlmError::Http(format!("helper stdin: {e}")))?;
             stdin.flush().await.map_err(|e| LlmError::Http(e.to_string()))?;
-            Ok(events(child, stdin, BufReader::new(stdout).lines(), id))
+            Ok(events(child, stdin, BufReader::new(stdout).lines(), id, Arc::clone(&self.parked)))
         })
     }
 }
 
 /// The helper's lines as model events. `child` and `stdin` stay alive until the stream ends.
-fn events(child: Child, stdin: ChildStdin, lines: Lines<BufReader<ChildStdout>>, id: &'static str) -> EventStream {
-    Box::pin(stream::unfold(Some((child, stdin, lines)), move |state| async move {
-        let (child, stdin, mut lines) = state?;
+fn events(child: Child, stdin: ChildStdin, lines: Lines<BufReader<ChildStdout>>, id: &'static str, parked: Arc<Mutex<Option<Parked>>>) -> EventStream {
+    // State: the run, plus a `Done("tool_use")` still to give out after a `ToolUse`.
+    Box::pin(stream::unfold(Some((child, stdin, lines, false)), move |state| {
+        let parked = Arc::clone(&parked);
+        async move {
+        let (child, stdin, mut lines, after_tool) = state?;
+        if after_tool {
+            if let Ok(mut slot) = parked.lock() {
+                *slot = Some(Parked { child, stdin, lines });
+            }
+            return Some((Ok(Event::Done { stop_reason: "tool_use".into(), usage: Usage::default() }), None));
+        }
         loop {
             let line = match lines.next_line().await {
                 Ok(Some(l)) => l,
@@ -93,8 +133,12 @@ fn events(child: Child, stdin: ChildStdin, lines: Lines<BufReader<ChildStdout>>,
             }
             let text = || v["text"].as_str().unwrap_or_default().to_string();
             match v["type"].as_str() {
-                Some("text") => return Some((Ok(Event::Text { text: text() }), Some((child, stdin, lines)))),
-                Some("thinking") => return Some((Ok(Event::Thinking { text: text() }), Some((child, stdin, lines)))),
+                Some("text") => return Some((Ok(Event::Text { text: text() }), Some((child, stdin, lines, false)))),
+                Some("thinking") => return Some((Ok(Event::Thinking { text: text() }), Some((child, stdin, lines, false)))),
+                Some("tool") => {
+                    let event = Event::ToolUse { id: v["callId"].as_str().unwrap_or_default().to_string(), name: v["name"].as_str().unwrap_or_default().to_string(), input: v["input"].clone() };
+                    return Some((Ok(event), Some((child, stdin, lines, true))));
+                }
                 Some("done") => {
                     let n = |k: &str| v.pointer(&format!("/usage/{k}")).and_then(Value::as_u64).unwrap_or(0);
                     let done = Event::Done { stop_reason: v["stopReason"].as_str().unwrap_or("end_turn").to_string(), usage: Usage { input_tokens: n("input"), output_tokens: n("output") } };
@@ -106,6 +150,7 @@ fn events(child: Child, stdin: ChildStdin, lines: Lines<BufReader<ChildStdout>>,
                 }
                 _ => {} // "ready" and unknown lines
             }
+        }
         }
     }))
 }

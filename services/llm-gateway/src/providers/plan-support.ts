@@ -217,7 +217,7 @@ function zodFor(property: { type: string; description?: string }, required: bool
   return required ? type : type.optional();
 }
 
-function shapeOf(spec: ToolSpec): Record<string, ZodType> {
+export function shapeOf(spec: ToolSpec): Record<string, ZodType> {
   const required = new Set(spec.inputSchema.required ?? []);
   return Object.fromEntries(Object.entries(spec.inputSchema.properties ?? {}).map(([name, p]) => [name, zodFor(p, required.has(name))]));
 }
