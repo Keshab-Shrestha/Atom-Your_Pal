@@ -18,6 +18,9 @@ const RECEIPTS: usize = 32;
 pub struct Extras {
     creation: Mutex<Option<(String, Cancel)>>,
     receipts: Mutex<VecDeque<(String, String)>>,
+    brief: Arc<crate::brief::Runner>,
+    /// The last `brief` line the app got, so the poller sends only a change.
+    brief_last: Arc<Mutex<String>>,
 }
 
 fn line_of(value: &Value) -> String {
@@ -27,7 +30,7 @@ fn line_of(value: &Value) -> String {
 impl Extras {
     /// Takes `line` when it is one of these commands. `false` means: give it to Node.
     pub fn handle(&self, chat: &Arc<Chat>, line: &str, to_app: &Sink) -> bool {
-        self.project(chat, line, to_app) || workflow(chat, line, to_app) || improvements(chat, line, to_app)
+        self.project(chat, line, to_app) || workflow(chat, line, to_app) || improvements(chat, line, to_app) || self.brief_commands(chat, line, to_app)
     }
 
     /// `project.create` and `project.create.cancel`.
@@ -96,6 +99,108 @@ impl Extras {
             to_app(&line);
         });
         true
+    }
+
+    /// `brief.get`, `brief.set`, `brief.note` (out of the list) and `brief.run` (`brief.rs`).
+    fn brief_commands(&self, chat: &Arc<Chat>, line: &str, to_app: &Sink) -> bool {
+        use crate::brief;
+        if !line.contains("\"brief.") {
+            return false;
+        }
+        let Ok(command) = serde_json::from_str::<Value>(line) else { return false };
+        let kind = command["type"].as_str().unwrap_or("");
+        if !["brief.get", "brief.set", "brief.note", "brief.run"].contains(&kind) || (kind == "brief.note" && command["included"] != false) {
+            return false;
+        }
+        let Some(dir) = chat.db.parent().map(std::path::Path::to_path_buf) else { return false };
+        let state = dir.join("ui-state.json");
+        let Ok(memory) = store::open_read_write(&chat.db) else { return false };
+        if brief::ensure(&memory).is_err() {
+            return false;
+        }
+        let runner = &self.brief;
+        let send = |memory: &rusqlite::Connection| {
+            let text = brief::event(memory, &state, runner.running.load(Ordering::SeqCst), runner.notice().as_deref());
+            if let Ok(mut last) = self.brief_last.lock() {
+                last.clone_from(&text);
+            }
+            to_app(&text);
+        };
+        let error = |message: &str| to_app(&Event::error(ark_protocol::events::ErrorStage::Settings, message).to_line());
+        match kind {
+            "brief.get" => {
+                self.watch_brief(chat, to_app);
+                send(&memory);
+            }
+            "brief.set" => {
+                if let Err(message) = brief::update(&memory, &command["change"]) {
+                    error(&message);
+                } else {
+                    runner.settings_changed(brief::settings(&memory)["preparation"] == true);
+                }
+                send(&memory);
+            }
+            "brief.note" => {
+                let Some(id) = command["id"].as_i64() else { return false };
+                let ids: Vec<Value> = brief::settings(&memory)["preparationNoteIds"].as_array().cloned().unwrap_or_default().into_iter().filter(|v| v.as_i64() != Some(id)).collect();
+                if let Err(message) = brief::update(&memory, &serde_json::json!({ "preparationNoteIds": ids })) {
+                    error(&message);
+                    return true;
+                }
+                runner.settings_changed(brief::settings(&memory)["preparation"] == true);
+                self.watch_brief(chat, to_app);
+                send(&memory);
+            }
+            _ => {
+                if runner.running.swap(true, Ordering::SeqCst) {
+                    return true;
+                }
+                runner.set_notice(None);
+                let abort = Cancel::default();
+                if let Ok(mut slot) = runner.abort.lock() {
+                    *slot = Some(abort.clone());
+                }
+                let (chat, runner) = (Arc::clone(chat), Arc::clone(&self.brief));
+                std::thread::spawn(move || {
+                    let (Ok(memory), helpers) = (store::open_read_write(&chat.db), store::open_read_write(&dir.join("helpers.db")).ok().filter(|_| dir.join("helpers.db").exists())) else {
+                        runner.running.store(false, Ordering::SeqCst);
+                        return;
+                    };
+                    let agents = dir.join("agents");
+                    let write = |task: &str| crate::llm_once::ask(chat.provider.as_ref(), &chat.model, brief::INSTRUCTIONS, task, brief::MODEL_TOKENS);
+                    let run = brief::Run { memory: &memory, helpers: helpers.as_ref(), agents: &agents, write: &write, abort: &abort };
+                    if let Err(message) = brief::make(&run) {
+                        runner.set_notice(Some(if abort.load(Ordering::SeqCst) { message } else { brief::FAILED.into() }));
+                    }
+                    if let Ok(mut slot) = runner.abort.lock() {
+                        *slot = None;
+                    }
+                    runner.running.store(false, Ordering::SeqCst);
+                });
+            }
+        }
+        true
+    }
+
+    /// From the first `brief.get` on, a change of the brief (a new brief, new settings, the running flag, the notice) is pushed.
+    fn watch_brief(&self, chat: &Arc<Chat>, to_app: &Sink) {
+        if self.brief.watched.swap(true, Ordering::SeqCst) {
+            return;
+        }
+        let (runner, last, to_app, db) = (Arc::clone(&self.brief), Arc::clone(&self.brief_last), to_app.clone(), chat.db.clone());
+        std::thread::spawn(move || {
+            let state = db.parent().map(|d| d.join("ui-state.json")).unwrap_or_default();
+            loop {
+                std::thread::sleep(std::time::Duration::from_millis(500));
+                let Ok(conn) = crate::memory::open_plain(&db).ok_or(()) else { continue };
+                let text = crate::brief::event(&conn, &state, runner.running.load(Ordering::SeqCst), runner.notice().as_deref());
+                let Ok(mut last) = last.lock() else { return };
+                if *last != text {
+                    last.clone_from(&text);
+                    to_app(&text);
+                }
+            }
+        });
     }
 
     fn finish(&self, request: &str, line: &str) {
