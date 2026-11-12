@@ -303,3 +303,20 @@ pub fn open_privacy_pane(pane: &str) {
         eprintln!("ark-app: could not open System Settings: {e}");
     }
 }
+
+/// Gives the main window back its size and place from the last run, and has AppKit save them from now on
+/// (`NSWindow` frame autosave, kept in the app's defaults). Runs once, when the window exists.
+pub fn remember_window_frame() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    static DONE: AtomicBool = AtomicBool::new(false);
+    if DONE.load(Ordering::SeqCst) {
+        return;
+    }
+    let Some(mtm) = MainThreadMarker::new() else { return };
+    let windows = NSApplication::sharedApplication(mtm).windows();
+    let Some(main) = windows.iter().find(|w| w.title().to_string() == "ARK") else { return };
+    let name = NSString::from_str("ARKMainWindow");
+    main.setFrameUsingName(&name);
+    main.setFrameAutosaveName(&name);
+    DONE.store(true, Ordering::SeqCst);
+}

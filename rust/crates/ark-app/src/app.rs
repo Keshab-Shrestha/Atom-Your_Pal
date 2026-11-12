@@ -9,6 +9,26 @@ use rune_kit::shell::PaneState;
 
 use crate::bridge::{Bridge, Inbound};
 
+impl Screen {
+    /// The name saved in the prefs and used by `ARK_UI_SCREEN`.
+    pub fn name(self) -> &'static str {
+        match self {
+            Screen::Chat => "chat",
+            Screen::Settings => "settings",
+            Screen::Agents => "agents",
+            Screen::Tasks => "tasks",
+            Screen::Memory => "memory",
+            Screen::Projects => "projects",
+            Screen::Branches => "branches",
+            Screen::Dashboard => "dashboard",
+        }
+    }
+
+    pub fn from_name(name: &str) -> Screen {
+        [Screen::Settings, Screen::Agents, Screen::Tasks, Screen::Memory, Screen::Projects, Screen::Branches, Screen::Dashboard].into_iter().find(|s| s.name() == name).unwrap_or(Screen::Chat)
+    }
+}
+
 /// The screen in the main pane.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Screen {
@@ -88,20 +108,16 @@ pub fn init() -> App {
     }
     let mut draft = TextEdit::new("");
     draft.focused = true;
-    let screen = match std::env::var("ARK_UI_SCREEN").as_deref() {
-        Ok("settings") => Screen::Settings,
-        Ok("agents") => Screen::Agents,
-        Ok("tasks") => Screen::Tasks,
-        Ok("memory") => Screen::Memory,
-        Ok("projects") => Screen::Projects,
-        Ok("branches") => Screen::Branches,
-        Ok("dashboard") => Screen::Dashboard,
-        _ => Screen::Chat,
-    };
+    // `ARK_UI_SCREEN` picks the page for tests; otherwise the page of the last run comes back.
+    let screen = Screen::from_name(&std::env::var("ARK_UI_SCREEN").unwrap_or_else(|_| prefs.screen.clone()));
+    let mut sidebar = PaneState::new(260.0).range(180.0, 420.0).with_width(prefs.sidebar_width);
+    if !prefs.sidebar_open {
+        sidebar.set_open(false);
+    }
     // Tests and snapshots open the find bar with a query.
     let find = std::env::var("ARK_UI_FIND").ok().map(|q| (TextEdit::new(q), 0));
     let welcome = std::env::var_os("ARK_UI_EVENTS").is_none() && !prefs.welcomed;
-    App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen, brain_query: TextEdit::new(std::env::var("ARK_UI_BRAIN_QUERY").unwrap_or_default()), key_draft: TextEdit::new("").secure(), key_note: None, wake: None, backoff: Default::default(), retry_at: None, workspace_project: None, recording: None, details: std::env::var_os("ARK_UI_DETAILS").is_some(), open_job: std::env::var("ARK_UI_JOB").ok().and_then(|v| v.parse().ok()), prefs, confirm_full: false, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: welcome.then(|| crate::form::Form::owner(true, "")), form_error: None }
+    App { model, bridge: None, draft, sidebar, screen, brain_query: TextEdit::new(std::env::var("ARK_UI_BRAIN_QUERY").unwrap_or_default()), key_draft: TextEdit::new("").secure(), key_note: None, wake: None, backoff: Default::default(), retry_at: None, workspace_project: None, recording: None, details: std::env::var_os("ARK_UI_DETAILS").is_some(), open_job: std::env::var("ARK_UI_JOB").ok().and_then(|v| v.parse().ok()), prefs, confirm_full: false, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: welcome.then(|| crate::form::Form::owner(true, "")), form_error: None }
 }
 
 /// Starts the runtime child once, with the waker that redraws the window when an event arrives.
@@ -153,10 +169,29 @@ fn schedule_retry(app: &mut App, why: String) {
     }
 }
 
+/// Saves the page and the sidebar when they changed since the last save. Cheap to call every frame.
+fn remember_layout(app: &mut App) {
+    let (screen, width, open) = (app.screen.name(), app.sidebar.width(), app.sidebar.is_open());
+    if app.bridge.is_none() && std::env::var_os("ARK_UI_EVENTS").is_some() {
+        return;
+    }
+    if app.prefs.screen != screen || (app.prefs.sidebar_width - width).abs() > 0.5 || app.prefs.sidebar_open != open {
+        // The pane is mid-drag while resizing: save when it settles.
+        if app.sidebar.is_resizing() {
+            return;
+        }
+        app.prefs.screen = screen.to_owned();
+        app.prefs.sidebar_width = width;
+        app.prefs.sidebar_open = open;
+        app.prefs.save();
+    }
+}
+
 /// Runs at the start of every frame: moves what the bridge queued into the model.
 pub fn poll(app: &mut App, _: f64, _: &mut Tx) -> bool {
     let mut changed = false;
     #[cfg(target_os = "macos")]
+    crate::mac::remember_window_frame();
     for (action, combo) in crate::mac::take_recorded() {
         app.recording = None;
         if let Some(combo) = combo {
@@ -200,6 +235,7 @@ pub fn poll(app: &mut App, _: f64, _: &mut Tx) -> bool {
         schedule_retry(app, why);
     }
     crate::overlay::sync(app.model.loop_state, !app.model.approvals.is_empty());
+    remember_layout(app);
     changed
 }
 

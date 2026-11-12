@@ -250,6 +250,7 @@ name = "ark-runtime"
 version = "0.0.1"
 dependencies = [
  "ark-agent",
+ "ark-app",
  "ark-core",
  "ark-llm",
  "ark-protocol",
