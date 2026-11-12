@@ -74,6 +74,21 @@ Rust logic comes from `ark-core` where a module exists.
 - Window state: the page and sidebar width are saved in the prefs file. The window frame uses AppKit autosave (not run in a live window).
 - Gap report: test `gap_report_lists_swift_labels_missing_from_the_rust_screens` writes `gap-report.txt` to the parity folder. It lists Swift labels the Rust screens lack. Open gaps include Dashboard detail tiles, brain note editing, agent job lists and the Settings pages for login, updates and support.
 
+## Done in the sixth round
+
+| Swift source | ark-app |
+| --- | --- |
+| DashboardOverviewGrid, DashboardUsageCharts | tiles: running, need you, tokens, API-equivalent, cache; by model and agent |
+| NeedsYouView | Needs you card on the dashboard: approvals, plans, failed tasks |
+| BrainView note editor | New note and Edit note forms (`brain.save`) |
+| HelpersView job list, ScheduledView | newest jobs per agent with Read report; routines with pause, resume, delete, new daily routine |
+| GeneralPage login, updates, support | About and support card: build line, open at login (Launch Agent), update check (git), problem report link |
+| SearchViews | Search page (cmd+shift+F) over chats, tasks, reports, notes, projects, agents |
+| IslandController+Drop | drop files on the chat to attach them |
+| AgentCursorController (step text) | the computer agent's current step shows in the status pill. The cursor itself is not drawn |
+
+Still open: the agent cursor drawing and point-at overlay, workflows canvas, plugins, skills hub, local backup, brief views, reply drafts, plan views, workspace browser and terminal, pal and pet.
+
 ## Tests added
 
 - `rust/crates/ark-runtime/tests/e2e.rs`: the app Bridge, the real `ark-runtime` binary and a mock Anthropic server on localhost.
