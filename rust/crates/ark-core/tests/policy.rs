@@ -108,8 +108,8 @@ fn classify_command_stays_fast_on_hostile_text_and_refuses_a_command_that_is_too
     for c in &shapes {
         let start = std::time::Instant::now();
         classify_command(c, "the user");
-        // Debug builds are slower than the TypeScript test's 250 ms; the bound still catches an exponential pattern.
-        assert!(start.elapsed().as_millis() < 2_000, "{}… took {:?}", &c[..12], start.elapsed());
+        // Debug builds are much slower (CI: 3.4s) than the TypeScript test's 250 ms; the bound still catches an exponential pattern.
+        assert!(start.elapsed().as_millis() < 10_000, "{}… took {:?}", &c[..12], start.elapsed());
     }
     assert_eq!(verdict(&format!("git {}push origin x", "-c a=b ".repeat(8))), "refuse", "git -c k=v … push is still refused");
     assert_eq!(verdict(&"a".repeat(MAX_COMMAND_CHARS + 1)), "refuse");
