@@ -167,6 +167,22 @@ pub fn settings(app: &App, k: &Kit) -> El {
     if let Some(note) = &app.key_note {
         keys = keys.child(text(note.clone()).key("key-note").font(k.ty.small).color(k.c.text_muted).wrap());
     }
+    let login_on = std::env::var_os("ARK_UI_EVENTS").is_none() && crate::about::login_enabled();
+    let mut about = card(k, "settings-about", "About and support")
+        .child(line(k, "This build", crate::about::build_line()))
+        .child(row().w_full().justify_between().items_center()
+            .child(text("Open at login").font(k.ty.ui).color(k.c.text_base))
+            .child(Button::new(if login_on { "On" } else { "Off" }).variant(if login_on { ButtonVariant::Submit } else { ButtonVariant::Neutral }).on_press(|s: &mut App| s.toggle_login()).build(k).key("login-toggle")))
+        .child(row().w_full().justify_between().items_center()
+            .child(text("Updates").font(k.ty.ui).color(k.c.text_base))
+            .child(Button::new("Check").on_press(|s: &mut App| s.check_updates()).build(k).key("update-check")))
+        .child(row().w_full().justify_between().items_center()
+            .child(text("Report a problem").font(k.ty.ui).color(k.c.text_base))
+            .child(Button::new("Report…").on_press(|_: &mut App| crate::about::open_url(&crate::about::problem_url(env!("CARGO_PKG_VERSION"), &crate::about::macos_version()))).build(k).key("report-problem")))
+        .child(text("The report opens GitHub with only the ARK and macOS versions filled in. No log or chat is attached.").font(k.ty.small).color(k.c.text_faint).wrap());
+    for note in [&app.update_note, &app.login_note].into_iter().flatten() {
+        about = about.child(text(note.clone()).font(k.ty.small).color(k.c.text_muted).wrap());
+    }
     let mut shortcuts = card(k, "settings-shortcuts", "Shortcuts");
     for action in ark_core::shortcuts::ShortcutAction::ALL {
         let words = if app.recording == Some(action) { "Press the new shortcut (Esc cancels)".to_owned() } else { crate::prefs::describe(action, &app.prefs.combo(action)) };
@@ -178,7 +194,7 @@ pub fn settings(app: &App, k: &Kit) -> El {
         }
         shortcuts = shortcuts.child(row().w_full().justify_between().items_center().gap(12.0).child(text(crate::prefs::action_title(action).to_owned()).font(k.ty.ui).color(k.c.text_muted)).child(text(words).font(k.ty.ui).color(k.c.text_base)).child(buttons));
     }
-    let mut cards = vec![model, general, defaults, appearance, keys, shortcuts, access, connections];
+    let mut cards = vec![model, general, defaults, appearance, keys, shortcuts, access, about, connections];
     if let Some(values) = m.brief {
         let mut brief = card(k, "settings-brief", "Morning brief");
         for (i, ((_, label), on)) in ark_ui::BRIEF_SWITCHES.iter().zip(values).enumerate() {

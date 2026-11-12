@@ -56,6 +56,10 @@ pub struct App {
     pub backoff: crate::reconnect::Backoff,
     /// When the next start is due; None while the runtime runs.
     pub retry_at: Option<std::time::Instant>,
+    /// The answer of the last update check, and a note about the login item.
+    pub update_note: Option<String>,
+    pub update_result: std::sync::Arc<std::sync::Mutex<Option<String>>>,
+    pub login_note: Option<String>,
     /// "Forget all facts" waits for the second press.
     pub confirm_clear: bool,
     /// The project whose files are open on the Projects page.
@@ -119,7 +123,7 @@ pub fn init() -> App {
     // Tests and snapshots open the find bar with a query.
     let find = std::env::var("ARK_UI_FIND").ok().map(|q| (TextEdit::new(q), 0));
     let welcome = std::env::var_os("ARK_UI_EVENTS").is_none() && !prefs.welcomed;
-    App { model, bridge: None, draft, sidebar, screen, brain_query: TextEdit::new(std::env::var("ARK_UI_BRAIN_QUERY").unwrap_or_default()), key_draft: TextEdit::new("").secure(), key_note: None, wake: None, backoff: Default::default(), retry_at: None, confirm_clear: false, workspace_project: None, recording: None, details: std::env::var_os("ARK_UI_DETAILS").is_some(), open_job: std::env::var("ARK_UI_JOB").ok().and_then(|v| v.parse().ok()), prefs, confirm_full: false, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: welcome.then(|| crate::form::Form::owner(true, "")), form_error: None }
+    App { model, bridge: None, draft, sidebar, screen, brain_query: TextEdit::new(std::env::var("ARK_UI_BRAIN_QUERY").unwrap_or_default()), key_draft: TextEdit::new("").secure(), key_note: None, wake: None, backoff: Default::default(), retry_at: None, update_note: None, update_result: Default::default(), login_note: None, confirm_clear: false, workspace_project: None, recording: None, details: std::env::var_os("ARK_UI_DETAILS").is_some(), open_job: std::env::var("ARK_UI_JOB").ok().and_then(|v| v.parse().ok()), prefs, confirm_full: false, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: welcome.then(|| crate::form::Form::owner(true, "")), form_error: None }
 }
 
 /// Starts the runtime child once, with the waker that redraws the window when an event arrives.
@@ -237,6 +241,10 @@ pub fn poll(app: &mut App, _: f64, _: &mut Tx) -> bool {
         schedule_retry(app, why);
     }
     crate::overlay::sync(app.model.loop_state, !app.model.approvals.is_empty());
+    if let Some(answer) = app.update_result.lock().unwrap_or_else(|e| e.into_inner()).take() {
+        app.update_note = Some(answer);
+        changed = true;
+    }
     remember_layout(app);
     changed
 }
@@ -369,6 +377,34 @@ impl App {
         let chat = self.model.current.clone().unwrap_or_default();
         let fields = serde_json::json!({ "type": "workspace", "request": format!("ui-{action}-{path}"), "chat": chat, "project": project, "action": action, "path": path });
         self.send(&ark_protocol::Command::Other { kind: "workspace".into(), fields: fields.as_object().cloned().unwrap_or_default() });
+    }
+
+    /// Looks for updates in the source folder (`ARK_ROOT`, else the project folder of the bundle) on a thread.
+    pub fn check_updates(&mut self) {
+        let plan = crate::launch::real_plan();
+        let Some(root) = plan.cwd else {
+            self.update_note = Some("This copy has no source folder to update.".into());
+            return;
+        };
+        self.update_note = Some("Looking…".into());
+        let slot = std::sync::Arc::clone(&self.update_result);
+        let wake = self.wake.clone();
+        std::thread::spawn(move || {
+            let answer = crate::about::check_updates(&root);
+            *slot.lock().unwrap_or_else(|e| e.into_inner()) = Some(answer);
+            if let Some(w) = wake {
+                w();
+            }
+        });
+    }
+
+    pub fn toggle_login(&mut self) {
+        let on = !crate::about::login_enabled();
+        self.login_note = Some(match crate::about::set_login(on) {
+            Ok(()) if on => "ARK opens at your next login.".to_owned(),
+            Ok(()) => "ARK no longer opens at login.".to_owned(),
+            Err(why) => why,
+        });
     }
 
     pub fn set_translucent(&mut self, on: bool) {
