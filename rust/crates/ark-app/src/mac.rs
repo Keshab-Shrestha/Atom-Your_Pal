@@ -62,6 +62,52 @@ pub fn action_for(trigger: ShortcutTrigger) -> Option<Action> {
     }
 }
 
+/// Replaces the matcher's shortcuts (the defaults with the owner's changes on top).
+pub fn apply_shortcuts(map: HashMap<ShortcutAction, ark_core::shortcuts::KeyCombo>) {
+    let triggers = matcher().lock().unwrap_or_else(|e| e.into_inner()).set_shortcuts(map);
+    triggers.into_iter().filter_map(action_for).for_each(push);
+}
+
+static RECORDING: Mutex<Option<(ShortcutAction, crate::recorder::Recorder)>> = Mutex::new(None);
+static RECORDED: Mutex<Vec<(ShortcutAction, Option<ark_core::shortcuts::KeyCombo>)>> = Mutex::new(Vec::new());
+
+/// The next key press in this app becomes the shortcut for `action`.
+pub fn start_recording(action: ShortcutAction) {
+    *RECORDING.lock().unwrap_or_else(|e| e.into_inner()) = Some((action, crate::recorder::Recorder::default()));
+}
+
+pub fn stop_recording() {
+    *RECORDING.lock().unwrap_or_else(|e| e.into_inner()) = None;
+}
+
+/// Takes the finished recordings (`None`: cancelled) since the last call.
+pub fn take_recorded() -> Vec<(ShortcutAction, Option<ark_core::shortcuts::KeyCombo>)> {
+    std::mem::take(&mut *RECORDED.lock().unwrap_or_else(|e| e.into_inner()))
+}
+
+/// Feeds a key event of this app to a recording in progress. True when the recording used the event.
+fn record(input: KeyInput, name: Option<String>) -> bool {
+    use crate::recorder::Step;
+    let mut slot = RECORDING.lock().unwrap_or_else(|e| e.into_inner());
+    let Some((action, rec)) = slot.as_mut() else { return false };
+    let action = *action;
+    let done = match rec.step(input) {
+        Step::Waiting => return true,
+        Step::Cancelled => None,
+        Step::Done(mut combo) => {
+            combo.key_name = combo.key_name.or(name);
+            Some(combo)
+        }
+    };
+    *slot = None;
+    drop(slot);
+    RECORDED.lock().unwrap_or_else(|e| e.into_inner()).push((action, done));
+    if let Some(wake) = WAKE.get() {
+        wake();
+    }
+    true
+}
+
 fn now() -> f64 {
     static START: OnceLock<std::time::Instant> = OnceLock::new();
     START.get_or_init(std::time::Instant::now).elapsed().as_secs_f64()
@@ -114,6 +160,33 @@ fn watch_keys() {
     KEEP.with(|k| {
         if let Some(m) = monitor {
             // SAFETY: the monitor is an opaque AppKit token that only needs to stay alive.
+            k.borrow_mut().push(unsafe { Retained::cast_unchecked(m) });
+        }
+    });
+}
+
+/// Watches this app's own keys, only to record a shortcut. The event is consumed while a recording runs.
+fn watch_own_keys() {
+    use objc2_app_kit::{NSEvent, NSEventMask, NSEventType};
+    let handler = block2::RcBlock::new(|event: std::ptr::NonNull<NSEvent>| -> *mut NSEvent {
+        // SAFETY: AppKit passes a live event for the duration of the call.
+        let e = unsafe { event.as_ref() };
+        let code = e.keyCode();
+        let (input, name) = match e.r#type() {
+            NSEventType::FlagsChanged => (KeyInput::FlagsChanged { key_code: code, modifiers: modifiers_of(e.modifierFlags()) }, None),
+            NSEventType::KeyDown => (
+                KeyInput::KeyDown { key_code: code, modifiers: modifiers_of(e.modifierFlags()), is_repeat: e.isARepeat() },
+                e.charactersIgnoringModifiers().map(|s| s.to_string().to_uppercase()),
+            ),
+            _ => return event.as_ptr(),
+        };
+        if record(input, name) { std::ptr::null_mut() } else { event.as_ptr() }
+    });
+    // SAFETY: the handler returns the event it was given or null, as AppKit requires of a local monitor.
+    let monitor = unsafe { NSEvent::addLocalMonitorForEventsMatchingMask_handler(NSEventMask::FlagsChanged | NSEventMask::KeyDown, &handler) };
+    KEEP.with(|k| {
+        if let Some(m) = monitor {
+            // SAFETY: an opaque AppKit token that only needs to stay alive.
             k.borrow_mut().push(unsafe { Retained::cast_unchecked(m) });
         }
     });
@@ -201,6 +274,7 @@ pub fn install(wake: rune::Waker) {
     }
     item.setMenu(Some(&menu));
     watch_keys();
+    watch_own_keys();
     KEEP.with(|k| {
         let mut k = k.borrow_mut();
         k.push(target.into_super());

@@ -30,6 +30,8 @@ pub struct App {
     pub sidebar: PaneState,
     pub screen: Screen,
     /// An open form (soul, new agent, new task); it replaces the page while it is open.
+    /// The shortcut waiting for a key press.
+    pub recording: Option<ark_core::shortcuts::ShortcutAction>,
     /// The chat details card is open above the transcript.
     pub details: bool,
     /// The task whose details are open on the Tasks page.
@@ -81,7 +83,7 @@ pub fn init() -> App {
     // Tests and snapshots open the find bar with a query.
     let find = std::env::var("ARK_UI_FIND").ok().map(|q| (TextEdit::new(q), 0));
     let welcome = std::env::var_os("ARK_UI_EVENTS").is_none() && !prefs.welcomed;
-    App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen, details: std::env::var_os("ARK_UI_DETAILS").is_some(), open_job: std::env::var("ARK_UI_JOB").ok().and_then(|v| v.parse().ok()), prefs, confirm_full: false, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: welcome.then(|| crate::form::Form::owner(true, "")), form_error: None }
+    App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen, recording: None, details: std::env::var_os("ARK_UI_DETAILS").is_some(), open_job: std::env::var("ARK_UI_JOB").ok().and_then(|v| v.parse().ok()), prefs, confirm_full: false, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: welcome.then(|| crate::form::Form::owner(true, "")), form_error: None }
 }
 
 /// Starts the runtime child once, with the waker that redraws the window when an event arrives.
@@ -91,6 +93,8 @@ pub fn setup(app: &mut App, wake: Waker) {
     }
     #[cfg(target_os = "macos")]
     crate::mac::install(Arc::clone(&wake));
+    #[cfg(target_os = "macos")]
+    app.apply_shortcuts();
     let plan = crate::launch::real_plan();
     let bin = plan.program.clone();
     match Bridge::spawn(&plan.program, &plan.args, plan.cwd.as_deref(), Arc::clone(&wake)) {
@@ -111,6 +115,15 @@ pub fn setup(app: &mut App, wake: Waker) {
 pub fn poll(app: &mut App, _: f64, _: &mut Tx) -> bool {
     let mut changed = false;
     #[cfg(target_os = "macos")]
+    for (action, combo) in crate::mac::take_recorded() {
+        app.recording = None;
+        if let Some(combo) = combo {
+            app.prefs.shortcuts.insert(crate::prefs::action_id(action).to_owned(), combo);
+            app.prefs.save();
+            app.apply_shortcuts();
+        }
+        changed = true;
+    }
     for action in crate::mac::take_actions() {
         match action {
             crate::mac::Action::NewChat => app.new_chat(),
@@ -204,6 +217,32 @@ impl App {
     pub fn set_theme(&mut self, theme: crate::prefs::Theme) {
         self.prefs.theme = theme;
         self.prefs.save();
+    }
+
+    /// Starts recording a new shortcut for `action`; a second call cancels.
+    pub fn record_shortcut(&mut self, action: ark_core::shortcuts::ShortcutAction) {
+        if self.recording == Some(action) {
+            self.recording = None;
+            #[cfg(target_os = "macos")]
+            crate::mac::stop_recording();
+            return;
+        }
+        self.recording = Some(action);
+        #[cfg(target_os = "macos")]
+        crate::mac::start_recording(action);
+    }
+
+    /// Puts the shortcut back to its default.
+    pub fn reset_shortcut(&mut self, action: ark_core::shortcuts::ShortcutAction) {
+        self.prefs.shortcuts.remove(crate::prefs::action_id(action));
+        self.prefs.save();
+        self.apply_shortcuts();
+    }
+
+    /// Gives the matcher the shortcuts in use.
+    pub fn apply_shortcuts(&self) {
+        #[cfg(target_os = "macos")]
+        crate::mac::apply_shortcuts(ark_core::shortcuts::ShortcutAction::ALL.iter().map(|a| (*a, self.prefs.combo(*a))).collect());
     }
 
     pub fn set_translucent(&mut self, on: bool) {

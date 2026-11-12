@@ -130,7 +130,14 @@ pub fn settings(app: &App, k: &Kit) -> El {
         }).build(k).key("owner-change")));
     let mut shortcuts = card(k, "settings-shortcuts", "Shortcuts");
     for action in ark_core::shortcuts::ShortcutAction::ALL {
-        shortcuts = shortcuts.child(line(k, crate::prefs::action_title(action), crate::prefs::describe(action)));
+        let words = if app.recording == Some(action) { "Press the new shortcut (Esc cancels)".to_owned() } else { crate::prefs::describe(action, &app.prefs.combo(action)) };
+        let id = crate::prefs::action_id(action);
+        let changed = app.prefs.shortcuts.contains_key(id);
+        let mut buttons = row().gap(6.0).child(Button::new(if app.recording == Some(action) { "Cancel" } else { "Change" }).on_press(move |s: &mut App| s.record_shortcut(action)).build(k).key(format!("shortcut-record-{id}")));
+        if changed {
+            buttons = buttons.child(Button::new("Reset").on_press(move |s: &mut App| s.reset_shortcut(action)).build(k).key(format!("shortcut-reset-{id}")));
+        }
+        shortcuts = shortcuts.child(row().w_full().justify_between().items_center().gap(12.0).child(text(crate::prefs::action_title(action).to_owned()).font(k.ty.ui).color(k.c.text_muted)).child(text(words).font(k.ty.ui).color(k.c.text_base)).child(buttons));
     }
     let mut cards = vec![model, general, defaults, appearance, shortcuts, connections];
     if let Some(values) = m.brief {

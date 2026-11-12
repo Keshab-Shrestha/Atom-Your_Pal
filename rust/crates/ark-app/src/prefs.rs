@@ -1,6 +1,7 @@
 //! The app's own saved choices: new-chat defaults and appearance. One small JSON file; a missing or broken file gives the defaults.
 
-use ark_core::shortcuts::{Modifiers, ShortcutAction};
+use ark_core::shortcuts::{KeyCombo, Modifiers, ShortcutAction};
+use std::collections::BTreeMap;
 use serde_json::{Value, json};
 use std::path::PathBuf;
 
@@ -29,11 +30,13 @@ pub struct Prefs {
     pub welcomed: bool,
     /// The window is transparent where the app draws nothing (ADR-277). Read when the window opens.
     pub translucent: bool,
+    /// Shortcuts the owner changed, by action id; the others keep their default.
+    pub shortcuts: BTreeMap<String, KeyCombo>,
 }
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { access: "checked".into(), effort: String::new(), theme: Theme::System, owner: String::new(), welcomed: false, translucent: false }
+        Prefs { access: "checked".into(), effort: String::new(), theme: Theme::System, owner: String::new(), welcomed: false, translucent: false, shortcuts: BTreeMap::new() }
     }
 }
 
@@ -56,6 +59,7 @@ impl Prefs {
             owner: v["owner"].as_str().unwrap_or_default().chars().take(40).collect(),
             welcomed: v["welcomed"].as_bool().unwrap_or(false),
             translucent: v["translucent"].as_bool().unwrap_or(false),
+            shortcuts: v["shortcuts"].as_object().map(|o| o.iter().filter_map(|(k, c)| Some((k.clone(), combo_from_json(c)?))).filter(|(k, _)| ShortcutAction::ALL.iter().any(|a| action_id(*a) == k)).collect()).unwrap_or_default(),
             theme: match v["theme"].as_str() {
                 Some("light") => Theme::Light,
                 Some("dark") => Theme::Dark,
@@ -70,7 +74,7 @@ impl Prefs {
             Theme::Light => "light",
             Theme::Dark => "dark",
         };
-        json!({ "access": self.access, "effort": self.effort, "theme": theme, "owner": self.owner, "welcomed": self.welcomed, "translucent": self.translucent }).to_string()
+        json!({ "access": self.access, "effort": self.effort, "theme": theme, "owner": self.owner, "welcomed": self.welcomed, "translucent": self.translucent, "shortcuts": self.shortcuts.iter().map(|(k, c)| (k.clone(), combo_to_json(c))).collect::<serde_json::Map<_, _>>() }).to_string()
     }
 
     pub fn load() -> Prefs {
@@ -92,9 +96,38 @@ impl Prefs {
     }
 }
 
+pub fn action_id(action: ShortcutAction) -> &'static str {
+    match action {
+        ShortcutAction::Talk => "talk",
+        ShortcutAction::Dictate => "dictate",
+        ShortcutAction::ToggleIsland => "toggle",
+        ShortcutAction::Cancel => "cancel",
+        ShortcutAction::QuickAction => "quick",
+    }
+}
+
+fn combo_to_json(c: &KeyCombo) -> Value {
+    json!({ "modifiers": c.modifiers.0, "keyCode": c.key_code, "keyName": c.key_name, "rightSideOnly": c.right_side_only })
+}
+
+fn combo_from_json(v: &Value) -> Option<KeyCombo> {
+    Some(KeyCombo {
+        modifiers: Modifiers(u8::try_from(v["modifiers"].as_u64()?).ok()?),
+        key_code: v["keyCode"].as_u64().and_then(|c| u16::try_from(c).ok()),
+        key_name: v["keyName"].as_str().map(str::to_owned),
+        right_side_only: v["rightSideOnly"].as_bool().unwrap_or(false),
+    })
+}
+
+impl Prefs {
+    /// The shortcut in use: the owner's, else the default.
+    pub fn combo(&self, action: ShortcutAction) -> KeyCombo {
+        self.shortcuts.get(action_id(action)).cloned().unwrap_or_else(|| action.default_combo())
+    }
+}
+
 /// The words for a key combination, such as "Control + Option + Z" or "Hold Right Command + Right Option".
-pub fn describe(action: ShortcutAction) -> String {
-    let combo = action.default_combo();
+pub fn describe(action: ShortcutAction, combo: &KeyCombo) -> String {
     let side = if combo.right_side_only { "Right " } else { "" };
     let mut parts: Vec<String> = Vec::new();
     for (m, name) in [(Modifiers::FUNCTION, "Fn"), (Modifiers::CONTROL, "Control"), (Modifiers::OPTION, "Option"), (Modifiers::SHIFT, "Shift"), (Modifiers::COMMAND, "Command")] {
@@ -102,8 +135,10 @@ pub fn describe(action: ShortcutAction) -> String {
             parts.push(format!("{side}{name}"));
         }
     }
-    if let Some(key) = &combo.key_name {
-        parts.push(key.clone());
+    match (&combo.key_name, combo.key_code) {
+        (Some(key), _) => parts.push(key.clone()),
+        (None, Some(code)) => parts.push(format!("key {code}")),
+        (None, None) => {}
     }
     format!("{}{}", if action.is_hold() { "Hold " } else { "" }, parts.join(" + "))
 }
@@ -125,13 +160,13 @@ mod tests {
 
     #[test]
     fn shortcuts_are_described_in_words() {
-        assert_eq!(describe(ShortcutAction::Dictate), "Hold Right Option + Right Command");
-        assert_eq!(describe(ShortcutAction::ToggleIsland), "Control + Option + Z");
+        assert_eq!(describe(ShortcutAction::Dictate, &ShortcutAction::Dictate.default_combo()), "Hold Right Option + Right Command");
+        assert_eq!(describe(ShortcutAction::ToggleIsland, &ShortcutAction::ToggleIsland.default_combo()), "Control + Option + Z");
     }
 
     #[test]
     fn round_trips_and_ignores_bad_values() {
-        let p = Prefs { access: "full".into(), effort: "high".into(), theme: Theme::Dark, owner: "Keshab".into(), welcomed: true, translucent: true };
+        let p = Prefs { access: "full".into(), effort: "high".into(), theme: Theme::Dark, owner: "Keshab".into(), welcomed: true, translucent: true, shortcuts: BTreeMap::from([("dictate".to_owned(), KeyCombo::keyed(Modifiers::COMMAND, 2, Some("D")))]) };
         assert_eq!(Prefs::parse(&p.to_json()), p);
         assert_eq!(Prefs::parse(r#"{"access":"root","effort":"High!","theme":"neon"}"#), Prefs::default());
         assert_eq!(Prefs::parse("not json"), Prefs::default());
