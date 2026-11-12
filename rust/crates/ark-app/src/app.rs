@@ -31,6 +31,11 @@ pub struct App {
     pub sidebar: PaneState,
     pub screen: Screen,
     /// An open form (soul, new agent, new task); it replaces the page while it is open.
+    /// The waker for the window, kept to start the runtime again after it ends.
+    pub wake: Option<Waker>,
+    pub backoff: crate::reconnect::Backoff,
+    /// When the next start is due; None while the runtime runs.
+    pub retry_at: Option<std::time::Instant>,
     /// The project whose files are open on the Projects page.
     pub workspace_project: Option<String>,
     /// The shortcut waiting for a key press.
@@ -77,6 +82,10 @@ pub fn init() -> App {
         preload(&mut model, &path);
     }
     let prefs = if std::env::var_os("ARK_UI_EVENTS").is_some() && std::env::var_os("ARK_UI_PREFS").is_none() { crate::prefs::Prefs::default() } else { crate::prefs::Prefs::load() };
+    // Tests and snapshots show the "runtime is down" state.
+    if let Ok(why) = std::env::var("ARK_UI_DOWN") {
+        model.runtime_down(why);
+    }
     let mut draft = TextEdit::new("");
     draft.focused = true;
     let screen = match std::env::var("ARK_UI_SCREEN").as_deref() {
@@ -92,7 +101,7 @@ pub fn init() -> App {
     // Tests and snapshots open the find bar with a query.
     let find = std::env::var("ARK_UI_FIND").ok().map(|q| (TextEdit::new(q), 0));
     let welcome = std::env::var_os("ARK_UI_EVENTS").is_none() && !prefs.welcomed;
-    App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen, brain_query: TextEdit::new(std::env::var("ARK_UI_BRAIN_QUERY").unwrap_or_default()), key_draft: TextEdit::new("").secure(), key_note: None, workspace_project: None, recording: None, details: std::env::var_os("ARK_UI_DETAILS").is_some(), open_job: std::env::var("ARK_UI_JOB").ok().and_then(|v| v.parse().ok()), prefs, confirm_full: false, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: welcome.then(|| crate::form::Form::owner(true, "")), form_error: None }
+    App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen, brain_query: TextEdit::new(std::env::var("ARK_UI_BRAIN_QUERY").unwrap_or_default()), key_draft: TextEdit::new("").secure(), key_note: None, wake: None, backoff: Default::default(), retry_at: None, workspace_project: None, recording: None, details: std::env::var_os("ARK_UI_DETAILS").is_some(), open_job: std::env::var("ARK_UI_JOB").ok().and_then(|v| v.parse().ok()), prefs, confirm_full: false, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: welcome.then(|| crate::form::Form::owner(true, "")), form_error: None }
 }
 
 /// Starts the runtime child once, with the waker that redraws the window when an event arrives.
@@ -104,13 +113,21 @@ pub fn setup(app: &mut App, wake: Waker) {
     crate::mac::install(Arc::clone(&wake));
     #[cfg(target_os = "macos")]
     app.apply_shortcuts();
+    app.wake = Some(wake);
+    start_runtime(app);
+}
+
+/// Starts the runtime child. A failure shows why and schedules another try.
+fn start_runtime(app: &mut App) {
+    let Some(wake) = app.wake.clone() else { return };
     let plan = crate::launch::real_plan();
     let bin = plan.program.clone();
     let mut env = crate::keychain::env_pairs(&|n| std::env::var(n).ok());
     env.extend(plan.env.clone());
-    match Bridge::spawn_with_env(&plan.program, &plan.args, plan.cwd.as_deref(), &env, Arc::clone(&wake)) {
+    match Bridge::spawn_with_env(&plan.program, &plan.args, plan.cwd.as_deref(), &env, wake) {
         Ok(bridge) => {
             app.bridge = Some(bridge);
+            app.retry_at = None;
             // Native clients ask for the work snapshots (docs/island-protocol.md, chat.work).
             app.send(&ark_protocol::Command::ChatWorkWatch);
             app.send_defaults();
@@ -118,7 +135,21 @@ pub fn setup(app: &mut App, wake: Waker) {
                 app.send(&ark_protocol::Command::OwnerSet { name: app.prefs.owner.clone() });
             }
         }
-        Err(e) => app.model.runtime_down(format!("The runtime did not start ({bin}): {e}")),
+        Err(e) => schedule_retry(app, format!("The runtime did not start ({bin}): {e}")),
+    }
+}
+
+/// Shows why the runtime is down and starts it again after the next wait (1, 2, 4, ... 30 seconds).
+fn schedule_retry(app: &mut App, why: String) {
+    app.bridge = None;
+    let wait = app.backoff.next_delay();
+    app.retry_at = Some(std::time::Instant::now() + wait);
+    app.model.runtime_down(format!("{why} Starting again in {} s.", wait.as_secs()));
+    if let Some(wake) = app.wake.clone() {
+        std::thread::spawn(move || {
+            std::thread::sleep(wait);
+            wake();
+        });
     }
 }
 
@@ -145,15 +176,28 @@ pub fn poll(app: &mut App, _: f64, _: &mut Tx) -> bool {
         }
         changed = true;
     }
+    if app.bridge.is_none() && app.retry_at.is_some_and(|at| std::time::Instant::now() >= at) {
+        start_runtime(app);
+        changed = true;
+    }
     let Some(bridge) = &app.bridge else { return changed };
+    let mut gone: Option<String> = None;
     for message in bridge.drain() {
         changed |= match message {
-            Inbound::Event(event) => app.model.apply(&event),
+            Inbound::Event(event) => {
+                if matches!(*event, ark_protocol::Event::Ready { .. }) {
+                    app.backoff.reset();
+                }
+                app.model.apply(&event)
+            }
             Inbound::Down(why) => {
-                app.model.runtime_down(why);
+                gone = Some(why);
                 true
             }
         };
+    }
+    if let Some(why) = gone {
+        schedule_retry(app, why);
     }
     crate::overlay::sync(app.model.loop_state, !app.model.approvals.is_empty());
     changed

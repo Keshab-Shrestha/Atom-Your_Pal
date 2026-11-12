@@ -11,5 +11,6 @@ pub mod mac;
 pub mod overlay;
 pub mod palette;
 pub mod prefs;
+pub mod reconnect;
 pub mod recorder;
 pub mod view;

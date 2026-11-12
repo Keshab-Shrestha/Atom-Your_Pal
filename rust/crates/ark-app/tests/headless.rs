@@ -276,3 +276,20 @@ fn the_files_view_lists_the_project_folder() {
         assert!(tree.contains(want), "the files view lacks {want:?}");
     }
 }
+
+#[test]
+fn pages_say_why_when_the_runtime_is_down() {
+    for screen in ["dashboard", "agents", "memory"] {
+        let tree = fresh(&format!("down-{screen}.json"));
+        let out = Command::new(env!("CARGO_BIN_EXE_ark-app"))
+            .args(["--tree", tree.to_str().expect("utf-8")])
+            .env("ARK_UI_EVENTS", fixture("empty.jsonl"))
+            .env("ARK_UI_SCREEN", screen)
+            .env("ARK_UI_DOWN", "The runtime ended.")
+            .output()
+            .expect("ark-app starts");
+        assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+        let text = std::fs::read_to_string(&tree).expect("tree written");
+        assert!(text.contains("ARK's runtime is not running") && text.contains("The runtime ended."), "{screen} does not say why");
+    }
+}

@@ -20,6 +20,16 @@ pub(super) fn page(k: &Kit, key: &'static str, title: &str, cards: Vec<El>) -> E
     col().w_full().grow(1.0).min_h(0.0).items_center().scroll(ScrollSpec { stick_bottom: false }).child(body)
 }
 
+/// What a page that waits for data says: why the runtime is down, that it starts, or that the data loads.
+fn waiting(app: &App, key: &'static str, what: &str, k: &Kit) -> El {
+    use ark_ui::Conn;
+    match &app.model.conn {
+        Conn::Down(why) => text(format!("ARK's runtime is not running. {why}")).key(key).font(k.ty.ui).color(k.c.danger.fg).wrap(),
+        Conn::Starting => text("Starting ARK…").key(key).font(k.ty.ui).color(k.c.text_faint),
+        Conn::Ready => text(format!("Loading {what}…")).key(key).font(k.ty.ui).color(k.c.text_faint),
+    }
+}
+
 fn card(k: &Kit, key: &str, title: &str) -> El {
     col()
         .key(key.to_owned())
@@ -265,7 +275,7 @@ fn org_card(helpers: &[Helper], k: &Kit) -> El {
 
 pub fn agents(app: &App, k: &Kit) -> El {
     let cards = match &app.model.helpers {
-        None => vec![text("Loading agents…").key("agents-loading").font(k.ty.ui).color(k.c.text_faint)],
+        None => vec![waiting(app, "agents-loading", "agents", k)],
         Some(helpers) if helpers.is_empty() => vec![text("No agents yet.").key("agents-empty").font(k.ty.ui).color(k.c.text_faint)],
         Some(helpers) => helpers.iter().map(|h| helper_card(h, k)).collect(),
     };
@@ -322,7 +332,7 @@ fn job_details(app: &App, id: u64, k: &Kit) -> El {
     let mut cards = vec![Button::new("Back to tasks").on_press(|s: &mut App| s.open_job = None).build(k).key("job-back")];
     let title = app.model.jobs().into_iter().find(|j| j.id == id).map_or_else(|| format!("Task {id}"), |j| j.title.clone().unwrap_or_else(|| j.task.clone()));
     match app.model.threads.get(&id) {
-        None => cards.push(text("Loading the task…").key("job-loading").font(k.ty.ui).color(k.c.text_faint)),
+        None => cards.push(waiting(app, "job-loading", "the task", k)),
         Some(t) => {
             if let Some(plan) = &t.plan {
                 cards.push(card(k, "job-plan", "Plan").child(text(plan.clone()).font(k.ty.ui).color(k.c.text_base).wrap()));
@@ -398,7 +408,7 @@ fn stats_cards(s: &Stats, k: &Kit) -> Vec<El> {
 
 pub fn dashboard(app: &App, k: &Kit) -> El {
     let cards = match &app.model.stats {
-        None => vec![text("Loading numbers…").key("dashboard-loading").font(k.ty.ui).color(k.c.text_faint)],
+        None => vec![waiting(app, "dashboard-loading", "numbers", k)],
         Some(s) => stats_cards(s, k),
     };
     page(k, "dashboard", "Dashboard", cards)
@@ -435,7 +445,7 @@ fn note_card(app: &App, k: &Kit) -> Option<El> {
 pub fn memory(app: &App, k: &Kit) -> El {
     let mut cards = Vec::new();
     match &app.model.memory {
-        None => cards.push(text("Loading memory…").key("memory-loading").font(k.ty.ui).color(k.c.text_faint)),
+        None => cards.push(waiting(app, "memory-loading", "memory", k)),
         Some(m) => {
             let mut facts = card(k, "memory-facts", if m.enabled { "What ARK remembers" } else { "Memory is off" });
             if m.facts.is_empty() {
@@ -501,7 +511,7 @@ pub fn memory(app: &App, k: &Kit) -> El {
 fn workspace_view(app: &App, project: &str, k: &Kit) -> El {
     let mut cards = vec![Button::new("Back to projects").on_press(|s: &mut App| s.workspace_project = None).build(k).key("workspace-back")];
     match app.model.workspace.as_ref().filter(|w| w.project == project) {
-        None => cards.push(text("Loading files…").key("workspace-loading").font(k.ty.ui).color(k.c.text_faint)),
+        None => cards.push(waiting(app, "workspace-loading", "files", k)),
         Some(w) if !w.ok => cards.push(text(w.error.clone().unwrap_or_else(|| "The files could not be read.".into())).key("workspace-error").font(k.ty.ui).color(k.c.danger.fg).wrap()),
         Some(w) => {
             let mut c = card(k, "workspace-files", if w.path.is_empty() { "Project folder" } else { &w.path });
@@ -592,7 +602,7 @@ pub fn projects(app: &App, k: &Kit) -> El {
 pub fn branches(app: &App, k: &Kit) -> El {
     let mut cards = Vec::new();
     match &app.model.branches {
-        None => cards.push(text("Loading branches…").key("branches-loading").font(k.ty.ui).color(k.c.text_faint)),
+        None => cards.push(waiting(app, "branches-loading", "branches", k)),
         Some(list) if list.is_empty() => cards.push(text("No task branches yet.").key("branches-empty").font(k.ty.ui).color(k.c.text_faint)),
         Some(list) => {
             for (i, b) in list.iter().enumerate() {
