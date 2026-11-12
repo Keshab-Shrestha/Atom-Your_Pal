@@ -22,6 +22,8 @@ pub enum FormKind {
     Owner { first_run: bool },
     /// Add a task for this helper (id).
     NewTask { helper: String },
+    /// A workflow: a name, a daily time or none, and up to eight steps.
+    Workflow,
 }
 
 pub struct Form {
@@ -45,6 +47,7 @@ impl Form {
             FormKind::Owner { first_run: true } => "Welcome to ARK".into(),
             FormKind::Owner { first_run: false } => "Your name".into(),
             FormKind::NewTask { .. } => "New task".into(),
+            FormKind::Workflow => "New automation".into(),
         }
     }
 
@@ -54,6 +57,7 @@ impl Form {
             FormKind::Soul { .. } => &["Personality", "How it works", "Rules", "Lessons"],
             FormKind::NewAgent => &["Name", "Role", "Personality", "How it works", "Rules"],
             FormKind::NewTask { .. } => &["Task"],
+            FormKind::Workflow => &["Name", "Time each day (HH:MM, 24 hours). Empty: by hand", "Steps, one per line: agent id: task"],
             FormKind::Routine { .. } => &["Task", "Time each day (HH:MM, 24 hours)"],
             FormKind::Note { .. } => &["Title", "Note"],
             FormKind::ProjectSource { source: "new" } => &["Name", "Parent folder"],
@@ -97,6 +101,10 @@ impl Form {
 
     pub fn routine(helper: &str) -> Form {
         Form::fresh(FormKind::Routine { helper: helper.into() }, &["", "08:00"])
+    }
+
+    pub fn workflow() -> Form {
+        Form::fresh(FormKind::Workflow, &["", "", ""])
     }
 
     pub fn new_task(helper: &str) -> Form {
@@ -174,6 +182,7 @@ impl Form {
                     webhook: None,
                 }))
             }
+            FormKind::Workflow => self.workflow_command(),
             FormKind::NewTask { helper } => {
                 if self.text(0).is_empty() {
                     return Err("Write what the task is.");
@@ -181,6 +190,28 @@ impl Form {
                 Ok(Command::JobAdd { helper: helper.clone(), task: self.text(0), blocked_by: None, plan_first: None })
             }
         }
+    }
+}
+
+impl Form {
+    /// Steps are lines "agent: task", at most eight (the Swift editor's limit).
+    fn workflow_command(&self) -> Result<Command, &'static str> {
+        const MAX_STEPS: usize = 8;
+        if self.text(0).is_empty() {
+            return Err("An automation needs a name.");
+        }
+        let steps: Vec<serde_json::Value> = self.text(2).lines().filter_map(|l| l.split_once(':')).map(|(h, t)| (h.trim(), t.trim())).filter(|(h, t)| !h.is_empty() && !t.is_empty()).map(|(h, t)| serde_json::json!({ "helper": h, "task": t })).collect();
+        if steps.is_empty() || steps.len() > MAX_STEPS {
+            return Err("Write one to eight steps, each as agent id: task.");
+        }
+        let trigger = if self.text(1).is_empty() {
+            serde_json::json!({ "kind": "manual" })
+        } else {
+            let minute = parse_time(&self.text(1)).ok_or("Write the time as HH:MM, for example 08:30.")?;
+            serde_json::json!({ "kind": "schedule", "schedule": { "kind": "daily", "minute": minute } })
+        };
+        let workflow = serde_json::json!({ "id": "", "name": self.text(0), "enabled": true, "trigger": trigger, "steps": steps });
+        Ok(Command::WorkflowSave { workflow: workflow.as_object().cloned().unwrap_or_default() })
     }
 }
 
@@ -224,6 +255,18 @@ mod tests {
         assert!(matches!(f.submit(), Ok(Command::RoutineAdd(ref r)) if r.minute == Some(480)));
         f.fields[1] = TextEdit::new("25:00");
         assert!(f.submit().is_err());
+    }
+
+    #[test]
+    fn a_workflow_needs_a_name_and_steps_with_an_agent() {
+        let mut f = Form::workflow();
+        assert!(f.submit().is_err());
+        f.fields[0] = TextEdit::new("News");
+        f.fields[2] = TextEdit::new("sid: collect the news\nquill: write a summary\nnonsense");
+        f.fields[1] = TextEdit::new("08:05");
+        let Ok(Command::WorkflowSave { workflow }) = f.submit() else { panic!("not ready") };
+        assert_eq!(workflow["steps"].as_array().map(Vec::len), Some(2));
+        assert_eq!(workflow["trigger"]["schedule"]["minute"], 485);
     }
 
     #[test]

@@ -2,6 +2,7 @@
 //! `Model::apply` folds one island event (docs/island-protocol.md) into the state the views draw.
 //! This crate has no window code, so its tests run without a GPU.
 
+pub mod extras;
 pub mod find;
 pub mod graph;
 mod model;

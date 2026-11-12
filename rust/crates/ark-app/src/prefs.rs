@@ -94,11 +94,9 @@ impl Prefs {
     /// Writes the file. A failure is only logged: a lost preference must not stop the app.
     pub fn save(&self) {
         let Some(p) = path() else { return };
-        if let Some(dir) = p.parent() {
-            if let Err(e) = std::fs::create_dir_all(dir) {
-                eprintln!("ark-app: prefs folder: {e}");
-                return;
-            }
+        if let Some(Err(e)) = p.parent().map(std::fs::create_dir_all) {
+            eprintln!("ark-app: prefs folder: {e}");
+            return;
         }
         if let Err(e) = std::fs::write(&p, self.to_json()) {
             eprintln!("ark-app: prefs file: {e}");

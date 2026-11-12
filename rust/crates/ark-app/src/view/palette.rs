@@ -28,7 +28,7 @@ pub fn view(app: &App, query: &TextEdit, k: &Kit) -> El {
         cards.push(text("Nothing matches.").key("palette-empty").font(k.ty.ui).color(k.c.text_faint));
     }
     let mut list = col().w_full().gap(4.0);
-    for (i, e) in hits.into_iter().take(12).enumerate() {
+    for (i, e) in hits.into_iter().take(40).enumerate() {
         let action = e.action.clone();
         list = list.child(Button::new(e.title).on_press(move |s: &mut App| s.run_palette(action.clone())).build(k).key(format!("palette-{i}")));
     }

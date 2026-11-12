@@ -21,7 +21,7 @@ pub(super) fn page(k: &Kit, key: &'static str, title: &str, cards: Vec<El>) -> E
 }
 
 /// What a page that waits for data says: why the runtime is down, that it starts, or that the data loads.
-fn waiting(app: &App, key: &'static str, what: &str, k: &Kit) -> El {
+pub(super) fn waiting(app: &App, key: &'static str, what: &str, k: &Kit) -> El {
     use ark_ui::Conn;
     match &app.model.conn {
         Conn::Down(why) => text(format!("ARK's runtime is not running. {why}")).key(key).font(k.ty.ui).color(k.c.danger.fg).wrap(),
@@ -30,7 +30,7 @@ fn waiting(app: &App, key: &'static str, what: &str, k: &Kit) -> El {
     }
 }
 
-fn card(k: &Kit, key: &str, title: &str) -> El {
+pub(super) fn card(k: &Kit, key: &str, title: &str) -> El {
     col()
         .key(key.to_owned())
         .w_full()
@@ -42,7 +42,7 @@ fn card(k: &Kit, key: &str, title: &str) -> El {
         .child(text(title.to_owned()).font(k.ty.ui_medium).color(k.c.text_base))
 }
 
-fn line(k: &Kit, label: &str, value: String) -> El {
+pub(super) fn line(k: &Kit, label: &str, value: String) -> El {
     row()
         .w_full()
         .justify_between()
@@ -51,7 +51,7 @@ fn line(k: &Kit, label: &str, value: String) -> El {
         .child(text(value).font(k.ty.ui).color(k.c.text_base).wrap())
 }
 
-fn yes_no(on: bool) -> String {
+pub(super) fn yes_no(on: bool) -> String {
     if on { "On" } else { "Off" }.to_owned()
 }
 

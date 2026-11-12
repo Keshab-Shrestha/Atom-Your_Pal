@@ -22,11 +22,12 @@ impl Screen {
             Screen::Branches => "branches",
             Screen::Search => "search",
             Screen::Dashboard => "dashboard",
+            Screen::Workflows => "workflows",
         }
     }
 
     pub fn from_name(name: &str) -> Screen {
-        [Screen::Settings, Screen::Agents, Screen::Tasks, Screen::Memory, Screen::Projects, Screen::Branches, Screen::Search, Screen::Dashboard].into_iter().find(|s| s.name() == name).unwrap_or(Screen::Chat)
+        [Screen::Settings, Screen::Agents, Screen::Tasks, Screen::Memory, Screen::Projects, Screen::Branches, Screen::Search, Screen::Dashboard, Screen::Workflows].into_iter().find(|s| s.name() == name).unwrap_or(Screen::Chat)
     }
 }
 
@@ -43,6 +44,7 @@ pub enum Screen {
     Branches,
     Search,
     Dashboard,
+    Workflows,
 }
 
 pub struct App {
@@ -93,6 +95,8 @@ pub struct App {
     pub attachments: Vec<String>,
     pub form: Option<crate::form::Form>,
     pub form_error: Option<String>,
+    /// State of the later screens.
+    pub more: crate::more::More,
 }
 
 /// Feeds the model from a JSON-lines file, the same lines a runtime would send (`ARK_UI_EVENTS`).
@@ -129,7 +133,7 @@ pub fn init() -> App {
     // Tests and snapshots open the find bar with a query.
     let find = std::env::var("ARK_UI_FIND").ok().map(|q| (TextEdit::new(q), 0));
     let welcome = std::env::var_os("ARK_UI_EVENTS").is_none() && !prefs.welcomed;
-    App { model, bridge: None, draft, sidebar, screen, brain_query: TextEdit::new(std::env::var("ARK_UI_BRAIN_QUERY").unwrap_or_default()), key_draft: TextEdit::new("").secure(), key_note: None, wake: None, backoff: Default::default(), retry_at: None, update_note: None, update_result: Default::default(), login_note: None, search_query: { let mut t = TextEdit::new(std::env::var("ARK_UI_SEARCH").unwrap_or_default()); t.focused = false; t }, dropping: std::env::var_os("ARK_UI_DROPPING").is_some(), confirm_clear: false, workspace_project: None, recording: None, details: std::env::var_os("ARK_UI_DETAILS").is_some(), open_job: std::env::var("ARK_UI_JOB").ok().and_then(|v| v.parse().ok()), prefs, confirm_full: false, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: welcome.then(|| crate::form::Form::owner(true, "")), form_error: None }
+    App { model, bridge: None, draft, sidebar, screen, brain_query: TextEdit::new(std::env::var("ARK_UI_BRAIN_QUERY").unwrap_or_default()), key_draft: TextEdit::new("").secure(), key_note: None, wake: None, backoff: Default::default(), retry_at: None, update_note: None, update_result: Default::default(), login_note: None, search_query: { let mut t = TextEdit::new(std::env::var("ARK_UI_SEARCH").unwrap_or_default()); t.focused = false; t }, dropping: std::env::var_os("ARK_UI_DROPPING").is_some(), confirm_clear: false, workspace_project: None, recording: None, details: std::env::var_os("ARK_UI_DETAILS").is_some(), open_job: std::env::var("ARK_UI_JOB").ok().and_then(|v| v.parse().ok()), prefs, confirm_full: false, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: welcome.then(|| crate::form::Form::owner(true, "")), form_error: None, more: Default::default() }
 }
 
 /// Starts the runtime child once, with the waker that redraws the window when an event arrives.
@@ -282,6 +286,10 @@ impl App {
             Screen::Branches => self.send(&ark_protocol::Command::GitList),
             Screen::Search => {}
             Screen::Chat => {}
+            Screen::Workflows => {
+                self.send(&ark_protocol::Command::WorkflowsList);
+                self.send(&ark_protocol::Command::HelpersList);
+            }
         }
     }
 
@@ -536,11 +544,15 @@ impl App {
                     self.prefs.save();
                 }
                 let was_note = matches!(command, ark_protocol::Command::BrainSave { .. });
+                let was_flow = matches!(command, ark_protocol::Command::WorkflowSave { .. });
                 self.send(&command);
                 self.close_form();
                 self.send(&ark_protocol::Command::HelpersList);
                 if was_note {
                     self.send(&ark_protocol::Command::BrainGet);
+                }
+                if was_flow {
+                    self.send(&ark_protocol::Command::WorkflowsList);
                 }
             }
             Err(why) => self.form_error = Some(why.to_owned()),

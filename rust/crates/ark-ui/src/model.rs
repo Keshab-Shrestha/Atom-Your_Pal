@@ -362,6 +362,8 @@ pub struct Model {
     /// Where its cursor is, in screen points (`computer.cursor`).
     pub computer_cursor: Option<(f64, f64)>,
     pub search: Option<SearchResults>,
+    /// The later screens (workflows, plugins, skills hub, backup, drafts, plans, point-at).
+    pub extras: crate::extras::Extras,
     pub usage: Option<Usage>,
     pub workspace: Option<Workspace>,
     /// The answer to the last `project.create`: (ok, error).
@@ -597,6 +599,7 @@ impl Model {
             Event::ComputerStep { text, .. } => self.computer_step = Some(text.clone()),
             Event::ComputerCursor { x, y, .. } => self.computer_cursor = x.as_f64().zip(y.as_f64()),
             Event::ComputerEnd => {
+                self.extras.point = None;
                 self.computer_step = None;
                 self.computer_cursor = None;
             }
@@ -616,7 +619,9 @@ impl Model {
     }
 
     fn apply_other(&mut self, map: &Map<String, Value>) {
-        match str_of(map, "type").as_str() {
+        let kind = str_of(map, "type");
+        self.extras.apply(&kind, map);
+        match kind.as_str() {
             "info" => {
                 self.provider = str_of(map, "provider");
                 self.model = str_of(map, "model");
@@ -847,6 +852,7 @@ mod tests {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)] // Test code.
 mod usage_tests {
     use super::*;
 

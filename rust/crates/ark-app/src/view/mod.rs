@@ -1,5 +1,6 @@
 //! The windows' views. `view` is Rune's view function: it reads the state and returns the element tree.
 
+mod automations;
 mod chat;
 mod diff;
 mod form;
@@ -50,6 +51,7 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
         Screen::Branches => ("Branches".to_owned(), pages::branches(app, k)),
         Screen::Search => ("Search".to_owned(), pages::search(app, k)),
         Screen::Dashboard => ("Dashboard".to_owned(), pages::dashboard(app, k)),
+        Screen::Workflows => ("Automations".to_owned(), automations::workflows(app, k)),
     };
     let toolbar = Toolbar::new().title(title).trailing(chat::status(app, k, &status_line(app)));
     SplitView::new(main)
@@ -107,6 +109,7 @@ pub fn menu_items() -> Vec<rune::MenuItem<App>> {
             Screen::Dashboard => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Dashboard)),
             Screen::Settings => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Settings)),
             Screen::Chat => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Chat)),
+            Screen::Workflows => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Workflows)),
         };
         chord(item.id(format!("go-{title}")).menu("Go"), keys)
     };
@@ -122,6 +125,7 @@ pub fn menu_items() -> Vec<rune::MenuItem<App>> {
         go("Projects", Screen::Projects, "cmd+6"),
         go("Branches", Screen::Branches, "cmd+7"),
         go("Search", Screen::Search, "cmd+shift+f"),
+        go("Automations", Screen::Workflows, "cmd+8"),
         go("Settings", Screen::Settings, "cmd+,"),
     ]
 }

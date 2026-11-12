@@ -9,6 +9,7 @@ pub mod keychain;
 pub mod launch;
 #[cfg(target_os = "macos")]
 pub mod mac;
+pub mod more;
 pub mod overlay;
 pub mod palette;
 pub mod prefs;

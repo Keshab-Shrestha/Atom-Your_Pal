@@ -14,7 +14,8 @@ pub struct Pill {
 }
 
 static HANDLE: OnceLock<OverlayHandle<Pill>> = OnceLock::new();
-static LAST: Mutex<Option<(Option<LoopState>, bool, Option<String>)>> = Mutex::new(None);
+type Shown = (Option<LoopState>, bool, Option<String>);
+static LAST: Mutex<Option<Shown>> = Mutex::new(None);
 
 fn view(pill: &Pill, _: &mut Cx<Pill>) -> El {
     let kit = rune_theme_opencode::kit(true);
