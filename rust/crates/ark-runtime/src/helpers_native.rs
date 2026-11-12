@@ -43,6 +43,13 @@ impl HelpersNative {
         }
     }
 
+    /// Attaches the runner with the chat engine's model parts, and starts what waits in the queue.
+    pub fn attach_chat_runner(&self, chat: &crate::chat::Chat) {
+        let runner = Runner::new(self.db.clone(), chat.provider.clone(), chat.tools.clone(), chat.policy.clone(), &chat.model, self.bus.clone());
+        self.attach_runner(runner.clone());
+        runner.schedule();
+    }
+
     /// The change a life command asks for, in one write; `None` for another command or a refusal (Node gives the words).
     fn life(&self, conn: &rusqlite::Connection, command: &Value) -> Option<()> {
         self.runner.lock().ok()?.as_ref()?;
@@ -87,7 +94,9 @@ impl HelpersNative {
     /// The helpers file of the runtime started in `folder`: `ARK_HELPERS_FILE` (default `data/helpers.db`), when
     /// `ARK_HELPERS_NATIVE=1`.
     pub fn from_environment(folder: &Path, env: impl Fn(&str) -> Option<String>) -> Option<HelpersNative> {
-        if env("ARK_HELPERS_NATIVE").as_deref() != Some("1") {
+        // On by default with the Rust runtime and its native chat: nothing else would run the queued tasks.
+        let rust_chat = env("ARK_RUNTIME").as_deref() == Some("rust") && env("ARK_RUNTIME_NATIVE_CHAT").as_deref() == Some("1");
+        if env("ARK_HELPERS_NATIVE").as_deref() != Some("1") && !(rust_chat && env("ARK_HELPERS_NATIVE").as_deref() != Some("0")) {
             return None;
         }
         Some(HelpersNative::new(folder.join(env("ARK_HELPERS_FILE").unwrap_or_else(|| "data/helpers.db".into()))))
@@ -176,6 +185,19 @@ mod tests {
         assert_eq!(heard.lock().unwrap().len(), 1, "the label change reached the bus once");
         assert_eq!(heard.lock().unwrap()[0]["action"], "label");
         assert!(native.answer("{\"type\":\"job.delete\",\"id\":4}\n").is_none(), "a task that has not ended goes to Node");
+    }
+
+    #[test]
+    fn the_rust_runtime_with_native_chat_turns_it_on_unless_told_not_to() {
+        let env = |off: Option<&'static str>| move |n: &str| match n {
+            "ARK_RUNTIME" => Some("rust".to_string()),
+            "ARK_RUNTIME_NATIVE_CHAT" => Some("1".to_string()),
+            "ARK_HELPERS_NATIVE" => off.map(String::from),
+            _ => None,
+        };
+        let folder = std::env::temp_dir().join("ark-default-on");
+        assert!(HelpersNative::from_environment(&folder, env(None)).is_some());
+        assert!(HelpersNative::from_environment(&folder, env(Some("0"))).is_none());
     }
 
     #[test]

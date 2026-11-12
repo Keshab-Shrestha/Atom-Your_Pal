@@ -47,6 +47,13 @@ impl Native {
         self.helpers.as_ref().map(HelpersNative::bus)
     }
 
+    /// Lets the Rust runner run the queued tasks with the chat engine's model (no-op when Rust does not own the Helpers page).
+    pub fn attach_helpers_runner(&self, chat: &crate::chat::Chat) {
+        if let Some(helpers) = &self.helpers {
+            helpers.attach_chat_runner(chat);
+        }
+    }
+
     /// Lets Rust answer `helpers.list`.
     pub fn with_helpers(mut self, helpers: Option<HelpersNative>) -> Native {
         self.helpers = helpers;

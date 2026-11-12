@@ -161,6 +161,9 @@ fn main() {
     // The native parts come first: the environment of Node says which of them the runtime owns.
     let native = native_from_process().map(std::sync::Arc::new);
     let chat = native.as_deref().and_then(|n| chat_from_process(n.memory_db()));
+    if let (Some(n), Some(c)) = (native.as_deref(), chat.as_deref()) {
+        n.attach_helpers_runner(c);
+    }
     let services = native.as_deref().and_then(|n| {
         let folder = std::env::current_dir().ok()?;
         services::from_environment(&folder, n.memory_db(), chat.as_ref(), |name| std::env::var(name).ok().filter(|v| !v.is_empty()))
