@@ -632,6 +632,8 @@ const GRAPH_W: f32 = 680.0;
 const GRAPH_H: f32 = 300.0;
 /// Notes drawn at most; the layout cost grows with the square of this.
 const GRAPH_MAX: usize = 120;
+/// Notes that get a label button.
+const GRAPH_LABELS: usize = 24;
 
 /// The brain as a graph: links as lines, notes as dots (bigger when more linked), laid out by `ark_ui::graph`.
 fn brain_graph(nodes: &[ark_ui::BrainNode], edges: &[(u64, u64)], k: &Kit) -> El {
@@ -653,7 +655,17 @@ fn brain_graph(nodes: &[ark_ui::BrainNode], edges: &[(u64, u64)], k: &Kit) -> El
         let ring: Vec<[f32; 2]> = (0..10).map(|i| { let t = std::f32::consts::TAU * i as f32 / 10.0; [p.x + r * t.cos(), p.y + r * t.sin()] }).collect();
         shape = shape.fill(ring, k.c.text_base);
     }
+    // The most linked notes get a label button that opens the note; the others stay dots (the list below opens them too).
+    let mut by_degree: Vec<(usize, &ark_ui::BrainNode)> = shown.iter().map(|n| (edges.iter().filter(|(a, b)| *a == n.id || *b == n.id).count(), *n)).collect();
+    by_degree.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.id.cmp(&b.1.id)));
+    let mut area = col().key("graph-area").w(GRAPH_W).h(GRAPH_H).child(rune::canvas(shape).w(GRAPH_W).h(GRAPH_H).absolute(0.0, 0.0));
+    for (_, n) in by_degree.into_iter().take(GRAPH_LABELS) {
+        let Some([x, y]) = at(n.id) else { continue };
+        let id = n.id;
+        let title: String = if n.title.chars().count() > 18 { format!("{}…", n.title.chars().take(17).collect::<String>()) } else { n.title.clone() };
+        area = area.child(Button::new(title).on_press(move |s: &mut App| s.send(&Command::BrainNote { id })).build(k).key(format!("gnode-{id}")).absolute((x + 6.0).min(GRAPH_W - 130.0), (y - 12.0).clamp(0.0, GRAPH_H - 28.0)));
+    }
     col().key("brain-graph").w_full().gap(6.0).padding(14.0).radius(k.radius.md).fill(k.c.layer_01).border(1.0, k.c.border_weak)
         .child(text(format!("Graph: {} notes, {} links", placed.len(), drawn)).font(k.ty.ui_medium).color(k.c.text_base))
-        .child(rune::canvas(shape).w(GRAPH_W).h(GRAPH_H))
+        .child(area)
 }
