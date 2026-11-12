@@ -63,7 +63,7 @@ test("a run with tools mounts the in-process server and allows only those tools"
     tool: (name: string) => ({ name }),
     createSdkMcpServer: (o: { tools: unknown[] }) => ({ tools: o.tools }),
   } as unknown as ClaudeSdk;
-  const spec = { name: "current_time", description: "d", inputSchema: { type: "object", properties: {} } };
+  const spec = { name: "current_time", description: "d", inputSchema: { type: "object" as const, properties: {} } };
   await runOne(sdk, { id: "1", prompt: "hi", tools: [spec] }, () => {}, new AbortController(), { PATH: "/bin" }, toolBridge(() => {}));
   assert.deepEqual(seen[0]!.allowedTools, ["mcp__ark__current_time"]);
   assert.deepEqual(seen[0]!.tools, [], "no built-in tools");
