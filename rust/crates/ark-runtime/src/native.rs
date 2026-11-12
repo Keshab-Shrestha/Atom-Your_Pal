@@ -13,7 +13,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use ark_protocol::{Command, Event, Parsed, parse_command};
 
 use crate::helpers_native::HelpersNative;
-use crate::{brain, memory};
+use crate::{brain, memory, memory_kept};
 
 /// Where the Rust side reads from.
 #[derive(Debug)]
@@ -159,6 +159,9 @@ impl Native {
         if let Some(reply) = self.helpers.as_ref().and_then(|h| h.answer(line)) {
             return Some(reply);
         }
+        if let Some(reply) = crate::foreground::answer(&self.memory_db, line) {
+            return Some(reply);
+        }
         let Parsed::Command(command) = parse_command(line) else { return None };
         let reply = match *command {
             Command::BrainNote { id } => {
@@ -186,6 +189,8 @@ impl Native {
             Command::MemoryList => return self.memory_line(),
             Command::MemoryForget { id } => return memory::forget(&self.memory_db, id).ok().and_then(|()| self.memory_line()),
             Command::MemoryClear => return memory::clear(&self.memory_db).ok().and_then(|()| self.memory_line()),
+            // Not kept: Node says so (`That chat is not kept.`). `memory.keepChat` needs the model and stays in Node.
+            Command::MemoryDropChat { id } => return memory_kept::drop_chat(&self.memory_db, &id).ok().filter(|dropped| *dropped).and_then(|_| self.memory_line()),
             Command::EpisodeForget { id } => return memory::forget_episode(&self.memory_db, id).ok().and_then(|()| self.memory_line()),
             Command::EpisodeClear => return memory::clear_episodes(&self.memory_db).ok().and_then(|()| self.memory_line()),
             _ => return None,

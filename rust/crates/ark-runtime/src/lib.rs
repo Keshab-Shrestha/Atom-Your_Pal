@@ -1,7 +1,9 @@
 //! The parts of the Rust runtime that the forwarder binary and the tests share (ADR-278, Phase 2).
 
 pub mod ask;
+pub mod foreground;
 pub mod reply;
+pub mod sha256;
 pub mod talk;
 pub mod firstrun;
 pub mod helpers_jobs;
@@ -29,6 +31,7 @@ pub mod chat_store;
 pub mod chats;
 pub mod projects_store;
 pub mod memory;
+pub mod memory_kept;
 pub mod native;
 pub mod routes;
 pub mod scheduler;
