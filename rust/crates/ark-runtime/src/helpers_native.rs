@@ -4,10 +4,11 @@
 //! stuck dot of a task still shows. Writes (`job.*`, `skill.*`) stay in Node: its runner and Telegram listen to them.
 
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use serde_json::Value;
 
+use crate::helpers_bus::{Bus, Tail};
 use crate::{helpers_event, helpers_write};
 
 /// Where the helpers file and the agent folders are.
@@ -17,6 +18,8 @@ pub struct HelpersNative {
     agents: PathBuf,
     cached: Mutex<Option<Value>>,
     host: helpers_event::Host,
+    bus: Arc<Bus>,
+    tail: Mutex<Tail>,
 }
 
 impl HelpersNative {
@@ -24,7 +27,20 @@ impl HelpersNative {
     pub fn new(db: PathBuf) -> HelpersNative {
         let agents = db.parent().map_or_else(|| PathBuf::from("agents"), |p| p.join("agents"));
         let host = helpers_event::Host::of_this_mac(&db);
-        HelpersNative { db, agents, cached: Mutex::new(None), host }
+        let native = HelpersNative { db, agents, cached: Mutex::new(None), host, bus: Arc::new(Bus::default()), tail: Mutex::new(Tail::default()) };
+        native.pump(); // marks the end of the audit log: only later changes reach the listeners
+        native
+    }
+
+    /// The change bus: the runner, Telegram and the workflows listen here (`HelperStore.onChange` of the TypeScript).
+    pub fn bus(&self) -> Arc<Bus> {
+        self.bus.clone()
+    }
+
+    /// Gives the listeners the changes that the audit log gained, from Node or from Rust. Call it often (the feed thread does).
+    pub fn pump(&self) -> usize {
+        let (Some(conn), Ok(mut tail)) = (helpers_event::open_read_only(&self.db), self.tail.lock()) else { return 0 };
+        tail.poll(&conn, &self.bus)
     }
 
     /// The helpers file of the runtime started in `folder`: `ARK_HELPERS_FILE` (default `data/helpers.db`), when
@@ -58,6 +74,7 @@ impl HelpersNative {
         if command["type"] != "helpers.list" {
             let conn = crate::store::open_read_write(&self.db).ok()?;
             helpers_write::apply(&conn, &command)?;
+            self.pump();
         }
         let conn = helpers_event::open_read_only(&self.db)?;
         let event = helpers_event::build(&conn, &self.agents, &jiff::Zoned::now(), &cached, &self.host)?;
@@ -95,6 +112,9 @@ mod tests {
         native.host.app_dirs = Vec::new();
         native.host.home = None;
         native.host.user_skills = scratch().join("none");
+        let heard = Arc::new(Mutex::new(Vec::<Value>::new()));
+        let sink = heard.clone();
+        native.bus().subscribe(move |c| sink.lock().unwrap().push(c.clone()));
         assert!(native.answer("{\"type\":\"helpers.list\"}\n").is_none(), "no event from Node yet");
         native.observe("{\"type\":\"helpers\",\"apps\":[\"Safari\"],\"models\":[],\"skills\":[]}\n");
         let line = native.answer("{\"type\":\"helpers.list\"}\n").unwrap();
@@ -108,6 +128,8 @@ mod tests {
         let event: Value = serde_json::from_str(&line).unwrap();
         let labels: Vec<&Value> = event["helpers"].as_array().unwrap().iter().flat_map(|h| h["jobs"].as_array().unwrap()).filter(|j| j["id"] == 8).map(|j| &j["labels"]).collect();
         assert_eq!(labels, [&serde_json::json!(["fresh"])]);
+        assert_eq!(heard.lock().unwrap().len(), 1, "the label change reached the bus once");
+        assert_eq!(heard.lock().unwrap()[0]["action"], "label");
         assert!(native.answer("{\"type\":\"job.delete\",\"id\":4}\n").is_none(), "a task that has not ended goes to Node");
     }
 }

@@ -42,6 +42,11 @@ impl Native {
         Native { memory_db, brain_watched: AtomicBool::new(false), memory_watched: AtomicBool::new(false), feed: Mutex::new(Feed::default()), helpers: None }
     }
 
+    /// The Helpers change bus, when Rust owns the Helpers page.
+    pub fn helpers_bus(&self) -> Option<std::sync::Arc<crate::helpers_bus::Bus>> {
+        self.helpers.as_ref().map(HelpersNative::bus)
+    }
+
     /// Lets Rust answer `helpers.list`.
     pub fn with_helpers(mut self, helpers: Option<HelpersNative>) -> Native {
         self.helpers = helpers;
@@ -63,6 +68,9 @@ impl Native {
     /// The lines to push after a change of the data file by another connection (Node). Call it every few hundred
     /// milliseconds. It sends nothing until `brain.get` or `memory.list` was answered, and nothing for a view that did not change.
     pub fn poll_changes(&self) -> Vec<String> {
+        if let Some(helpers) = &self.helpers {
+            helpers.pump();
+        }
         let (brain, memory) = (self.brain_watched.load(Ordering::SeqCst), self.memory_watched.load(Ordering::SeqCst));
         if !brain && !memory {
             return Vec::new();
