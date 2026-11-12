@@ -37,6 +37,11 @@
 - Add `rust/crates/ark-telegram` (`Telegram::start`, `send`, `answer`, `stop`, `Config`).
 - Not done: the bot logic of `telegram-bot.ts` (needs, approvals, turns), and wiring the channel into the runtime.
 
+## Rust Phase 2 step 9: agent loop skeleton — 12 November 2026
+
+- Add `rust/crates/ark-agent` (`Agent::run`, `Policy`, `FloorPolicy`, `ToolRunner`, `RuntimeTools`).
+- Not done: write and command tools, approvals ("Ask" answers from the policy), sub-agents, history storage, and wiring the loop to `ark-llm` providers and `ark-telegram` in the runtime binary.
+
 ## Rust Phase 2 step 5: MCP server in Rust — 12 November 2026
 
 - Add `mcp.rs` (JSON-RPC handler, HTTP client) and the binary `ark-mcp`. Same tools and routes as `mcp-serve.ts`. `ARK_API_PORT` (then `ATOM_`, `ZENO_`) and `ARK_API_TOKEN_FILE` set the target.

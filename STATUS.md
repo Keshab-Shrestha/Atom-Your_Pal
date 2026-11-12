@@ -45,6 +45,11 @@
 - The token comes from `ARK_TELEGRAM_BOT_TOKEN` (with `ARK_TELEGRAM_CHAT_ID`, `ARK_TELEGRAM_USER_ID`) through `Config::from_env`, or from the caller. The log gets names and codes, never text or the token.
 - Verified: 5 tests (message split; backlog and sender filter; split send with buttons; retry rules; wrong token, with a check that the token is not in the log) against a local mock Bot API server. Clippy is clean. No live Telegram call.
 
+## Rust Phase 2 step 9: agent loop skeleton — 12 November 2026
+
+- ADR-278, Phase 2: the new crate `ark-agent` is the agent loop skeleton: model, proposed tool call, policy check, tool, result, model, until the model answers without a tool call. The `Policy` trait decides, never the model (CLAUDE.md rules 8 and 12). `FloorPolicy` refuses every tool not on its allow-list and applies the disk-reading floor of `ark-runtime` to `read_file`. A refused call never reaches a tool. The model gets `Refused by policy: <reason>` as an error result. `RuntimeTools` runs `current_time` and `read_file` from `ark-runtime`. A step limit (12) ends a loop.
+- Verified: 4 tests with a scripted fake provider on a temp-folder fixture (round trip and live text, refusal of an outside path, an unknown tool and `~/.ssh/id_rsa` with a check that no tool ran, a tool error, the step limit and a provider error). Clippy is clean for `ark-agent`, `ark-llm` and `ark-telegram`.
+
 ## Rust Phase 2 step 5: MCP server in Rust — 12 November 2026
 
 - ADR-278, Phase 2: the binary `ark-mcp` is ARK's MCP server over stdio. It has the same 7 `ark_*` tools as `apps/mac/src/mcp-serve.ts`. It calls the local HTTP API with the token from `data/api-token` (plain HTTP/1.1 over a socket, no new crate).

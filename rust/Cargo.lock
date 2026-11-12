@@ -177,6 +177,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ark-agent"
+version = "0.0.1"
+dependencies = [
+ "ark-core",
+ "ark-llm",
+ "ark-runtime",
+ "futures-util",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "ark-core"
 version = "0.0.1"
 dependencies = [

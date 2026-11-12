@@ -318,3 +318,7 @@ The Phase 4 app bundle ships this file.
 7. Crates in the ark-telegram build (Phase 2 step 8)
    A subset of the crates in section 6 (reqwest with rustls, tokio). It adds no crate. No MPL, GPL or LGPL.
    Check with: sh scripts/third-party-section.sh ark-telegram
+
+8. Crates in the ark-agent build (Phase 2 step 9)
+   ark-agent uses ark-llm, ark-runtime and ark-core. It adds no crate to sections 3, 5 and 6. No MPL, GPL or LGPL.
+   Check with: sh scripts/third-party-section.sh ark-agent

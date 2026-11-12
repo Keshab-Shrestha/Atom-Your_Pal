@@ -1,0 +1,19 @@
+[package]
+name = "ark-agent"
+version = "0.0.1"
+edition.workspace = true
+publish = false
+description = "The agent loop skeleton: LLM, tool call, policy check, tool, result (CLAUDE.md rules 8 and 12)."
+
+[dependencies]
+ark-core = { version = "0.0.1", path = "../ark-core" }
+ark-llm = { version = "0.0.1", path = "../ark-llm" }
+ark-runtime = { version = "0.0.1", path = "../ark-runtime" }
+serde_json = "1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "macros"] }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+
+[lints]
+workspace = true
