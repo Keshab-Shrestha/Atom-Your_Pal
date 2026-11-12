@@ -2,6 +2,7 @@
 
 pub mod ask;
 pub mod brain;
+pub mod chat_store;
 pub mod chats;
 pub mod memory;
 pub mod native;

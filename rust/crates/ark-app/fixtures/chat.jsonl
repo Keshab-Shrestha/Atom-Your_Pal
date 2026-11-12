@@ -12,3 +12,4 @@
 {"type":"stats","days":7,"turns":14,"avgTurnMs":2300,"slowTurns":1,"totalCalls":52,"totalFailed":3,"tools":[{"name":"Read","calls":30,"failed":0,"avgMs":14,"repeats":0},{"name":"run_command","calls":12,"failed":3,"avgMs":820,"repeats":0}]}
 {"type":"memory","enabled":true,"count":1,"memories":[{"id":7,"text":"Keshab likes terse answers","createdAt":"2026-11-01T00:00:00Z","source":"text"}],"episodes":[{"id":1,"summary":"Planned the Rust port","endedAt":"2026-11-02T00:00:00Z","exchanges":4}]}
 {"type":"brain","nodes":[{"id":3,"title":"Rune notes","kind":"note","ghost":false,"tags":[],"degree":1,"updatedAt":"2026-11-02T00:00:00Z"}],"edges":[],"omitted":0,"tags":[]}
+{"type":"brief","settings":{"enabled":true,"minute":480,"events":true,"reminders":false,"weather":true,"tasks":true,"needsYou":false,"notify":true,"telegram":false,"spoken":false},"history":[],"running":false}

@@ -128,8 +128,30 @@ impl App {
                 self.send(&ark_protocol::Command::BrainGet);
             }
             Screen::Dashboard => self.send(&ark_protocol::Command::StatsGet),
-            Screen::Chat | Screen::Settings => {}
+            Screen::Settings => self.send(&ark_protocol::Command::BriefGet),
+            Screen::Chat => {}
         }
+    }
+
+    /// Turns one morning-brief switch (index into `BRIEF_SWITCHES`) on or off and asks for the new state.
+    pub fn set_brief(&mut self, index: usize, on: bool) {
+        use ark_protocol::commands::BriefChange;
+        let mut change = BriefChange::default();
+        let value = Some(on);
+        match index {
+            0 => change.enabled = value,
+            1 => change.events = value,
+            2 => change.reminders = value,
+            3 => change.weather = value,
+            4 => change.tasks = value,
+            5 => change.needs_you = value,
+            6 => change.notify = value,
+            7 => change.telegram = value,
+            8 => change.spoken = value,
+            _ => return,
+        }
+        self.send(&ark_protocol::Command::BriefSet { change });
+        self.send(&ark_protocol::Command::BriefGet);
     }
 
     pub fn open_form(&mut self, form: crate::form::Form) {

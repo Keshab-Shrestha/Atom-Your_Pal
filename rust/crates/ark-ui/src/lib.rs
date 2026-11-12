@@ -4,4 +4,4 @@
 
 mod model;
 
-pub use model::{ApiStatus, Approval, BrainNode, Memory, ChatItem, Conn, Helper, Job, JobState, Message, Model, Provider, Question, Role, Stats, ToolCall, ToolRow, ToolState, Work, WorkState};
+pub use model::{ApiStatus, BRIEF_SWITCHES, Approval, BrainNode, Memory, ChatItem, Conn, Helper, Job, JobState, Message, Model, Provider, Question, Role, Stats, ToolCall, ToolRow, ToolState, Work, WorkState};

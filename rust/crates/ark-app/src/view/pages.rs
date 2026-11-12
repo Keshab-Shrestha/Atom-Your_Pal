@@ -79,6 +79,18 @@ pub fn settings(app: &App, k: &Kit) -> El {
         .child(line(k, "Computer control", yes_no(m.computer)))
         .child(line(k, "Local API", api));
     let mut cards = vec![model, connections];
+    if let Some(values) = m.brief {
+        let mut brief = card(k, "settings-brief", "Morning brief");
+        for (i, ((_, label), on)) in ark_ui::BRIEF_SWITCHES.iter().zip(values).enumerate() {
+            let button = Button::new(if on { "On" } else { "Off" })
+                .variant(if on { ButtonVariant::Submit } else { ButtonVariant::Neutral })
+                .on_press(move |s: &mut App| s.set_brief(i, !on))
+                .build(k)
+                .key(format!("brief-{i}"));
+            brief = brief.child(row().w_full().justify_between().items_center().child(text((*label).to_owned()).font(k.ty.ui).color(k.c.text_base)).child(button));
+        }
+        cards.push(brief);
+    }
     if let Some(used) = m.plan_usage.0 {
         cards.push(card(k, "settings-plan", "Plan usage").child(line(k, "Last five hours", format!("{:.0}%", used * 100.0))).child(line(
             k,

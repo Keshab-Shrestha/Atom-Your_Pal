@@ -195,6 +195,41 @@ impl Chat {
         true
     }
 
+    /// `chat.delete`: the chat and everything kept for it go in one write (`chat_store.rs`); the app gets `conversation.reset` when it was the open
+    /// chat, and `chats`. Node only moves its Core session. `false` means: give it to Node.
+    fn delete_chat(&self, line: &str, to_app: &Sink, to_node: &Sink) -> bool {
+        if !line.contains("\"chat.delete\"") {
+            return false;
+        }
+        let Ok(Value::Object(command)) = serde_json::from_str::<Value>(line) else { return false };
+        if command.get("type").and_then(Value::as_str) != Some("chat.delete") {
+            return false;
+        }
+        let Some(id) = command.get("id").and_then(Value::as_str).filter(|id| !id.is_empty() && id.len() <= 100 && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')) else { return false };
+        let was_open = self.current.lock().ok().is_some_and(|c| c.as_deref() == Some(id));
+        if is_shared(id) || (was_open && self.busy.load(Ordering::SeqCst)) {
+            return false;
+        }
+        let Some(dir) = self.db.parent() else { return false };
+        let Ok(conn) = store::open_read_write(&self.db) else { return false };
+        if crate::chat_store::delete_chat(&conn, &dir.join("attachments"), id).is_err() {
+            return false;
+        }
+        if was_open {
+            if let Ok(mut c) = self.current.lock() {
+                *c = None;
+            }
+            self.approvals.decline_all();
+            self.questions.skip_all();
+            to_app(&Event::Other(json!({ "type": "conversation.reset" }).as_object().cloned().unwrap_or_default()).to_line());
+            to_node(&format!("{}\n", json!({ "type": "core.resume" })));
+        }
+        if let Some(chats) = self.chats_line() {
+            to_app(&chats);
+        }
+        true
+    }
+
     /// Takes `line` when it is a plain `text.send` this runtime can answer. `false` means: give it to Node.
     pub fn handle(self: &Arc<Self>, line: &str, to_app: Sink, to_node: Sink) -> bool {
         let Parsed::Command(command) = parse_command(line) else { return false };
@@ -211,7 +246,7 @@ impl Chat {
             }
             _ => {}
         }
-        if self.open_chat(line, &to_app, &to_node) {
+        if self.open_chat(line, &to_app, &to_node) || self.delete_chat(line, &to_app, &to_node) {
             return true;
         }
         if matches!(*command, Command::ChatsList) {

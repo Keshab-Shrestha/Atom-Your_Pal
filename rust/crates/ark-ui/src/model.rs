@@ -186,8 +186,23 @@ pub struct BrainNode {
     pub ghost: bool,
 }
 
+/// The morning-brief switches, in the order the settings page shows them: (key in the `brief` event, label).
+pub const BRIEF_SWITCHES: [(&str, &str); 9] = [
+    ("enabled", "Morning brief"),
+    ("events", "Calendar events"),
+    ("reminders", "Reminders"),
+    ("weather", "Weather"),
+    ("tasks", "Tasks"),
+    ("needsYou", "What needs you"),
+    ("notify", "Notification"),
+    ("telegram", "Send to Telegram"),
+    ("spoken", "Read aloud"),
+];
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Model {
+    /// The values of `BRIEF_SWITCHES`, once the runtime has sent the `brief` event.
+    pub brief: Option<[bool; 9]>,
     pub memory: Option<Memory>,
     pub brain: Option<Vec<BrainNode>>,
     /// The note open in the brain page.
@@ -418,6 +433,10 @@ impl Model {
                 self.provider = str_of(map, "provider");
                 self.model = str_of(map, "model");
                 self.providers = parse_providers(map);
+            }
+            "brief" => {
+                let settings = map.get("settings").and_then(Value::as_object);
+                self.brief = settings.map(|o| BRIEF_SWITCHES.map(|(key, _)| bool_of(o, key)));
             }
             "memory" => {
                 self.memory = Some(Memory {
