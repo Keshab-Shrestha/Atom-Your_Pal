@@ -180,6 +180,18 @@ pub struct ApiStatus {
     pub error: Option<String>,
 }
 
+/// One project: a folder with its own chats (`chats` event, `projects`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Project {
+    pub id: String,
+    pub name: String,
+    pub folder: String,
+    pub missing: bool,
+    pub archived: bool,
+    pub chats: u64,
+    pub web: bool,
+}
+
 /// One file a task changed (`thread` event, `checkpoints`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Checkpoint {
@@ -231,6 +243,7 @@ pub const BRIEF_SWITCHES: [(&str, &str); 9] = [
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Model {
+    pub projects: Vec<Project>,
     /// Task details by job id, from `thread` events.
     pub threads: std::collections::BTreeMap<u64, Thread>,
     /// The values of `BRIEF_SWITCHES`, once the runtime has sent the `brief` event.
@@ -499,6 +512,9 @@ impl Model {
             "plan.usage" => self.plan_usage = (map.get("fiveHour").and_then(Value::as_f64), map.get("sevenDay").and_then(Value::as_f64)),
             "chats" => {
                 self.chats = parse_chats(map);
+                self.projects = objects(map, "projects")
+                    .map(|p| Project { id: str_of(p, "id"), name: str_of(p, "name"), folder: str_of(p, "folderLabel"), missing: bool_of(p, "missing"), archived: bool_of(p, "archived"), chats: u64_of(p, "chatCount"), web: bool_of(p, "web") })
+                    .collect();
                 let current = str_of(map, "current");
                 self.current = (!current.is_empty()).then_some(current);
             }

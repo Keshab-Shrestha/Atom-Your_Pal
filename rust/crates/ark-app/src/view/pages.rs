@@ -425,3 +425,37 @@ pub fn memory(app: &App, k: &Kit) -> El {
     }
     page(k, "memory", "Memory", cards)
 }
+
+pub fn projects(app: &App, k: &Kit) -> El {
+    let add = Button::new("Add project").variant(ButtonVariant::Submit).on_press_tx(|_: &mut App, tx: &mut rune::Tx| {
+        tx.open_folder(rune::FileDialogOptions { title: "Choose the project folder".into(), ..Default::default() }, |s: &mut App, result, _| {
+            if let Ok(Some(path)) = result {
+                let name = path.file_name().map_or_else(|| "Project".to_owned(), |n| n.to_string_lossy().into_owned());
+                s.send(&Command::ProjectAdd { name, path: path.to_string_lossy().into_owned() });
+            }
+        });
+    }).build(k).key("project-add");
+    let mut cards = vec![row().justify_end().child(add)];
+    if app.model.projects.is_empty() {
+        cards.push(text("No projects yet. A project is a folder with its own chats.").key("projects-empty").font(k.ty.ui).color(k.c.text_faint).wrap());
+    }
+    for p in &app.model.projects {
+        let (new_id, remove_id, archive_id, archived) = (p.id.clone(), p.id.clone(), p.id.clone(), p.archived);
+        let mut meta = vec![p.folder.clone(), format!("{} chats", p.chats)];
+        if p.missing {
+            meta.push("folder missing".into());
+        }
+        if p.archived {
+            meta.push("archived".into());
+        }
+        let actions = row().justify_end().gap(8.0)
+            .child(Button::new("New chat").on_press(move |s: &mut App| {
+                s.screen = crate::app::Screen::Chat;
+                s.send(&Command::ChatNew { project_id: Some(new_id.clone()) });
+            }).build(k).key(format!("project-chat-{}", p.id)))
+            .child(Button::new(if archived { "Unarchive" } else { "Archive" }).on_press(move |s: &mut App| s.send(&Command::ProjectArchive { id: archive_id.clone(), archived: !archived })).build(k).key(format!("project-archive-{}", p.id)))
+            .child(Button::new("Remove").on_press(move |s: &mut App| s.send(&Command::ProjectRemove { id: remove_id.clone(), delete_chats: None })).build(k).key(format!("project-remove-{}", p.id)));
+        cards.push(card(k, &format!("project-{}", p.id), &p.name).child(text(meta.join(" · ")).font(k.ty.small).color(k.c.text_muted).wrap()).child(actions));
+    }
+    page(k, "projects", "Projects", cards)
+}

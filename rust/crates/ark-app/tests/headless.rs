@@ -242,3 +242,12 @@ fn screens_match_the_swift_goldens_in_brightness() {
         assert!((mine - theirs).abs() < 0.15, "{screen} differs from {golden} in brightness: {mine:.3} against {theirs:.3}");
     }
 }
+
+#[test]
+fn the_projects_page_lists_projects() {
+    let steps = r#"[{"t":0.2,"type":"click","key":"nav-projects"}]"#;
+    let tree = tree_after("projects", "chat.jsonl", Some(steps));
+    for want in ["Atom", "~/Developer/atom", "3 chats", "Add project", "New chat", "Archive", "Remove"] {
+        assert!(tree.contains(want), "projects page lacks {want:?}");
+    }
+}
