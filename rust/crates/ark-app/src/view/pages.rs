@@ -195,3 +195,71 @@ pub fn dashboard(app: &App, k: &Kit) -> El {
     };
     page(k, "dashboard", "Dashboard", cards)
 }
+
+fn forget_button(id: u64, k: &Kit) -> El {
+    Button::new("Forget").on_press(move |s: &mut App| {
+        s.send(&Command::MemoryForget { id });
+        s.send(&Command::MemoryList);
+    }).build(k).key(format!("forget-{id}"))
+}
+
+fn note_card(app: &App, k: &Kit) -> Option<El> {
+    let note = app.model.brain_note.as_ref()?;
+    let id = note.id;
+    let mut c = card(k, "brain-note", &note.title).child(text(format!("{:?} · {}", note.kind, note.tags.join(", "))).font(k.ty.small).color(k.c.text_muted));
+    c = c.child(text(note.body.clone()).font(k.ty.ui).color(k.c.text_base).wrap());
+    let links: Vec<String> = note.links.iter().map(|l| l.title.clone()).collect();
+    if !links.is_empty() {
+        c = c.child(line(k, "Links", links.join(", ")));
+    }
+    let backlinks: Vec<String> = note.backlinks.iter().map(|l| l.title.clone()).collect();
+    if !backlinks.is_empty() {
+        c = c.child(line(k, "Linked from", backlinks.join(", ")));
+    }
+    let delete = Button::new("Delete note").on_press(move |s: &mut App| {
+        s.send(&Command::BrainDelete { id });
+        s.model.brain_note = None;
+        s.send(&Command::BrainGet);
+    });
+    Some(c.child(row().justify_end().child(delete.build(k).key("brain-delete"))))
+}
+
+pub fn memory(app: &App, k: &Kit) -> El {
+    let mut cards = Vec::new();
+    match &app.model.memory {
+        None => cards.push(text("Loading memory…").key("memory-loading").font(k.ty.ui).color(k.c.text_faint)),
+        Some(m) => {
+            let mut facts = card(k, "memory-facts", if m.enabled { "What ARK remembers" } else { "Memory is off" });
+            if m.facts.is_empty() {
+                facts = facts.child(text("Nothing yet.").font(k.ty.ui).color(k.c.text_faint));
+            }
+            for (id, fact) in &m.facts {
+                facts = facts.child(row().w_full().gap(12.0).items_center().child(col().grow(1.0).child(text(fact.clone()).font(k.ty.ui).color(k.c.text_base).wrap())).child(forget_button(*id, k)));
+            }
+            cards.push(facts);
+            if !m.episodes.is_empty() {
+                let mut eps = card(k, "memory-episodes", "Past conversations");
+                for e in &m.episodes {
+                    eps = eps.child(text(e.clone()).font(k.ty.ui).color(k.c.text_muted).wrap());
+                }
+                cards.push(eps);
+            }
+        }
+    }
+    if let Some(open) = note_card(app, k) {
+        cards.push(open);
+    }
+    if let Some(nodes) = &app.model.brain {
+        let mut brain = card(k, "brain-notes", "Brain notes");
+        for n in nodes.iter().filter(|n| !n.ghost).take(80) {
+            let id = n.id;
+            brain = brain.child(
+                row().w_full().justify_between().items_center().gap(12.0)
+                    .child(text(format!("{} · {}", n.title, n.kind)).font(k.ty.ui).color(k.c.text_base))
+                    .child(Button::new("Open").on_press(move |s: &mut App| s.send(&Command::BrainNote { id })).build(k).key(format!("note-{id}"))),
+            );
+        }
+        cards.push(brain);
+    }
+    page(k, "memory", "Memory", cards)
+}

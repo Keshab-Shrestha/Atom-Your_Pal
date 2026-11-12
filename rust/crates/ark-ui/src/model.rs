@@ -166,8 +166,30 @@ pub struct ApiStatus {
     pub error: Option<String>,
 }
 
+/// What ARK remembers (`memory` event): facts and conversation summaries.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Memory {
+    pub enabled: bool,
+    /// (id, text)
+    pub facts: Vec<(u64, String)>,
+    pub episodes: Vec<String>,
+}
+
+/// One note in the brain list (`brain` event).
+#[derive(Debug, Clone, PartialEq)]
+pub struct BrainNode {
+    pub id: u64,
+    pub title: String,
+    pub kind: String,
+    pub ghost: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Model {
+    pub memory: Option<Memory>,
+    pub brain: Option<Vec<BrainNode>>,
+    /// The note open in the brain page.
+    pub brain_note: Option<ark_protocol::events::BrainNoteItem>,
     pub conn: Conn,
     pub provider: String,
     pub model: String,
@@ -381,6 +403,7 @@ impl Model {
                 self.streaming.clear();
                 self.banner = Some(message.clone());
             }
+            Event::BrainNote { note } => self.brain_note = Some(note.clone()),
             Event::Other(map) => self.apply_other(map),
             _ => {}
         }
@@ -393,6 +416,20 @@ impl Model {
                 self.provider = str_of(map, "provider");
                 self.model = str_of(map, "model");
                 self.providers = parse_providers(map);
+            }
+            "memory" => {
+                self.memory = Some(Memory {
+                    enabled: bool_of(map, "enabled"),
+                    facts: objects(map, "memories").map(|m| (u64_of(m, "id"), str_of(m, "text"))).collect(),
+                    episodes: objects(map, "episodes").map(|e| str_of(e, "summary")).collect(),
+                })
+            }
+            "brain" => {
+                self.brain = Some(
+                    objects(map, "nodes")
+                        .map(|n| BrainNode { id: u64_of(n, "id"), title: str_of(n, "title"), kind: str_of(n, "kind"), ghost: bool_of(n, "ghost") })
+                        .collect(),
+                )
             }
             "helpers" => self.helpers = Some(parse_helpers(map)),
             "stats" => self.stats = Some(parse_stats(map)),

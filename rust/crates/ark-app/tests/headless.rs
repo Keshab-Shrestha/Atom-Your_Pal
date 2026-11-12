@@ -92,6 +92,10 @@ fn the_sidebar_opens_the_pages() {
     for want in ["Average answer", "2300 ms", "run_command", "12 calls"] {
         assert!(dashboard.contains(want), "dashboard lacks {want:?}");
     }
+    let memory = page("nav-memory", "nav-memory");
+    for want in ["Keshab likes terse answers", "Forget", "Planned the Rust port", "Rune notes", "Open"] {
+        assert!(memory.contains(want), "memory page lacks {want:?}");
+    }
     let settings = page("nav-settings", "nav-settings");
     for want in ["Opus", "Sonnet", "Gemini (no key)", "On, port 4317", "42%"] {
         assert!(settings.contains(want), "settings page lacks {want:?}");

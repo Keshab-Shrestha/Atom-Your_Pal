@@ -34,6 +34,7 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
         Screen::Settings => ("Settings".to_owned(), pages::settings(app, k)),
         Screen::Agents => ("Agents".to_owned(), pages::agents(app, k)),
         Screen::Tasks => ("Tasks".to_owned(), pages::tasks(app, k)),
+        Screen::Memory => ("Memory".to_owned(), pages::memory(app, k)),
         Screen::Dashboard => ("Dashboard".to_owned(), pages::dashboard(app, k)),
     };
     let toolbar = Toolbar::new().title(title).trailing(chat::status(app, k, &status_line(app)));
@@ -72,6 +73,7 @@ pub fn menu_items() -> Vec<rune::MenuItem<App>> {
         let item = match screen {
             Screen::Agents => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Agents)),
             Screen::Tasks => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Tasks)),
+            Screen::Memory => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Memory)),
             Screen::Dashboard => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Dashboard)),
             Screen::Settings => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Settings)),
             Screen::Chat => MenuItem::new(title, |s: &mut App, _| s.goto(Screen::Chat)),
@@ -84,6 +86,7 @@ pub fn menu_items() -> Vec<rune::MenuItem<App>> {
         go("Agents", Screen::Agents, "cmd+2"),
         go("Tasks", Screen::Tasks, "cmd+3"),
         go("Dashboard", Screen::Dashboard, "cmd+4"),
+        go("Memory", Screen::Memory, "cmd+5"),
         go("Settings", Screen::Settings, "cmd+,"),
     ]
 }

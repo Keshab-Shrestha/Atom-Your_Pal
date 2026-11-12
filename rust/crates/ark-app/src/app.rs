@@ -17,6 +17,7 @@ pub enum Screen {
     Settings,
     Agents,
     Tasks,
+    Memory,
     Dashboard,
 }
 
@@ -53,6 +54,7 @@ pub fn init() -> App {
         Ok("settings") => Screen::Settings,
         Ok("agents") => Screen::Agents,
         Ok("tasks") => Screen::Tasks,
+        Ok("memory") => Screen::Memory,
         Ok("dashboard") => Screen::Dashboard,
         _ => Screen::Chat,
     };
@@ -118,6 +120,10 @@ impl App {
         self.screen = screen;
         match screen {
             Screen::Agents | Screen::Tasks => self.send(&ark_protocol::Command::HelpersList),
+            Screen::Memory => {
+                self.send(&ark_protocol::Command::MemoryList);
+                self.send(&ark_protocol::Command::BrainGet);
+            }
             Screen::Dashboard => self.send(&ark_protocol::Command::StatsGet),
             Screen::Chat | Screen::Settings => {}
         }
