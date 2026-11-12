@@ -10,6 +10,8 @@ pub enum FormKind {
     /// Edit the soul of this helper (id); the name stays.
     Soul { helper: String, name: String },
     NewAgent,
+    /// The owner's name: the welcome window (first run) or Settings.
+    Owner { first_run: bool },
     /// Add a task for this helper (id).
     NewTask { helper: String },
 }
@@ -25,6 +27,8 @@ impl Form {
         match &self.kind {
             FormKind::Soul { name, .. } => format!("Soul of {name}"),
             FormKind::NewAgent => "New agent".into(),
+            FormKind::Owner { first_run: true } => "Welcome to ARK".into(),
+            FormKind::Owner { first_run: false } => "Your name".into(),
             FormKind::NewTask { .. } => "New task".into(),
         }
     }
@@ -35,6 +39,7 @@ impl Form {
             FormKind::Soul { .. } => &["Personality", "How it works", "Rules", "Lessons"],
             FormKind::NewAgent => &["Name", "Role", "Personality", "How it works", "Rules"],
             FormKind::NewTask { .. } => &["Task"],
+            FormKind::Owner { .. } => &["What should ARK call you?"],
         }
     }
 
@@ -50,6 +55,10 @@ impl Form {
 
     pub fn new_agent() -> Form {
         Form::fresh(FormKind::NewAgent, &["", "", "", "", ""])
+    }
+
+    pub fn owner(first_run: bool, current: &str) -> Form {
+        Form::fresh(FormKind::Owner { first_run }, &[current])
     }
 
     pub fn new_task(helper: &str) -> Form {
@@ -80,6 +89,12 @@ impl Form {
                     rules: self.text(4),
                     reports_to: None,
                 })
+            }
+            FormKind::Owner { .. } => {
+                if self.text(0).is_empty() {
+                    return Err("Write a name, or choose Skip.");
+                }
+                Ok(Command::OwnerSet { name: self.text(0) })
             }
             FormKind::NewTask { helper } => {
                 if self.text(0).is_empty() {

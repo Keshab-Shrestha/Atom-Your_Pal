@@ -97,7 +97,7 @@ fn the_sidebar_opens_the_pages() {
         assert!(memory.contains(want), "memory page lacks {want:?}");
     }
     let settings = page("nav-settings", "nav-settings");
-    for want in ["Opus", "Sonnet", "Gemini (no key)", "On, port 4317", "42%", "Morning brief", "Read aloud", "Saved permissions", "Full access", "Model default", "Appearance", "Dark", "Shortcuts", "Control + Option + Z"] {
+    for want in ["Opus", "Sonnet", "Gemini (no key)", "On, port 4317", "42%", "Morning brief", "Read aloud", "Saved permissions", "Full access", "Model default", "Appearance", "Dark", "Shortcuts", "Control + Option + Z", "ARK calls you", "Change name"] {
         assert!(settings.contains(want), "settings page lacks {want:?}");
     }
 }
@@ -250,4 +250,11 @@ fn the_projects_page_lists_projects() {
     for want in ["Atom", "~/Developer/atom", "3 chats", "Add project", "New chat", "Archive", "Remove"] {
         assert!(tree.contains(want), "projects page lacks {want:?}");
     }
+}
+
+#[test]
+fn the_name_form_opens_from_settings() {
+    let steps = r#"[{"t":0.1,"type":"click","key":"nav-settings"},{"t":0.3,"type":"click","key":"owner-change"}]"#;
+    let tree = tree_after("owner", "chat.jsonl", Some(steps));
+    assert!(tree.contains("Your name") && tree.contains("What should ARK call you?"), "the name form is missing");
 }

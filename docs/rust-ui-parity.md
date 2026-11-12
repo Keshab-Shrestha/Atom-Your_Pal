@@ -40,14 +40,16 @@ Rust logic comes from `ark-core` where a module exists.
 | FileDiffCard, FileEditReview | `view/diff.rs`, review card on an approval (`ark_core::diff`) |
 | ArkVisualCard | `view/visual.rs` (`ark_core::visual`); bars show for line charts too |
 | BoardTeamView org chart | team card on the agents page (`ark_core::org`) |
+| ProjectsSection (basic) | projects page: add folder, new chat, archive, remove |
+| OwnerWelcomeSheet, GeneralPage name | first-run name form, Settings > General, `owner.set` |
 | VoicePill, status | pill shows Listening, Transcribing, Thinking, Speaking, Needs you |
 
 ## Open
 
 - Shortcut recorder (change a shortcut). Chat access and thinking per chat (ChatAccessMenu, ChatReasoningMenu, ChatModelPicker).
 - Translucent window (ADR-277).
-- Projects and folders (ProjectsSection, ProjectWorkspaceView, ProjectSettingsSheet, ProjectSourceSheet).
-- Onboarding (OwnerWelcomeSheet, SetupViews).
+- Project settings, sources and workspace views (ProjectWorkspaceView, ProjectSettingsSheet, ProjectSourceSheet). A basic projects page is done.
+- Setup views for permissions and keys (SetupViews). The welcome name window is done.
 - Brain graph and search, git branches view (`git.diff` text).
 
 ## Not planned for the first Rust release

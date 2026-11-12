@@ -66,6 +66,7 @@ pub fn init() -> App {
     if let Ok(path) = std::env::var("ARK_UI_EVENTS") {
         preload(&mut model, &path);
     }
+    let prefs = if std::env::var_os("ARK_UI_EVENTS").is_some() && std::env::var_os("ARK_UI_PREFS").is_none() { crate::prefs::Prefs::default() } else { crate::prefs::Prefs::load() };
     let mut draft = TextEdit::new("");
     draft.focused = true;
     let screen = match std::env::var("ARK_UI_SCREEN").as_deref() {
@@ -79,7 +80,8 @@ pub fn init() -> App {
     };
     // Tests and snapshots open the find bar with a query.
     let find = std::env::var("ARK_UI_FIND").ok().map(|q| (TextEdit::new(q), 0));
-    App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen, details: std::env::var_os("ARK_UI_DETAILS").is_some(), open_job: std::env::var("ARK_UI_JOB").ok().and_then(|v| v.parse().ok()), prefs: if std::env::var_os("ARK_UI_EVENTS").is_some() && std::env::var_os("ARK_UI_PREFS").is_none() { crate::prefs::Prefs::default() } else { crate::prefs::Prefs::load() }, confirm_full: false, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: None, form_error: None }
+    let welcome = std::env::var_os("ARK_UI_EVENTS").is_none() && !prefs.welcomed;
+    App { model, bridge: None, draft, sidebar: PaneState::new(260.0).range(180.0, 420.0), screen, details: std::env::var_os("ARK_UI_DETAILS").is_some(), open_job: std::env::var("ARK_UI_JOB").ok().and_then(|v| v.parse().ok()), prefs, confirm_full: false, palette: std::env::var_os("ARK_UI_PALETTE").map(|_| TextEdit::new("")), find, attachments: Vec::new(), form: welcome.then(|| crate::form::Form::owner(true, "")), form_error: None }
 }
 
 /// Starts the runtime child once, with the waker that redraws the window when an event arrives.
@@ -97,6 +99,9 @@ pub fn setup(app: &mut App, wake: Waker) {
             // Native clients ask for the work snapshots (docs/island-protocol.md, chat.work).
             app.send(&ark_protocol::Command::ChatWorkWatch);
             app.send_defaults();
+            if !app.prefs.owner.is_empty() {
+                app.send(&ark_protocol::Command::OwnerSet { name: app.prefs.owner.clone() });
+            }
         }
         Err(e) => app.model.runtime_down(format!("The runtime did not start ({bin}): {e}")),
     }
@@ -232,7 +237,12 @@ impl App {
         self.form_error = None;
     }
 
+    /// Closes the form. Cancelling the welcome window counts as answered, so it does not return.
     pub fn close_form(&mut self) {
+        if matches!(self.form.as_ref().map(|f| &f.kind), Some(crate::form::FormKind::Owner { first_run: true })) {
+            self.prefs.welcomed = true;
+            self.prefs.save();
+        }
         self.form = None;
         self.form_error = None;
     }
@@ -242,6 +252,11 @@ impl App {
         let Some(form) = &self.form else { return };
         match form.submit() {
             Ok(command) => {
+                if let ark_protocol::Command::OwnerSet { name } = &command {
+                    self.prefs.owner.clone_from(name);
+                    self.prefs.welcomed = true;
+                    self.prefs.save();
+                }
                 self.send(&command);
                 self.close_form();
                 self.send(&ark_protocol::Command::HelpersList);

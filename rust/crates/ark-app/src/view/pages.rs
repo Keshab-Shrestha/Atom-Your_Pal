@@ -118,11 +118,17 @@ pub fn settings(app: &App, k: &Kit) -> El {
         );
     }
     let appearance = card(k, "settings-appearance", "Appearance").child(look);
+    let general = card(k, "settings-general", "General")
+        .child(line(k, "ARK calls you", if app.prefs.owner.is_empty() { "Not set".into() } else { app.prefs.owner.clone() }))
+        .child(row().justify_end().child(Button::new("Change name").on_press(|s: &mut App| {
+            let current = s.prefs.owner.clone();
+            s.open_form(Form::owner(false, &current));
+        }).build(k).key("owner-change")));
     let mut shortcuts = card(k, "settings-shortcuts", "Shortcuts");
     for action in ark_core::shortcuts::ShortcutAction::ALL {
         shortcuts = shortcuts.child(line(k, crate::prefs::action_title(action), crate::prefs::describe(action)));
     }
-    let mut cards = vec![model, defaults, appearance, shortcuts, connections];
+    let mut cards = vec![model, general, defaults, appearance, shortcuts, connections];
     if let Some(values) = m.brief {
         let mut brief = card(k, "settings-brief", "Morning brief");
         for (i, ((_, label), on)) in ark_ui::BRIEF_SWITCHES.iter().zip(values).enumerate() {
