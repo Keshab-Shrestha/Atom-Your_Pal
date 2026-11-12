@@ -222,7 +222,7 @@ fn helper_card(h: &Helper, k: &Kit) -> El {
     }
     if soul_of.soul.is_some() {
         actions = actions.child(
-            Button::new("Edit soul")
+            Button::new("Edit agent")
                 .on_press(move |s: &mut App| {
                     if let Some(soul) = &soul_of.soul {
                         s.open_form(Form::soul(&soul_of.id, &soul_of.name, soul));
@@ -232,11 +232,28 @@ fn helper_card(h: &Helper, k: &Kit) -> El {
                 .key(format!("soul-{}", h.id)),
         );
     }
-    card(k, &format!("agent-{}", h.id), &h.name)
+    let mut c = card(k, &format!("agent-{}", h.id), &h.name)
         .child(text(meta.join(" · ")).font(k.ty.small).color(k.c.text_muted))
         .child(line(k, "Status", status))
-        .child(line(k, "Tasks", h.jobs.len().to_string()))
-        .child(actions)
+        .child(line(k, "Tasks", h.jobs.len().to_string()));
+    if h.available && h.jobs.is_empty() {
+        c = c.child(text("No jobs yet").font(k.ty.small).color(k.c.text_faint));
+    }
+    // The newest jobs of this agent, with a way to open each (the Tasks page shows them all).
+    for j in h.jobs.iter().rev().take(5) {
+        let (label, bad) = state_label(j.state);
+        let id = j.id;
+        c = c.child(
+            row().w_full().justify_between().items_center().gap(8.0)
+                .child(text(format!("{} · {label}", j.title.as_deref().unwrap_or(&j.task))).font(k.ty.small).color(if bad { k.c.danger.fg } else { k.c.text_muted }).wrap())
+                .child(Button::new("Read report").on_press(move |s: &mut App| {
+                    s.screen = crate::app::Screen::Tasks;
+                    s.open_job = Some(id);
+                    s.send(&Command::JobOpen { id });
+                }).build(k).key(format!("agent-job-{id}"))),
+        );
+    }
+    c.child(actions)
 }
 
 fn org_rows(chart: &ark_core::org::OrgChart, id: &str, depth: usize, names: &dyn Fn(&str) -> String, k: &Kit, out: &mut Vec<El>) {
