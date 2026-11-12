@@ -45,6 +45,14 @@
 - The token comes from `ARK_TELEGRAM_BOT_TOKEN` (with `ARK_TELEGRAM_CHAT_ID`, `ARK_TELEGRAM_USER_ID`) through `Config::from_env`, or from the caller. The log gets names and codes, never text or the token.
 - Verified: 5 tests (message split; backlog and sender filter; split send with buttons; retry rules; wrong token, with a check that the token is not in the log) against a local mock Bot API server. Clippy is clean. No live Telegram call.
 
+## Rust Phase 2 step 15: native chat parity — 12 November 2026
+
+- ADR-278, Phase 2: the native chat turn now builds the same prompt as Node. The new module `ark-runtime/src/context.rs` holds `NATIVE_SYSTEM_PROMPT`, the opening memory guidance, the typed-message note, the date line and the memory facts. It puts them after the user message under "Context from ARK, not said by the user:". The saved chat keeps only the plain message.
+- Memory facts use the same rules as `memoryContextSelection`: FTS matches first, then the newest, 12 at most. The chat brief comes from the `chats` table.
+- A new unsaved chat is now taken by Rust. Rust makes the row with the title of the first words, and removes it if the turn fails.
+- Verified: `tests/context_parity.rs` checks the prompt text and the memory block against fixtures that `rust/scripts/gen-fixtures.ts` makes from the TypeScript code. A new-chat test and clippy pass. No live model call.
+- Not ported: file permissions notice, workflow route, kept-chat hits, recent episodes, project and attachment context, skills, and the context byte budget. A turn with files, notes, a skill or a project chat still goes to Node.
+
 ## Rust Phase 2 step 14: native local HTTP API — 12 November 2026
 
 - ADR-278, Phase 2: `ark-runtime::api` is the local HTTP API in Rust, and the new binary `ark-api` runs it alone. It has the Node envelope (`{ok, data, error}`), the bearer token in `data/api-token` (64 hex digits, made with mode 0600), the Host check (127.0.0.1, localhost and `ARK_API_HOST`), the lockout (10 wrong tokens in a minute, only for requests that carry an Authorization header), the 64 KB body limit, and the status codes of Node. Plain HTTP/1.1 on `std::net`, so no new crate. It logs no body.

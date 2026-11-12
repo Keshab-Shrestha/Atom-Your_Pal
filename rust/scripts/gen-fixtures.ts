@@ -5,6 +5,9 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { openBrain } from "../../services/memory/src/brain.ts";
+import { openMemoryStore } from "../../services/memory/src/store.ts";
+import { MEMORY_GUIDANCE, memoryContextSelection } from "../../services/memory/src/tools.ts";
+import { CONTEXT_LABEL, NATIVE_SYSTEM_PROMPT, TYPED_NOTE } from "../../apps/mac/src/native-core.ts";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { classifyCommand, expandHome, folderForTask, hasGitPart, isImportantName, isInside, isPushCommand, toolPaths } from "../../services/helpers/src/grants.ts";
@@ -319,4 +322,21 @@ function write(module: string, source: string, cases: Case[]): void {
   const expectGraph = { type: "brain", nodes: g.nodes.map((n) => ({ id: n.id, title: n.title, kind: n.kind, ghost: n.ghost, tags: n.tags, degree: n.degree, updatedAt: n.updatedAt.toISOString() })), edges: g.edges, omitted: g.omitted, tags: expectTags };
   writeFileSync(join(dir, "brain.json"), `${JSON.stringify({ source: "services/memory/src/brain.ts", notes: expectNotes, searches: expectSearch, graph: expectGraph }, null, 1)}\n`);
   console.log(`brain: ${expectNotes.length} notes, ${expectSearch.length} searches`);
+}
+
+// ---- chat context (native-core.ts, memory tools): system prompt, memory facts, labels ----
+{
+  const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "crates", "ark-runtime", "tests", "fixtures");
+  const dbFile = join(dir, "memory.db");
+  for (const ext of ["", "-wal", "-shm"]) rmSync(dbFile + ext, { force: true });
+  let tick = 0;
+  const store = openMemoryStore({ path: dbFile, now: () => new Date(Date.UTC(2026, 10, 1, 9, 0, tick++)) });
+  const facts = ["Keshab likes green tea.", "Keshab lives in Tokyo.", "The cat is called Mochi.", "Keshab prefers terse answers.", "Wife's birthday is on 4 March."];
+  for (const f of facts) store.add(f, { source: "text" });
+  for (let i = 0; i < 12; i++) store.add(`Filler fact number ${i} about nothing.`, { source: "text" });
+  const requests = ["what tea do I like?", "hello", "where do I live in Tokyo", "mochi the cat", ""];
+  const picks = requests.map((request) => ({ request, ...memoryContextSelection(request, { store }) }));
+  store.close?.();
+  writeFileSync(join(dir, "context.json"), `${JSON.stringify({ source: "apps/mac/src/native-core.ts, services/memory/src/tools.ts", systemPrompt: NATIVE_SYSTEM_PROMPT, memoryGuidance: MEMORY_GUIDANCE, contextLabel: CONTEXT_LABEL, typedNote: TYPED_NOTE, picks }, null, 1)}\n`);
+  console.log(`context: ${picks.length} memory picks`);
 }

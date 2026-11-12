@@ -1,6 +1,7 @@
 //! Native chat turns (ADR-278 Phase 2, step 1): `text.send` answered by `ark-agent` instead of Node.
 //! Off unless `ARK_RUNTIME_NATIVE_CHAT=1`. Only plain text in a saved, writable, non-project chat that the app has
-//! already opened is handled here; everything else (files, notes, `/skill`, a new unsaved chat, a shared chat, a
+//! already opened (or a new unsaved one, which gets its row with the first answer) is handled here; everything else
+//! (files, notes, `/skill`, a shared chat, a
 //! busy chat) goes to Node. The current chat comes from Node's own `chats` and `chat.opened` events.
 //! The turn is appended to the same SQLite file Node uses (WAL, busy timeout, one `BEGIN IMMEDIATE`), and then Node
 //! gets `chat.open` so its in-memory chat matches the file.
@@ -27,7 +28,6 @@ pub type Sink = Arc<dyn Fn(&str) + Send + Sync>;
 /// Replay budget, as `CHAT_REPLAY_BYTES` and `MAX_MESSAGES` in `chat-history.ts`.
 const REPLAY_BYTES: usize = 48_000;
 const MAX_MESSAGES: usize = 120;
-const SYSTEM: &str = "You are ARK, a personal assistant on the owner's Mac. Answer briefly and plainly.";
 
 pub struct Chat {
     pub db: PathBuf,
@@ -164,7 +164,22 @@ impl Chat {
             .query_row("SELECT archived, project_id FROM chats WHERE id = ?", [id], |r| Ok((r.get(0)?, r.get(1)?)))
             .optional()
             .unwrap_or(None);
-        matches!(row, Some((0, None)))
+        // No row: a new unsaved chat. Node saves it after the first answer, and so does `turn`.
+        matches!(row, Some((0, None)) | None)
+    }
+
+    /// Makes the row of a new chat. `true` when it was made now.
+    fn ensure_chat(&self, id: &str, first_text: &str) -> Result<bool, String> {
+        let conn = store::open_read_write(&self.db).map_err(|e| format!("The chat file could not be opened: {e}"))?;
+        let at = jiff::Timestamp::now().strftime("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
+        Ok(conn.execute("INSERT OR IGNORE INTO chats (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)", rusqlite::params![id, chat_title(first_text), at, at]).map_err(|e| e.to_string())? > 0)
+    }
+
+    /// Like Node: a chat with no saved answer leaves no row.
+    fn drop_empty(&self, id: &str) {
+        if let Ok(conn) = store::open_read_write(&self.db) {
+            conn.execute("DELETE FROM chats WHERE id = ? AND NOT EXISTS (SELECT 1 FROM chat_messages WHERE chat_id = ?)", [id, id]).ok();
+        }
     }
 
     fn turn(&self, id: &str, text: &str, to_app: &Sink) {
@@ -173,7 +188,17 @@ impl Chat {
         emit(Event::State { state: LoopState::Thinking });
         let started = Instant::now();
         let approver = AppApprover { approvals: Arc::clone(&self.approvals), to_app: Arc::clone(to_app), wait: APPROVAL_WAIT };
-        let result = self.answer(id, text, Some(&approver));
+        let created = self.ensure_chat(id, text);
+        let result = match created {
+            Ok(created) => {
+                let r = self.answer(id, text, Some(&approver), true);
+                if created && r.is_err() {
+                    self.drop_empty(id);
+                }
+                r
+            }
+            Err(e) => Err(e),
+        };
         match result {
             Ok(reply) => {
                 emit(Event::Reply { text: reply });
@@ -188,15 +213,16 @@ impl Chat {
     }
 
     /// Runs the agent on the saved history and appends the exchange. Gives the reply text.
-    fn answer(&self, id: &str, text: &str, approver: Option<&dyn Approver>) -> Result<String, String> {
+    fn answer(&self, id: &str, text: &str, approver: Option<&dyn Approver>, typed: bool) -> Result<String, String> {
         let conn = store::open_read_write(&self.db).map_err(|e| format!("The chat file could not be opened: {e}"))?;
         let saved = read_history(&conn, id).map_err(|e| format!("The chat could not be read: {e}"))?;
         let history = replay_window(&saved, text)?;
         let mut agent = Agent::new(self.provider.as_ref(), self.policy.as_ref(), self.tools.as_ref(), &self.model);
-        agent.system = Some(SYSTEM.into());
+        agent.system = Some(crate::context::SYSTEM_PROMPT.into());
         agent.approver = approver;
         let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().map_err(|e| e.to_string())?;
-        let outcome = runtime.block_on(agent.run(history, text, |_| {})).map_err(|e| e.to_string())?;
+        let asked = crate::context::with_context(Some(&conn), id, text, saved.is_empty(), typed, &jiff::Zoned::now());
+        let outcome = runtime.block_on(agent.run(history, &asked, |_| {})).map_err(|e| e.to_string())?;
         append_exchange(&conn, id, saved.len(), text, &outcome.text).map_err(|e| format!("The answer could not be saved: {e}"))?;
         Ok(outcome.text)
     }
@@ -217,16 +243,10 @@ impl Chat {
     }
 
     fn ask_in_unlocked(&self, id: &str, text: &str) -> Result<String, String> {
-        let conn = store::open_read_write(&self.db).map_err(|e| format!("The chat file could not be opened: {e}"))?;
-        let at = jiff::Timestamp::now().strftime("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
-        let created = conn.execute("INSERT OR IGNORE INTO chats (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)", rusqlite::params![id, chat_title(text), at, at]).map_err(|e| e.to_string())? > 0;
-        drop(conn);
-        let result = self.answer(id, text, None);
+        let created = self.ensure_chat(id, text)?;
+        let result = self.answer(id, text, None, false);
         if created && result.is_err() {
-            // Like Node: a chat with no saved answer leaves no row.
-            if let Ok(conn) = store::open_read_write(&self.db) {
-                conn.execute("DELETE FROM chats WHERE id = ?", [id]).ok();
-            }
+            self.drop_empty(id);
         }
         result
     }
@@ -391,13 +411,28 @@ mod tests {
     }
 
     #[test]
+    fn a_new_unsaved_chat_is_made_with_its_first_answer() {
+        let db = scratch("new");
+        let chat = chat(db.clone());
+        chat.observe("{\"type\":\"chats\",\"chats\":[],\"current\":\"fresh-1\"}\n");
+        let (app, _a) = sinks();
+        let (node, node_rx) = sinks();
+        assert!(chat.handle("{\"type\":\"text.send\",\"text\":\"Ping there\"}\n", app, node));
+        node_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        let conn = Connection::open(&db).unwrap();
+        let title: String = conn.query_row("SELECT title FROM chats WHERE id = 'fresh-1'", [], |r| r.get(0)).unwrap();
+        assert_eq!(title, "Ping there");
+        assert_eq!(read_history(&conn, "fresh-1").unwrap(), [("user".to_string(), "Ping there".to_string()), ("assistant".into(), "Pong".into())]);
+    }
+
+    #[test]
     fn everything_else_goes_to_node() {
         let chat = chat(scratch("no"));
         let (app, _a) = sinks();
         let (node, _n) = sinks();
         let go = |line: &str| chat.handle(line, app.clone(), node.clone());
         assert!(!go("{\"type\":\"text.send\",\"text\":\"x\"}\n"), "no open chat yet");
-        for current in ["old", "telegram", "api-5", "missing"] {
+        for current in ["old", "telegram", "api-5"] {
             chat.observe(&format!("{{\"type\":\"chat.opened\",\"id\":\"{current}\",\"messages\":[]}}\n"));
             assert!(!go("{\"type\":\"text.send\",\"text\":\"x\"}\n"), "{current}");
         }
