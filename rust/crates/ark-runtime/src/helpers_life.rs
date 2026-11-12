@@ -2,8 +2,7 @@
 //! `fresh`, `comment` and `add_job`. Ports of `transition`, `wake` and the same-named methods of `HelperStore`
 //! (`services/helpers/src/store.ts`), with the state machine and the retry rules of `ark-core`. Every change writes the audit row
 //! that `emit` writes, so the change bus (`helpers_bus::Tail`) tells the listeners. Errors carry the words of the TypeScript.
-//! Not ported yet: file copies (`checkpoints`) and the
-//! native retry plans of a chat (`queueNativeRetry`).
+//! File copies are in `helpers_checkpoints`; the retry plans of a chat (`queueNativeRetry`) are in `helpers_retry`.
 
 use ark_core::jobs::{JobState, MAX_AUTO_RETRIES, MAX_BLOCKERS, is_retryable, makes_cycle, move_job};
 use rusqlite::{Connection, OptionalExtension, params};
@@ -61,12 +60,12 @@ fn must_get(conn: &Connection, id: i64) -> Result<Row, String> {
     get(conn, id).ok_or_else(|| format!("There is no job {id}."))
 }
 
-fn sql<T>(r: rusqlite::Result<T>) -> Result<T, String> {
+pub(crate) fn sql<T>(r: rusqlite::Result<T>) -> Result<T, String> {
     r.map_err(|e| format!("The helpers file refused the change: {e}"))
 }
 
 /// One change in one transaction: a refusal (`Err`) undoes every write of it.
-fn atomic<T>(conn: &Connection, work: impl FnOnce() -> Result<T, String>) -> Result<T, String> {
+pub(crate) fn atomic<T>(conn: &Connection, work: impl FnOnce() -> Result<T, String>) -> Result<T, String> {
     sql(conn.execute_batch("BEGIN IMMEDIATE"))?;
     match work() {
         Ok(v) if conn.execute_batch("COMMIT").is_ok() => Ok(v),
@@ -77,12 +76,12 @@ fn atomic<T>(conn: &Connection, work: impl FnOnce() -> Result<T, String>) -> Res
     }
 }
 
-fn log(conn: &Connection, id: i64, kind: &str) -> Result<(), String> {
+pub(crate) fn log(conn: &Connection, id: i64, kind: &str) -> Result<(), String> {
     sql(conn.execute("INSERT INTO job_events (job_id, kind, at) VALUES (?, ?, ?)", params![id, kind, iso_now()]))?;
     Ok(())
 }
 
-fn announce(conn: &Connection, action: &str, detail: &Value) -> Result<(), String> {
+pub(crate) fn announce(conn: &Connection, action: &str, detail: &Value) -> Result<(), String> {
     audit_detail(conn, action, detail).ok_or_else(|| "The audit log refused the change.".to_string())
 }
 
@@ -101,10 +100,10 @@ fn millis_since(created: &str) -> i64 {
 
 /// Moves a task through the state machine (`transition`): saves, tells, wakes a task asked again, retries a failure once,
 /// and fails or unblocks the queued tasks that waited for it.
-fn transition(conn: &Connection, job: &Row, to: JobState, partial: bool, error: Option<&str>) -> Result<(), String> {
+pub(crate) fn transition(conn: &Connection, job: &Row, to: JobState, partial: bool, error: Option<&str>) -> Result<(), String> {
     move_job(job.state, to)?;
     let ended = to.is_final().then(iso_now);
-    sql(conn.execute("UPDATE jobs SET state = ?, partial = ?, error = ?, ended_at = ? WHERE id = ?", params![to.name(), i64::from(partial), error, ended, job.id]))?;
+    sql(conn.execute("UPDATE jobs SET state = ?, step = NULL, partial = ?, error = ?, ended_at = ?, wake_pending = 0 WHERE id = ?", params![to.name(), i64::from(partial), error, ended, job.id]))?;
     log(conn, job.id, to.name())?;
     announce_state(conn, job, to.name(), ended.as_ref().map(|_| millis_since(&job.created_at)))?;
     let native = job.chat_id.is_some();
