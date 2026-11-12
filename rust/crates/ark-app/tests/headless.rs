@@ -161,3 +161,12 @@ fn full_access_needs_a_second_press() {
     let tree = tree_after("full", "chat.jsonl", Some(&steps));
     assert!(tree.contains("Confirm Full access"), "the first press should ask to confirm");
 }
+
+#[test]
+fn a_task_opens_its_report_and_file_changes() {
+    let steps = r#"[{"t":0.1,"type":"click","key":"nav-tasks"},{"t":0.3,"type":"click","key":"details-3"}]"#;
+    let tree = tree_after("job", "chat.jsonl", Some(steps));
+    for want in ["Build fix", "File changes (2)", "src/lib.rs", "Undo", "Back to tasks"] {
+        assert!(tree.contains(want), "task details lack {want:?}");
+    }
+}

@@ -215,6 +215,15 @@ fn job_card(j: &Job, helper_name: &str, k: &Kit) -> El {
         }
         JobState::Done => None,
     };
+    let details = Button::new("Details").on_press(move |s: &mut App| {
+        s.open_job = Some(id);
+        s.send(&Command::JobOpen { id });
+    }).build(k).key(format!("details-{id}"));
+    let action = match action {
+        Some(a) => row().gap(8.0).child(details).child(a),
+        None => row().gap(8.0).child(details),
+    };
+    let action = Some(action);
     let mut c = card(k, &format!("job-{id}"), j.title.as_deref().unwrap_or(&j.task))
         .child(text(format!("{helper_name} · {label}")).font(k.ty.small).color(if bad { k.c.danger.fg } else { k.c.text_muted }));
     if let Some(d) = detail {
@@ -226,7 +235,46 @@ fn job_card(j: &Job, helper_name: &str, k: &Kit) -> El {
     }
 }
 
+fn job_details(app: &App, id: u64, k: &Kit) -> El {
+    let mut cards = vec![Button::new("Back to tasks").on_press(|s: &mut App| s.open_job = None).build(k).key("job-back")];
+    let title = app.model.jobs().into_iter().find(|j| j.id == id).map_or_else(|| format!("Task {id}"), |j| j.title.clone().unwrap_or_else(|| j.task.clone()));
+    match app.model.threads.get(&id) {
+        None => cards.push(text("Loading the task…").key("job-loading").font(k.ty.ui).color(k.c.text_faint)),
+        Some(t) => {
+            if let Some(plan) = &t.plan {
+                cards.push(card(k, "job-plan", "Plan").child(text(plan.clone()).font(k.ty.ui).color(k.c.text_base).wrap()));
+            }
+            if let Some(body) = &t.report_body {
+                cards.push(card(k, "job-report", t.report_title.as_deref().unwrap_or("Report")).child(rune_kit::Markdown::new(body.clone()).selectable(true).build(k).key("report-md")));
+            }
+            let mut files = card(k, "job-files", &format!("File changes ({})", t.checkpoints.len()));
+            if t.checkpoints.is_empty() {
+                files = files.child(text("No file edits recorded.").font(k.ty.ui).color(k.c.text_muted));
+            }
+            for (i, c) in t.checkpoints.iter().enumerate() {
+                let path = c.path.clone();
+                let state = match c.state.as_str() {
+                    "ready" => Some(("Undo", false)),
+                    "changed" => Some(("Restore anyway", true)),
+                    _ => None,
+                };
+                let mut r = row().w_full().justify_between().items_center().gap(12.0).child(text(format!("{} · {}", c.path, if c.created { "created" } else { "edited" })).font(k.ty.ui).color(k.c.text_base));
+                r = match state {
+                    Some((label, force)) => r.child(Button::new(label).on_press(move |s: &mut App| s.send(&Command::JobUndo { id, path: Some(path.clone()), force: force.then_some(true) })).build(k).key(format!("undo-{i}"))),
+                    None => r.child(text(c.state.clone()).font(k.ty.small).color(k.c.text_faint)),
+                };
+                files = files.child(r);
+            }
+            cards.push(files);
+        }
+    }
+    page(k, "job-details", &title, cards)
+}
+
 pub fn tasks(app: &App, k: &Kit) -> El {
+    if let Some(id) = app.open_job {
+        return job_details(app, id, k);
+    }
     let jobs = app.model.jobs();
     let cards = if jobs.is_empty() {
         vec![text("No tasks yet.").key("tasks-empty").font(k.ty.ui).color(k.c.text_faint)]

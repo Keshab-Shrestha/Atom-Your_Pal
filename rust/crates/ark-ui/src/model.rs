@@ -168,6 +168,24 @@ pub struct ApiStatus {
     pub error: Option<String>,
 }
 
+/// One file a task changed (`thread` event, `checkpoints`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Checkpoint {
+    pub path: String,
+    pub created: bool,
+    /// ready, changed, undone or skipped
+    pub state: String,
+}
+
+/// What `job.open` shows for a task (`thread` event).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Thread {
+    pub plan: Option<String>,
+    pub report_title: Option<String>,
+    pub report_body: Option<String>,
+    pub checkpoints: Vec<Checkpoint>,
+}
+
 /// What ARK remembers (`memory` event): facts and conversation summaries.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Memory {
@@ -201,6 +219,8 @@ pub const BRIEF_SWITCHES: [(&str, &str); 9] = [
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Model {
+    /// Task details by job id, from `thread` events.
+    pub threads: std::collections::BTreeMap<u64, Thread>,
     /// The values of `BRIEF_SWITCHES`, once the runtime has sent the `brief` event.
     pub brief: Option<[bool; 9]>,
     pub memory: Option<Memory>,
@@ -437,6 +457,16 @@ impl Model {
             "brief" => {
                 let settings = map.get("settings").and_then(Value::as_object);
                 self.brief = settings.map(|o| BRIEF_SWITCHES.map(|(key, _)| bool_of(o, key)));
+            }
+            "thread" => {
+                let report = map.get("report").and_then(Value::as_object);
+                let thread = Thread {
+                    plan: map.get("plan").and_then(Value::as_object).map(|p| str_of(p, "summary")),
+                    report_title: report.map(|r| str_of(r, "title")),
+                    report_body: report.map(|r| str_of(r, "body")),
+                    checkpoints: objects(map, "checkpoints").map(|c| Checkpoint { path: str_of(c, "path"), created: str_of(c, "kind") == "created", state: str_of(c, "state") }).collect(),
+                };
+                self.threads.insert(u64_of(map, "id"), thread);
             }
             "memory" => {
                 self.memory = Some(Memory {
