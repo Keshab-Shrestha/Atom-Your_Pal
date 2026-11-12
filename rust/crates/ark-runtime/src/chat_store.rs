@@ -65,6 +65,7 @@ fn remove_files(root: &Path, id: &str) {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
     use super::*;
 
     #[test]
@@ -87,9 +88,11 @@ mod tests {
         .unwrap();
         assert!(delete_chat(&conn, &dir.join("attachments"), "a-1").unwrap());
         let count = |sql: &str| conn.query_row(sql, [], |r| r.get::<_, i64>(0)).unwrap();
-        for table in ["chats", "chat_messages", "kept_chats", "kept_sections", "kept_lines", "kept_fts", "chat_recall_receipts", "episodes"] {
+        for table in ["chats", "chat_messages", "kept_chats", "kept_sections", "kept_lines", "chat_recall_receipts", "episodes"] {
             assert_eq!(count(&format!("SELECT COUNT(*) FROM {table}")), 1, "{table} keeps only the other chat");
         }
+        assert_eq!(count("SELECT COUNT(*) FROM kept_fts WHERE ref IN ('b-2', '2')"), 3, "the other chat keeps its words");
+        assert_eq!(count("SELECT COUNT(*) FROM kept_fts"), 3, "the deleted chat's words are gone");
         assert!(!dir.join("attachments/a-1").exists());
         assert!(!delete_chat(&conn, &dir.join("attachments"), "a-1").unwrap(), "a second delete finds nothing");
         std::fs::remove_dir_all(&dir).ok();

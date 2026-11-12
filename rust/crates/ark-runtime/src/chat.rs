@@ -211,6 +211,10 @@ impl Chat {
             return false;
         }
         let Some(dir) = self.db.parent() else { return false };
+        // Without the state file the app could not get the new list: Node does it all.
+        if self.chats_line().is_none() {
+            return false;
+        }
         let Ok(conn) = store::open_read_write(&self.db) else { return false };
         if crate::chat_store::delete_chat(&conn, &dir.join("attachments"), id).is_err() {
             return false;
@@ -655,6 +659,34 @@ mod tests {
             let ((app, _), (node, _)) = (sinks(), sinks());
             assert!(!chat.handle(line, app, node), "{line}");
         }
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn chat_delete_removes_the_chat_resets_the_app_and_tells_node_quietly() {
+        let dir = std::env::temp_dir().join(format!("ark-chat-delete-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        let fixtures = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures");
+        std::fs::copy(format!("{fixtures}/chats-view.db"), dir.join("memory.db")).unwrap();
+        std::fs::copy(format!("{fixtures}/chats-view-state.json"), dir.join("ui-state.json")).unwrap();
+        let chat = chat(dir.join("memory.db"));
+        chat.observe("{\"type\":\"chats\",\"chats\":[],\"current\":\"plain-2\"}\n");
+        let ((app, from_app), (node, from_node)) = (sinks(), sinks());
+        assert!(chat.handle("{\"type\":\"chat.delete\",\"id\":\"plain-2\"}\n", app, node));
+        let reset: Value = serde_json::from_str(&from_app.try_recv().unwrap()).unwrap();
+        assert_eq!(reset["type"], json!("conversation.reset"));
+        let list: Value = serde_json::from_str(&from_app.try_recv().unwrap()).unwrap();
+        assert!(!list["chats"].as_array().unwrap().iter().any(|c| c["id"] == "plain-2"));
+        assert_eq!(serde_json::from_str::<Value>(&from_node.try_recv().unwrap()).unwrap(), json!({ "type": "core.resume" }));
+        let conn = Connection::open(dir.join("memory.db")).unwrap();
+        assert_eq!(conn.query_row("SELECT COUNT(*) FROM chat_messages WHERE chat_id = 'plain-2'", [], |r| r.get::<_, i64>(0)).unwrap(), 0);
+        // Another chat than the open one: no reset. The Telegram chat goes to Node.
+        let ((app, from_app), (node, _)) = (sinks(), sinks());
+        assert!(chat.handle("{\"type\":\"chat.delete\",\"id\":\"plain-1\"}\n", app, node));
+        assert_eq!(serde_json::from_str::<Value>(&from_app.try_recv().unwrap()).unwrap()["type"], json!("chats"));
+        let ((app, _), (node, _)) = (sinks(), sinks());
+        assert!(!chat.handle("{\"type\":\"chat.delete\",\"id\":\"telegram\"}\n", app, node));
         std::fs::remove_dir_all(&dir).ok();
     }
 
