@@ -38,6 +38,7 @@ pub mod chats;
 pub mod projects_store;
 pub mod projects_add;
 pub mod project_create;
+pub mod extras;
 pub mod workflows;
 pub mod suggestions;
 pub mod improvements;

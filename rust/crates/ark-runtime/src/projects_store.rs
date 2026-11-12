@@ -13,7 +13,7 @@ fn now() -> String {
 }
 
 /// `cleanProjectName`: one line, not empty.
-pub(crate) fn clean_name(raw: &str) -> Result<String, String> {
+pub fn clean_name(raw: &str) -> Result<String, String> {
     let name = raw.trim();
     if name.is_empty() {
         return Err("The project needs a name.".into());

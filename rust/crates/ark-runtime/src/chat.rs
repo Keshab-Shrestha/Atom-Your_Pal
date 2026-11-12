@@ -43,6 +43,7 @@ pub struct Chat {
     changed: Mutex<Option<Arc<dyn Fn() + Send + Sync>>>,
     questions: Arc<crate::ask::Questions>,
     turn_seq: AtomicU64,
+    extras: crate::extras::Extras,
 }
 
 /// How long a question waits for the app (the runtime declines by itself after this, as Node does).
@@ -132,7 +133,7 @@ fn is_shared(id: &str) -> bool {
 
 impl Chat {
     pub fn new(db: PathBuf, provider: Arc<dyn Provider>, tools: Arc<dyn ToolRunner>, policy: Arc<dyn Policy>, model: &str) -> Chat {
-        Chat { db, provider, tools, policy, model: model.into(), current: Mutex::new(None), busy: AtomicBool::new(false), approvals: Arc::default(), api_busy: Mutex::default(), changed: Mutex::default(), questions: Arc::default(), turn_seq: AtomicU64::new(0) }
+        Chat { db, provider, tools, policy, model: model.into(), current: Mutex::new(None), busy: AtomicBool::new(false), approvals: Arc::default(), api_busy: Mutex::default(), changed: Mutex::default(), questions: Arc::default(), turn_seq: AtomicU64::new(0), extras: crate::extras::Extras::default() }
     }
 
     /// Looks at a line from Node to the app and keeps the id of the open chat.
@@ -153,7 +154,11 @@ impl Chat {
     }
 
     /// The `chats` event for the open chat, built from the memory file and `data/ui-state.json` (see `chats.rs`). `None` when Node must answer.
-    fn chats_line(&self) -> Option<String> {
+    pub(crate) fn extras(&self) -> &crate::extras::Extras {
+        &self.extras
+    }
+
+    pub(crate) fn chats_line(&self) -> Option<String> {
         let state = crate::chats::UiState::read(&self.db.parent()?.join("ui-state.json"))?;
         let conn = crate::chats::open_read_only(&self.db)?;
         let current = self.current.lock().ok()?.clone().unwrap_or_default();
@@ -300,6 +305,9 @@ impl Chat {
                 return false;
             }
             _ => {}
+        }
+        if self.extras.project(self, line, &to_app) {
+            return true;
         }
         if let Some(result) = self.project_command(&command) {
             match result {
