@@ -35,6 +35,7 @@ pub mod chats;
 pub mod projects_store;
 pub mod projects_add;
 pub mod workflows;
+pub mod suggestions;
 pub mod memory;
 pub mod memory_kept;
 pub mod native;

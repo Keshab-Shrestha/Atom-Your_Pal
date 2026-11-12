@@ -70,6 +70,7 @@ impl Native {
 
     /// A line Node sent to the app.
     pub fn observe_node_line(&self, line: &str) {
+        crate::suggestions::observe(line);
         if let Some(helpers) = &self.helpers {
             helpers.observe(line);
         }
@@ -163,6 +164,9 @@ impl Native {
             return Some(reply);
         }
         if let Some(reply) = crate::workflows::answer(&self.memory_db, line) {
+            return Some(reply);
+        }
+        if let Some(reply) = crate::suggestions::answer(&self.memory_db, line) {
             return Some(reply);
         }
         let Parsed::Command(command) = parse_command(line) else { return None };

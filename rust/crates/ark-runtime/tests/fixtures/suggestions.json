@@ -1,0 +1,212 @@
+{
+ "source": "services/memory/src/suggestions.ts",
+ "seed": {
+  "suggestions": [
+   {
+    "id": 1,
+    "text": "Likes tea.",
+    "hash": "50f5f279425da6b804f2885cc042bf9e",
+    "chat_id": "chat-1",
+    "created_at": "2026-11-10T00:00:00.000Z"
+   },
+   {
+    "id": 2,
+    "text": "Lives in Oslo..",
+    "hash": "92f77fa29ac61105a1d177ca044df994",
+    "chat_id": "chat-1",
+    "created_at": "2026-11-10T00:00:00.000Z"
+   },
+   {
+    "id": 3,
+    "text": "Prefers dark mode",
+    "hash": "4d99fcd0d2dc356243ff6fd8620714bc",
+    "chat_id": "chat-1",
+    "created_at": "2026-11-10T00:00:00.000Z"
+   }
+  ],
+  "denied": [],
+  "enabled": true
+ },
+ "steps": [
+  {
+   "cmd": {
+    "type": "suggestions.deny",
+    "id": 2
+   },
+   "result": true,
+   "after": {
+    "suggestions": [
+     {
+      "id": 1,
+      "text": "Likes tea.",
+      "hash": "50f5f279425da6b804f2885cc042bf9e",
+      "chat_id": "chat-1",
+      "created_at": "2026-11-10T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "text": "Prefers dark mode",
+      "hash": "4d99fcd0d2dc356243ff6fd8620714bc",
+      "chat_id": "chat-1",
+      "created_at": "2026-11-10T00:00:00.000Z"
+     }
+    ],
+    "denied": [
+     {
+      "hash": "92f77fa29ac61105a1d177ca044df994"
+     }
+    ],
+    "enabled": true
+   }
+  },
+  {
+   "cmd": {
+    "type": "suggestions.deny",
+    "id": 2
+   },
+   "result": false,
+   "after": {
+    "suggestions": [
+     {
+      "id": 1,
+      "text": "Likes tea.",
+      "hash": "50f5f279425da6b804f2885cc042bf9e",
+      "chat_id": "chat-1",
+      "created_at": "2026-11-10T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "text": "Prefers dark mode",
+      "hash": "4d99fcd0d2dc356243ff6fd8620714bc",
+      "chat_id": "chat-1",
+      "created_at": "2026-11-10T00:00:00.000Z"
+     }
+    ],
+    "denied": [
+     {
+      "hash": "92f77fa29ac61105a1d177ca044df994"
+     }
+    ],
+    "enabled": true
+   }
+  },
+  {
+   "cmd": {
+    "type": "suggestions.deny",
+    "id": 99
+   },
+   "result": false,
+   "after": {
+    "suggestions": [
+     {
+      "id": 1,
+      "text": "Likes tea.",
+      "hash": "50f5f279425da6b804f2885cc042bf9e",
+      "chat_id": "chat-1",
+      "created_at": "2026-11-10T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "text": "Prefers dark mode",
+      "hash": "4d99fcd0d2dc356243ff6fd8620714bc",
+      "chat_id": "chat-1",
+      "created_at": "2026-11-10T00:00:00.000Z"
+     }
+    ],
+    "denied": [
+     {
+      "hash": "92f77fa29ac61105a1d177ca044df994"
+     }
+    ],
+    "enabled": true
+   }
+  },
+  {
+   "cmd": {
+    "type": "suggestions.set",
+    "enabled": false
+   },
+   "after": {
+    "suggestions": [
+     {
+      "id": 1,
+      "text": "Likes tea.",
+      "hash": "50f5f279425da6b804f2885cc042bf9e",
+      "chat_id": "chat-1",
+      "created_at": "2026-11-10T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "text": "Prefers dark mode",
+      "hash": "4d99fcd0d2dc356243ff6fd8620714bc",
+      "chat_id": "chat-1",
+      "created_at": "2026-11-10T00:00:00.000Z"
+     }
+    ],
+    "denied": [
+     {
+      "hash": "92f77fa29ac61105a1d177ca044df994"
+     }
+    ],
+    "enabled": false
+   }
+  },
+  {
+   "cmd": {
+    "type": "suggestions.set",
+    "enabled": true
+   },
+   "after": {
+    "suggestions": [
+     {
+      "id": 1,
+      "text": "Likes tea.",
+      "hash": "50f5f279425da6b804f2885cc042bf9e",
+      "chat_id": "chat-1",
+      "created_at": "2026-11-10T00:00:00.000Z"
+     },
+     {
+      "id": 3,
+      "text": "Prefers dark mode",
+      "hash": "4d99fcd0d2dc356243ff6fd8620714bc",
+      "chat_id": "chat-1",
+      "created_at": "2026-11-10T00:00:00.000Z"
+     }
+    ],
+    "denied": [
+     {
+      "hash": "92f77fa29ac61105a1d177ca044df994"
+     }
+    ],
+    "enabled": true
+   }
+  },
+  {
+   "cmd": {
+    "type": "suggestions.deny",
+    "id": 3
+   },
+   "result": true,
+   "after": {
+    "suggestions": [
+     {
+      "id": 1,
+      "text": "Likes tea.",
+      "hash": "50f5f279425da6b804f2885cc042bf9e",
+      "chat_id": "chat-1",
+      "created_at": "2026-11-10T00:00:00.000Z"
+     }
+    ],
+    "denied": [
+     {
+      "hash": "4d99fcd0d2dc356243ff6fd8620714bc"
+     },
+     {
+      "hash": "92f77fa29ac61105a1d177ca044df994"
+     }
+    ],
+    "enabled": true
+   }
+  }
+ ]
+}
