@@ -93,6 +93,7 @@ mod tests {
         };
         let mut native = HelpersNative::from_environment(&scratch(), on).unwrap();
         native.host.app_dirs = Vec::new();
+        native.host.home = None;
         native.host.user_skills = scratch().join("none");
         assert!(native.answer("{\"type\":\"helpers.list\"}\n").is_none(), "no event from Node yet");
         native.observe("{\"type\":\"helpers\",\"apps\":[\"Safari\"],\"models\":[],\"skills\":[]}\n");
