@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { randomUUID } from "node:crypto";
 import { checkSchedule, isDue, nextDue, type Schedule } from "@ark/helpers";
@@ -116,9 +116,13 @@ export interface WorkflowStore {
 /** data/workflows.json: `{ version: 1, workflows: [...] }`, written whole (a temp file, then rename), owner-only. */
 export function createWorkflowStore(path: string, agents: () => readonly string[]): WorkflowStore {
   let cache: Workflow[] | undefined;
+  /** ADR-278: the Rust runtime also writes this file, so the cache is dropped when the file's time stamp changes. */
+  let seen = 0;
+  const stamp = () => (existsSync(path) ? statSync(path).mtimeMs : 0);
   const stepAgents = (w: unknown) => isObject(w) && Array.isArray(w.steps) ? w.steps.flatMap((s) => isObject(s) && typeof s.helper === "string" ? [s.helper] : []) : [];
   const read = (): Workflow[] => {
-    if (cache) return cache;
+    if (cache && stamp() === seen) return cache;
+    seen = stamp();
     if (!existsSync(path)) return (cache = []);
     const raw = JSON.parse(readFileSync(path, "utf8")) as { workflows?: unknown[] };
     // A stored workflow whose agent was removed stays as it is; it fails its check only when it is saved again.
@@ -131,6 +135,7 @@ export function createWorkflowStore(path: string, agents: () => readonly string[
     writeFileSync(temp, JSON.stringify({ version: 1, workflows: list }, null, 2), { mode: 0o600 });
     renameSync(temp, path);
     cache = list;
+    seen = stamp();
     return [...list];
   };
   return {

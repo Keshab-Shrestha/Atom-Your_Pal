@@ -1,0 +1,543 @@
+{
+ "source": "apps/mac/src/workflows.ts",
+ "calls": [
+  {
+   "type": "workflow.save",
+   "workflow": {
+    "id": "a1",
+    "name": " Morning ",
+    "enabled": true,
+    "trigger": {
+     "kind": "manual"
+    },
+    "steps": [
+     {
+      "helper": "sid",
+      "task": " Research "
+     }
+    ],
+    "createdAt": "2026-11-01T00:00:00.000Z"
+   }
+  },
+  {
+   "type": "workflow.save",
+   "workflow": {
+    "id": "b2",
+    "name": "Daily",
+    "enabled": true,
+    "trigger": {
+     "kind": "schedule",
+     "schedule": {
+      "kind": "daily",
+      "minute": 485
+     }
+    },
+    "steps": [
+     {
+      "helper": "sid",
+      "task": " Research "
+     }
+    ],
+    "createdAt": "2026-11-01T00:00:00.000Z",
+    "lastRunAt": "2026-11-02T01:00:00.000Z",
+    "layout": {
+     "0": {
+      "x": 200000,
+      "y": 3
+     },
+     "5": {
+      "x": 1,
+      "y": 1
+     },
+     "trigger": {
+      "x": 1.6,
+      "y": -2
+     },
+     "bad": {
+      "x": 1,
+      "y": 1
+     }
+    },
+    "extra": 1
+   }
+  },
+  {
+   "type": "workflow.save",
+   "workflow": {
+    "id": "c3",
+    "name": "Hourly",
+    "enabled": false,
+    "trigger": {
+     "kind": "schedule",
+     "schedule": {
+      "kind": "hours",
+      "every": 3
+     }
+    },
+    "steps": [
+     {
+      "helper": "kame",
+      "task": "a"
+     },
+     {
+      "helper": "puff",
+      "task": "b"
+     }
+    ],
+    "createdAt": "2026-11-01T00:00:00.000Z"
+   }
+  },
+  {
+   "type": "workflow.save",
+   "workflow": {
+    "id": "d4",
+    "name": "Event",
+    "enabled": true,
+    "trigger": {
+     "kind": "event",
+     "event": "task.failed"
+    },
+    "steps": [
+     {
+      "helper": "sid",
+      "task": " Research "
+     }
+    ],
+    "createdAt": "2026-11-01T00:00:00.000Z"
+   }
+  },
+  {
+   "type": "workflow.save",
+   "workflow": {
+    "id": "a1",
+    "name": "Renamed",
+    "enabled": false,
+    "trigger": {
+     "kind": "manual"
+    },
+    "steps": [
+     {
+      "helper": "sid",
+      "task": " Research "
+     }
+    ],
+    "createdAt": "2026-11-01T00:00:00.000Z"
+   }
+  },
+  {
+   "type": "workflow.save",
+   "workflow": {
+    "id": "BAD ID!",
+    "name": "Fresh id",
+    "enabled": true,
+    "trigger": {
+     "kind": "manual"
+    },
+    "steps": [
+     {
+      "helper": "sid",
+      "task": " Research "
+     }
+    ],
+    "createdAt": "2026-11-01T00:00:00.000Z"
+   }
+  },
+  {
+   "type": "workflow.save",
+   "workflow": {
+    "id": "a1",
+    "name": " Morning ",
+    "enabled": true,
+    "steps": [
+     {
+      "helper": "sid",
+      "task": " Research "
+     }
+    ],
+    "createdAt": "2026-11-01T00:00:00.000Z"
+   }
+  },
+  {
+   "type": "workflow.save",
+   "workflow": {
+    "id": "a1",
+    "name": " Morning ",
+    "enabled": true,
+    "trigger": {
+     "kind": "nope"
+    },
+    "steps": [
+     {
+      "helper": "sid",
+      "task": " Research "
+     }
+    ],
+    "createdAt": "2026-11-01T00:00:00.000Z"
+   }
+  },
+  {
+   "type": "workflow.save",
+   "workflow": {
+    "id": "a1",
+    "name": " Morning ",
+    "enabled": true,
+    "trigger": {
+     "kind": "schedule",
+     "schedule": {
+      "kind": "weekly",
+      "weekday": 9,
+      "minute": 1
+     }
+    },
+    "steps": [
+     {
+      "helper": "sid",
+      "task": " Research "
+     }
+    ],
+    "createdAt": "2026-11-01T00:00:00.000Z"
+   }
+  },
+  {
+   "type": "workflow.save",
+   "workflow": {
+    "id": "a1",
+    "name": " Morning ",
+    "enabled": true,
+    "trigger": {
+     "kind": "event",
+     "event": "x"
+    },
+    "steps": [
+     {
+      "helper": "sid",
+      "task": " Research "
+     }
+    ],
+    "createdAt": "2026-11-01T00:00:00.000Z"
+   }
+  },
+  {
+   "type": "workflow.save",
+   "workflow": {
+    "id": "a1",
+    "name": " Morning ",
+    "enabled": true,
+    "trigger": {
+     "kind": "manual"
+    },
+    "steps": [],
+    "createdAt": "2026-11-01T00:00:00.000Z"
+   }
+  },
+  {
+   "type": "workflow.save",
+   "workflow": {
+    "id": "a1",
+    "name": " Morning ",
+    "enabled": true,
+    "trigger": {
+     "kind": "manual"
+    },
+    "steps": [
+     {
+      "helper": "sid",
+      "task": "t"
+     },
+     {
+      "helper": "sid",
+      "task": "t"
+     },
+     {
+      "helper": "sid",
+      "task": "t"
+     },
+     {
+      "helper": "sid",
+      "task": "t"
+     },
+     {
+      "helper": "sid",
+      "task": "t"
+     },
+     {
+      "helper": "sid",
+      "task": "t"
+     },
+     {
+      "helper": "sid",
+      "task": "t"
+     },
+     {
+      "helper": "sid",
+      "task": "t"
+     },
+     {
+      "helper": "sid",
+      "task": "t"
+     }
+    ],
+    "createdAt": "2026-11-01T00:00:00.000Z"
+   }
+  },
+  {
+   "type": "workflow.save",
+   "workflow": {
+    "id": "a1",
+    "name": " Morning ",
+    "enabled": true,
+    "trigger": {
+     "kind": "manual"
+    },
+    "steps": [
+     "no"
+    ],
+    "createdAt": "2026-11-01T00:00:00.000Z"
+   }
+  },
+  {
+   "type": "workflow.save",
+   "workflow": {
+    "id": "a1",
+    "name": " Morning ",
+    "enabled": true,
+    "trigger": {
+     "kind": "manual"
+    },
+    "steps": [
+     {
+      "helper": "ghost",
+      "task": "t"
+     }
+    ],
+    "createdAt": "2026-11-01T00:00:00.000Z"
+   }
+  },
+  {
+   "type": "workflow.save",
+   "workflow": {
+    "id": "a1",
+    "name": " Morning ",
+    "enabled": true,
+    "trigger": {
+     "kind": "manual"
+    },
+    "steps": [
+     {
+      "helper": "sid",
+      "task": "  "
+     }
+    ],
+    "createdAt": "2026-11-01T00:00:00.000Z"
+   }
+  },
+  {
+   "type": "workflow.save",
+   "workflow": {
+    "id": "a1",
+    "name": " Morning ",
+    "enabled": true,
+    "trigger": {
+     "kind": "manual"
+    },
+    "steps": [
+     {
+      "helper": "sid",
+      "task": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+     }
+    ],
+    "createdAt": "2026-11-01T00:00:00.000Z"
+   }
+  },
+  {
+   "type": "workflow.save",
+   "workflow": {
+    "id": "a1",
+    "name": "  ",
+    "enabled": true,
+    "trigger": {
+     "kind": "manual"
+    },
+    "steps": [
+     {
+      "helper": "sid",
+      "task": " Research "
+     }
+    ],
+    "createdAt": "2026-11-01T00:00:00.000Z"
+   }
+  },
+  {
+   "type": "workflow.save",
+   "workflow": {
+    "id": "a1",
+    "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+    "enabled": true,
+    "trigger": {
+     "kind": "manual"
+    },
+    "steps": [
+     {
+      "helper": "sid",
+      "task": " Research "
+     }
+    ],
+    "createdAt": "2026-11-01T00:00:00.000Z"
+   }
+  },
+  {
+   "type": "workflow.delete",
+   "id": "b2"
+  },
+  {
+   "type": "workflow.delete",
+   "id": "nothing"
+  }
+ ],
+ "results": [
+  {
+   "ok": true
+  },
+  {
+   "ok": true
+  },
+  {
+   "ok": true
+  },
+  {
+   "ok": true
+  },
+  {
+   "ok": true
+  },
+  {
+   "ok": true
+  },
+  {
+   "ok": false,
+   "error": "A workflow needs a trigger."
+  },
+  {
+   "ok": false,
+   "error": "The trigger is by hand, a schedule, or a Board task that fails or finishes."
+  },
+  {
+   "ok": false,
+   "error": "A routine runs daily or weekly at a time, or every 1 to 168 hours."
+  },
+  {
+   "ok": false,
+   "error": "The trigger is by hand, a schedule, or a Board task that fails or finishes."
+  },
+  {
+   "ok": false,
+   "error": "A workflow has 1 to 8 steps."
+  },
+  {
+   "ok": false,
+   "error": "A workflow has 1 to 8 steps."
+  },
+  {
+   "ok": false,
+   "error": "Step 1 is not a step."
+  },
+  {
+   "ok": false,
+   "error": "Step 1 needs one of your agents."
+  },
+  {
+   "ok": false,
+   "error": "Step 1's task is empty."
+  },
+  {
+   "ok": false,
+   "error": "Step 1's task is longer than 2000 characters."
+  },
+  {
+   "ok": false,
+   "error": "The name is empty."
+  },
+  {
+   "ok": false,
+   "error": "The name is longer than 80 characters."
+  },
+  {
+   "ok": true
+  },
+  {
+   "ok": true
+  }
+ ],
+ "kept": [
+  {
+   "id": "a1",
+   "name": "Renamed",
+   "enabled": false,
+   "trigger": {
+    "kind": "manual"
+   },
+   "steps": [
+    {
+     "helper": "sid",
+     "task": "Research"
+    }
+   ],
+   "createdAt": "2026-11-01T00:00:00.000Z"
+  },
+  {
+   "id": "c3",
+   "name": "Hourly",
+   "enabled": false,
+   "trigger": {
+    "kind": "schedule",
+    "schedule": {
+     "kind": "hours",
+     "every": 3
+    }
+   },
+   "steps": [
+    {
+     "helper": "kame",
+     "task": "a"
+    },
+    {
+     "helper": "puff",
+     "task": "b"
+    }
+   ],
+   "createdAt": "2026-11-01T00:00:00.000Z"
+  },
+  {
+   "id": "d4",
+   "name": "Event",
+   "enabled": true,
+   "trigger": {
+    "kind": "event",
+    "event": "task.failed"
+   },
+   "steps": [
+    {
+     "helper": "sid",
+     "task": "Research"
+    }
+   ],
+   "createdAt": "2026-11-01T00:00:00.000Z"
+  },
+  {
+   "id": "dc6bac30",
+   "name": "Fresh id",
+   "enabled": true,
+   "trigger": {
+    "kind": "manual"
+   },
+   "steps": [
+    {
+     "helper": "sid",
+     "task": "Research"
+    }
+   ],
+   "createdAt": "2026-11-01T00:00:00.000Z"
+  }
+ ],
+ "limit": "ARK keeps at most 20 workflows."
+}

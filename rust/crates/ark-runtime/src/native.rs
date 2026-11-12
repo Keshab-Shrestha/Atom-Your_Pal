@@ -162,6 +162,9 @@ impl Native {
         if let Some(reply) = crate::foreground::answer(&self.memory_db, line) {
             return Some(reply);
         }
+        if let Some(reply) = crate::workflows::answer(&self.memory_db, line) {
+            return Some(reply);
+        }
         let Parsed::Command(command) = parse_command(line) else { return None };
         let reply = match *command {
             Command::BrainNote { id } => {
