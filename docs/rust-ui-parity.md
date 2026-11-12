@@ -56,11 +56,28 @@ Rust logic comes from `ark-core` where a module exists.
 | BrainView search | search field and hits; the note card shows links and backlinks |
 | ProjectGitView, git branches | branches page: commits, files, diff, push |
 
+## Done in the fourth round
+
+| Swift source | ark-app |
+| --- | --- |
+| BrainView graph | `ark-ui/src/graph.rs` (force layout) drawn with a Rune canvas. Dots only: no labels and no click on a dot (the list below opens notes) |
+| ProjectSourceSheet | New empty project, clone a Git URL, clone from GitHub (`project.create`; Node does the work) |
+| ProjectWorkspaceView (files) | Files view per project: folders and file text (`workspace` list and read) |
+| SetupViews, keys | API keys in the macOS Keychain (service `dev.ark.island`, account = variable name). The runtime child gets them in its environment at start. A key is never shown again or logged |
+| First run without Node | With a forwarder and no Node, the app starts `ark-runtime` with `/bin/cat` as the stand-in child and `ARK_RUNTIME_NATIVE_CHAT=1`. Commands only Node knows are dropped |
+
+## Tests added
+
+- `rust/crates/ark-runtime/tests/e2e.rs`: the app Bridge, the real `ark-runtime` binary and a mock Anthropic server on localhost.
+  It checks `reply.delta` then `reply`, the saved messages in SQLite, and an approval round trip for `write_file`.
+  It uses a fixture database in a temp folder and never the owner's data.
+
 ## Open
 
-- Brain graph drawing (the force layout view). Notes, search and links are done.
-- Project sources and workspace views (ProjectSourceSheet, ProjectWorkspaceView). The workspace browser and terminal are in the list below.
-- API key entry in Setup. Keys stay in the environment; the settings page shows which provider has none.
+- Native first run needs a chat database and `ui-state.json` that Node creates. Without them native chat cannot list or save chats.
+- Brain graph labels and click on a dot.
+- Project settings sheet details (folder grants) and the git workspace review (`gitStatus`, `gitReview`).
+- The workspace browser and terminal (see below).
 - Real translucent fills (blur) in the sidebar and panels.
 
 ## Not planned for the first Rust release
