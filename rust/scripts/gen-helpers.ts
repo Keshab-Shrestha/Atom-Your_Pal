@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 process.env.TZ = "Asia/Tokyo"; // routines show their next time in local time; the Rust test uses the same zone
 import { openHelperStore } from "../../services/helpers/src/store.ts";
 import { islandHelpers } from "../../apps/mac/src/island-helpers.ts";
+import { DatabaseSync } from "node:sqlite";
 import { writeAgent } from "../../services/helpers/src/agents.ts";
 
 const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "crates", "ark-runtime", "tests", "fixtures", "helpers");
@@ -55,6 +56,40 @@ const r6 = store.addRoutine("hana", "Sunday noon", { kind: "weekly", weekday: 0,
 store.pauseRoutine(r6.id, true);
 store.runRoutines(() => true); // marks the due ones (lastAt)
 void r2;
+// Tasks in every state, with blockers, notes, labels, a parent and a report.
+const rep = (title: string) => ({ title, summary: `${title} summary.`, body: "Body.", sources: [] });
+const j1 = store.addJob("sid", "Research networking basics", { goal: "Learn networking" }).id;
+store.start(j1);
+store.setModel(j1, "claude-sonnet-5-5", "cheap and enough");
+store.finish(j1, rep("Networking"));
+store.rate(j1, true, "Good");
+store.addLabel(j1, "Research");
+store.addLabel(j1, "alpha");
+store.addComment(j1, "A note");
+store.addComment(j1, "Another note");
+const j2 = store.addJob("kame", "Fix the parser").id;
+store.start(j2);
+store.step(j2, "Reading code");
+const j3 = store.addJob("sid", "Write the summary", { blockedBy: [j1, j2], planFirst: true }).id;
+const j4 = store.addJob("sid", "Doomed task").id;
+store.start(j4);
+store.fail(j4, "It broke", true);
+const j5 = store.addJob("sid", "Stopped task").id;
+store.stop(j5);
+const j6 = store.addJob("kame", "Child of the parser fix", { parentId: j2 }).id;
+const j7 = store.addJob("quill", "Quiet task").id;
+store.start(j7);
+store.finish(j7, rep("Quiet"));
+const j8 = store.addJob("mochi", "Retried task").id;
+const raw = new DatabaseSync(join(dir, "helpers.db"));
+raw.prepare("INSERT INTO goals (text, created_at, ended_at) VALUES ('Learn networking', '2026-11-01T09:00:00.000Z', '2026-11-02T09:00:00.000Z')").run();
+raw.prepare("UPDATE jobs SET goal_id = 1 WHERE id = ?").run(j1);
+raw.prepare("UPDATE jobs SET interrupted = 1, session_id = 's1', auto_retries = 2, chat_id = 'chat-9' WHERE id = ?").run(j3);
+raw.prepare("UPDATE jobs SET recovery_needed = 1, step = 'Last step', native_scope = 'advisory' WHERE id = ?").run(j4);
+raw.prepare("UPDATE jobs SET plan_status = 'awaiting', plan_summary = 'The plan.' WHERE id = ?").run(j6);
+raw.prepare("UPDATE jobs SET retry_of = ?, retry_next = ? WHERE id = ?").run(j5, null, j8);
+raw.prepare("UPDATE jobs SET reviews = ? WHERE id = ?").run(j1, j7);
+raw.close();
 const problems = store.agentProblems();
 const NOW = new Date(Date.UTC(2026, 10, 12, 11, 30, 0)); // 2026-11-12 20:30 in Tokyo, a Thursday
 const view = JSON.parse(JSON.stringify(islandHelpers(store, async () => [], () => [], () => [], () => NOW).list()));

@@ -69,7 +69,75 @@
     "web-search"
    ],
    "proposals": [],
-   "jobs": []
+   "jobs": [
+    {
+     "id": 6,
+     "task": "Stopped task",
+     "state": "stopped",
+     "createdAt": "2026-11-01T09:00:31.000Z",
+     "endedAt": "2026-11-01T09:00:32.000Z",
+     "retriedAs": 9,
+     "blockedBy": [],
+     "waitingFor": [],
+     "comments": 0
+    },
+    {
+     "id": 5,
+     "task": "Doomed task",
+     "state": "failed",
+     "createdAt": "2026-11-01T09:00:28.000Z",
+     "endedAt": "2026-11-01T09:00:30.000Z",
+     "step": "Last step",
+     "partial": true,
+     "error": "It broke",
+     "recoveryNeeded": true,
+     "advisory": true,
+     "blockedBy": [],
+     "waitingFor": [],
+     "comments": 0
+    },
+    {
+     "chatId": "chat-9",
+     "id": 4,
+     "task": "Write the summary",
+     "state": "queued",
+     "createdAt": "2026-11-01T09:00:27.000Z",
+     "blockedBy": [
+      1,
+      3
+     ],
+     "waitingFor": [
+      1,
+      3
+     ],
+     "comments": 0,
+     "resumable": true,
+     "interrupted": true,
+     "planFirst": true,
+     "autoRetries": 2
+    },
+    {
+     "id": 1,
+     "task": "Research networking basics",
+     "state": "queued",
+     "createdAt": "2026-11-01T09:00:16.000Z",
+     "title": "Networking",
+     "summary": "Networking summary.",
+     "model": "claude-sonnet-5-5",
+     "modelReason": "cheap and enough",
+     "blockedBy": [],
+     "waitingFor": [],
+     "comments": 2,
+     "goal": "Learn networking",
+     "goalId": 1,
+     "goalEnded": true,
+     "rating": "good",
+     "labels": [
+      "alpha",
+      "research"
+     ]
+    }
+   ]
   },
   {
    "id": "kame",
@@ -117,7 +185,32 @@
    ],
    "skills": [],
    "proposals": [],
-   "jobs": []
+   "jobs": [
+    {
+     "id": 7,
+     "task": "Child of the parser fix",
+     "state": "queued",
+     "createdAt": "2026-11-01T09:00:33.000Z",
+     "blockedBy": [],
+     "waitingFor": [],
+     "comments": 0,
+     "planFirst": true,
+     "planStatus": "awaiting",
+     "planSummary": "The plan.",
+     "parentId": 3
+    },
+    {
+     "id": 3,
+     "task": "Fix the parser",
+     "state": "running",
+     "createdAt": "2026-11-01T09:00:25.000Z",
+     "step": "Reading code",
+     "blockedBy": [],
+     "waitingFor": [],
+     "comments": 0,
+     "planFirst": true
+    }
+   ]
   },
   {
    "id": "puff",
@@ -192,7 +285,21 @@
    "grants": [],
    "skills": [],
    "proposals": [],
-   "jobs": []
+   "jobs": [
+    {
+     "id": 8,
+     "task": "Quiet task",
+     "state": "done",
+     "createdAt": "2026-11-01T09:00:34.000Z",
+     "endedAt": "2026-11-01T09:00:36.000Z",
+     "title": "Quiet",
+     "summary": "Quiet summary.",
+     "blockedBy": [],
+     "waitingFor": [],
+     "comments": 0,
+     "reviews": 1
+    }
+   ]
   },
   {
    "id": "penny",
@@ -300,7 +407,18 @@
    "grants": [],
    "skills": [],
    "proposals": [],
-   "jobs": []
+   "jobs": [
+    {
+     "id": 2,
+     "task": "Make a skill from task 1 (Sid)",
+     "state": "queued",
+     "createdAt": "2026-11-01T09:00:19.000Z",
+     "blockedBy": [],
+     "waitingFor": [],
+     "comments": 0,
+     "reviews": 1
+    }
+   ]
   },
   {
    "id": "mochi",
@@ -347,7 +465,18 @@
    "grants": [],
    "skills": [],
    "proposals": [],
-   "jobs": []
+   "jobs": [
+    {
+     "id": 9,
+     "task": "Retried task",
+     "state": "queued",
+     "createdAt": "2026-11-01T09:00:37.000Z",
+     "retryOf": 6,
+     "blockedBy": [],
+     "waitingFor": [],
+     "comments": 0
+    }
+   ]
   },
   {
    "id": "odd",
