@@ -42,8 +42,24 @@ fn deny_and_set_match_typescript() {
         assert_eq!(reply["enabled"], want["enabled"]);
         assert_eq!(reply["items"].as_array().unwrap().len(), want["suggestions"].as_array().unwrap().len());
     }
-    assert_eq!(answer(&path, "{\"type\":\"suggestions.accept\",\"id\":1}\n"), None);
+    // accept and undo: the fact is kept (or refused with the words), the suggestion goes, and a receipt can be undone.
+    conn.execute_batch("CREATE TABLE memories (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, owner TEXT NOT NULL, scope TEXT NOT NULL DEFAULT 'personal', source TEXT NOT NULL, request_id TEXT, created_at TEXT NOT NULL, expires_at TEXT, superseded_by INTEGER);").unwrap();
+    conn.execute("INSERT INTO fact_suggestions (id, text, hash, chat_id, created_at) VALUES (90, 'Likes tea', 'h1', 'c', '2099-01-01T00:00:00.000Z'), (91, 'My password is x', 'h2', 'c', '2099-01-01T00:00:00.000Z')", []).unwrap();
+    let ok = answer(&path, &line(&json!({ "type": "suggestions.accept", "id": 90, "text": "  Likes   green tea " }))).unwrap();
+    assert!(!ok.contains("\"error\""));
+    let kept: String = conn.query_row("SELECT text FROM memories", [], |r| r.get(0)).unwrap();
+    assert_eq!(kept, "Likes green tea");
+    let refused = answer(&path, &line(&json!({ "type": "suggestions.accept", "id": 91 }))).unwrap();
+    assert!(refused.starts_with("{\"message\":\"That looks like a password") || refused.contains("That looks like a password"), "{refused}");
+    assert_eq!(refused.lines().count(), 2, "the error line, then the list");
+    assert!(answer(&path, &line(&json!({ "type": "suggestions.accept", "id": 12345 }))).unwrap().contains("That suggestion is gone."));
+    let id: i64 = conn.query_row("SELECT id FROM memories", [], |r| r.get(0)).unwrap();
+    observe(&format!("{{\"type\":\"suggestions\",\"enabled\":true,\"items\":[],\"kept\":[{{\"id\":{id},\"text\":\"Likes green tea\"}}]}}\n"));
+    let undone: Value = serde_json::from_str(&answer(&path, &line(&json!({ "type": "suggestions.undo", "id": id }))).unwrap()).unwrap();
+    assert_eq!(undone["kept"], json!([]));
+    assert_eq!(conn.query_row("SELECT COUNT(*) FROM memories", [], |r| r.get::<_, i64>(0)).unwrap(), 0);
+    assert_eq!(conn.query_row("SELECT COUNT(*) FROM denied_facts", [], |r| r.get::<_, i64>(0)).unwrap(), 3, "two from deny steps and the undone fact");
     conn.execute("INSERT INTO fact_suggestions (text, hash, chat_id, created_at) VALUES ('Café', 'h', 'c', '2026-11-01T00:00:00.000Z')", []).unwrap();
-    assert_eq!(answer(&path, &line(&json!({ "type": "suggestions.deny", "id": 4 }))), None, "a text outside ASCII goes to Node");
+    assert_eq!(answer(&path, &line(&json!({ "type": "suggestions.deny", "id": conn.query_row("SELECT id FROM fact_suggestions WHERE text = 'Café'", [], |r| r.get::<_, i64>(0)).unwrap() }))), None, "a text outside ASCII goes to Node");
     std::fs::remove_file(&path).ok();
 }
