@@ -57,7 +57,7 @@ fn snap_draws_the_chat() {
 #[test]
 fn tree_holds_chats_messages_tool_and_approval() {
     let tree = tree_after("plain", "chat.jsonl", None);
-    for want in ["Plan the Rust port", "Fix the notch bar", "List the crates.", "run_command", "ARK asks first", "Allow", "Decline", "Message ARK"] {
+    for want in ["Plan the Rust port", "Fix the notch bar", "List the crates.", "run_command", "ARK asks first", "Allow", "Decline", "Message ARK", "Copy"] {
         assert!(tree.contains(want), "tree lacks {want:?}");
     }
 }

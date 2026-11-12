@@ -22,7 +22,9 @@ fn user_bubble(m: &Message, i: usize, k: &Kit) -> El {
 }
 
 fn assistant_message(m: &Message, i: usize, k: &Kit) -> El {
-    col().key(format!("msg-{i}")).w_full().child(Markdown::new(m.text.clone()).selectable(true).build(k).key("md"))
+    let whole = m.text.clone();
+    let copy = Button::new("Copy").on_press_tx(move |_: &mut App, tx: &mut rune::Tx| tx.copy(whole.clone())).build(k).key(format!("copy-{i}"));
+    col().key(format!("msg-{i}")).w_full().gap(4.0).child(Markdown::new(m.text.clone()).selectable(true).build(k).key("md")).child(row().justify_end().child(copy))
 }
 
 fn tool_dot(state: ToolState, k: &Kit) -> rune::Color {
