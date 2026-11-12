@@ -322,3 +322,81 @@ The Phase 4 app bundle ships this file.
 8. Crates in the ark-agent build (Phase 2 step 9)
    ark-agent uses ark-llm, ark-runtime and ark-core. It adds no crate to sections 3, 5 and 6. No MPL, GPL or LGPL.
    Check with: sh scripts/third-party-section.sh ark-agent
+
+9. Crates in the ark-runtime build for the embedder (ADR-278, memory.keepChat)
+   tract-onnx runs the local sentence-embedding model (all-MiniLM-L6-v2, ONNX) in pure Rust: no native library. unicode-normalization is the BERT
+   normalizer. These crates are new to the lists above. No MPL, GPL or LGPL. (The script flags num-complex only because its name contains "mpl".)
+   Check with: sh scripts/third-party-section.sh ark-runtime
+   aho-corasick v1.1.5 Unlicense OR MIT
+   anyhow v1.0.104 MIT OR Apache-2.0
+   anymap3 v1.1.0 BlueOak-1.0.0 OR MIT OR Apache-2.0
+   block-buffer v0.10.4 MIT OR Apache-2.0
+   byteorder v1.5.0 Unlicense OR MIT
+   chacha20 v0.10.2 MIT OR Apache-2.0
+   cpufeatures v0.2.17 MIT OR Apache-2.0
+   crossbeam-deque v0.8.8 MIT OR Apache-2.0
+   crossbeam-epoch v0.9.21 MIT OR Apache-2.0
+   crossbeam-utils v0.8.23 MIT OR Apache-2.0
+   crypto-common v0.1.7 MIT OR Apache-2.0
+   derive-new v0.7.0 MIT
+   digest v0.10.7 MIT OR Apache-2.0
+   downcast-rs v2.0.2 MIT OR Apache-2.0
+   dyn-clone v1.0.20 MIT OR Apache-2.0
+   dyn-hash v1.0.0 MIT OR Apache-2.0
+   either v1.19.0 MIT OR Apache-2.0
+   erased-serde v0.4.11 MIT OR Apache-2.0
+   fancy-regex v0.14.0 MIT
+   filetime v0.2.29 MIT/Apache-2.0
+   float-ord v0.3.2 MIT / Apache-2.0
+   generic-array v0.14.7 MIT
+   inventory v0.3.25 MIT OR Apache-2.0
+   itertools v0.15.0 MIT OR Apache-2.0
+   lazy_static v1.5.1 MIT OR Apache-2.0
+   maplit v1.0.2 MIT/Apache-2.0
+   matrixmultiply v0.3.11 MIT/Apache-2.0
+   metrics v0.24.6 MIT
+   minijinja v3.1.0 Apache-2.0
+   ndarray v0.17.2 MIT OR Apache-2.0
+   nom v8.0.0 MIT
+   nom-language v0.1.0 MIT
+   num-bigint v0.4.8 MIT OR Apache-2.0
+   num-complex v0.4.6 MIT OR Apache-2.0
+   num-integer v0.1.47 MIT OR Apache-2.0
+   num-rational v0.4.2 MIT OR Apache-2.0
+   pastey v0.2.3 MIT OR Apache-2.0
+   primal-check v0.3.4 MIT OR Apache-2.0
+   prost v0.14.6 Apache-2.0
+   prost-derive v0.14.6 Apache-2.0
+   rand v0.10.3 MIT OR Apache-2.0
+   rand_core v0.10.1 MIT OR Apache-2.0
+   rand_distr v0.6.0 MIT OR Apache-2.0
+   rapidhash v4.5.1 MIT OR Apache-2.0
+   rawpointer v0.2.1 MIT/Apache-2.0
+   rayon v1.12.0 MIT OR Apache-2.0
+   rayon-core v1.13.0 MIT OR Apache-2.0
+   regex-automata v0.4.18 MIT OR Apache-2.0
+   regex-syntax v0.8.11 MIT OR Apache-2.0
+   rustfft v6.4.1 MIT OR Apache-2.0
+   rustix v1.1.5 Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT
+   rustversion v1.0.23 MIT OR Apache-2.0
+   same-file v1.0.6 Unlicense/MIT
+   sha2 v0.10.9 MIT OR Apache-2.0
+   strength_reduce v0.2.4 MIT OR Apache-2.0
+   string-interner v0.20.0 MIT/Apache-2.0
+   tar v0.4.46 MIT OR Apache-2.0
+   tinyvec v1.13.3 Zlib OR Apache-2.0 OR MIT
+   tract-core v0.23.10 MIT OR Apache-2.0
+   tract-data v0.23.10 MIT OR Apache-2.0
+   tract-extra v0.23.10 MIT OR Apache-2.0
+   tract-hir v0.23.10 MIT OR Apache-2.0
+   tract-linalg v0.23.10 MIT OR Apache-2.0
+   tract-nnef v0.23.10 MIT OR Apache-2.0
+   tract-onnx v0.23.10 MIT OR Apache-2.0
+   tract-onnx-opl v0.23.10 MIT OR Apache-2.0
+   tract-transformers v0.23.10 MIT OR Apache-2.0
+   transpose v0.2.3 MIT OR Apache-2.0
+   typeid v1.0.3 MIT OR Apache-2.0
+   typenum v1.20.1 MIT OR Apache-2.0
+   unicode-normalization v0.1.26 (MIT OR Apache-2.0) AND Unicode-3.0
+   walkdir v2.5.0 Unlicense/MIT
+   xattr v1.6.1 MIT OR Apache-2.0

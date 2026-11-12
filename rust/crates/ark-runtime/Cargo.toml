@@ -19,6 +19,8 @@ serde = "1"
 sha2 = "0.10"
 serde_json = { version = "1.0.154", features = ["float_roundtrip"] } # exact floats: the usage dollars must read back the same
 url = "2"
+tract-onnx = "0.23" # the local sentence-embedding model (all-MiniLM-L6-v2, ONNX) of memory.keepChat, pure Rust
+unicode-normalization = "0.1" # the BERT normalizer of that model
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "time"] }
 
 [lints]
