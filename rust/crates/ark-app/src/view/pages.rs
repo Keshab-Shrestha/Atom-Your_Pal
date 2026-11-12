@@ -205,7 +205,18 @@ pub fn settings(app: &App, k: &Kit) -> El {
                 .key(format!("brief-{i}"));
             brief = brief.child(row().w_full().justify_between().items_center().child(text((*label).to_owned()).font(k.ty.ui).color(k.c.text_base)).child(button));
         }
+        let running = m.brief_running;
+        brief = brief.child(row().w_full().justify_between().items_center()
+            .child(text(if running { "Making a brief…" } else { "Make a brief now" }).font(k.ty.ui).color(k.c.text_base))
+            .child(Button::new("Run").disabled(running).on_press(|s: &mut App| s.send(&Command::BriefRun)).build(k).key("brief-run")));
         cards.push(brief);
+        if let Some((day, lines)) = m.briefs.first() {
+            let mut last = card(k, "brief-last", &format!("Latest brief, {day}"));
+            for l in lines.iter().take(12) {
+                last = last.child(text(l.clone()).font(k.ty.ui).color(k.c.text_base).wrap());
+            }
+            cards.push(last);
+        }
     }
     if let Some(used) = m.plan_usage.0 {
         cards.push(card(k, "settings-plan", "Plan usage").child(line(k, "Last five hours", format!("{:.0}%", used * 100.0))).child(line(

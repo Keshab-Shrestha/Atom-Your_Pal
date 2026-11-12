@@ -97,7 +97,7 @@ fn the_sidebar_opens_the_pages() {
         assert!(memory.contains(want), "memory page lacks {want:?}");
     }
     let settings = page("nav-settings", "nav-settings");
-    for want in ["Opus", "Sonnet", "Gemini (no key)", "On, port 4317", "42%", "Morning brief", "Read aloud", "Saved permissions", "Full access", "Model default", "Appearance", "Dark", "Shortcuts", "Control + Option + Z", "Change", "ARK calls you", "Change name", "Translucent window", "macOS permissions", "API keys", "Anthropic (Claude)", "About and support", "Open at login", "Report a problem", "This build"] {
+    for want in ["Opus", "Sonnet", "Gemini (no key)", "On, port 4317", "42%", "Morning brief", "Read aloud", "Saved permissions", "Full access", "Model default", "Appearance", "Dark", "Shortcuts", "Control + Option + Z", "Change", "ARK calls you", "Change name", "Translucent window", "macOS permissions", "Latest brief, 2026-11-13", "Rain at noon.", "Make a brief now", "API keys", "Anthropic (Claude)", "About and support", "Open at login", "Report a problem", "This build"] {
         assert!(settings.contains(want), "settings page lacks {want:?}");
     }
 }

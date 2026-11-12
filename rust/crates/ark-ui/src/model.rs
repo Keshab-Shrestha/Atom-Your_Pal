@@ -354,6 +354,9 @@ pub const BRIEF_SWITCHES: [(&str, &str); 9] = [
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Model {
+    /// The morning briefs, newest first: (day, lines). And whether one is being made.
+    pub briefs: Vec<(String, Vec<String>)>,
+    pub brief_running: bool,
     /// What the computer-control agent does now (`computer.step`); cleared at `computer.end`.
     pub computer_step: Option<String>,
     /// Where its cursor is, in screen points (`computer.cursor`).
@@ -622,6 +625,10 @@ impl Model {
             "brief" => {
                 let settings = map.get("settings").and_then(Value::as_object);
                 self.brief = settings.map(|o| BRIEF_SWITCHES.map(|(key, _)| bool_of(o, key)));
+                self.brief_running = bool_of(map, "running");
+                self.briefs = objects(map, "history")
+                    .map(|b| (str_of(b, "day"), b.get("lines").and_then(Value::as_array).map(|a| a.iter().filter_map(|l| l.as_str().map(str::to_owned)).collect()).unwrap_or_default()))
+                    .collect();
             }
             "workspace" => {
                 self.workspace = Some(Workspace {
