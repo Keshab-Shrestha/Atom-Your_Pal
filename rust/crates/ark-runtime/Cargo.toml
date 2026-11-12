@@ -15,7 +15,7 @@ jiff = "0.2"
 libc = "0.2"
 rusqlite = { version = "0.42.0", features = ["bundled"] }
 serde = "1"
-serde_json = "1.0.154"
+serde_json = { version = "1.0.154", features = ["float_roundtrip"] } # exact floats: the usage dollars must read back the same
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "time"] }
 
 [lints]

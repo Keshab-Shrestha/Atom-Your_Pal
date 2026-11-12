@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use ark_runtime::{helpers_plans as plans, helpers_extras as extras, helpers_jobs as jobs, helpers_roster as roster, helpers_tests as tests, helpers_routines as routines};
+use ark_runtime::{helpers_usage as usage, helpers_plans as plans, helpers_extras as extras, helpers_jobs as jobs, helpers_roster as roster, helpers_tests as tests, helpers_routines as routines};
 use rusqlite::{Connection, OpenFlags};
 use serde_json::Value;
 
@@ -84,4 +84,18 @@ fn plans_match_typescript() {
     let want = &expected()["extras"]["plans"];
     assert_eq!(Value::Array(got), *want);
     assert_eq!(want.as_array().unwrap().len(), 3);
+}
+
+#[test]
+fn usage_matches_typescript() {
+    let (dir, conn) = fixture("usage");
+    let (members, _) = roster::roster(&conn, &dir.join("agents")).unwrap();
+    let names: Vec<(String, String)> = members.iter().map(|m| (m.id.clone(), roster::current(&conn, &m.id).unwrap().0.name)).collect();
+    let name_of = |helper: &str| names.iter().find(|n| n.0 == helper).map_or_else(|| helper.to_string(), |n| n.1.clone());
+    let want = &expected()["extras"];
+    let now: jiff::Timestamp = want["usageNow"].as_str().unwrap().parse().unwrap();
+    let got = usage::summary(&conn, &now.in_tz("Asia/Tokyo").unwrap(), &name_of).unwrap();
+    for key in want["usage"].as_object().unwrap().keys() {
+        assert_eq!(got[key], want["usage"][key], "usage.{key}");
+    }
 }

@@ -137,12 +137,30 @@ store.linkPlanJob(pc, 1, j2);
 const pd = store.addPlan("chat-d", { goal: "Old", portions: [portion(1, "quill", "Done", [])] }).id;
 store.linkPlanJob(pd, 1, j7);
 store.dismissPlan(pd);
+// Usage: runs priced by the store, then older rows and one far back.
+const run = (source: "chat" | "job", helper: string | undefined, model: string, cacheRead: number, extra: object = {}) =>
+  store.addUsage({ source, ...(helper ? { helper } : {}), model, input: 1000, output: 200, cacheRead, cacheWrite: 50, ...extra } as Parameters<typeof store.addUsage>[0]);
+run("job", "sid", "claude-sonnet-5-5", 400, { job: j9, dollars: 0.0123 });
+run("job", "kame", "claude-opus-5-5", 0, { job: j2 });
+run("chat", undefined, "claude-opus-5-5", 0, { chatId: "chat-1" });
+run("chat", "note", "claude-haiku-4-5", 0, { chatId: "chat-1" });
+run("chat", "claude-code", "claude-opus-5-5", 0, { chatId: "chat-2", dollars: 0.5 });
+run("chat", undefined, "claude-opus-5-5", 0, { chatId: "chat-1", dollars: 1 });
+const raw4 = new DatabaseSync(join(dir, "helpers.db"));
+const old = raw4.prepare("INSERT INTO usage (at, source, helper, job_id, model, input, output, cache_read, cache_write, dollars) VALUES (?, ?, ?, NULL, ?, ?, 10, 20, 30, ?)");
+old.run("2026-10-30T20:00:00.000Z", "job", "sid", "claude-sonnet-5-5", 500, 0.1);
+old.run("2026-10-31T14:59:59.999Z", "chat", null, "claude-opus-5-5", 700, 0.3);
+old.run("2026-10-31T15:00:00.000Z", "chat", null, "claude-opus-5-5", 700, 0.2);
+old.run("2026-10-10T03:00:00.000Z", "job", "kame", "claude-sonnet-5-5", 900, 0.7);
+old.run("2026-01-01T03:00:00.000Z", "job", "kame", "claude-sonnet-5-5", 900, 0.7);
+raw4.close();
+const usageNow = new Date(Date.UTC(2026, 10, 1, 9, 0, tick));
 const problems = store.agentProblems();
 const NOW = new Date(Date.UTC(2026, 10, 12, 11, 30, 0)); // 2026-11-12 20:30 in Tokyo, a Thursday
 const island = islandHelpers(store, async () => [], () => [], () => [], () => NOW);
 const view = JSON.parse(JSON.stringify(island.list()));
 const testCases = JSON.parse(JSON.stringify(island.testCases()));
-const extras = JSON.parse(JSON.stringify({ allowLarge: island.allowLarge(), mcp: island.mcp(), skillDrafts: island.skillDrafts(), skillEdits: island.skillEdits(), plans: island.plans() }));
+const extras = JSON.parse(JSON.stringify({ allowLarge: island.allowLarge(), mcp: island.mcp(), skillDrafts: island.skillDrafts(), skillEdits: island.skillEdits(), plans: island.plans(), usage: island.usage(), usageNow: usageNow.toISOString() }));
 writeFileSync(join(dir, "expected.json"), `${JSON.stringify({ source: "apps/mac/src/island-helpers.ts list()", now: NOW.toISOString(), testCases, extras, helpers: view, problems }, null, 1)}\n`);
 store.close?.();
 for (const ext of ["-wal", "-shm"]) rmSync(join(dir, `helpers.db${ext}`), { force: true });
