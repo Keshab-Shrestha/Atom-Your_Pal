@@ -3,6 +3,7 @@
 pub mod ask;
 pub mod helpers_jobs;
 pub mod helpers_extras;
+pub mod helpers_plans;
 pub mod helpers_roster;
 pub mod helpers_tests;
 pub mod helpers_routines;

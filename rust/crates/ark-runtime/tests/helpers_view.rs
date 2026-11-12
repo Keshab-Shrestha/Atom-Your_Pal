@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use ark_runtime::{helpers_extras as extras, helpers_jobs as jobs, helpers_roster as roster, helpers_tests as tests, helpers_routines as routines};
+use ark_runtime::{helpers_plans as plans, helpers_extras as extras, helpers_jobs as jobs, helpers_roster as roster, helpers_tests as tests, helpers_routines as routines};
 use rusqlite::{Connection, OpenFlags};
 use serde_json::Value;
 
@@ -72,4 +72,16 @@ fn mcp_switch_drafts_and_edits_match_typescript() {
     assert_eq!(Value::Array(extras::mcp(&conn).unwrap()), want["mcp"]);
     assert_eq!(Value::Array(extras::skill_drafts(&conn).unwrap()), want["skillDrafts"]);
     assert_eq!(Value::Array(extras::skill_edits(&conn).unwrap()), want["skillEdits"]);
+}
+
+#[test]
+fn plans_match_typescript() {
+    let (dir, conn) = fixture("plans");
+    let (members, _) = roster::roster(&conn, &dir.join("agents")).unwrap();
+    let names: Vec<(String, String)> = members.iter().map(|m| (m.id.clone(), roster::current(&conn, &m.id).unwrap().0.name)).collect();
+    let name_of = |agent: &str| names.iter().find(|n| n.0 == agent).map_or_else(|| agent.to_string(), |n| n.1.clone());
+    let got = plans::plans(&conn, &name_of).unwrap();
+    let want = &expected()["extras"]["plans"];
+    assert_eq!(Value::Array(got), *want);
+    assert_eq!(want.as_array().unwrap().len(), 3);
 }

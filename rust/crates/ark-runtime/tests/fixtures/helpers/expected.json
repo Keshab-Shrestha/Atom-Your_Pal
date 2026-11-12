@@ -134,6 +134,129 @@
      ]
     }
    }
+  ],
+  "plans": [
+   {
+    "id": 3,
+    "goal": "Running",
+    "createdAt": "2026-11-01T09:00:54.000Z",
+    "portions": [
+     {
+      "n": 1,
+      "agent": "kame",
+      "name": "Kame",
+      "task": "Fix",
+      "after": [],
+      "job": 3,
+      "recovery": {
+       "schema": "atom.workflow-recovery/v1",
+       "kind": "working"
+      },
+      "state": "running"
+     },
+     {
+      "n": 2,
+      "agent": "ghost",
+      "name": "ghost",
+      "task": "Then",
+      "after": [
+       1
+      ],
+      "recovery": {
+       "schema": "atom.workflow-recovery/v1",
+       "kind": "waiting"
+      },
+      "state": "waiting"
+     }
+    ],
+    "complete": false,
+    "stuck": false
+   },
+   {
+    "id": 2,
+    "goal": "Quick one",
+    "createdAt": "2026-11-01T09:00:53.000Z",
+    "portions": [
+     {
+      "n": 1,
+      "agent": "quill",
+      "name": "Quill",
+      "task": "Do it",
+      "after": [],
+      "job": 8,
+      "recovery": {
+       "schema": "atom.workflow-recovery/v1",
+       "kind": "reported"
+      },
+      "state": "done"
+     }
+    ],
+    "complete": true,
+    "stuck": false
+   },
+   {
+    "id": 1,
+    "goal": "Ship the report",
+    "createdAt": "2026-11-01T09:00:52.000Z",
+    "portions": [
+     {
+      "n": 1,
+      "agent": "sid",
+      "name": "Sid",
+      "task": "Research",
+      "after": [],
+      "job": 11,
+      "recovery": {
+       "schema": "atom.workflow-recovery/v1",
+       "kind": "reported"
+      },
+      "state": "done"
+     },
+     {
+      "n": 2,
+      "agent": "kame",
+      "name": "Kame",
+      "task": "Build",
+      "after": [],
+      "job": 5,
+      "recovery": {
+       "schema": "atom.workflow-recovery/v1",
+       "kind": "interrupted"
+      },
+      "state": "failed"
+     },
+     {
+      "n": 3,
+      "agent": "quill",
+      "name": "Quill",
+      "task": "Write up",
+      "after": [
+       2
+      ],
+      "recovery": {
+       "schema": "atom.workflow-recovery/v1",
+       "kind": "blocked"
+      },
+      "state": "blocked"
+     },
+     {
+      "n": 4,
+      "agent": "scout",
+      "name": "Scout",
+      "task": "Review",
+      "after": [
+       1
+      ],
+      "recovery": {
+       "schema": "atom.workflow-recovery/v1",
+       "kind": "waiting"
+      },
+      "state": "waiting"
+     }
+    ],
+    "complete": false,
+    "stuck": false
+   }
   ]
  },
  "helpers": [

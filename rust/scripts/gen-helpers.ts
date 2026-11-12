@@ -125,12 +125,24 @@ edit.run("net-notes", j4, "a\nb\nc\nd", "a\nb\nX\nd\ne\nf\ng\nh\ni", "pending");
 edit.run("net-notes", j9, "same\nsame", "same\nsame", "accepted");
 raw3.prepare("INSERT INTO test_results (kind, item_id, case_id, task, state, better, reason, old_answer, new_answer, at) VALUES ('skill', 1, 5, 'A skill case', 'done', 'old', 'Worse.', 'o', 'n', '2026-11-01T10:00:00.000Z')").run();
 raw3.close();
+// Work plans: one stuck, one complete, one running, one dismissed.
+const portion = (n: number, agent: string, task: string, after: number[]) => ({ n, agent, task, after });
+const pa = store.addPlan("chat-a", { goal: "Ship the report", portions: [portion(1, "sid", "Research", []), portion(2, "kame", "Build", []), portion(3, "quill", "Write up", [2]), portion(4, "scout", "Review", [1])] }).id;
+store.linkPlanJob(pa, 1, j9);
+store.linkPlanJob(pa, 2, j4);
+const pb = store.addPlan("chat-b", { goal: "Quick one", portions: [portion(1, "quill", "Do it", [])] }).id;
+store.linkPlanJob(pb, 1, j7);
+const pc = store.addPlan("chat-c", { goal: "Running", portions: [portion(1, "kame", "Fix", []), portion(2, "ghost", "Then", [1])] }).id;
+store.linkPlanJob(pc, 1, j2);
+const pd = store.addPlan("chat-d", { goal: "Old", portions: [portion(1, "quill", "Done", [])] }).id;
+store.linkPlanJob(pd, 1, j7);
+store.dismissPlan(pd);
 const problems = store.agentProblems();
 const NOW = new Date(Date.UTC(2026, 10, 12, 11, 30, 0)); // 2026-11-12 20:30 in Tokyo, a Thursday
 const island = islandHelpers(store, async () => [], () => [], () => [], () => NOW);
 const view = JSON.parse(JSON.stringify(island.list()));
 const testCases = JSON.parse(JSON.stringify(island.testCases()));
-const extras = JSON.parse(JSON.stringify({ allowLarge: island.allowLarge(), mcp: island.mcp(), skillDrafts: island.skillDrafts(), skillEdits: island.skillEdits() }));
+const extras = JSON.parse(JSON.stringify({ allowLarge: island.allowLarge(), mcp: island.mcp(), skillDrafts: island.skillDrafts(), skillEdits: island.skillEdits(), plans: island.plans() }));
 writeFileSync(join(dir, "expected.json"), `${JSON.stringify({ source: "apps/mac/src/island-helpers.ts list()", now: NOW.toISOString(), testCases, extras, helpers: view, problems }, null, 1)}\n`);
 store.close?.();
 for (const ext of ["-wal", "-shm"]) rmSync(join(dir, `helpers.db${ext}`), { force: true });
