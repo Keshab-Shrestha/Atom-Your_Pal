@@ -24,24 +24,31 @@ Rust logic comes from `ark-core` where a module exists.
 | Dictation shortcut | `mac.rs` |
 | Menu bar item | `mac.rs` |
 
-## Open, in build order
+## Done in the second round
 
-Chat-adjacent first.
+| Swift source | ark-app |
+| --- | --- |
+| ChatFindBar | `view/chat.rs` find bar, `ark-ui/src/find.rs` (cmd+F) |
+| ChatCopyControl | Copy button on each answer |
+| MarkdownReply tables | Rune Markdown component (GFM tables) |
+| CommandPaletteView | `palette.rs`, `view/palette.rs` (cmd+K) |
+| ChatDetailsSurface | details card (palette entry "Chat details"), basic facts only |
+| DefaultsPage, access and thinking | settings card, `chat.defaults`, `prefs.rs`; Full access asks twice |
+| AppearancePage | System, Light, Dark. Translucency (ADR-277) is open |
+| ShortcutsPage, ShortcutEngine | `ark_core::shortcuts` drives the global keys; the settings page lists them (read only) |
+| HelpersCheckpointView | task details: report, file changes, Undo (`job.open`, `job.undo`) |
+| FileDiffCard, FileEditReview | `view/diff.rs`, review card on an approval (`ark_core::diff`) |
+| ArkVisualCard | `view/visual.rs` (`ark_core::visual`); bars show for line charts too |
+| BoardTeamView org chart | team card on the agents page (`ark_core::org`) |
+| VoicePill, status | pill shows Listening, Transcribing, Thinking, Speaking, Needs you |
 
-1. **Find in chat** (ChatFindBar). Pure text search over loaded messages. Build in `ark-ui`.
-2. **Copy a message** (ChatCopyControl). Needs a clipboard call.
-3. **Markdown tables** (MarkdownReply, `ark_core::visual::markdown_table`). Check the Rune Markdown component first.
-4. **Command palette** (CommandPaletteView). A list of screens and actions with a filter.
-5. **Chat details** (ChatDetailsSurface). Chat title, model, message count.
-6. **Chat defaults** (DefaultsPage, ChatAccessMenu, ChatReasoningMenu). Command `chat.defaults`.
-7. **Shortcuts page** (ShortcutsPage, ShortcutEngine). Use `ark_core::shortcuts`.
-8. **Appearance settings** (AppearancePage, translucency ADR-277). Theme choice, translucency switch.
-9. **Jobs and checkpoints** (HelpersCheckpointView, `ark_core::jobs`).
-10. **Diff views** (FileDiffCard, FileEditReview, EditReviewView). Use `ark_core::diff`.
-11. **ark-visual card** (ArkVisualCard). Use `ark_core::visual`.
-12. **Org chart** (BoardTeamView, `ark_core::org`).
-13. **Projects and folders** (ProjectsSection, ProjectWorkspaceView, ProjectSettingsSheet, ProjectSourceSheet).
-14. **Onboarding** (OwnerWelcomeSheet, SetupViews).
+## Open
+
+- Shortcut recorder (change a shortcut). Chat access and thinking per chat (ChatAccessMenu, ChatReasoningMenu, ChatModelPicker).
+- Translucent window (ADR-277).
+- Projects and folders (ProjectsSection, ProjectWorkspaceView, ProjectSettingsSheet, ProjectSourceSheet).
+- Onboarding (OwnerWelcomeSheet, SetupViews).
+- Brain graph and search, git branches view (`git.diff` text).
 
 ## Not planned for the first Rust release
 
@@ -50,7 +57,7 @@ reply drafts, plugins, local backup, updater. Each needs its own decision.
 
 ## Parity check
 
-`rust/crates/ark-app/tests/headless.rs` draws each screen with `--snap`.
-The golden PNGs in `tests/ui-golden` come from the Swift gallery. The two sets differ in layout and fonts today.
-The check writes the Rust PNG to the scratch folder (`ARK_PARITY_DIR`) next to the golden file name for a visual compare.
-It does not fail on a pixel difference yet.
+`rust/crates/ark-app/tests/headless.rs`, test `screens_match_the_swift_goldens_in_brightness`, draws five screens with `--snap`
+and compares the mean brightness with the Swift golden in `tests/ui-golden` (tolerance 0.15).
+The Rust PNGs go to `ARK_PARITY_DIR` (default `target/tmp/parity`) for a look by eye.
+A brightness check does not find layout differences. A pixel compare needs the same fonts and window size.

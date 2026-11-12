@@ -194,3 +194,51 @@ fn chat_details_show_the_facts() {
         assert!(text.contains(want), "details lack {want:?}");
     }
 }
+
+/// Mean brightness (0 to 1) and size of a PNG, for the parity check.
+fn brightness(path: &std::path::Path) -> Option<(f64, (u32, u32))> {
+    let mut reader = png::Decoder::new(Cursor::new(std::fs::read(path).ok()?)).read_info().ok()?;
+    let mut buf = vec![0; reader.output_buffer_size()?];
+    let info = reader.next_frame(&mut buf).ok()?;
+    if info.bit_depth != png::BitDepth::Eight {
+        return None;
+    }
+    let channels = info.color_type.samples();
+    let bytes = &buf[..info.buffer_size()];
+    let (mut sum, mut n) = (0.0, 0.0);
+    for px in bytes.chunks_exact(channels).step_by(7) {
+        let (r, g, b) = if channels >= 3 { (px[0], px[1], px[2]) } else { (px[0], px[0], px[0]) };
+        sum += (0.2126 * f64::from(r) + 0.7152 * f64::from(g) + 0.0722 * f64::from(b)) / 255.0;
+        n += 1.0;
+    }
+    Some((sum / n, (info.width, info.height)))
+}
+
+/// Draws each screen with `--snap` into the parity folder (`ARK_PARITY_DIR`, else the test temp folder) and compares
+/// its mean brightness with the Swift golden PNG of the same screen. A visual compare is by eye: the folder holds
+/// the Rust PNGs and the golden names are printed. The tolerance is loose (layout and fonts differ on purpose).
+#[test]
+fn screens_match_the_swift_goldens_in_brightness() {
+    let dir = std::env::var_os("ARK_PARITY_DIR").map_or_else(|| PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("parity"), PathBuf::from);
+    std::fs::create_dir_all(&dir).expect("parity folder");
+    let golden_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../tests/ui-golden");
+    // (screen, golden file)
+    let pairs = [("chat", "31-chat-t3-dark.png"), ("settings", "32-shell-settings-dark.png"), ("dashboard", "13-helpers-dashboard.png"), ("memory", "17-brain.png"), ("agents", "13-helpers-agent-panel.png")];
+    for (screen, golden) in pairs {
+        let out = dir.join(format!("{screen}.png"));
+        let run = Command::new(env!("CARGO_BIN_EXE_ark-app"))
+            .args(["--snap", out.to_str().expect("utf-8"), "--size", "1040x700", "--scale", "1", "--theme", "dark"])
+            .env("ARK_UI_EVENTS", fixture("chat.jsonl"))
+            .env("ARK_UI_SCREEN", screen)
+            .output()
+            .expect("ark-app starts");
+        assert!(run.status.success(), "{screen}: {}", String::from_utf8_lossy(&run.stderr));
+        let (mine, _) = brightness(&out).expect("the Rust snapshot decodes");
+        let Some((theirs, size)) = brightness(&golden_dir.join(golden)) else {
+            eprintln!("parity: {screen}: golden {golden} missing or not 8-bit, skipped");
+            continue;
+        };
+        eprintln!("parity: {screen}: rust {mine:.3}, golden {theirs:.3} ({golden}, {}x{})", size.0, size.1);
+        assert!((mine - theirs).abs() < 0.15, "{screen} differs from {golden} in brightness: {mine:.3} against {theirs:.3}");
+    }
+}
