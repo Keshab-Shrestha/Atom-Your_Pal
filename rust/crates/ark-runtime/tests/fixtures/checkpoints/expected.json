@@ -1,0 +1,829 @@
+{
+ "source": "services/helpers/src/checkpoints.ts",
+ "base": "/Users/keshabshrestha/Developer/atom/.claude/worktrees/agent-af27fa48e45dc9221/rust/crates/ark-runtime/tests/fixtures/checkpoints/base",
+ "before": {
+  "rows": [
+   {
+    "job_id": 1,
+    "rel": "a.txt",
+    "kind": "modified",
+    "state": "ready",
+    "reason": null,
+    "sha_before": "841520fb82843a458595c1d98c22aa38bb766eb91dd08f5d185596c82b1de205",
+    "sha_after": "7acb5c453001be17493767699cb5db841cc5fe15ec07c3835a9e55d4e4558240"
+   },
+   {
+    "job_id": 1,
+    "rel": "c.txt",
+    "kind": "created",
+    "state": "ready",
+    "reason": null,
+    "sha_before": null,
+    "sha_after": "3c3f05779afc9828d3c065af1ed65a9b638c4da00ab577db8adf40a5a8f00796"
+   },
+   {
+    "job_id": 1,
+    "rel": "d.txt",
+    "kind": "modified",
+    "state": "ready",
+    "reason": null,
+    "sha_before": "b13044aeb65e814bc22829fc4f4d6f9f0a143961493a9bb6a7bec7c5378e1d07",
+    "sha_after": "706b16482de491f18223bebbd8120e33b3b3dd53f78fa1eb5072a5084d82654d"
+   },
+   {
+    "job_id": 1,
+    "rel": "e.txt",
+    "kind": "created",
+    "state": "ready",
+    "reason": null,
+    "sha_before": null,
+    "sha_after": "767a8a155071c8f79338e41c50eebc6bc7e5f1bf17564aa2212c0e3d628049d7"
+   },
+   {
+    "job_id": 1,
+    "rel": "f.txt",
+    "kind": "modified",
+    "state": "ready",
+    "reason": null,
+    "sha_before": "4f3e2fecd3b6cf09c97d7677e42dd8972ebd1046435927281bcbc9305593e464",
+    "sha_after": "99144d8988957db2bd2f3b00c1f275ea9dafdfbc88369dc23e6660196d6b24d6"
+   }
+  ],
+  "files": {
+   "a.txt": "a new",
+   "b.txt": "b old",
+   "c.txt": "c made",
+   "d.txt": "d changed by Keshab",
+   "e.txt": null,
+   "f.txt": null
+  },
+  "leftovers": []
+ },
+ "cases": [
+  {
+   "name": "whole run",
+   "roots": [
+    "/Users/keshabshrestha/Developer/atom/.claude/worktrees/agent-af27fa48e45dc9221/rust/crates/ark-runtime/tests/fixtures/checkpoints/base/work"
+   ],
+   "results": [
+    {
+     "path": "a.txt",
+     "result": "restored"
+    },
+    {
+     "path": "c.txt",
+     "result": "restored"
+    },
+    {
+     "path": "d.txt",
+     "result": "conflict",
+     "reason": "changed since the run"
+    },
+    {
+     "path": "e.txt",
+     "result": "missing",
+     "reason": "already gone"
+    },
+    {
+     "path": "f.txt",
+     "result": "missing",
+     "reason": "the file is gone"
+    }
+   ],
+   "after": {
+    "rows": [
+     {
+      "job_id": 1,
+      "rel": "a.txt",
+      "kind": "modified",
+      "state": "undone",
+      "reason": null,
+      "sha_before": "841520fb82843a458595c1d98c22aa38bb766eb91dd08f5d185596c82b1de205",
+      "sha_after": "841520fb82843a458595c1d98c22aa38bb766eb91dd08f5d185596c82b1de205"
+     },
+     {
+      "job_id": 1,
+      "rel": "c.txt",
+      "kind": "created",
+      "state": "undone",
+      "reason": null,
+      "sha_before": null,
+      "sha_after": null
+     },
+     {
+      "job_id": 1,
+      "rel": "d.txt",
+      "kind": "modified",
+      "state": "ready",
+      "reason": null,
+      "sha_before": "b13044aeb65e814bc22829fc4f4d6f9f0a143961493a9bb6a7bec7c5378e1d07",
+      "sha_after": "706b16482de491f18223bebbd8120e33b3b3dd53f78fa1eb5072a5084d82654d"
+     },
+     {
+      "job_id": 1,
+      "rel": "e.txt",
+      "kind": "created",
+      "state": "undone",
+      "reason": null,
+      "sha_before": null,
+      "sha_after": null
+     },
+     {
+      "job_id": 1,
+      "rel": "f.txt",
+      "kind": "modified",
+      "state": "ready",
+      "reason": null,
+      "sha_before": "4f3e2fecd3b6cf09c97d7677e42dd8972ebd1046435927281bcbc9305593e464",
+      "sha_after": "99144d8988957db2bd2f3b00c1f275ea9dafdfbc88369dc23e6660196d6b24d6"
+     }
+    ],
+    "files": {
+     "a.txt": "a old",
+     "b.txt": "b old",
+     "c.txt": null,
+     "d.txt": "d changed by Keshab",
+     "e.txt": null,
+     "f.txt": null
+    },
+    "leftovers": []
+   }
+  },
+  {
+   "name": "whole run, forced",
+   "roots": [
+    "/Users/keshabshrestha/Developer/atom/.claude/worktrees/agent-af27fa48e45dc9221/rust/crates/ark-runtime/tests/fixtures/checkpoints/base/work"
+   ],
+   "force": true,
+   "results": [
+    {
+     "path": "a.txt",
+     "result": "restored"
+    },
+    {
+     "path": "c.txt",
+     "result": "restored"
+    },
+    {
+     "path": "d.txt",
+     "result": "restored"
+    },
+    {
+     "path": "e.txt",
+     "result": "missing",
+     "reason": "already gone"
+    },
+    {
+     "path": "f.txt",
+     "result": "restored"
+    }
+   ],
+   "after": {
+    "rows": [
+     {
+      "job_id": 1,
+      "rel": "a.txt",
+      "kind": "modified",
+      "state": "undone",
+      "reason": null,
+      "sha_before": "841520fb82843a458595c1d98c22aa38bb766eb91dd08f5d185596c82b1de205",
+      "sha_after": "841520fb82843a458595c1d98c22aa38bb766eb91dd08f5d185596c82b1de205"
+     },
+     {
+      "job_id": 1,
+      "rel": "c.txt",
+      "kind": "created",
+      "state": "undone",
+      "reason": null,
+      "sha_before": null,
+      "sha_after": null
+     },
+     {
+      "job_id": 1,
+      "rel": "d.txt",
+      "kind": "modified",
+      "state": "undone",
+      "reason": null,
+      "sha_before": "b13044aeb65e814bc22829fc4f4d6f9f0a143961493a9bb6a7bec7c5378e1d07",
+      "sha_after": "b13044aeb65e814bc22829fc4f4d6f9f0a143961493a9bb6a7bec7c5378e1d07"
+     },
+     {
+      "job_id": 1,
+      "rel": "e.txt",
+      "kind": "created",
+      "state": "undone",
+      "reason": null,
+      "sha_before": null,
+      "sha_after": null
+     },
+     {
+      "job_id": 1,
+      "rel": "f.txt",
+      "kind": "modified",
+      "state": "undone",
+      "reason": null,
+      "sha_before": "4f3e2fecd3b6cf09c97d7677e42dd8972ebd1046435927281bcbc9305593e464",
+      "sha_after": "4f3e2fecd3b6cf09c97d7677e42dd8972ebd1046435927281bcbc9305593e464"
+     }
+    ],
+    "files": {
+     "a.txt": "a old",
+     "b.txt": "b old",
+     "c.txt": null,
+     "d.txt": "d old",
+     "e.txt": null,
+     "f.txt": "f old"
+    },
+    "leftovers": []
+   }
+  },
+  {
+   "name": "one file",
+   "roots": [
+    "/Users/keshabshrestha/Developer/atom/.claude/worktrees/agent-af27fa48e45dc9221/rust/crates/ark-runtime/tests/fixtures/checkpoints/base/work"
+   ],
+   "path": "a.txt",
+   "results": [
+    {
+     "path": "a.txt",
+     "result": "restored"
+    }
+   ],
+   "after": {
+    "rows": [
+     {
+      "job_id": 1,
+      "rel": "a.txt",
+      "kind": "modified",
+      "state": "undone",
+      "reason": null,
+      "sha_before": "841520fb82843a458595c1d98c22aa38bb766eb91dd08f5d185596c82b1de205",
+      "sha_after": "841520fb82843a458595c1d98c22aa38bb766eb91dd08f5d185596c82b1de205"
+     },
+     {
+      "job_id": 1,
+      "rel": "c.txt",
+      "kind": "created",
+      "state": "ready",
+      "reason": null,
+      "sha_before": null,
+      "sha_after": "3c3f05779afc9828d3c065af1ed65a9b638c4da00ab577db8adf40a5a8f00796"
+     },
+     {
+      "job_id": 1,
+      "rel": "d.txt",
+      "kind": "modified",
+      "state": "ready",
+      "reason": null,
+      "sha_before": "b13044aeb65e814bc22829fc4f4d6f9f0a143961493a9bb6a7bec7c5378e1d07",
+      "sha_after": "706b16482de491f18223bebbd8120e33b3b3dd53f78fa1eb5072a5084d82654d"
+     },
+     {
+      "job_id": 1,
+      "rel": "e.txt",
+      "kind": "created",
+      "state": "ready",
+      "reason": null,
+      "sha_before": null,
+      "sha_after": "767a8a155071c8f79338e41c50eebc6bc7e5f1bf17564aa2212c0e3d628049d7"
+     },
+     {
+      "job_id": 1,
+      "rel": "f.txt",
+      "kind": "modified",
+      "state": "ready",
+      "reason": null,
+      "sha_before": "4f3e2fecd3b6cf09c97d7677e42dd8972ebd1046435927281bcbc9305593e464",
+      "sha_after": "99144d8988957db2bd2f3b00c1f275ea9dafdfbc88369dc23e6660196d6b24d6"
+     }
+    ],
+    "files": {
+     "a.txt": "a old",
+     "b.txt": "b old",
+     "c.txt": "c made",
+     "d.txt": "d changed by Keshab",
+     "e.txt": null,
+     "f.txt": null
+    },
+    "leftovers": []
+   }
+  },
+  {
+   "name": "conflict",
+   "roots": [
+    "/Users/keshabshrestha/Developer/atom/.claude/worktrees/agent-af27fa48e45dc9221/rust/crates/ark-runtime/tests/fixtures/checkpoints/base/work"
+   ],
+   "path": "d.txt",
+   "results": [
+    {
+     "path": "d.txt",
+     "result": "conflict",
+     "reason": "changed since the run"
+    }
+   ],
+   "after": {
+    "rows": [
+     {
+      "job_id": 1,
+      "rel": "a.txt",
+      "kind": "modified",
+      "state": "ready",
+      "reason": null,
+      "sha_before": "841520fb82843a458595c1d98c22aa38bb766eb91dd08f5d185596c82b1de205",
+      "sha_after": "7acb5c453001be17493767699cb5db841cc5fe15ec07c3835a9e55d4e4558240"
+     },
+     {
+      "job_id": 1,
+      "rel": "c.txt",
+      "kind": "created",
+      "state": "ready",
+      "reason": null,
+      "sha_before": null,
+      "sha_after": "3c3f05779afc9828d3c065af1ed65a9b638c4da00ab577db8adf40a5a8f00796"
+     },
+     {
+      "job_id": 1,
+      "rel": "d.txt",
+      "kind": "modified",
+      "state": "ready",
+      "reason": null,
+      "sha_before": "b13044aeb65e814bc22829fc4f4d6f9f0a143961493a9bb6a7bec7c5378e1d07",
+      "sha_after": "706b16482de491f18223bebbd8120e33b3b3dd53f78fa1eb5072a5084d82654d"
+     },
+     {
+      "job_id": 1,
+      "rel": "e.txt",
+      "kind": "created",
+      "state": "ready",
+      "reason": null,
+      "sha_before": null,
+      "sha_after": "767a8a155071c8f79338e41c50eebc6bc7e5f1bf17564aa2212c0e3d628049d7"
+     },
+     {
+      "job_id": 1,
+      "rel": "f.txt",
+      "kind": "modified",
+      "state": "ready",
+      "reason": null,
+      "sha_before": "4f3e2fecd3b6cf09c97d7677e42dd8972ebd1046435927281bcbc9305593e464",
+      "sha_after": "99144d8988957db2bd2f3b00c1f275ea9dafdfbc88369dc23e6660196d6b24d6"
+     }
+    ],
+    "files": {
+     "a.txt": "a new",
+     "b.txt": "b old",
+     "c.txt": "c made",
+     "d.txt": "d changed by Keshab",
+     "e.txt": null,
+     "f.txt": null
+    },
+    "leftovers": []
+   }
+  },
+  {
+   "name": "conflict, forced",
+   "roots": [
+    "/Users/keshabshrestha/Developer/atom/.claude/worktrees/agent-af27fa48e45dc9221/rust/crates/ark-runtime/tests/fixtures/checkpoints/base/work"
+   ],
+   "path": "d.txt",
+   "force": true,
+   "results": [
+    {
+     "path": "d.txt",
+     "result": "restored"
+    }
+   ],
+   "after": {
+    "rows": [
+     {
+      "job_id": 1,
+      "rel": "a.txt",
+      "kind": "modified",
+      "state": "ready",
+      "reason": null,
+      "sha_before": "841520fb82843a458595c1d98c22aa38bb766eb91dd08f5d185596c82b1de205",
+      "sha_after": "7acb5c453001be17493767699cb5db841cc5fe15ec07c3835a9e55d4e4558240"
+     },
+     {
+      "job_id": 1,
+      "rel": "c.txt",
+      "kind": "created",
+      "state": "ready",
+      "reason": null,
+      "sha_before": null,
+      "sha_after": "3c3f05779afc9828d3c065af1ed65a9b638c4da00ab577db8adf40a5a8f00796"
+     },
+     {
+      "job_id": 1,
+      "rel": "d.txt",
+      "kind": "modified",
+      "state": "undone",
+      "reason": null,
+      "sha_before": "b13044aeb65e814bc22829fc4f4d6f9f0a143961493a9bb6a7bec7c5378e1d07",
+      "sha_after": "b13044aeb65e814bc22829fc4f4d6f9f0a143961493a9bb6a7bec7c5378e1d07"
+     },
+     {
+      "job_id": 1,
+      "rel": "e.txt",
+      "kind": "created",
+      "state": "ready",
+      "reason": null,
+      "sha_before": null,
+      "sha_after": "767a8a155071c8f79338e41c50eebc6bc7e5f1bf17564aa2212c0e3d628049d7"
+     },
+     {
+      "job_id": 1,
+      "rel": "f.txt",
+      "kind": "modified",
+      "state": "ready",
+      "reason": null,
+      "sha_before": "4f3e2fecd3b6cf09c97d7677e42dd8972ebd1046435927281bcbc9305593e464",
+      "sha_after": "99144d8988957db2bd2f3b00c1f275ea9dafdfbc88369dc23e6660196d6b24d6"
+     }
+    ],
+    "files": {
+     "a.txt": "a new",
+     "b.txt": "b old",
+     "c.txt": "c made",
+     "d.txt": "d old",
+     "e.txt": null,
+     "f.txt": null
+    },
+    "leftovers": []
+   }
+  },
+  {
+   "name": "created file already gone",
+   "roots": [
+    "/Users/keshabshrestha/Developer/atom/.claude/worktrees/agent-af27fa48e45dc9221/rust/crates/ark-runtime/tests/fixtures/checkpoints/base/work"
+   ],
+   "path": "e.txt",
+   "results": [
+    {
+     "path": "e.txt",
+     "result": "missing",
+     "reason": "already gone"
+    }
+   ],
+   "after": {
+    "rows": [
+     {
+      "job_id": 1,
+      "rel": "a.txt",
+      "kind": "modified",
+      "state": "ready",
+      "reason": null,
+      "sha_before": "841520fb82843a458595c1d98c22aa38bb766eb91dd08f5d185596c82b1de205",
+      "sha_after": "7acb5c453001be17493767699cb5db841cc5fe15ec07c3835a9e55d4e4558240"
+     },
+     {
+      "job_id": 1,
+      "rel": "c.txt",
+      "kind": "created",
+      "state": "ready",
+      "reason": null,
+      "sha_before": null,
+      "sha_after": "3c3f05779afc9828d3c065af1ed65a9b638c4da00ab577db8adf40a5a8f00796"
+     },
+     {
+      "job_id": 1,
+      "rel": "d.txt",
+      "kind": "modified",
+      "state": "ready",
+      "reason": null,
+      "sha_before": "b13044aeb65e814bc22829fc4f4d6f9f0a143961493a9bb6a7bec7c5378e1d07",
+      "sha_after": "706b16482de491f18223bebbd8120e33b3b3dd53f78fa1eb5072a5084d82654d"
+     },
+     {
+      "job_id": 1,
+      "rel": "e.txt",
+      "kind": "created",
+      "state": "undone",
+      "reason": null,
+      "sha_before": null,
+      "sha_after": null
+     },
+     {
+      "job_id": 1,
+      "rel": "f.txt",
+      "kind": "modified",
+      "state": "ready",
+      "reason": null,
+      "sha_before": "4f3e2fecd3b6cf09c97d7677e42dd8972ebd1046435927281bcbc9305593e464",
+      "sha_after": "99144d8988957db2bd2f3b00c1f275ea9dafdfbc88369dc23e6660196d6b24d6"
+     }
+    ],
+    "files": {
+     "a.txt": "a new",
+     "b.txt": "b old",
+     "c.txt": "c made",
+     "d.txt": "d changed by Keshab",
+     "e.txt": null,
+     "f.txt": null
+    },
+    "leftovers": []
+   }
+  },
+  {
+   "name": "modified file gone",
+   "roots": [
+    "/Users/keshabshrestha/Developer/atom/.claude/worktrees/agent-af27fa48e45dc9221/rust/crates/ark-runtime/tests/fixtures/checkpoints/base/work"
+   ],
+   "path": "f.txt",
+   "results": [
+    {
+     "path": "f.txt",
+     "result": "missing",
+     "reason": "the file is gone"
+    }
+   ],
+   "after": {
+    "rows": [
+     {
+      "job_id": 1,
+      "rel": "a.txt",
+      "kind": "modified",
+      "state": "ready",
+      "reason": null,
+      "sha_before": "841520fb82843a458595c1d98c22aa38bb766eb91dd08f5d185596c82b1de205",
+      "sha_after": "7acb5c453001be17493767699cb5db841cc5fe15ec07c3835a9e55d4e4558240"
+     },
+     {
+      "job_id": 1,
+      "rel": "c.txt",
+      "kind": "created",
+      "state": "ready",
+      "reason": null,
+      "sha_before": null,
+      "sha_after": "3c3f05779afc9828d3c065af1ed65a9b638c4da00ab577db8adf40a5a8f00796"
+     },
+     {
+      "job_id": 1,
+      "rel": "d.txt",
+      "kind": "modified",
+      "state": "ready",
+      "reason": null,
+      "sha_before": "b13044aeb65e814bc22829fc4f4d6f9f0a143961493a9bb6a7bec7c5378e1d07",
+      "sha_after": "706b16482de491f18223bebbd8120e33b3b3dd53f78fa1eb5072a5084d82654d"
+     },
+     {
+      "job_id": 1,
+      "rel": "e.txt",
+      "kind": "created",
+      "state": "ready",
+      "reason": null,
+      "sha_before": null,
+      "sha_after": "767a8a155071c8f79338e41c50eebc6bc7e5f1bf17564aa2212c0e3d628049d7"
+     },
+     {
+      "job_id": 1,
+      "rel": "f.txt",
+      "kind": "modified",
+      "state": "ready",
+      "reason": null,
+      "sha_before": "4f3e2fecd3b6cf09c97d7677e42dd8972ebd1046435927281bcbc9305593e464",
+      "sha_after": "99144d8988957db2bd2f3b00c1f275ea9dafdfbc88369dc23e6660196d6b24d6"
+     }
+    ],
+    "files": {
+     "a.txt": "a new",
+     "b.txt": "b old",
+     "c.txt": "c made",
+     "d.txt": "d changed by Keshab",
+     "e.txt": null,
+     "f.txt": null
+    },
+    "leftovers": []
+   }
+  },
+  {
+   "name": "modified file gone, forced",
+   "roots": [
+    "/Users/keshabshrestha/Developer/atom/.claude/worktrees/agent-af27fa48e45dc9221/rust/crates/ark-runtime/tests/fixtures/checkpoints/base/work"
+   ],
+   "path": "f.txt",
+   "force": true,
+   "results": [
+    {
+     "path": "f.txt",
+     "result": "restored"
+    }
+   ],
+   "after": {
+    "rows": [
+     {
+      "job_id": 1,
+      "rel": "a.txt",
+      "kind": "modified",
+      "state": "ready",
+      "reason": null,
+      "sha_before": "841520fb82843a458595c1d98c22aa38bb766eb91dd08f5d185596c82b1de205",
+      "sha_after": "7acb5c453001be17493767699cb5db841cc5fe15ec07c3835a9e55d4e4558240"
+     },
+     {
+      "job_id": 1,
+      "rel": "c.txt",
+      "kind": "created",
+      "state": "ready",
+      "reason": null,
+      "sha_before": null,
+      "sha_after": "3c3f05779afc9828d3c065af1ed65a9b638c4da00ab577db8adf40a5a8f00796"
+     },
+     {
+      "job_id": 1,
+      "rel": "d.txt",
+      "kind": "modified",
+      "state": "ready",
+      "reason": null,
+      "sha_before": "b13044aeb65e814bc22829fc4f4d6f9f0a143961493a9bb6a7bec7c5378e1d07",
+      "sha_after": "706b16482de491f18223bebbd8120e33b3b3dd53f78fa1eb5072a5084d82654d"
+     },
+     {
+      "job_id": 1,
+      "rel": "e.txt",
+      "kind": "created",
+      "state": "ready",
+      "reason": null,
+      "sha_before": null,
+      "sha_after": "767a8a155071c8f79338e41c50eebc6bc7e5f1bf17564aa2212c0e3d628049d7"
+     },
+     {
+      "job_id": 1,
+      "rel": "f.txt",
+      "kind": "modified",
+      "state": "undone",
+      "reason": null,
+      "sha_before": "4f3e2fecd3b6cf09c97d7677e42dd8972ebd1046435927281bcbc9305593e464",
+      "sha_after": "4f3e2fecd3b6cf09c97d7677e42dd8972ebd1046435927281bcbc9305593e464"
+     }
+    ],
+    "files": {
+     "a.txt": "a new",
+     "b.txt": "b old",
+     "c.txt": "c made",
+     "d.txt": "d changed by Keshab",
+     "e.txt": null,
+     "f.txt": "f old"
+    },
+    "leftovers": []
+   }
+  },
+  {
+   "name": "grant revoked",
+   "roots": [
+    "/Users/keshabshrestha/Developer/atom/.claude/worktrees/agent-af27fa48e45dc9221/rust/crates/ark-runtime/tests/fixtures/checkpoints/base/elsewhere"
+   ],
+   "results": [
+    {
+     "path": "a.txt",
+     "result": "refused",
+     "reason": "grant revoked"
+    },
+    {
+     "path": "c.txt",
+     "result": "refused",
+     "reason": "grant revoked"
+    },
+    {
+     "path": "d.txt",
+     "result": "refused",
+     "reason": "grant revoked"
+    },
+    {
+     "path": "e.txt",
+     "result": "refused",
+     "reason": "grant revoked"
+    },
+    {
+     "path": "f.txt",
+     "result": "refused",
+     "reason": "grant revoked"
+    }
+   ],
+   "after": {
+    "rows": [
+     {
+      "job_id": 1,
+      "rel": "a.txt",
+      "kind": "modified",
+      "state": "ready",
+      "reason": null,
+      "sha_before": "841520fb82843a458595c1d98c22aa38bb766eb91dd08f5d185596c82b1de205",
+      "sha_after": "7acb5c453001be17493767699cb5db841cc5fe15ec07c3835a9e55d4e4558240"
+     },
+     {
+      "job_id": 1,
+      "rel": "c.txt",
+      "kind": "created",
+      "state": "ready",
+      "reason": null,
+      "sha_before": null,
+      "sha_after": "3c3f05779afc9828d3c065af1ed65a9b638c4da00ab577db8adf40a5a8f00796"
+     },
+     {
+      "job_id": 1,
+      "rel": "d.txt",
+      "kind": "modified",
+      "state": "ready",
+      "reason": null,
+      "sha_before": "b13044aeb65e814bc22829fc4f4d6f9f0a143961493a9bb6a7bec7c5378e1d07",
+      "sha_after": "706b16482de491f18223bebbd8120e33b3b3dd53f78fa1eb5072a5084d82654d"
+     },
+     {
+      "job_id": 1,
+      "rel": "e.txt",
+      "kind": "created",
+      "state": "ready",
+      "reason": null,
+      "sha_before": null,
+      "sha_after": "767a8a155071c8f79338e41c50eebc6bc7e5f1bf17564aa2212c0e3d628049d7"
+     },
+     {
+      "job_id": 1,
+      "rel": "f.txt",
+      "kind": "modified",
+      "state": "ready",
+      "reason": null,
+      "sha_before": "4f3e2fecd3b6cf09c97d7677e42dd8972ebd1046435927281bcbc9305593e464",
+      "sha_after": "99144d8988957db2bd2f3b00c1f275ea9dafdfbc88369dc23e6660196d6b24d6"
+     }
+    ],
+    "files": {
+     "a.txt": "a new",
+     "b.txt": "b old",
+     "c.txt": "c made",
+     "d.txt": "d changed by Keshab",
+     "e.txt": null,
+     "f.txt": null
+    },
+    "leftovers": []
+   }
+  },
+  {
+   "name": "unknown path",
+   "roots": [
+    "/Users/keshabshrestha/Developer/atom/.claude/worktrees/agent-af27fa48e45dc9221/rust/crates/ark-runtime/tests/fixtures/checkpoints/base/work"
+   ],
+   "path": "nope.txt",
+   "results": [],
+   "after": {
+    "rows": [
+     {
+      "job_id": 1,
+      "rel": "a.txt",
+      "kind": "modified",
+      "state": "ready",
+      "reason": null,
+      "sha_before": "841520fb82843a458595c1d98c22aa38bb766eb91dd08f5d185596c82b1de205",
+      "sha_after": "7acb5c453001be17493767699cb5db841cc5fe15ec07c3835a9e55d4e4558240"
+     },
+     {
+      "job_id": 1,
+      "rel": "c.txt",
+      "kind": "created",
+      "state": "ready",
+      "reason": null,
+      "sha_before": null,
+      "sha_after": "3c3f05779afc9828d3c065af1ed65a9b638c4da00ab577db8adf40a5a8f00796"
+     },
+     {
+      "job_id": 1,
+      "rel": "d.txt",
+      "kind": "modified",
+      "state": "ready",
+      "reason": null,
+      "sha_before": "b13044aeb65e814bc22829fc4f4d6f9f0a143961493a9bb6a7bec7c5378e1d07",
+      "sha_after": "706b16482de491f18223bebbd8120e33b3b3dd53f78fa1eb5072a5084d82654d"
+     },
+     {
+      "job_id": 1,
+      "rel": "e.txt",
+      "kind": "created",
+      "state": "ready",
+      "reason": null,
+      "sha_before": null,
+      "sha_after": "767a8a155071c8f79338e41c50eebc6bc7e5f1bf17564aa2212c0e3d628049d7"
+     },
+     {
+      "job_id": 1,
+      "rel": "f.txt",
+      "kind": "modified",
+      "state": "ready",
+      "reason": null,
+      "sha_before": "4f3e2fecd3b6cf09c97d7677e42dd8972ebd1046435927281bcbc9305593e464",
+      "sha_after": "99144d8988957db2bd2f3b00c1f275ea9dafdfbc88369dc23e6660196d6b24d6"
+     }
+    ],
+    "files": {
+     "a.txt": "a new",
+     "b.txt": "b old",
+     "c.txt": "c made",
+     "d.txt": "d changed by Keshab",
+     "e.txt": null,
+     "f.txt": null
+    },
+    "leftovers": []
+   }
+  }
+ ]
+}

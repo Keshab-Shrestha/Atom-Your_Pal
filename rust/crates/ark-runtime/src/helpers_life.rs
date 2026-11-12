@@ -270,7 +270,7 @@ pub fn remove(conn: &Connection, id: i64) -> Result<bool, String> {
             transition(conn, &job, JobState::Stopped, false, None)?;
         }
         stop_children(conn, id, &mut Vec::new())?;
-        for table in ["reports", "job_comments", "job_events", "tool_calls", "plan_jobs"] {
+        for table in ["reports", "job_comments", "job_events", "tool_calls", "plan_jobs", "checkpoints"] {
             sql(conn.execute(&format!("DELETE FROM {table} WHERE job_id = ?"), [id]))?;
         }
         sql(conn.execute("DELETE FROM jobs WHERE id = ?", [id]))?;
