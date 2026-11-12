@@ -354,6 +354,10 @@ pub const BRIEF_SWITCHES: [(&str, &str); 9] = [
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Model {
+    /// What the computer-control agent does now (`computer.step`); cleared at `computer.end`.
+    pub computer_step: Option<String>,
+    /// Where its cursor is, in screen points (`computer.cursor`).
+    pub computer_cursor: Option<(f64, f64)>,
     pub search: Option<SearchResults>,
     pub usage: Option<Usage>,
     pub workspace: Option<Workspace>,
@@ -587,6 +591,12 @@ impl Model {
                 self.work = None;
                 self.approvals.clear();
             }
+            Event::ComputerStep { text, .. } => self.computer_step = Some(text.clone()),
+            Event::ComputerCursor { x, y, .. } => self.computer_cursor = x.as_f64().zip(y.as_f64()),
+            Event::ComputerEnd => {
+                self.computer_step = None;
+                self.computer_cursor = None;
+            }
             Event::ApprovalClosed { id } => self.close_approval(id),
             Event::Api { on, port, error, .. } => self.api = Some(ApiStatus { on: *on, port: *port, error: error.clone() }),
             Event::Notice { message, .. } => self.banner = Some(message.clone()),
@@ -744,6 +754,16 @@ mod tests {
         feed(&mut m, &[r#"{"type":"reply","text":"Hello"}"#]);
         assert!(m.streaming.is_empty());
         assert_eq!(m.messages.len(), 1);
+    }
+
+    #[test]
+    fn the_computer_agent_step_shows_until_it_ends() {
+        let mut m = Model::default();
+        feed(&mut m, &[r#"{"type":"computer.step","text":"Opening Mail"}"#, r#"{"type":"computer.cursor","x":10,"y":20.5}"#]);
+        assert_eq!(m.computer_step.as_deref(), Some("Opening Mail"));
+        assert_eq!(m.computer_cursor, Some((10.0, 20.5)));
+        feed(&mut m, &[r#"{"type":"computer.end"}"#]);
+        assert!(m.computer_step.is_none() && m.computer_cursor.is_none());
     }
 
     #[test]

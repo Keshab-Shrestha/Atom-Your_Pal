@@ -14,7 +14,7 @@ pub struct Pill {
 }
 
 static HANDLE: OnceLock<OverlayHandle<Pill>> = OnceLock::new();
-static LAST: Mutex<Option<(Option<LoopState>, bool)>> = Mutex::new(None);
+static LAST: Mutex<Option<(Option<LoopState>, bool, Option<String>)>> = Mutex::new(None);
 
 fn view(pill: &Pill, _: &mut Cx<Pill>) -> El {
     let kit = rune_theme_opencode::kit(true);
@@ -36,31 +36,37 @@ pub fn install(handle: OverlayHandle<Pill>) {
     drop(HANDLE.set(handle));
 }
 
-/// The words for the status, or None when the pill stays hidden. An approval that waits comes first.
-pub fn label(state: Option<LoopState>, needs_you: bool) -> Option<&'static str> {
+/// The words for the status, or None when the pill stays hidden. An approval that waits comes first, then the
+/// computer agent's step, then the voice and thinking states.
+pub fn label(state: Option<LoopState>, needs_you: bool, step: Option<&str>) -> Option<String> {
     if needs_you {
-        return Some("Needs you");
+        return Some("Needs you".into());
     }
-    match state? {
-        LoopState::Listening => Some("Listening…"),
-        LoopState::Transcribing => Some("Transcribing…"),
-        LoopState::Thinking => Some("Thinking…"),
-        LoopState::Speaking => Some("Speaking…"),
-        LoopState::Idle => None,
+    if let Some(step) = step.filter(|s| !s.trim().is_empty()) {
+        return Some(step.chars().take(28).collect());
     }
+    let words = match state? {
+        LoopState::Listening => "Listening…",
+        LoopState::Transcribing => "Transcribing…",
+        LoopState::Thinking => "Thinking…",
+        LoopState::Speaking => "Speaking…",
+        LoopState::Idle => return None,
+    };
+    Some(words.into())
 }
 
 /// Shows, updates or hides the pill when the loop state changes. Cheap to call every frame.
-pub fn sync(state: Option<LoopState>, needs_you: bool) {
+pub fn sync(state: Option<LoopState>, needs_you: bool, step: Option<&str>) {
     let Some(handle) = HANDLE.get() else { return };
     let mut last = LAST.lock().unwrap_or_else(|e| e.into_inner());
-    if *last == Some((state, needs_you)) {
+    let key = (state, needs_you, step.map(str::to_owned));
+    if last.as_ref() == Some(&key) {
         return;
     }
-    *last = Some((state, needs_you));
-    match label(state, needs_you) {
+    *last = Some(key);
+    match label(state, needs_you, step) {
         Some(words) => {
-            handle.update(move |p, _| p.label = words.to_owned());
+            handle.update(move |p, _| p.label = words);
             handle.show();
         }
         None => handle.hide(),
@@ -72,11 +78,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_pill_follows_the_status_and_an_approval_comes_first() {
-        assert_eq!(label(Some(LoopState::Listening), false), Some("Listening…"));
-        assert_eq!(label(Some(LoopState::Thinking), false), Some("Thinking…"));
-        assert_eq!(label(Some(LoopState::Idle), false), None);
-        assert_eq!(label(None, false), None);
-        assert_eq!(label(Some(LoopState::Idle), true), Some("Needs you"));
+    fn the_pill_follows_the_status_with_approval_first_then_the_agent_step() {
+        assert_eq!(label(Some(LoopState::Listening), false, None).as_deref(), Some("Listening…"));
+        assert_eq!(label(Some(LoopState::Thinking), false, None).as_deref(), Some("Thinking…"));
+        assert_eq!(label(Some(LoopState::Idle), false, None), None);
+        assert_eq!(label(None, false, None), None);
+        assert_eq!(label(Some(LoopState::Idle), true, Some("Opening Mail")).as_deref(), Some("Needs you"));
+        assert_eq!(label(Some(LoopState::Thinking), false, Some("Opening Mail")).as_deref(), Some("Opening Mail"));
     }
 }
