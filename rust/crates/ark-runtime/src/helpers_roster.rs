@@ -60,6 +60,16 @@ const BUILT_INS: [(&str, bool, &str, &str, &str, &str); 7] = [
     ("tinker", false, "improver", "Reflective and specific.", "Reads failed and poorly rated jobs and proposes one concrete change to a worker's soul, with the reason.", "Proposes changes only; the user decides."),
 ];
 
+/// Version 1 of every built-in soul, when it has none (the first run of a new `helpers.db`; `putSoul` of `store.ts`).
+pub(crate) fn seed_souls(conn: &Connection) -> rusqlite::Result<()> {
+    let at = jiff::Timestamp::now().strftime("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
+    for (id, _, _, personality, how, rules) in BUILT_INS {
+        let name: String = id.chars().enumerate().map(|(i, c)| if i == 0 { c.to_ascii_uppercase() } else { c }).collect();
+        conn.execute("INSERT INTO souls (helper, version, name, personality, how_it_works, rules, lessons, created_at) SELECT ?1, 1, ?2, ?3, ?4, ?5, '', ?6 WHERE NOT EXISTS (SELECT 1 FROM souls WHERE helper = ?1)", rusqlite::params![id, name, personality, how, rules, at])?;
+    }
+    Ok(())
+}
+
 /// What each built-in role may use (`BUILT_IN_KITS`).
 fn built_in_kit(role: &str) -> &'static str {
     match role {

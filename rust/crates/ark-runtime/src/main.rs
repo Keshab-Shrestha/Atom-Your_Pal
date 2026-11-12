@@ -123,6 +123,12 @@ fn native_from_process() -> Option<native::Native> {
         return None;
     }
     let folder = std::env::current_dir().ok()?;
+    if std::env::var("ARK_RUNTIME").as_deref() == Ok("rust") {
+        // A clean Mac has no files yet: Rust makes them (Node makes the same ones, so the two never differ).
+        if let Err(problem) = ark_runtime::firstrun::ensure_from_environment(&folder, |name| std::env::var(name).ok()) {
+            eprintln!("ark-runtime: first run: {problem}");
+        }
+    }
     Some(native::Native::from_environment(&folder, |name| std::env::var(name).ok()))
 }
 
