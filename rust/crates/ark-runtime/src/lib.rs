@@ -7,4 +7,5 @@ pub mod store;
 pub mod mcp;
 pub mod chat;
 pub mod context;
+pub mod services;
 pub mod api;

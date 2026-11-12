@@ -9,6 +9,7 @@
 
 use ark_runtime::chat::{self, Chat, Sink};
 use ark_runtime::native;
+use ark_runtime::services::{self, Services};
 
 use std::io::{self, BufRead, BufReader, Write};
 use std::os::unix::process::ExitStatusExt;
@@ -60,7 +61,7 @@ fn forward_lines(reader: impl BufRead, mut writer: impl Write, observe: impl Fn(
 }
 
 /// Like `forward_lines`, but a line that `native` answers goes to `out`, not to `writer`.
-fn route_lines(reader: impl BufRead, mut writer: impl Write, native: Option<&native::Native>, chat: Option<(&Arc<Chat>, Sink, Sink)>, mut out: impl Write) -> io::Result<()> {
+fn route_lines(reader: impl BufRead, mut writer: impl Write, native: Option<&native::Native>, chat: Option<(&Arc<Chat>, Sink, Sink)>, services: Option<&Services>, mut out: impl Write) -> io::Result<()> {
     let mut reader = reader;
     let mut line = Vec::new();
     loop {
@@ -71,6 +72,15 @@ fn route_lines(reader: impl BufRead, mut writer: impl Write, native: Option<&nat
         if let (Some((chat, to_app, to_node)), Ok(text)) = (&chat, std::str::from_utf8(&line))
             && chat.handle(text, to_app.clone(), to_node.clone())
         {
+            continue;
+        }
+        if let (Some(services), Ok(text)) = (services, std::str::from_utf8(&line))
+            && let Some(reply) = services.handle(text)
+        {
+            if let Some(reply) = reply {
+                out.write_all(reply.as_bytes())?;
+                out.flush()?;
+            }
             continue;
         }
         let answer = native.and_then(|n| std::str::from_utf8(&line).ok().and_then(|text| n.try_answer(text)));
@@ -116,9 +126,10 @@ fn native_from_process() -> Option<native::Native> {
     Some(native::Native::from_environment(&folder, |name| std::env::var(name).ok()))
 }
 
-fn start(program: &str, args: &[String]) -> io::Result<Child> {
+fn start(program: &str, args: &[String], envs: &[(&str, &str)]) -> io::Result<Child> {
     Command::new(program)
         .args(args)
+        .envs(envs.iter().copied())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
@@ -147,7 +158,15 @@ fn main() {
         eprintln!("usage: ark-runtime <program> [args...]");
         std::process::exit(EXIT_USAGE);
     };
-    let mut child = match start(program, rest) {
+    // The native parts come first: the environment of Node says which of them the runtime owns.
+    let native = native_from_process().map(std::sync::Arc::new);
+    let chat = native.as_deref().and_then(|n| chat_from_process(n.memory_db()));
+    let services = native.as_deref().and_then(|n| {
+        let folder = std::env::current_dir().ok()?;
+        services::from_environment(&folder, n.memory_db(), chat.as_ref(), |name| std::env::var(name).ok().filter(|v| !v.is_empty()))
+    });
+    let envs = services.as_ref().map(Services::node_env).unwrap_or_default();
+    let mut child = match start(program, rest, &envs) {
         Ok(child) => child,
         Err(error) => {
             eprintln!("ark-runtime: cannot start {program}: {error}");
@@ -163,7 +182,6 @@ fn main() {
     };
     // Stdin: when the app closes it (or the child stops reading), dropping `child_in` closes the child's stdin.
     // This thread is not joined: it can stay blocked on our stdin after the child exits.
-    let native = native_from_process().map(std::sync::Arc::new);
     if let Some(native) = native.clone() {
         // The change feed: lines the app needs after Node changes the data file. Each line is one `write_all` on the locked stdout.
         thread::spawn(move || loop {
@@ -177,7 +195,6 @@ fn main() {
         });
     }
     let node_in = Arc::new(Mutex::new(child_in));
-    let chat = native.as_deref().and_then(|n| chat_from_process(n.memory_db()));
     let to_app: Sink = Arc::new(|line: &str| write_line(&mut io::stdout().lock(), line));
     let to_node: Sink = {
         // Weak: only the stdin thread owns the pipe, so its end closes Node's stdin.
@@ -191,12 +208,12 @@ fn main() {
         })
     };
     {
-        let (native, chat, to_app) = (native.clone(), chat.clone(), to_app.clone());
+        let (native, chat, to_app, services) = (native.clone(), chat.clone(), to_app.clone(), services);
         let to_node = to_node.clone();
         thread::spawn(move || {
             let writer = SharedWriter(node_in);
             let chat = chat.as_ref().map(|c| (c, to_app, to_node));
-            route_lines(io::stdin().lock(), writer, native.as_deref(), chat, io::stdout())
+            route_lines(io::stdin().lock(), writer, native.as_deref(), chat, services.as_ref(), io::stdout())
         });
     }
     let to_app = thread::spawn(move || {

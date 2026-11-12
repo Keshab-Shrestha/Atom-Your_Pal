@@ -234,6 +234,7 @@ dependencies = [
  "ark-core",
  "ark-llm",
  "ark-protocol",
+ "ark-telegram",
  "futures-util",
  "jiff",
  "libc",

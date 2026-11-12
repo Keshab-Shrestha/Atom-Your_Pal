@@ -45,6 +45,14 @@
 - The token comes from `ARK_TELEGRAM_BOT_TOKEN` (with `ARK_TELEGRAM_CHAT_ID`, `ARK_TELEGRAM_USER_ID`) through `Config::from_env`, or from the caller. The log gets names and codes, never text or the token.
 - Verified: 5 tests (message split; backlog and sender filter; split send with buttons; retry rules; wrong token, with a check that the token is not in the log) against a local mock Bot API server. Clippy is clean. No live Telegram call.
 
+## Rust Phase 2 step 16: Rust owns the local API and the Telegram bot — 12 November 2026
+
+- ADR-278, Phase 2: with `ARK_RUNTIME=rust` and a native chat engine, `ark-runtime` takes `api.set` and `api.regenerate` from the app. It starts or stops the Rust HTTP API on `ARK_API_PORT` (default 4790) and answers with the `api` event. A busy port gives the same error text as Node.
+- Rust tells Node with `ARK_API_OWNER=rust` in Node's environment. Node then makes no API server, so it never binds 4790. The Node change is one condition in `apps/mac/src/runtime.ts`.
+- The Telegram bot is opt-in: set `ARK_RUNTIME_TELEGRAM=1` and the two bot variables. Rust then polls the bot and Node does not (`ARK_TELEGRAM_OWNER=rust`). The bot runs its turns in the chat `telegram` through the same agent. A call that needs approval becomes a question with Allow and Decline buttons, shown by `/needs` and pushed when it starts. `telegram.set` sets the push switch.
+- Verified: 3 tests (API on, token check, token change with the old token refused, off and port closed; port in use; the bot brain runs a turn and saves it). Clippy is clean. No live bot or model call.
+- Not done: the bot commands `/tasks`, `/report` and `/steer` say "The team is not available", because the team stays in Node. Do not turn the Rust bot on if you use them. The window shows no Telegram state while Rust owns the bot.
+
 ## Rust Phase 2 step 15: native chat parity — 12 November 2026
 
 - ADR-278, Phase 2: the native chat turn now builds the same prompt as Node. The new module `ark-runtime/src/context.rs` holds `NATIVE_SYSTEM_PROMPT`, the opening memory guidance, the typed-message note, the date line and the memory facts. It puts them after the user message under "Context from ARK, not said by the user:". The saved chat keeps only the plain message.

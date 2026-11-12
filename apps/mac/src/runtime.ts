@@ -1130,7 +1130,8 @@ export function createRuntime(
   const telegramChat = readEnv(process.env, "ARK_TELEGRAM_CHAT_ID")?.trim();
   const telegramUser = readEnv(process.env, "ARK_TELEGRAM_USER_ID")?.trim(); // the one person obeyed in a group; a private chat needs none
   let telegram: TelegramBot | undefined;
-  if (telegramToken && telegramChat && readEnv(process.env, "ARK_VOICE_ONLY") !== "1") {
+  // ADR-278: with ARK_TELEGRAM_OWNER=rust the Rust runtime polls the bot, so Node does not.
+  if (telegramToken && telegramChat && readEnv(process.env, "ARK_VOICE_ONLY") !== "1" && readEnv(process.env, "ARK_TELEGRAM_OWNER") !== "rust") {
     const telegramCore = makeCore(true);
     telegramCore.resume(TELEGRAM_CHAT, memory?.chats.messages(TELEGRAM_CHAT) ?? []);
     telegram = startTelegramBot({
@@ -1179,7 +1180,8 @@ export function createRuntime(
     ...(memory ? { messages: (chat: string) => memory.chats.messages(chat) } : {}),
   });
   const api: ApiServer | undefined =
-    readEnv(process.env, "ARK_VOICE_ONLY") === "1"
+    // ADR-278: the Rust runtime owns the local API when it says so (ARK_API_OWNER=rust), so Node binds no port.
+    readEnv(process.env, "ARK_VOICE_ONLY") === "1" || readEnv(process.env, "ARK_API_OWNER") === "rust"
       ? undefined
       : createApiServer({
           log,

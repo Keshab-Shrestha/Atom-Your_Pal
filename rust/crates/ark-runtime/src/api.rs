@@ -109,6 +109,25 @@ impl Server {
         }
     }
 
+    /// Like `serve`, but returns when `stop` is set (checked every 50 ms). The listener is dropped then, so the port is free again.
+    pub fn serve_until(self: &Arc<Self>, listener: TcpListener, stop: &std::sync::atomic::AtomicBool) {
+        use std::sync::atomic::Ordering;
+        if listener.set_nonblocking(true).is_err() {
+            return;
+        }
+        while !stop.load(Ordering::SeqCst) {
+            match listener.accept() {
+                Ok((stream, _)) => {
+                    stream.set_nonblocking(false).ok();
+                    let me = Arc::clone(self);
+                    std::thread::spawn(move || me.connection(stream));
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => std::thread::sleep(Duration::from_millis(50)),
+                Err(_) => std::thread::sleep(Duration::from_millis(50)),
+            }
+        }
+    }
+
     fn locked(&self) -> bool {
         let Ok(mut wrong) = self.wrong.lock() else { return true };
         wrong.retain(|t| t.elapsed() < LOCK_WINDOW);

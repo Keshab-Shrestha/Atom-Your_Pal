@@ -40,30 +40,45 @@ pub struct Chat {
     approvals: Arc<Approvals>,
     /// Chats with a turn running for the local API.
     api_busy: Mutex<std::collections::HashSet<String>>,
+    changed: Mutex<Option<Arc<dyn Fn() + Send + Sync>>>,
 }
 
 /// How long a question waits for the app (the runtime declines by itself after this, as Node does).
 const APPROVAL_WAIT: Duration = Duration::from_secs(60);
 
+/// A question that waits: the channel for the answer and the text the asker sees.
+struct Waiting {
+    tx: mpsc::Sender<bool>,
+    summary: String,
+    reason: String,
+}
+
 /// Questions that wait for `approval.answer`. Ids start with `rs-`, so an answer for a Node question goes to Node.
 #[derive(Default)]
 pub struct Approvals {
     next: AtomicU64,
-    waiting: Mutex<HashMap<String, mpsc::Sender<bool>>>,
+    waiting: Mutex<HashMap<String, Waiting>>,
 }
 
 impl Approvals {
     /// Gives the answer to the question `id`. `false` when no such question waits.
-    fn answer(&self, id: &str, approved: bool) -> bool {
-        let sender = self.waiting.lock().ok().and_then(|mut w| w.remove(id));
-        sender.is_some_and(|s| s.send(approved).is_ok())
+    pub fn answer(&self, id: &str, approved: bool) -> bool {
+        let waiting = self.waiting.lock().ok().and_then(|mut w| w.remove(id));
+        waiting.is_some_and(|w| w.tx.send(approved).is_ok())
+    }
+
+    /// The questions that wait now: id, summary, reason. Oldest id first.
+    pub fn pending(&self) -> Vec<(String, String, String)> {
+        let mut all: Vec<_> = self.waiting.lock().map(|w| w.iter().map(|(id, v)| (id.clone(), v.summary.clone(), v.reason.clone())).collect()).unwrap_or_default();
+        all.sort_by_key(|(id, _, _)| id.trim_start_matches("rs-").parse::<u64>().unwrap_or(0));
+        all
     }
 
     /// Every waiting question gets a no (the turn was cancelled or the chat changed).
     fn decline_all(&self) {
         if let Ok(mut waiting) = self.waiting.lock() {
-            for (_, sender) in waiting.drain() {
-                sender.send(false).ok();
+            for (_, w) in waiting.drain() {
+                w.tx.send(false).ok();
             }
         }
     }
@@ -72,7 +87,10 @@ impl Approvals {
 /// Asks the app through `approval.request`. No answer in time is a no.
 struct AppApprover {
     approvals: Arc<Approvals>,
-    to_app: Sink,
+    /// The app, when the turn comes from the window.
+    to_app: Option<Sink>,
+    /// Told when a question starts or ends (the Telegram bot shows it).
+    on_change: Option<Arc<dyn Fn() + Send + Sync>>,
     wait: Duration,
 }
 
@@ -81,16 +99,26 @@ impl Approver for AppApprover {
         let id = format!("rs-{}", self.approvals.next.fetch_add(1, Ordering::SeqCst) + 1);
         let (tx, rx) = mpsc::channel();
         match self.approvals.waiting.lock() {
-            Ok(mut waiting) => waiting.insert(id.clone(), tx),
+            Ok(mut waiting) => waiting.insert(id.clone(), Waiting { tx, summary: summary.into(), reason: reason.into() }),
             Err(_) => return false,
         };
         let request = Event::Other(json!({ "type": "approval.request", "id": id, "summary": summary, "reason": reason }).as_object().cloned().unwrap_or_default());
-        (self.to_app)(&request.to_line());
+        if let Some(to_app) = &self.to_app {
+            to_app(&request.to_line());
+        }
+        if let Some(changed) = &self.on_change {
+            changed();
+        }
         let approved = rx.recv_timeout(self.wait).unwrap_or(false);
         if let Ok(mut waiting) = self.approvals.waiting.lock() {
             waiting.remove(&id);
         }
-        (self.to_app)(&Event::ApprovalClosed { id }.to_line());
+        if let Some(to_app) = &self.to_app {
+            to_app(&Event::ApprovalClosed { id }.to_line());
+        }
+        if let Some(changed) = &self.on_change {
+            changed();
+        }
         approved
     }
 }
@@ -102,7 +130,7 @@ fn is_shared(id: &str) -> bool {
 
 impl Chat {
     pub fn new(db: PathBuf, provider: Arc<dyn Provider>, tools: Arc<dyn ToolRunner>, policy: Arc<dyn Policy>, model: &str) -> Chat {
-        Chat { db, provider, tools, policy, model: model.into(), current: Mutex::new(None), busy: AtomicBool::new(false), approvals: Arc::default(), api_busy: Mutex::default() }
+        Chat { db, provider, tools, policy, model: model.into(), current: Mutex::new(None), busy: AtomicBool::new(false), approvals: Arc::default(), api_busy: Mutex::default(), changed: Mutex::default() }
     }
 
     /// Looks at a line from Node to the app and keeps the id of the open chat.
@@ -187,7 +215,7 @@ impl Chat {
         emit(Event::Transcript { text: text.into() });
         emit(Event::State { state: LoopState::Thinking });
         let started = Instant::now();
-        let approver = AppApprover { approvals: Arc::clone(&self.approvals), to_app: Arc::clone(to_app), wait: APPROVAL_WAIT };
+        let approver = AppApprover { approvals: Arc::clone(&self.approvals), to_app: Some(Arc::clone(to_app)), on_change: self.on_change(), wait: APPROVAL_WAIT };
         let created = self.ensure_chat(id, text);
         let result = match created {
             Ok(created) => {
@@ -229,22 +257,53 @@ impl Chat {
 }
 
 impl Chat {
+    /// The questions that wait now (for the Telegram bot): id, summary, reason.
+    pub fn pending_asks(&self) -> Vec<(String, String, String)> {
+        self.approvals.pending()
+    }
+
+    /// The answer to a waiting question. `false` when no such question waits.
+    pub fn answer_ask(&self, id: &str, approved: bool) -> bool {
+        self.approvals.answer(id, approved)
+    }
+
+    /// Called when a question starts or ends. The Telegram bot sets it.
+    pub fn set_on_change(&self, f: Arc<dyn Fn() + Send + Sync>) {
+        if let Ok(mut slot) = self.changed.lock() {
+            *slot = Some(f);
+        }
+    }
+
+    fn on_change(&self) -> Option<Arc<dyn Fn() + Send + Sync>> {
+        self.changed.lock().ok().and_then(|c| c.clone())
+    }
+
+    /// One turn in the chat `telegram`. A call that needs approval becomes a question the bot shows with buttons.
+    pub fn ask_telegram(&self, text: &str) -> Result<String, (u16, String)> {
+        let approver = AppApprover { approvals: Arc::clone(&self.approvals), to_app: None, on_change: self.on_change(), wait: APPROVAL_WAIT };
+        self.ask_with("telegram", text, Some(&approver), false)
+    }
+
     /// One turn for the local API in chat `id` (made when it is new). No approver: a call that needs approval is refused.
     /// `Err((409, _))` when a turn runs in that chat already.
     pub fn ask_in(&self, id: &str, text: &str) -> Result<String, (u16, String)> {
+        self.ask_with(id, text, None, false)
+    }
+
+    fn ask_with(&self, id: &str, text: &str, approver: Option<&dyn Approver>, typed: bool) -> Result<String, (u16, String)> {
         if !self.api_busy.lock().map_err(|_| (500, "lock poisoned".to_string()))?.insert(id.to_string()) {
             return Err((409, "ARK is answering in this chat. Try again in a moment.".into()));
         }
-        let result = self.ask_in_unlocked(id, text).map_err(|e| (502, format!("ARK could not answer: {e}")));
+        let result = self.ask_in_unlocked(id, text, approver, typed).map_err(|e| (502, format!("ARK could not answer: {e}")));
         if let Ok(mut busy) = self.api_busy.lock() {
             busy.remove(id);
         }
         result
     }
 
-    fn ask_in_unlocked(&self, id: &str, text: &str) -> Result<String, String> {
+    fn ask_in_unlocked(&self, id: &str, text: &str, approver: Option<&dyn Approver>, typed: bool) -> Result<String, String> {
         let created = self.ensure_chat(id, text)?;
-        let result = self.answer(id, text, None, false);
+        let result = self.answer(id, text, approver, typed);
         if created && result.is_err() {
             self.drop_empty(id);
         }
@@ -530,7 +589,7 @@ mod tests {
     fn a_cancel_declines_a_waiting_question() {
         let approvals = Approvals::default();
         let (tx, rx) = mpsc::channel();
-        approvals.waiting.lock().unwrap().insert("rs-1".into(), tx);
+        approvals.waiting.lock().unwrap().insert("rs-1".into(), Waiting { tx, summary: "s".into(), reason: "r".into() });
         approvals.decline_all();
         assert!(!rx.recv().unwrap());
         assert!(!approvals.answer("rs-1", true), "a closed question is ignored");
