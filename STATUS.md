@@ -7,7 +7,11 @@
 - `reply.context` and `reply.draft` (`reply.rs`) check the input and call a `ReplyWriter`. Only `reply.rs` is ported. The writer is not wired to the chat model yet, so Node still answers `reply.*`. The search is a plain substring match, not ranked.
 - `foreground.list`, `.read`, `.dismiss` and `.ack` (`foreground.rs`) answer from the memory file. Rust reads and clears records. Node still prepares, starts and finishes attempts. A line that fails the checks goes to Node.
 - New crate `ark-computer`: the `computer` tool with `status`, `screen`, `move`, `click`, `double_click`, `type`, `key` and `scroll`. `ComputerPolicy` allows reading, asks for every input and refuses system keys. `DryRun` records the effects. `Live` posts CGEvents. It needs the owner switch and `ARK_COMPUTER_LIVE=1`. No test builds `Live`.
-- Not ported: screenshots, the Accessibility element tree (`look`), the point marker, learned shortcuts and lanes. The Cua driver keeps them.
+- Not ported: learned shortcuts and lanes. The Cua driver keeps them.
+- Helpers (plan section 8): `helpers/ark-dictation` is a Swift package with the Parakeet helper. It reuses the capture code of the Swift app (`DictationCapture`) and FluidAudio. It speaks the `ark-speech` line JSON and adds a `ready` line at start. The helper drops a silent clip and pads a short clip. The protocol and the session logic have unit tests with a fake microphone and a fake model.
+- `helpers/ark-screen` is a Swift package. It gives a screenshot (a PNG file), the Accessibility tree of the front app and the point marker. It posts no input. Requests carry an `id`: `size`, `screenshot`, `tree`, `marker`. `ark-computer` has the new actions `screenshot`, `tree` and `point`. The `Live` backend runs the helper that `ARK_SCREEN_HELPER` names. The policy allows these three actions as reading. Input stays in Rust behind the policy and the approver.
+- `rust/scripts/bundle-app.sh` builds both helpers into `ARK.app/Contents/MacOS`. `ark-app` passes `ARK_DICTATION_HELPER` and `ARK_SCREEN_HELPER` to the runtime when the files exist next to the binary. An outside setting wins. A helper that does not build is skipped with a warning.
+- Not run: the microphone, a real screenshot with Screen Recording, a real tree with Accessibility, and the marker window. The owner must try them once on the Mac. Dictation still needs `ARK_SPEECH_NATIVE=1`.
 - Checks: fixture and fake tests only. No microphone, no key and no real input was used.
 
 ## Rust Phase 1: ark-core — 12 November 2026

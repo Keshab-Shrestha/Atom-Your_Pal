@@ -1,5 +1,10 @@
 # ARK Task Plan
 
+## Rust helpers: ark-dictation and ark-screen — 13 November 2026
+
+- Done: both Swift helpers, the `ark-computer` actions `screenshot`, `tree` and `point`, and the bundle step. See STATUS.md.
+- Next: the owner tries dictation (`ARK_SPEECH_NATIVE=1`), a screenshot and the tree on the Mac. Then the model-facing `look` format can replace the Cua driver.
+
 ## Rust Phase 1: ark-core — 12 November 2026
 
 - ADR-278, Phase 1: the new crate `rust/crates/ark-core` holds pure logic, with no IO and no unsafe code. The running app does not call it (decision 3, option C).
